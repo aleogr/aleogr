@@ -16,25 +16,23 @@
   <img alt="GitHub top language" src="https://img.shields.io/github/languages/top/aleogr/aleogr?style=for-the-badge&label=Top%20Language&color=3F7292">
 </p>
 
-<table align="center" border="0">
-  <tr>
-    <td align="center" width="50%">
-      <a href="https://github.com/aleogr/aleogr/tree/main/blueprint">
-        <h3>blueprint</h3>
-      </a>
-      <p>Algorithmic patterns and reference code</p>
-      <a href="https://github.com/aleogr/aleogr/tree/main/blueprint">
-        <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/2eb09fea-4e3d-4782-8869-7b7ecb6093f0" />
-      </a>
-    </td>
-    <td align="center" width="50%">
-      <a href="https://github.com/aleogr/aleogr/tree/main/playground">
-        <h3>playground</h3>
-      </a>
-      <p>Short-lived, study-related code</p>
-      <a href="https://github.com/aleogr/aleogr/tree/main/playground">
-        <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/48a75367-3886-4147-aff3-a875dc3c3d12" />
-      </a>
-    </td>
-  </tr>
-</table>
+---
+
+<div align="center">
+
+  <!-- Playground -->
+  <p>playground -> Short-lived, study-related code</p>
+  <a href="https://github.com/aleogr/aleogr/tree/main/playground">
+    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/48a75367-3886-4147-aff3-a875dc3c3d12" />
+  </a>
+
+  ---
+
+  <!-- Blueprint -->
+
+  <p>blueprint -> Algorithmic patterns and reference code</p>
+  <a href="https://github.com/aleogr/aleogr/tree/main/blueprint">
+    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/2eb09fea-4e3d-4782-8869-7b7ecb6093f0" />
+  </a>
+
+</div>
