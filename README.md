@@ -18,6 +18,15 @@
 
 ---
 
+<!-- game names: pacman, breakout, galaga, puzzle-bobble, bomberman, minesweeper -->
+<picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/aleogr/aleogr/output/pacman-contribution-graph-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/aleogr/aleogr/output/pacman-contribution-graph.svg">
+    <img alt="[game-name] contribution graph" src="https://raw.githubusercontent.com/aleogr/aleogr/output/pacman-contribution-graph.svg">
+</picture>
+
+---
+
 <div align="center">
 
   <!-- Playground -->
