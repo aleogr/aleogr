@@ -18,7 +18,7 @@
 
 ---
 
-<!-- game names: pacman, breakout, galaga, puzzle-bobble, bomberman, minesweeper -->
+<!-- pacman -->
 <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/aleogr/aleogr/output/pacman-contribution-graph-dark.svg">
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/aleogr/aleogr/output/pacman-contribution-graph.svg">
