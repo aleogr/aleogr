@@ -1,0 +1,22 @@
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+!.gitkeep
+
+!*.json
+!*.go
+
+!go.sum
+!go.mod
+
+!README.md
+!LICENSE
+
+!Makefile
+!Dockerfile
+!.dockerignore
+
+# ...even if they are in subdirectories
+!*/
