@@ -23,7 +23,7 @@
 
   <p><a href="https://github.com/aleogr/aleogr/tree/main/playground">playground</a> -> Short-lived, study-related code</p>
   <a href="https://github.com/aleogr/aleogr/tree/main/playground">
-    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/48a75367-3886-4147-aff3-a875dc3c3d12" />
+    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/e0a6749e-8407-4b87-b152-8e45168531de" />
   </a>
 
   ---
@@ -32,7 +32,7 @@
 
   <p><a href="https://github.com/aleogr/aleogr/tree/main/blueprint">blueprint</a> -> Algorithmic patterns and reference code</p>
   <a href="https://github.com/aleogr/aleogr/tree/main/blueprint">
-    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/2eb09fea-4e3d-4782-8869-7b7ecb6093f0" />
+    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/44a47aaa-0ba7-45b5-8111-b061949e306d" />
   </a>
 
   ---
@@ -41,7 +41,7 @@
 
   <p><a href="https://github.com/aleogr/aleogr/tree/main/workspace">workspace</a> -> Automated environment provisioning</p>
   <a href="https://github.com/aleogr/aleogr/tree/main/workspace">
-    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/a8e16966-327f-45c0-b8fb-2b2217bd525a" />
+    <img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/46293286-e87e-4d01-8e69-f027856561cd" />
   </a>
 
 </div>
