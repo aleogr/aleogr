@@ -3,7 +3,7 @@ package options_test
 import (
 	"testing"
 
-	"github.com/aleogr/aleogr/playground/go/pattern/options"
+	"github.com/aleogr/aleogr/blueprint/go/pattern/options"
 )
 
 func TestRequiredAttribute(t *testing.T) {
