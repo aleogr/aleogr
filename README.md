@@ -3,9 +3,7 @@
 </h1>
 
 <p align="center">
-  <a href="https://github.com/Paloschi">
-    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&center=true&vCenter=true&width=435&lines=Full-stack+developer;Always+learning+new+things" alt="Typing SVG" />
-  </a>
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&pause=1000&center=true&vCenter=true&width=435&lines=Full-stack+developer;Always+learning+new+things" alt="Typing SVG" />
 </p>
 
 <p align="center">
