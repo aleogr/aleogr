@@ -1,0 +1,14 @@
+# -------- Build & Artifacts --------- #
+
+dist/
+
+# ---------- Source Control ---------- #
+
+.git
+.gitignore
+**/.gitkeep
+
+# ----------- Build Config ----------- #
+
+Makefile
+build/

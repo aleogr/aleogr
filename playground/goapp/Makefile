@@ -32,7 +32,7 @@ go-build: ## Compile the whole project into dist/
 
 .PHONY: go-build-app1
 go-build-app1: ## Compile app1 into dist/
-	@echo "Building app1"
+	@echo "Building app1..."
 	@go build -o dist/ ./cmd/app1
 
 
