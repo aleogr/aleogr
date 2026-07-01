@@ -12,12 +12,12 @@ help: ## Display this help screen
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "--- GO BUILD COMMANDS ---"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		grep "go-" | sort | awk 'BEGIN {FS = ":.*?## "}; \
 		{printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "--- DOCKER BUILD COMMANDS ---"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		grep "docker-" | sort | awk 'BEGIN {FS = ":.*?## "}; \
 		{printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
