@@ -1,6 +1,9 @@
 # blueprint
 
-<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/cdadcf72-11ba-4907-9e24-1a7c3b8a60b6" />
+<img width="1024" height="559" alt="image" src="https://github.com/user-attachments/assets/0eb5e741-64a9-4cbe-a358-543b73026c52" />
+
+<br />
+<br />
 
 Welcome to my blueprint repository! This space is dedicated to refined, high-quality reference implementations, architectural patterns, and robust code structures.
 
