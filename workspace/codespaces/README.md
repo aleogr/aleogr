@@ -4,7 +4,7 @@ Core settings, workflows, and cost-control steps for my dev environments.
 
 <br />
 
-## Workflow Lifecycle (Feature-Branch)
+## Workflow Lifecycle
 
 Always treat Codespaces as ephemeral environments to avoid configuration drift and cut costs.
 
@@ -23,7 +23,7 @@ Never hardcode credentials in `devcontainer.json` or source code.
 
 <br />
 
-## FinOps & Cost Controls
+## Cost Controls
 
 To optimize the GitHub personal free tier quota:
 * **Idle Timeout:** Set to 10-15 minutes in personal GitHub settings (`Settings -> Codespaces -> Default idle timeout`).
@@ -31,5 +31,20 @@ To optimize the GitHub personal free tier quota:
 
 <br />
 
-## Stack Blueprints
+## Stack Templates
 * [`/go`](./go/) - Go 1.26+ boilerplate environment.
+
+<br />
+
+## How to Apply
+
+1. Go to the target repository root and create the `.devcontainer/` folder.
+2. Copy the desired technology folder from this repository (e.g., `/go`) into it:
+
+   ```text
+   target-repo/
+   └── .devcontainer/
+       └── go/
+           ├── devcontainer.json
+           └── README.md
+   ```
