@@ -1,6 +1,6 @@
 {
-  "name": "Go",
-  "image": "mcr.microsoft.com/devcontainers/go:1-26-bookworm",
+  "name": "go:1-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/go:1-bookworm",
 
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {
