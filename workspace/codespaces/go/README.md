@@ -8,7 +8,7 @@ Development environment blueprint for pure Go microservices.
 
 ### Components & Tools Installed
 
-* **Base Image:** `mcr.microsoft.com/devcontainers/go:1.26-bookworm` (Official Debian-based image).
+* **Base Image:** `mcr.microsoft.com/devcontainers/go:1-bookworm` (Official Debian-based image).
 * **I/O Optimization:** Anonymous Docker volumes mounted to cache `go build` targets and `go.mod` downloads, bypassing cloud I/O throttling.
 * **Linter:** `golangci-lint` automatically installed on container boot via `postCreateCommand`.
 * **Formatting:** Native `gofmt` and automatic import organization enabled on file save.
