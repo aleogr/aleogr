@@ -1,8 +1,10 @@
-# Blueprint: Go Pure (1.26+)
+# Go (1.26+)
 
 Development environment blueprint for pure Go microservices. 
 
 > 📘 Global workflow, secrets, and cost policies: [Global Guide](../README.md).
+
+<br />
 
 ## 🛠️ Components & Tools Installed
 
@@ -15,6 +17,8 @@ Development environment blueprint for pure Go microservices.
 * `golang.go` (gopls, autocomplete, navigation).
 * `usernamehw.errorlens` (Inline error/warning highlighting).
 * `tamasfe.even-better-toml` (TOML validation).
+
+<br />
 
 ## 🚀 How to Apply to a Project
 
