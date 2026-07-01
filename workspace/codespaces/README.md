@@ -1,10 +1,10 @@
-# Codespaces Reference Guide
+# codespaces
 
 Core settings, workflows, and cost-control steps for my dev environments.
 
 <br />
 
-## 🔄 Workflow Lifecycle (Feature-Branch)
+## Workflow Lifecycle (Feature-Branch)
 
 Always treat Codespaces as ephemeral environments to avoid configuration drift and cut costs.
 
@@ -15,7 +15,7 @@ Always treat Codespaces as ephemeral environments to avoid configuration drift a
 
 <br />
 
-## 🔒 Secrets Management
+## Secrets Management
 
 Never hardcode credentials in `devcontainer.json` or source code.
 * **Storage:** Add sensitive tokens in GitHub `Settings -> Secrets and variables -> Codespaces`.
@@ -23,7 +23,7 @@ Never hardcode credentials in `devcontainer.json` or source code.
 
 <br />
 
-## 💰 FinOps & Cost Controls
+## FinOps & Cost Controls
 
 To optimize the GitHub personal free tier quota:
 * **Idle Timeout:** Set to 10-15 minutes in personal GitHub settings (`Settings -> Codespaces -> Default idle timeout`).
@@ -31,5 +31,5 @@ To optimize the GitHub personal free tier quota:
 
 <br />
 
-## 📁 Stack Blueprints
+## Stack Blueprints
 * [`/go`](./go/) - Go 1.26+ boilerplate environment.
