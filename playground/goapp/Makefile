@@ -11,12 +11,14 @@ IMAGE_NAME := $(REGISTRY)/$(PROJECT)
 help: ## Display this help screen
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "--- GO BUILD COMMANDS ---"
+	@echo "----------------- GO BUILD COMMANDS -----------------"
+	@echo ""
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		grep "go-" | sort | awk 'BEGIN {FS = ":.*?## "}; \
 		{printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "--- DOCKER BUILD COMMANDS ---"
+	@echo "--------------- DOCKER BUILD COMMANDS ---------------"
+	@echo ""
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		grep "docker-" | sort | awk 'BEGIN {FS = ":.*?## "}; \
 		{printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
@@ -44,7 +46,7 @@ go-clean: ## Remove build artifacts
 
 
 .PHONY: go-reset
-go-reset: ## Perform a deep clean (Go cache + dist folder)
+go-reset: ## Perform a deep clean (Go cache + dist)
 	@echo "Performing deep reset (Go cache + dist)..."
 	@go clean -cache -testcache -modcache
 	@rm -rf dist/
