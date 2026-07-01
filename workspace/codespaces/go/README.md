@@ -1,12 +1,12 @@
-# Go (1.26+)
+# go
 
 Development environment blueprint for pure Go microservices. 
 
-> 📘 Global workflow, secrets, and cost policies: [Global Guide](../README.md).
+> Global workflow, secrets, and cost policies: [Global Guide](../README.md).
 
 <br />
 
-## 🛠️ Components & Tools Installed
+## Components & Tools Installed
 
 * **Base:** `mcr.microsoft.com/devcontainers/go:1.26-bookworm` (Official Debian image).
 * **I/O Optimization:** Dedicated anonymous Docker volumes mounted to cache `go build` and `go.mod` downloads to bypass cloud I/O throttling.
@@ -20,7 +20,7 @@ Development environment blueprint for pure Go microservices.
 
 <br />
 
-## 🚀 How to Apply to a Project
+## How to Apply to a Project
 
 1. Copy the structure below into the target repository root:
    ```text
@@ -28,5 +28,6 @@ Development environment blueprint for pure Go microservices.
    └── go/
        ├── devcontainer.json
        └── README.md
+   ```
 
 2. Adjust the "image" tag version inside devcontainer.json if required by the project's go.mod.
