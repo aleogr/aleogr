@@ -1,0 +1,83 @@
+name: Go Binary Continuous Delivery
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: "Versão do Go para o ambiente de execução"
+        required: false
+        type: string
+        default: "1.26"
+      binary-name:
+        description: "Nome base para o binário gerado"
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Initialize GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-and-upload:
+    name: Compile and Upload Binaries
+    needs: create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: -linux-amd64
+          - goos: windows
+            goarch: amd64
+            suffix: -windows-amd64.exe
+          - goos: darwin
+            goarch: arm64
+            suffix: -darwin-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Compile Application
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go build -v -ldflags="-s -w" -o "${{ inputs.binary-name }}${{ matrix.suffix }}" ./...
+
+      - name: Upload Binary to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ inputs.binary-name }}${{ matrix.suffix }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
