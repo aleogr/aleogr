@@ -16,8 +16,7 @@
         "golang.go",
         "usernamehw.errorlens",
         "eamodio.gitlens",
-        "tamasfe.even-better-toml",
-        "ms-vscode.makefile-tools"
+        "tamasfe.even-better-toml"
       ],
       "settings": {
         "go.toolsManagement.autoUpdate": true,
