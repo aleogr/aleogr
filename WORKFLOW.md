@@ -4,7 +4,7 @@ This document details the branching strategy, continuous integration (CI), conti
 
 ---
 
-## ☁️ Cloud Development Environments
+## Cloud Development Environments
 
 To maintain a zero-configuration, reproducible, and isolated workspace, development is tied directly to branching behaviors:
 
@@ -13,7 +13,7 @@ To maintain a zero-configuration, reproducible, and isolated workspace, developm
 
 ---
 
-## 🧪 Continuous Integration (CI)
+## Continuous Integration (CI)
 
 The CI pipeline is optimized to guarantee code quality and eliminate redundant execution costs:
 
@@ -30,7 +30,7 @@ The CI pipeline is optimized to guarantee code quality and eliminate redundant e
 
 ---
 
-## 🚀 Continuous Delivery & Release Management (CD)
+## Continuous Delivery & Release Management (CD)
 
 Instead of deploying on every single merge to the main branch, a **Release-driven strategy** groups features into meaningful milestones:
 
