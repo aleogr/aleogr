@@ -42,3 +42,10 @@ A milestone-driven deployment strategy focused on stable versioning releases:
 2. **Tagging:** A semantic version tag is manually published once a release milestone is reached.
 3. **Automated Release:** The pipeline catches the tag, packages the codebase, and publishes a formal Release.
 4. **Automated Changelog:** The system compiles structured release notes mapping out all integrated Pull Requests.
+
+<br />
+
+### Reference Templates
+
+You can find the production-ready GitHub Actions templates used to power this architecture inside the blueprint section:
+* [CI & CD Workflow Templates](blueprint/github/)
