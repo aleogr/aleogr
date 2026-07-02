@@ -1,0 +1,48 @@
+name: Go Library Continuous Integration
+
+on:
+  workflow_call:
+    inputs:
+      go-version:
+        description: "Versão do Go para o ambiente de execução"
+        required: false
+        type: string
+        default: "1.26"
+
+jobs:
+  build-and-test:
+    name: Build, Lint and Test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: true
+        env:
+          GOPRIVATE: github.com/aleogr/*
+
+      - name: Configure Git for Private Modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12
+
+      - name: Run tests
+        run: go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Build library packages
+        run: go build -v ./...
