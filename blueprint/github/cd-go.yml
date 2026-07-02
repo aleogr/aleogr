@@ -1,4 +1,4 @@
-name: Go Continuous Deployment
+name: Go Continuous Delivery
 
 on:
   push:
