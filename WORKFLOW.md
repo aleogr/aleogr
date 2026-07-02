@@ -47,5 +47,6 @@ A milestone-driven deployment strategy focused on stable versioning releases:
 
 ### Reference Templates
 
-You can find the production-ready GitHub Actions templates used to power this architecture inside the blueprint section:
-* [CI & CD Workflow Templates](blueprint/github/)
+The production-ready configuration templates used to power this automation architecture can be referenced here:
+* [Go Continuous Integration](blueprint/github/ci-go.yml)
+* [Go Continuous Delivery](blueprint/github/cd-go.yml)
