@@ -1,4 +1,4 @@
-name: Go Continuous Delivery
+name: Go Continuous Integration
 
 on:
   push:
