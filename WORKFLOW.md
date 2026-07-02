@@ -15,9 +15,9 @@
 ### Continuous Integration (CI)
 
 #### Workflow Gates
-* **Development:** Automated checks run on every push to active working branches.
-* **Integration:** Tests trigger on Pull Requests to validate changes before they reach the main branch.
-* **Optimization:** Direct pushes to the main branch are restricted to eliminate redundant pipeline costs.
+* **Development:** Branches can be pushed freely for cloud backup without triggering execution costs.
+* **Integration:** Automated checks trigger exclusively on Pull Requests targeting the main branch to validate code before merge.
+* **Optimization:** Redundant execution budgets are completely eliminated by bypassing push-level pipelines.
 
 #### Pipeline Steps
 1. **Environment Setup:** Provisions the workspace and handles secure authentication for private modules.
