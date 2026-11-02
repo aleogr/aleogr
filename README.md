@@ -9,7 +9,3 @@
     </a>
   </p>
 </div>
-
-<div>
-  <h3>Public Spaces</h3>
-</div>
