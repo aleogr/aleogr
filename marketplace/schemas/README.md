@@ -1,14 +1,14 @@
 # Schemas
 
-JSON Schema da declaração de projeto (`.aleogr/project.json`) e declarações de exemplo.
+JSON Schema for the project declaration (`.aleogr/project.json`) and example declarations.
 
-Fonte da verdade: [`docs/DESIGN.md` — seção 11](../../docs/DESIGN.md#11-modelo-do-projeto) (testes na [seção 15](../../docs/DESIGN.md#15-testes)).
+Source of truth: [`docs/DESIGN.md` — section 11](../../docs/DESIGN.md#11-project-model) (tests in [section 15](../../docs/DESIGN.md#15-tests)).
 
-## Regras locais
+## Local rules
 
-- `project.schema.json` é versionado; o `project.json` tem o campo `version` e `$schema` para autocomplete:
+- `project.schema.json` is versioned; `project.json` has a `version` field and `$schema` for autocomplete:
   `https://raw.githubusercontent.com/aleogr/aleogr/main/marketplace/schemas/project.schema.json`.
-- Famílias exclusivas = objeto; combináveis = lista; exatamente um cloud `primary`; payments `mode` com default `"test"`; campo `environments`; campo opcional `notes`.
-- Nomes de projeto **não** podem começar com `test-` (prefixo reservado aos testes).
-- Plugins de família podem publicar sub-schemas para suas opções.
-- `examples/`: só declarações JSON com **valores fictícios** — são as entradas dos testes; validadas contra o schema em cada PR (`self-validate-marketplace.yml`). Nunca projetos com código.
+- Exclusive families = object; combinable = list; exactly one `primary` cloud; payments `mode` defaults to `"test"`; `environments` field; optional `notes` field.
+- Project names **cannot** start with `test-` (prefix reserved for tests).
+- Family plugins may publish sub-schemas for their options.
+- `examples/`: JSON declarations with **fictitious values** only — they are the test inputs; validated against the schema on every PR (`self-validate-marketplace.yml`). Never projects with code.

@@ -1,15 +1,15 @@
 # Dev Container Features
 
-Features distribuídas aos projetos, publicadas em `ghcr.io/aleogr/aleogr/<id>`.
+Features distributed to projects, published at `ghcr.io/aleogr/aleogr/<id>`.
 
-Fonte da verdade: [`docs/DESIGN.md` — seção 5](../../docs/DESIGN.md#5-dev-containers-e-codespaces) (nomes na [seção 1](../../docs/DESIGN.md#dev-container-features)).
+Source of truth: [`docs/DESIGN.md` — section 5](../../docs/DESIGN.md#5-dev-containers-and-codespaces) (names in [section 1](../../docs/DESIGN.md#dev-container-features)).
 
-## Regras locais
+## Local rules
 
-- Nome pela **tecnologia, sem prefixo** (`go`, `java`, `python`, `android`); a Feature comum a todos os projetos é `base`.
-- Layout da CLI de dev containers: fonte em `src/<id>/`, testes em `test/<id>/`; a subpasta tem o mesmo nome do `id`.
-- `base`: registra o marketplace `aleogr` no Claude Code do container e traz o que é comum a todos os projetos. Mantê-la coerente com o script de preparação do ambiente de nuvem `lab` (seção 14).
-- Features por tecnologia são só uma **camada de preferências** sobre a oficial: não reinstalam a linguagem, declaram `"installsAfter": ["ghcr.io/devcontainers/features/<tecnologia>"]` e **nunca** usam `dependsOn` na oficial.
-- A pasta de uma tecnologia só existe se houver algo a acrescentar à oficial.
-- Cada Feature tem a própria versão semver no `devcontainer-feature.json`. Publicação por `self-publish-features.yml`; marcar o pacote como público no GHCR na primeira publicação.
-- Os `.gitkeep` de `src/` e `test/` são removidos quando a primeira Feature/teste existir.
+- Named after the **technology, without prefix** (`go`, `java`, `python`, `android`); the Feature common to all projects is `base`.
+- Dev containers CLI layout: source in `src/<id>/`, tests in `test/<id>/`; the subfolder has the same name as the `id`.
+- `base`: registers the `aleogr` marketplace in the container's Claude Code and brings what is common to all projects. Keep it consistent with the setup script of the `lab` cloud environment (section 14).
+- Per-technology Features are only a **preferences layer** over the official one: they don't reinstall the language, they declare `"installsAfter": ["ghcr.io/devcontainers/features/<technology>"]` and **never** use `dependsOn` on the official one.
+- A technology's folder only exists if there is something to add to the official one.
+- Each Feature has its own semver version in `devcontainer-feature.json`. Published by `self-publish-features.yml`; mark the package as public on GHCR on first publication.
+- The `.gitkeep` files in `src/` and `test/` are removed when the first Feature/test exists.

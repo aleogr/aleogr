@@ -1,15 +1,15 @@
 # Workflows
 
-Pasta plana (exigência do GitHub), organizada por prefixo.
+Flat folder (GitHub requirement), organized by prefix.
 
-Fonte da verdade: [`docs/DESIGN.md` — seções 3, 4 e 15](../../docs/DESIGN.md#4-cicd) (nomes na [seção 1](../../docs/DESIGN.md#workflows)).
+Source of truth: [`docs/DESIGN.md` — sections 3, 4 and 15](../../docs/DESIGN.md#4-cicd) (names in [section 1](../../docs/DESIGN.md#workflows)).
 
-## Regras locais
+## Local rules
 
-- **Reutilizáveis** (`ci-`, `deploy-`, `release-`): somente `on: workflow_call`, para não rodarem a cada commit aqui. Chamados pelos workflows finos (`ci.yml`/`cd.yml`) dos projetos, fixados por SHA.
-- **Do próprio repositório**: prefixo `self-` (ex.: `self-validate-marketplace.yml`, `self-lint.yml`, `self-test-features.yml`, `self-publish-features.yml`, `self-cleanup-tests.yml`).
-- Versionamento por tags prefixadas: `workflows-v1`, `workflows-v2`...
-- Secrets recebidos explicitamente pelo nome; **nunca** `secrets: inherit`.
-- Logs de workflows públicos são públicos: **nenhum workflow imprime variáveis ou segredos**.
+- **Reusable** (`ci-`, `deploy-`, `release-`): only `on: workflow_call`, so they don't run on every commit here. Called by the projects' thin workflows (`ci.yml`/`cd.yml`), pinned by SHA.
+- **This repository's own**: prefix `self-` (e.g. `self-validate-marketplace.yml`, `self-lint.yml`, `self-test-features.yml`, `self-publish-features.yml`, `self-cleanup-tests.yml`).
+- Versioning by prefixed tags: `workflows-v1`, `workflows-v2`...
+- Secrets received explicitly by name; **never** `secrets: inherit`.
+- Logs of public workflows are public: **no workflow prints variables or secrets**.
 
-> Atenção: nunca criar `.github/README.md` — ele substituiria o README do perfil.
+> Warning: never create `.github/README.md` — it would replace the profile README.

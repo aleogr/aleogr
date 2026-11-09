@@ -1,14 +1,14 @@
 # Composite actions
 
-Composite actions reutilizáveis pelos projetos (uma subpasta por action, com `action.yml`).
+Composite actions reusable by projects (one subfolder per action, with `action.yml`).
 
-Fonte da verdade: [`docs/DESIGN.md` — seções 3 e 4](../../docs/DESIGN.md#3-condições-do-repositório-público).
+Source of truth: [`docs/DESIGN.md` — sections 3 and 4](../../docs/DESIGN.md#3-public-repository-conditions).
 
-## Regras locais
+## Local rules
 
-- Referência nos projetos: `aleogr/aleogr/.github/actions/<nome>@<sha>` — sempre fixada por **SHA** (Dependabot/Renovate atualizam). Dentro deste repositório: `./.github/actions/<nome>`.
-- Versionamento por tags prefixadas: `actions-v1`, `actions-v2`...
-- Só ferramentas genéricas; nunca dados, IDs ou segredos (o repositório é público).
-- Não serão publicadas no GitHub Marketplace (exigiria repositório próprio).
+- Reference from projects: `aleogr/aleogr/.github/actions/<name>@<sha>` — always pinned by **SHA** (Dependabot/Renovate update it). Within this repository: `./.github/actions/<name>`.
+- Versioning by prefixed tags: `actions-v1`, `actions-v2`...
+- Generic tooling only; never data, IDs or secrets (the repository is public).
+- Not published to the GitHub Marketplace (it would require a dedicated repository).
 
-> Atenção: nunca criar `.github/README.md` — ele substituiria o README do perfil.
+> Warning: never create `.github/README.md` — it would replace the profile README.

@@ -1,30 +1,30 @@
 # Plugins
 
-Uma subpasta por plugin. Não criar a pasta de um plugin antes do próprio plugin.
+One subfolder per plugin. Do not create a plugin's folder before the plugin itself.
 
-Fonte da verdade: [`docs/DESIGN.md` — seções 1, 8, 9, 10 e 12](../../docs/DESIGN.md#1-nomes).
+Source of truth: [`docs/DESIGN.md` — sections 1, 8, 9, 10 and 12](../../docs/DESIGN.md#1-names).
 
-## Nomes
+## Names
 
-- Orquestrador: `aleogr` (skills sem provedor, ex.: `declare-project`).
-- Plugins de família: `aleogr-<família>-<provedor>` (ex.: `aleogr-repo-github`).
-- Skills de família: `<provedor>-<ação>`, dado pelo **nome da pasta** (ex.: `skills/github-create-repo/`).
-- **Nenhum `SKILL.md` tem `name:` no frontmatter.** A `description` cita o provedor.
-- Nunca usar nomes de comandos embutidos (`init`, `doctor`, `status`, `review`, `context`, `config`...).
+- Orchestrator: `aleogr` (skills without provider, e.g. `declare-project`).
+- Family plugins: `aleogr-<family>-<provider>` (e.g. `aleogr-repo-github`).
+- Family skills: `<provider>-<action>`, given by the **folder name** (e.g. `skills/github-create-repo/`).
+- **No `SKILL.md` has `name:` in its frontmatter.** The `description` names the provider.
+- Never use built-in command names (`init`, `doctor`, `status`, `review`, `context`, `config`...).
 
-## Tipos de família
+## Family types
 
-- **Exclusiva** (um provedor por projeto/domínio), **combinável** (vários ao mesmo tempo); escopo de **projeto**, **componente** ou **domínio**. Mapa completo na seção 9.
-- Cada família tem um contrato mínimo de ações (seção 10); skills extras seguem a mesma convenção de nome.
+- **Exclusive** (one provider per project/domain), **combinable** (several at once); **project**, **component** or **domain** scope. Full map in section 9.
+- Each family has a minimum contract of actions (section 10); extra skills follow the same naming convention.
 
-## Esqueleto de um plugin
+## Plugin skeleton
 
 ```
-aleogr-<família>-<provedor>/
-├── .claude-plugin/plugin.json   ← só o manifesto aqui dentro
-├── skills/<provedor>-<ação>/SKILL.md
-├── agents/                      (opcional)
-├── hooks/hooks.json             (opcional)
-├── scripts/                     (opcional; referenciar com ${CLAUDE_PLUGIN_ROOT})
-└── .mcp.json                    (opcional; MCP oficial quando não houver boa CLI)
+aleogr-<family>-<provider>/
+├── .claude-plugin/plugin.json   ← only the manifest in here
+├── skills/<provider>-<action>/SKILL.md
+├── agents/                      (optional)
+├── hooks/hooks.json             (optional)
+├── scripts/                     (optional; reference with ${CLAUDE_PLUGIN_ROOT})
+└── .mcp.json                    (optional; official MCP when there is no good CLI)
 ```

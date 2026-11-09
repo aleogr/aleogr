@@ -1,12 +1,12 @@
-# Marketplace `aleogr`
+# `aleogr` marketplace
 
-Raiz do marketplace de plugins do Claude Code (o diretório que contém `.claude-plugin/marketplace.json`).
+Root of the Claude Code plugin marketplace (the directory containing `.claude-plugin/marketplace.json`).
 
-Fonte da verdade: [`docs/DESIGN.md` — seção 2](../docs/DESIGN.md#2-estrutura-de-aleograleogr) (nomes na [seção 1](../docs/DESIGN.md#1-nomes)).
+Source of truth: [`docs/DESIGN.md` — section 2](../docs/DESIGN.md#2-structure-of-aleograleogr) (names in [section 1](../docs/DESIGN.md#1-names)).
 
-## Como registrar
+## How to register
 
-Como o `marketplace.json` não está na raiz do repositório, `claude plugin marketplace add aleogr/aleogr` **não funciona**. Registre em `extraKnownMarketplaces`:
+Since `marketplace.json` is not at the repository root, `claude plugin marketplace add aleogr/aleogr` **does not work**. Register it in `extraKnownMarketplaces`:
 
 ```json
 {
@@ -26,17 +26,17 @@ Como o `marketplace.json` não está na raiz do repositório, `claude plugin mar
 }
 ```
 
-Onde colocar, conforme onde o Claude Code roda:
+Where to put it, depending on where Claude Code runs:
 
-- **Local (app do Windows):** à mão, uma vez por computador, em `~/.claude/settings.json`; nos projetos, o `sync-plugins` escreve o bloco no `.claude/settings.json` (plugins de família no escopo do projeto).
-- **Codespaces:** a Feature `base` faz o registro.
-- **Sessões na nuvem do Claude Code:** o script de preparação do ambiente de nuvem `lab` faz o registro (o `.claude/settings.json` do repositório **não** instala plugins nessas sessões).
-- **Testar uma branch:** acrescente `"ref": "<branch>"` ao `source`.
+- **Local (Windows app):** by hand, once per computer, in `~/.claude/settings.json`; in projects, `sync-plugins` writes the block to `.claude/settings.json` (family plugins in project scope).
+- **Codespaces:** the `base` Feature registers it.
+- **Claude Code cloud sessions:** the setup script of the `lab` cloud environment registers it (the repository's `.claude/settings.json` does **not** install plugins in those sessions).
+- **Testing a branch:** add `"ref": "<branch>"` to `source`.
 
-## Regras locais
+## Local rules
 
-- `source` dos plugins relativos a esta pasta (`./plugins/aleogr`), sem `..`.
-- Validação: `claude plugin validate ./marketplace`. Teste local: `claude plugin marketplace add ./marketplace`.
-- Toda entrada do `marketplace.json` tem `category` e `displayName`, e seu nome é igual ao `name` do `plugin.json`.
-- Não usar `dependencies` para ligar o orquestrador aos plugins de família.
-- `defaults.json` (futuro): só escolhas pessoais, sem IDs nem segredos.
+- Plugin `source` paths are relative to this folder (`./plugins/aleogr`), without `..`.
+- Validation: `claude plugin validate ./marketplace`. Local test: `claude plugin marketplace add ./marketplace`.
+- Every `marketplace.json` entry has `category` and `displayName`, and its name equals the `plugin.json` `name`.
+- Do not use `dependencies` to link the orchestrator to the family plugins.
+- `defaults.json` (future): personal choices only, no IDs or secrets.
