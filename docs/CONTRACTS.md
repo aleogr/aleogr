@@ -1,6 +1,6 @@
 # CONTRACTS — family plugin contracts
 
-> **Status: DRAFT / PROVISIONAL.** Proposal for every family in [DESIGN.md section 9](DESIGN.md#9-family-map-direction-not-a-task-list). Per [section 10.3](DESIGN.md#103-extending-contracts), a contract is only frozen once a second real provider exists; until then each contract is written with the listed representatives in mind and revised when the second provider arrives.
+> Contracts for every family in [DESIGN.md section 9](DESIGN.md#9-family-map-direction-not-a-task-list). The **common rules (section 1) are decided**. The per-family tables are **PROVISIONAL**: per [DESIGN.md section 10.3](DESIGN.md#103-extending-contracts), a family contract is only frozen once a second real provider exists; until then it is written with the listed representatives in mind and revised when the second provider arrives.
 
 ## Contents
 
@@ -14,7 +14,7 @@
 - [8. Operations](#8-operations): monitoring, analytics, notify
 - [9. Collaboration](#9-collaboration): tracker, wiki
 - [10. Distribution](#10-distribution): store, publish
-- [11. Open questions](#11-open-questions)
+- [11. Decisions and open items](#11-decisions-and-open-items)
 
 ---
 
@@ -122,7 +122,7 @@ Notes:
 - Project environments (`lab`/`homolog`/`prod`) map to the provider's deployment environments; covered by the `environment` scope.
 - Repository deletion is not in the contract: only the test cleanup deletes repositories.
 - Bitbucket has no topics; the federated layout and tests depend on topics (recorded limitation).
-- Topic `aleogr-<project>` would collide with `aleogr-test` for a project named `test`: reserve the name `test` as well as the `test-` prefix.
+- Topic `aleogr-<project>` would collide with `aleogr-test` for a project named `test`: that is why the name `test` is reserved as well as the `test-` prefix ([DESIGN.md section 1](DESIGN.md#tests)).
 
 ---
 
@@ -230,7 +230,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### cache-* (exclusive, project) — aws-elasticache, gcp-memorystore, redis-cloud
 
-`shared`: a key namespace (prefix + ACL user) on a lab-wide cache. Managed caches usually have fixed cost: in `lab`, prefer a serverless/free-tier provider or the shared instance.
+`shared`: a key namespace (prefix + ACL user) per project. Managed caches usually have fixed cost: in `lab`, use a serverless or free-tier provider (e.g. Upstash, Redis Cloud free); `create-instance` is `dedicated` only.
 
 | Action | Input | Output |
 |---|---|---|
@@ -265,7 +265,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### search-* (exclusive, project) — elastic, algolia, aws-opensearch
 
-`shared`: indexes prefixed with the project in a lab-wide cluster/app (or free tier). Clusters usually have fixed cost.
+`shared`: indexes prefixed with the project. Clusters usually have fixed cost: in `lab`, use a serverless or free-tier provider (e.g. Algolia free); `create-cluster` is `dedicated` only.
 
 | Action | Input | Output |
 |---|---|---|
@@ -507,14 +507,19 @@ Notes: package name reservation/namespace verification (e.g. Maven Central) is u
 
 ---
 
-## 11. Open questions
+## 11. Decisions and open items
 
-1. `aleogr-result` format: accept the envelope and the `requests` routing in [section 1.4](#14-output-the-aleogr-result-block)?
-2. Standard verbs: accept `describe-*` as mandatory in every family?
+Decided (reflected in DESIGN.md):
+
+1. `aleogr-result` block with `requests` routing ([section 1.4](#14-output-the-aleogr-result-block)).
+2. `describe-*` mandatory in every family.
 3. New repo-* actions: `describe-repo`, `set-ci-variable`, `archive-repo`.
-4. New cloud-* actions: `setup-ci-identity` (keyless CI) and `setup-budget-alert`.
-5. Reserve the project name `test` in addition to the `test-` prefix.
-6. sms-* and publish-* treated as special care (not in DESIGN.md section 10.8 today).
-7. hosting-*: deploys only from CI (no provider Git integration).
-8. cache-*/search-* in `lab`: prefer serverless/free tier or a lab-wide shared instance (both have fixed-cost managed options).
-9. dns-* in `lab`: `add-record` vs `add-route` — depends on the lab investigation (DESIGN.md section 18).
+4. New cloud-* actions: `setup-ci-identity`, `setup-budget-alert`, `remove-deploy`.
+5. Project name `test` reserved, as well as the `test-` prefix.
+6. sms-* and publish-* are special-care families.
+7. hosting-*: deploys only from CI.
+8. cache-* and search-* in `lab`: serverless or free tier.
+
+Open:
+
+9. dns-* in `lab`: `add-record` vs `add-route` — depends on the lab investigation ([DESIGN.md section 18](DESIGN.md#18-open-items)).
