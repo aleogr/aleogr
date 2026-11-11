@@ -15,7 +15,8 @@ Source of truth: [`docs/DESIGN.md` — sections 1, 8, 9, 10 and 12](../../docs/D
 ## Family types
 
 - **Exclusive** (one provider per project/domain), **combinable** (several at once); **project**, **component** or **domain** scope. Full map in section 9.
-- Each family has a minimum contract of actions (section 10); extra skills follow the same naming convention.
+- Each family has a minimum contract of actions, defined in [`docs/CONTRACTS.md`](../../docs/CONTRACTS.md); extra skills follow the same naming convention.
+- Every family has a `describe-*` action, and every skill ends with an `aleogr-result` block (CONTRACTS.md section 1).
 
 ## Plugin skeleton
 
