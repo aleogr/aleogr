@@ -8,7 +8,7 @@ Source of truth: [`docs/DESIGN.md` — sections 1, 8, 9, 10 and 12](../../docs/D
 
 - Orchestrator: `aleogr` (skills without provider, e.g. `declare-project`).
 - Family plugins: `aleogr-<family>-<provider>` (e.g. `aleogr-repo-github`).
-- Family skills: `<provider>-<action>`, given by the **folder name** (e.g. `skills/github-create-repo/`).
+- Family skills: `<provider>_<action>`, given by the **folder name** (e.g. `skills/github_create-repo/`, `skills/aws-route53_add-record/`). Exactly one underscore, between provider and action; hyphens inside each part.
 - **No `SKILL.md` has `name:` in its frontmatter.** The `description` names the provider.
 - Never use built-in command names (`init`, `doctor`, `status`, `review`, `context`, `config`...).
 
@@ -22,7 +22,7 @@ Source of truth: [`docs/DESIGN.md` — sections 1, 8, 9, 10 and 12](../../docs/D
 ```
 aleogr-<family>-<provider>/
 ├── .claude-plugin/plugin.json   ← only the manifest in here
-├── skills/<provider>-<action>/SKILL.md
+├── skills/<provider>_<action>/SKILL.md
 ├── agents/                      (optional)
 ├── hooks/hooks.json             (optional)
 ├── scripts/                     (optional; reference with ${CLAUDE_PLUGIN_ROOT})
