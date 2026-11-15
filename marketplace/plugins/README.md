@@ -6,9 +6,10 @@ Source of truth: [`docs/DESIGN.md` — sections 1, 8, 9, 10 and 12](../../docs/D
 
 ## Names
 
-- Orchestrator: `aleogr` (skills without provider, e.g. `declare-project`).
+- Orchestrator: `aleogr` (skills without provider, e.g. `project-declare`).
 - Family plugins: `aleogr-<family>-<provider>` (e.g. `aleogr-repo-github`).
-- Family skills: `<provider>_<action>`, given by the **folder name** (e.g. `skills/github_create-repo/`, `skills/aws-route53_add-record/`). Exactly one underscore, between provider and action; hyphens inside each part.
+- Family skills: `<provider>_<action>`, given by the **folder name** (e.g. `skills/github_repo-create/`, `skills/aws-route53_record-add/`). Exactly one underscore, between provider and action; hyphens inside each part.
+- Object first, action after, in every skill: `repo-create`, `branch-protect`, `project-declare` (the verb may carry a complement: `ci-set-secret`).
 - **No `SKILL.md` has `name:` in its frontmatter.** The `description` names the provider.
 - Never use built-in command names (`init`, `doctor`, `status`, `review`, `context`, `config`...).
 

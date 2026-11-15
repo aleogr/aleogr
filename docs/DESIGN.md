@@ -64,16 +64,17 @@ Working rules for this repository:
 ### Marketplace and plugins
 
 - Marketplace: `name` = `aleogr`. Repository: `aleogr/aleogr`.
-- Orchestrator plugin: `aleogr` (e.g. `/aleogr:new-project`). Install id: `aleogr@aleogr`.
+- Orchestrator plugin: `aleogr` (e.g. `/aleogr:project-create`). Install id: `aleogr@aleogr`.
 - Family plugins: `aleogr-<family>-<provider>` (e.g. `aleogr-repo-github`, `aleogr-cloud-gcp`, `aleogr-dns-cloudflare`, `aleogr-stack-go`).
 
 ### Skills
 
-- Family skills: `<provider>_<action>`, defined by the skill's **FOLDER NAME** (e.g. `skills/github_create-repo/`). Full command: `/aleogr-repo-github:github_create-repo`, `/aleogr-cloud-gcp:gcp_create-environment`, `/aleogr-dns-cloudflare:cloudflare_add-record`, `/aleogr-stack-go:go_setup`.
-- **Exactly one underscore**, separating the provider from the action; hyphens separate words inside each part. This keeps the boundary visible when the provider has more than one word — cloud products carry the full provider: `aws-route53_add-record`, `gcp-cloud-sql_create-database`.
+- Family skills: `<provider>_<action>`, defined by the skill's **FOLDER NAME** (e.g. `skills/github_repo-create/`). Full command: `/aleogr-repo-github:github_repo-create`, `/aleogr-cloud-gcp:gcp_environment-create`, `/aleogr-dns-cloudflare:cloudflare_record-add`, `/aleogr-stack-go:go_setup`.
+- **Exactly one underscore**, separating the provider from the action; hyphens separate words inside each part. This keeps the boundary visible when the provider has more than one word — cloud products carry the full provider: `aws-route53_record-add`, `gcp-cloud-sql_database-create`.
 - **NO plugin `SKILL.md` has the `name:` field in its frontmatter.** The name comes from the folder and Claude Code applies the plugin prefix. Reason: there is a recurring bug (issue anthropics/claude-code#22063, resolved in March 2026 and reported again as a regression in June) in which the `name:` field makes the skill lose the plugin prefix; the plugin documentation advises against using `name:`.
 - The provider in the skill name is an **ADDITIONAL and deliberate** protection: even if the `plugin:skill` namespace fails (regression, or a surface that shows skills without prefix), there is no collision between plugins. The redundancy in the command (`github` appears twice) is consciously accepted.
-- Orchestrator skills have no technology and carry no provider (e.g. `/aleogr:declare-project`).
+- **Object first, action after**, in every skill: the action part is `<object>-<verb>` (e.g. `repo-create`, `branch-protect`, `record-add`), and the verb may carry a complement (`ci-set-secret`). It groups skills by object in the command menu and follows the order of the CLIs the skills use (`gh repo create`). A skill without an object is just the verb (`go_setup`).
+- Orchestrator skills have no technology and carry no provider; they are `<object>-<verb>` (e.g. `/aleogr:project-declare`, `/aleogr:project-apply`, `/aleogr:component-add`).
 - Skill descriptions name the provider explicitly (Claude picks the skill for automatic invocation based on the description). Frontmatter example:
 
 ```markdown
@@ -125,7 +126,7 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
   - database `test_<id>`;
   - record `test-<id>.lab.aleogr.dev`;
   - label `aleogr-test=<id>`.
-- The `test-` prefix is **RESERVED**: the schema and `declare-project` reject real project names starting with `test-`.
+- The `test-` prefix is **RESERVED**: the schema and `project-declare` reject real project names starting with `test-`.
 
 ---
 
@@ -190,28 +191,28 @@ aleogr/aleogr/
         ├── aleogr/                            ← orchestrator (MVP)
         │   ├── .claude-plugin/plugin.json
         │   ├── skills/
-        │   │   ├── check-environment/SKILL.md
-        │   │   ├── declare-project/SKILL.md
-        │   │   ├── plan-project/SKILL.md
-        │   │   └── apply-project/SKILL.md
+        │   │   ├── tools-check/SKILL.md
+        │   │   ├── project-declare/SKILL.md
+        │   │   ├── project-plan/SKILL.md
+        │   │   └── project-apply/SKILL.md
         │   ├── hooks/hooks.json               ← destructive command guard
         │   └── scripts/guard-destructive.sh
         ├── aleogr-repo-github/                (MVP)
         │   ├── .claude-plugin/plugin.json
         │   └── skills/
-        │       ├── github_create-repo/SKILL.md        ← contract
-        │       ├── github_configure-repo/SKILL.md     ← contract
-        │       ├── github_protect-branch/SKILL.md     ← contract
-        │       ├── github_set-ci-secret/SKILL.md      ← contract
-        │       ├── github_setup-ci/SKILL.md           ← contract
-        │       └── github_install-claude-app/SKILL.md ← extra (future)
+        │       ├── github_repo-create/SKILL.md        ← contract
+        │       ├── github_repo-configure/SKILL.md     ← contract
+        │       ├── github_branch-protect/SKILL.md     ← contract
+        │       ├── github_ci-set-secret/SKILL.md      ← contract
+        │       ├── github_ci-setup/SKILL.md           ← contract
+        │       └── github_claude-app-install/SKILL.md ← extra (future)
         ├── aleogr-cloud-gcp/                  (MVP)
         │   ├── .claude-plugin/plugin.json
-        │   └── skills/ gcp_create-environment, gcp_enable-services, gcp_setup-deploy
+        │   └── skills/ gcp_environment-create, gcp_services-enable, gcp_deploy-setup
         └── aleogr-dns-cloudflare/             (MVP)
             ├── .claude-plugin/plugin.json
             ├── .mcp.json                      ← official Cloudflare MCP (https://mcp.cloudflare.com/mcp)
-            └── skills/ cloudflare_add-record
+            └── skills/ cloudflare_record-add
 ```
 
 ### 2.1 Documentation rules
@@ -226,13 +227,13 @@ aleogr/aleogr/
 - `marketplace.json` lives at `marketplace/.claude-plugin/marketplace.json`. The marketplace root is `marketplace/` (the directory containing `.claude-plugin/`); `source` paths are relative to it (`./plugins/aleogr`), without `..`.
 - Each plugin has `.claude-plugin/plugin.json` (only the manifest lives inside `.claude-plugin/`); `skills/`, `agents/`, `hooks/`, `scripts/` and `.mcp.json` live at the plugin root. Scripts are referenced with `${CLAUDE_PLUGIN_ROOT}`.
 - Local validation: `claude plugin validate ./marketplace`. Local test: `claude plugin marketplace add ./marketplace`.
-- **Do NOT use the `dependencies` field** to link the orchestrator to the family plugins: that would install every family in every project. Activation is decided by each project's declaration, via `sync-plugins`.
+- **Do NOT use the `dependencies` field** to link the orchestrator to the family plugins: that would install every family in every project. Activation is decided by each project's declaration, via `plugins-sync`.
 
 ### 2.3 Registering the marketplace
 
 Since `marketplace.json` is not at the repository root, `claude plugin marketplace add aleogr/aleogr` **does not work**. Registration is done in `extraKnownMarketplaces`, through four paths, depending on where Claude Code runs:
 
-- **Local (Windows app):** by hand once per computer in `~/.claude/settings.json`; and by `sync-plugins` in each project's `.claude/settings.json` (family plugins in project scope).
+- **Local (Windows app):** by hand once per computer in `~/.claude/settings.json`; and by `plugins-sync` in each project's `.claude/settings.json` (family plugins in project scope).
 - **Codespaces:** by the `base` Feature.
 - **Claude Code cloud sessions:** by the cloud environment's SETUP SCRIPT ([section 14](#14-where-i-run-claude-code)). **WARNING:** cloud sessions do NOT install plugins or marketplaces declared in the repository's `.claude/settings.json` (`enabledPlugins`/`extraKnownMarketplaces`).
 - **To test a branch:** add `"ref": "<branch>"` to `source`.
@@ -283,7 +284,7 @@ Settings block:
 
 ## 4. CI/CD
 
-- The reusable pieces live in `aleogr/aleogr`; each project has **THIN** workflows generated by the `<provider>_setup-ci` skill of the `repo-*` plugin (on GitHub, `github_setup-ci`), which only call the reusable ones with parameters.
+- The reusable pieces live in `aleogr/aleogr`; each project has **THIN** workflows generated by the `<provider>_ci-setup` skill of the `repo-*` plugin (on GitHub, `github_ci-setup`), which only call the reusable ones with parameters.
 - **A single `.github/workflows/ci.yml` per project:**
   - a `changes` job detects what changed (initially `dorny/paths-filter` pinned by SHA; candidate to become the composite action `aleogr/aleogr/.github/actions/detect-changes`, which receives the list of components);
   - one job per component, with `needs: changes` and `if:` on the corresponding output, calling its stack's reusable workflow (e.g. `aleogr/aleogr/.github/workflows/ci-go.yml@<sha>` with `working-directory` and `go-version`);
@@ -291,7 +292,7 @@ Settings block:
 - **Do NOT use one workflow per component with `on.push.paths`:** the native filter applies to the whole workflow, and a workflow that didn't trigger leaves the required check pending forever, blocking the PR. A job skipped by `if:` counts as success.
 - Secrets are passed explicitly by name to reusable workflows (**do not use `secrets: inherit`**), making visible in the project what each one receives.
 - Deploy in `cd.yml` (or later jobs of the same file) with `needs:` on the component's CI and a condition to run only on `main`. With multiple project environments ([section 6](#6-the-lab-project-environments-and-minimum-cost)), `cd.yml` deploys to `lab` and promotes to the following environments.
-- **Future GitLab:** reusable workflows and composite actions only serve GitHub Actions. A `gitlab_setup-ci` would need pipeline templates.
+- **Future GitLab:** reusable workflows and composite actions only serve GitHub Actions. A `gitlab_ci-setup` would need pipeline templates.
   - Preferred option (fewer repositories): templates in `aleogr/aleogr` itself (e.g. `.gitlab/ci/`), included in projects by public URL.
   - Alternative: CI/CD components from the GitLab catalog (requires a project hosted on GitLab).
   - Decide only when there is a real project on GitLab.
@@ -322,7 +323,7 @@ Settings block:
 - **Layout:** Feature sources in `.devcontainer/features/src/<id>/` and tests in `.devcontainer/features/test/<id>/` (layout expected by the dev containers CLI). The subfolder has the same name as the `id`. The `devcontainer.json` of `aleogr/aleogr` itself references the local Features by relative path (e.g. `./features/src/base`) to test before publishing.
 - **Publishing** via `self-publish-features.yml` to GHCR (namespace `aleogr/aleogr`). GHCR packages are born private: mark each Feature as public on first publication.
 - Projects' `devcontainer.json` is a **shared file**: each stack/platform contributes its entries in `features` without touching the others. Monorepo: a single `devcontainer.json` by default; one per component (`.devcontainer/<component>/devcontainer.json`) when some platform declares a heavy or conflicting toolchain.
-- What is specific to Codespaces (Codespaces secrets, prebuilds) are extra skills of `aleogr-repo-github` (e.g. `github_configure-codespaces`).
+- What is specific to Codespaces (Codespaces secrets, prebuilds) are extra skills of `aleogr-repo-github` (e.g. `github_codespaces-configure`).
 - iOS/watchOS (macOS) and firmware (physical device) don't build in a codespace: the devcontainer is for editing and using Claude Code; the build happens in CI (macOS runner) or in the Windows app. The `platform-*` records this limit.
 - **Do NOT use `aleogr/aleogr` as the Codespaces dotfiles repository** (it would require a script at the root or links to the dot folders); `base` achieves the goal.
 - **Cost:** set a spending limit and quick idle shutdown in Codespaces.
@@ -368,7 +369,7 @@ Declaration (replaces a simple `domains` field):
 - **Lab platform:** created ONCE and shared by all projects in development (e.g. a single Cloud SQL instance, the single access point under `lab.aleogr.dev`, the DNS wildcard, Access protection, the lab's secret vault). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
 - **Project resources:** created INSIDE the platform (e.g. database + user on the shared instance, service in the lab's cloud environment, route in the single access point, secrets prefixed with the project).
 - The family contract gains the `shared` or `dedicated` mode; in the `lab` project environment the default is `shared`. E.g. db-* in the lab creates database + user on the single instance; in production, its own instance.
-- Isolation within shared resources by name and labels ([section 1](#1-names)); a project's `plan-project` sees only what is its own; `remove-*` never touches what belongs to another.
+- Isolation within shared resources by name and labels ([section 1](#1-names)); a project's `project-plan` sees only what is its own; `*-remove` never touches what belongs to another.
 
 ### 6.5 Minimum cost (contract rule in the `lab` project environment)
 
@@ -380,7 +381,7 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.6 Personal defaults
 
-- In `marketplace/defaults.json` (public, choices only, no IDs), read by `declare-project` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
+- In `marketplace/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
 
 ---
 
@@ -466,18 +467,18 @@ Notes:
 Each family has a contract: the same ACTIONS, with the same kind of result, across providers; the skill is named `<provider>_<action>`. The orchestrator builds the name by joining the provider (from the declaration) with the action (fixed in the contract). Current contracts:
 
 - **repo-\***:
-  - `<provider>_create-repo` (URL and remote);
-  - `<provider>_configure-repo` (merge, features);
-  - `<provider>_protect-branch` (rules on the main branch);
-  - `<provider>_set-ci-secret` (repo or org/group level);
-  - `<provider>_setup-ci` (thin pipeline per component).
-  - E.g. `github_create-repo` ↔ `gitlab_create-repo`.
+  - `<provider>_repo-create` (URL and remote);
+  - `<provider>_repo-configure` (merge, features);
+  - `<provider>_branch-protect` (rules on the main branch);
+  - `<provider>_ci-set-secret` (repo or org/group level);
+  - `<provider>_ci-setup` (thin pipeline per component).
+  - E.g. `github_repo-create` ↔ `gitlab_repo-create`.
 - **cloud-\***:
-  - `<provider>_create-environment` (returns the environment ID);
-  - `<provider>_enable-services`;
-  - `<provider>_setup-deploy` (returns the public hostname).
+  - `<provider>_environment-create` (returns the environment ID);
+  - `<provider>_services-enable`;
+  - `<provider>_deploy-setup` (returns the public hostname).
   - Proposal: "environment" instead of "project", because clouds have different concepts (project on GCP, account on AWS, subscription/resource group on Azure).
-- **dns-\***: `<provider>_add-record` (receives name + target). In the lab, it may become "add a route to the single access point" ([section 6.3](#63-protection-and-single-access-point)).
+- **dns-\***: `<provider>_record-add` (receives name + target). In the lab, it may become "add a route to the single access point" ([section 6.3](#63-protection-and-single-access-point)).
 - **stack-\***: `<technology>_setup` (receives the component directory).
 
 ### 10.2 Mode, names and labels
@@ -487,7 +488,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 ### 10.3 Extending contracts
 
-- The contract is the common MINIMUM; plugins may have extra skills, following the same naming convention (e.g. `github_install-claude-app`, `github_configure-codespaces`, `cloudflare_protect-lab`).
+- The contract is the common MINIMUM; plugins may have extra skills, following the same naming convention (e.g. `github_claude-app-install`, `github_codespaces-configure`, `cloudflare_lab-protect`).
 - Contracts are only extracted when a second real provider exists; do not invent them in the abstract.
 - When a feature depends on the provider's plan and is not available, the skill warns and records it as an open item in the checklist, instead of failing or pretending it was applied.
 
@@ -511,9 +512,9 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 - **stack-\*** provides the language version, build/test/lint commands, cache and devcontainer Features (the official one and, if it exists, my preferences layer).
 - **platform-\*** provides toolchain, required runner, Features and limits (what doesn't run in a codespace).
-- **repo-\*** generates the workflow in the platform's format (`<provider>_setup-ci`; on GitHub, thin workflows calling the reusable ones from `aleogr/aleogr`).
+- **repo-\*** generates the workflow in the platform's format (`<provider>_ci-setup`; on GitHub, thin workflows calling the reusable ones from `aleogr/aleogr`).
 - **The orchestrator** assembles the `devcontainer.json` and the project's SessionStart hook for Claude Code cloud sessions ([section 14.2](#142-claude-code-cloud-environments)), from the same contributions.
-- CI and devcontainer come from the SAME declaration: the declared language version goes both to the workflow parameter and to the devcontainer's official Feature, avoiding drift. Changing it in project.json + apply-project updates both.
+- CI and devcontainer come from the SAME declaration: the declared language version goes both to the workflow parameter and to the devcontainer's official Feature, avoiding drift. Changing it in project.json + project-apply updates both.
 
 ### 10.7 Shared files and stack hooks
 
@@ -535,7 +536,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 - **Personal preference:** the SMALLEST possible number of repositories. Monorepo whenever it makes sense; in multi-repo projects, prefer the federated layout (creates no extra repository).
 - A project is a list of components (stack, platform, deploy/distribution, location = directory or repository), the project environments ([section 6](#6-the-lab-project-environments-and-minimum-cost)) and the project's shared services.
-- **Declaration** in `.aleogr/project.json` in the project repository (what I WANT; edited by me or by the `declare-project` skill). **State** in `.aleogr/state.json` (what EXISTS; only the orchestrator writes it). Neither stores secrets, only references.
+- **Declaration** in `.aleogr/project.json` in the project repository (what I WANT; edited by me or by the `project-declare` skill). **State** in `.aleogr/state.json` (what EXISTS; only the orchestrator writes it). Neither stores secrets, only references.
 - The **lab platform** is managed by the same orchestrator, with the same declaration format (marked as `"kind": "platform"`), but without its own repository: choices in `defaults.json`, identifiers by convention and variables, state discovered in the cloud ([section 7](#7-where-data-lives)). Projects point to it in the `lab` project environment.
 
 ### 11.1 JSON Schema
@@ -568,24 +569,24 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 ## 12. Skills of the `aleogr` orchestrator
 
 - **Core:**
-  - `declare-project`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
-  - `plan-project`: compares declaration, state and reality; changes nothing;
-  - `apply-project`: executes the plan in order.
-- **Shortcuts:** `new-project`, `add-component`, `add-service`.
+  - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
+  - `project-plan`: compares declaration, state and reality; changes nothing;
+  - `project-apply`: executes the plan in order.
+- **Shortcuts:** `project-create`, `component-add`, `service-add`.
 - **Maintenance:**
-  - `check-environment`: CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
-  - `sync-plugins`: writes `extraKnownMarketplaces` and installs/disables family plugins in project scope;
-  - `remove-component`, `remove-service`: stop before deleting, asking for confirmation.
+  - `tools-check`: CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
+  - `plugins-sync`: writes `extraKnownMarketplaces` and installs/disables family plugins in project scope;
+  - `component-remove`, `service-remove`: stop before deleting, asking for confirmation.
 - **Marketplace** (perhaps in a separate `aleogr-dev` plugin, open decision):
-  - `create-plugin`: generates the skeleton already following the standard (names, mandatory `category` and `displayName`, contract skills);
-  - `validate-marketplace`.
+  - `plugin-create`: generates the skeleton already following the standard (names, mandatory `category` and `displayName`, contract skills);
+  - `marketplace-validate`.
 
-### 12.1 What `validate-marketplace` checks
+### 12.1 What `marketplace-validate` checks
 
-`validate-marketplace` (and the `self-validate-marketplace.yml` workflow, on every PR) checks:
+`marketplace-validate` (and the `self-validate-marketplace.yml` workflow, on every PR) checks:
 
 - `claude plugin validate ./marketplace`;
-- family skills in the `<provider>_<action>` format;
+- family skills in the `<provider>_<action>` format, with the object first in the action;
 - NO `name:` in the frontmatter of `SKILL.md` files inside `marketplace/plugins/`;
 - no skill name equal to a built-in command;
 - `marketplace.json` entry equal to the `plugin.json` `name`;
@@ -606,7 +607,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 9. Operations (monitoring, analytics, notify).
 10. CI/CD (thin ci.yml and cd.yml, secrets).
 11. Distribution (store, publish).
-12. Final `plan-project` must say "nothing to do".
+12. Final `project-plan` must say "nothing to do".
 
 ---
 
@@ -616,7 +617,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 Deterministic guarantees; general ones live in `aleogr`, specific ones in each family.
 
-- **PreToolUse on Bash** blocking destructive commands (deleting a project/repo, public visibility, removing DNS, dropping a database, removing services) outside a confirmed remove-*. **NARROW** exceptions, only for test resources listed in a test's state:
+- **PreToolUse on Bash** blocking destructive commands (deleting a project/repo, public visibility, removing DNS, dropping a database, removing services) outside a confirmed *-remove. **NARROW** exceptions, only for test resources listed in a test's state:
   - repositories (test organization + name `test-<id>` + topic `aleogr-test` + NOT archived);
   - DNS records `test-<id>` or `test-<id>-<environment>` under `lab.aleogr.dev`, and the tenants below them;
   - databases `test_<id>`;
@@ -657,7 +658,7 @@ Deterministic guarantees; general ones live in `aleogr`, specific ones in each f
 
 ### 13.7 Future
 
-- Scheduled (weekly) GitHub Action running plan-project on projects and opening an issue on drift.
+- Scheduled (weekly) GitHub Action running project-plan on projects and opening an issue on drift.
 
 ---
 
@@ -718,7 +719,7 @@ The configuration in which each cloud session runs.
 
 > This section records the **DIRECTION** of the tests. Execution details are still open and will be defined before implementation; **do not implement anything from this section without confirmation**.
 
-Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleogr:new-project` with this declaration, does a working project come out?". Not to be confused with the `hom` project environment, which tests a product. Tests are a lab activity and use the **LAB PLATFORM** (zero extra infrastructure cost and realism: they exercise the same sharing as real projects).
+Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleogr:project-create` with this declaration, does a working project come out?". Not to be confused with the `hom` project environment, which tests a product. Tests are a lab activity and use the **LAB PLATFORM** (zero extra infrastructure cost and realism: they exercise the same sharing as real projects).
 
 ### 15.1 Layer 1 — in the repository itself (static, creating nothing outside), on every PR
 
@@ -742,12 +743,12 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
   - marketplace registered with `"ref": "<branch>"`;
   - Features tested by layer 1 (and, if needed, published with a pre-release version).
 - Each test uses an `<id>` in ALL resources ([section 1](#1-names)): repository `test-<id>`, services `test-<id>-<component>` in the lab's cloud environment, database `test_<id>` on the shared instance, `test-<id>.lab.aleogr.dev` (with project environments: `test-<id>-<environment>.lab.aleogr.dev`; tenants: `<tenant>.test-<id>.lab.aleogr.dev`).
-- **The test:** run `/aleogr:new-project` with a declaration from `marketplace/schemas/examples/`; check:
+- **The test:** run `/aleogr:project-create` with a declaration from `marketplace/schemas/examples/`; check:
   - green CI;
   - address responding (and tenants, if any);
   - codespace opening with the right tools;
   - a Claude Code cloud session in the `lab` environment working on the created repository;
-  - final `plan-project` saying "nothing to do".
+  - final `project-plan` saying "nothing to do".
 - **Example scenarios:**
   - simple backend (1 component, 1 project environment);
   - multi-tenant monorepo (2 components, wildcard, CI running only the changed component's job);
@@ -782,9 +783,11 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - `devcontainers/`, `codespaces/` or `features/` folders at the root: Features live in `.devcontainer/features/`.
 - `aleogr-` prefix on Features (e.g. `aleogr-setup`, `aleogr-go`): redundant with the address `ghcr.io/aleogr/aleogr/`; use `base`, `go`, `java`...
 - Per-technology Features that reinstall the language, that use `dependsOn` on the official one, or that wrap the official one to receive the version themselves.
-- Family skills with the action only (`create-repo`): would be cleaner and trust the namespace, but I chose the additional protection of the provider in the name.
+- Family skills with the action only (`repo-create`): would be cleaner and trust the namespace, but I chose the additional protection of the provider in the name.
 - Composite actions named like the official ones, action first (`setup-go`, `setup-java`): replaced by technology first (`go-setup`, `java-setup`).
-- `<action>-<provider>` format (`create-repo-github`): replaced by `<provider>_<action>` (`github_create-repo`), which groups skills by provider.
+- Verb first in skill names (`declare-project`, `github_create-repo`): replaced by object first (`project-declare`, `github_repo-create`).
+- `check-environment` as the name of the orchestrator skill that checks CLIs and authentication: "environment" already means the project environment, the cloud environment and the Claude Code cloud environment; it became `tools-check`.
+- `<action>-<provider>` format (`create-repo-github`): replaced by `<provider>_<action>` (`github_repo-create`), which groups skills by provider.
 - `name:` field in the frontmatter of plugin `SKILL.md`.
 - `dependencies` linking the orchestrator to the family plugins.
 - Relying on the repository's `.claude/settings.json` to bring plugins to Claude Code cloud sessions (they don't install those plugins).
@@ -814,7 +817,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 - Build guided by the **NEXT REAL PROJECT**: only the plugins, workflows, actions and Features it requires (probably `aleogr`, `aleogr-repo-github`, `aleogr-cloud-gcp`, `aleogr-dns-cloudflare`, the `base` Feature, the `lab` cloud environment and the reusable workflows for the project's stacks). **Goal:** the project comes out of nothing without me opening any dashboard.
 - Before the first project: understand and declare the existing lab platform ([sections 6](#6-the-lab-project-environments-and-minimum-cost) and [7](#7-where-data-lives)), based on the pending investigation.
-- **Orchestrator MVP:** `check-environment`, `declare-project`, `plan-project`, `apply-project`, plus the destructive command guard hook (already with the test exceptions) and read permissions in `allow`.
+- **Orchestrator MVP:** `tools-check`, `project-declare`, `project-plan`, `project-apply`, plus the destructive command guard hook (already with the test exceptions) and read permissions in `allow`.
 - The next real project's declaration, with fictitious values, becomes the first example in `marketplace/schemas/examples/` and the first end-to-end test, before being applied to the real project.
 - New families, providers, actions, workflows, Features and cloud environments come in when a real project needs them.
 
@@ -838,8 +841,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Test referencing a local Feature in a nested path (`./features/src/base`); if it doesn't work, move the Features up one level.
 - [ ] Mark the Features as public on GHCR after the first publication.
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
-- [ ] Confirm "create-environment" as the cloud-* action name.
-- [ ] Decide whether create-plugin/validate-marketplace live in `aleogr` or in `aleogr-dev`.
+- [ ] Confirm "environment-create" as the cloud-* action name.
+- [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [ ] Configure protection of `aleogr/aleogr`'s `main` (require PR) and check 2FA.
 - [ ] Choose the next real project to guide the MVP.
