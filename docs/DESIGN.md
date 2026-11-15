@@ -777,7 +777,6 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Separate DNS trees for tests (`sandbox.aleogr.dev`, `sandbox.lab.aleogr.dev`): tests live directly in the lab with a reserved prefix, for the shorter URL.
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
 - Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
-- The name `homolog` for the staging project environment: shortened to `hom`.
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
 - Using `aleogr/aleogr` as the Codespaces dotfiles repository.
 - One CI workflow per component with an `on.push.paths` filter (blocks required checks).
