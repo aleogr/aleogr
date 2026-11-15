@@ -378,8 +378,9 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.4 Lab platform × project resources
 
-- **Lab platform:** created ONCE and shared by all projects in development (e.g. a single Cloud SQL instance, the single access point under `lab.aleogr.dev`, the DNS wildcard, the lab protection, the lab's secret vault). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
-- **Project resources:** created INSIDE the platform (e.g. database + user on the shared instance, service in the lab's cloud environment, route in the single access point, secrets prefixed with the project).
+- **Each project has its own cloud environment per project environment** (on GCP, its own project: [section 1](#cloud-environments-gcp-project-ids)). Whatever costs nothing while idle belongs to the project: services that scale to zero, secrets, storage, image registry.
+- **Lab platform:** only what has a FIXED cost is shared, created ONCE ([section 6.8](#68-lab-shared-resources)). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
+- **Project resources in the platform:** created INSIDE the shared resource (e.g. database + user on the shared instance).
 - The family contract gains the `shared` or `dedicated` mode; in the `lab` project environment the default is `shared`. E.g. db-* in the lab creates database + user on the single instance; in production, its own instance.
 - Isolation within shared resources by name and labels ([section 1](#1-names)); a project's `project-plan` sees only what is its own; `*-remove` never touches what belongs to another.
 
@@ -404,6 +405,18 @@ Declaration (replaces a simple `domains` field):
 - **Few organization policies, chosen one by one.** The organization already comes with a set enforced by default, which stays as it is ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); it includes the one that matters most here, forbidding the creation of service account keys, because CI reaches the cloud without long-lived keys ([section 4](#4-cicd)). Consequence for every project: each service runs as its own service account with explicit roles, since default service accounts get none.
 - Not used: deep folder hierarchies, more than one organization, separate administrative roles per person.
 - The identifiers of the organization, the folders and the billing account are not versioned (the repository is public); they follow [section 7](#7-where-data-lives).
+
+### 6.8 Lab shared resources
+
+- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`; "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
+- `shared` is a **RESERVED** project name ([section 11.1](#111-json-schema)).
+- Accepted trade: `lab` and `hom` of every project share performance and availability, and the separation between them protects against accidents only ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A project that needs an isolated `hom` uses the `dedicated` mode.
+- **Shared database:** one Cloud SQL PostgreSQL instance, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`).
+- **The instance is OFF by default** (it does not scale to zero, and it is the only fixed cost of the lab):
+  - **started on demand**, when I am going to work: by the skill `gcp-cloud-sql_instance-start` (where `gcloud` is authenticated) or by a manually triggered workflow of `aleogr/aleogr` (from anywhere, including the phone);
+  - **stopped every night by a scheduler inside GCP**, at a fixed time, so that stopping never depends on me remembering; `gcp-cloud-sql_instance-stop` stops it by hand;
+  - starting takes minutes ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)): skills and deploys that need the database check whether it is running and say so, instead of failing with a connection error;
+  - the backup window must fall in hours when the instance is usually running.
 
 ---
 
@@ -562,7 +575,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - Exclusive families = object; combinable = list.
 - Exactly one `primary` cloud (contains + minContains/maxContains = 1).
 - payments `mode` with default "test".
-- Project names cannot be `test` nor start with `test-`.
+- Project names cannot be `test` or `shared`, nor start with `test-`.
 - `environments` field ([section 6.1](#61-addresses-of-a-projects-environments)).
 - Plugin name derived from family + provider.
 - Each family plugin may publish a sub-schema for its options.
@@ -819,6 +832,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
 - Proxied records in `lab` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the lab protection (requires proxied records).
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
+- A single lab cloud environment holding the resources of every project: each project has its own, and only fixed-cost resources are shared.
+- For the shared lab database: always on (fixed cost with nobody using it); sleeping only on weeknights (saves little); a serverless PostgreSQL outside GCP (another provider, and a connection different from production). Chosen: off by default, started on demand.
 - Using `aleogr/aleogr` as the Codespaces dotfiles repository.
 - One CI workflow per component with an `on.push.paths` filter (blocks required checks).
 - `secrets: inherit` in reusable workflows.

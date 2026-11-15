@@ -180,7 +180,7 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 
 ### cloud-* (combinable with exactly one primary, project) — aws, azure, gcp
 
-`shared`: the lab's cloud environment already exists; `environment-create` only verifies it and returns its id.
+`shared`/`dedicated`: n/a. Every project has its own environment per project environment; `environment-create` always creates it (idempotent). The lab's shared environment is part of the lab platform (DESIGN.md section 6.8).
 
 | Action | Input | Output |
 |---|---|---|
