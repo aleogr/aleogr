@@ -309,6 +309,8 @@ Settings block:
 }
 ```
 
+- **The single point of parameterization is `project.json`**, not the Feature. The technology version is declared once in the declaration (default from `defaults.json` when omitted) and the orchestrator writes it both to the official Feature and to the CI workflow parameter ([section 10.6](#106-whathow-split)). The generated `devcontainer.json` is not edited by hand, so listing two Features per technology costs nothing.
+- An own Feature **cannot forward its options** to the official one: in the Feature specification, `dependsOn` options are literal values in `devcontainer-feature.json`, options only reach the Feature's own `install.sh`, and `installsAfter` only orders. A wrapper accepting `version` would have to reinstall the language itself.
 - A technology's folder only exists if I have something to add. If the official one is enough, the `stack-*` contributes only that.
 - **Claude Code authentication in codespaces:** `ANTHROPIC_API_KEY` or `CLAUDE_CODE_OAUTH_TOKEN` (generated with `claude setup-token`) stored as a Codespaces secret.
 - **Layout:** Feature sources in `.devcontainer/features/src/<id>/` and tests in `.devcontainer/features/test/<id>/` (layout expected by the dev containers CLI). The subfolder has the same name as the `id`. The `devcontainer.json` of `aleogr/aleogr` itself references the local Features by relative path (e.g. `./features/src/base`) to test before publishing.
@@ -773,7 +775,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - `actions/` folder at the root: composite actions live in `.github/actions/`.
 - `devcontainers/`, `codespaces/` or `features/` folders at the root: Features live in `.devcontainer/features/`.
 - `aleogr-` prefix on Features (e.g. `aleogr-setup`, `aleogr-go`): redundant with the address `ghcr.io/aleogr/aleogr/`; use `base`, `go`, `java`...
-- Per-technology Features that reinstall the language, or that use `dependsOn` on the official one.
+- Per-technology Features that reinstall the language, that use `dependsOn` on the official one, or that wrap the official one to receive the version themselves.
 - Family skills with the action only (`create-repo`): would be cleaner and trust the namespace, but I chose the additional protection of the provider in the name.
 - `<action>-<provider>` format (`create-repo-github`): replaced by `<provider>_<action>` (`github_create-repo`), which groups skills by provider.
 - `name:` field in the frontmatter of plugin `SKILL.md`.
@@ -822,7 +824,6 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Define how FAMILY plugins reach cloud sessions. Options:
   - (a) the `lab` setup script installs all marketplace plugins (no collision, thanks to the provider in skill names, but more skills in context);
   - (b) a project SessionStart hook, only when `CLAUDE_CODE_REMOTE=true`, installs the declaration's plugins (test whether they load without restarting the session).
-- [ ] Create the GitHub organization `aleogr-sandbox` (check that the name is available).
 - [ ] Define the test execution details ([section 15](#15-tests)) before implementing them.
 - [ ] Define the lab platform identifiers that cannot be deduced and store them as Actions variables in `aleogr/aleogr`; configure budget alerts.
 - [ ] Test registration via `extraKnownMarketplaces` with `path` (and with a branch `ref`) and the resolution of relative paths from `marketplace/`.
