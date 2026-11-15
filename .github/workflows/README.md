@@ -6,7 +6,7 @@ Source of truth: [`docs/DESIGN.md` — sections 3, 4 and 15](../../docs/DESIGN.m
 
 ## Local rules
 
-- **Reusable** (`ci-`, `deploy-`, `release-`): only `on: workflow_call`, so they don't run on every commit here. Called by the projects' thin workflows (`ci.yml`/`cd.yml`), pinned by SHA.
+- **Reusable** (`ci-`, `cd-`, `release-`): only `on: workflow_call`, so they don't run on every commit here. Called by the projects' thin workflows (`ci.yml`/`cd.yml`), pinned by SHA.
 - **This repository's own**: prefix `self-` (e.g. `self-validate-marketplace.yml`, `self-lint.yml`, `self-test-features.yml`, `self-publish-features.yml`, `self-cleanup-tests.yml`).
 - Versioning by prefixed tags: `workflows-v1`, `workflows-v2`...
 - Secrets received explicitly by name; **never** `secrets: inherit`.

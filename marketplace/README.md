@@ -28,7 +28,7 @@ Since `marketplace.json` is not at the repository root, `claude plugin marketpla
 
 Where to put it, depending on where Claude Code runs:
 
-- **Local (Windows app):** by hand, once per computer, in `~/.claude/settings.json`; in projects, `sync-plugins` writes the block to `.claude/settings.json` (family plugins in project scope).
+- **Local (Windows app):** by hand, once per computer, in `~/.claude/settings.json`; in projects, `plugins-sync` writes the block to `.claude/settings.json` (family plugins in project scope).
 - **Codespaces:** the `base` Feature registers it.
 - **Claude Code cloud sessions:** the setup script of the `lab` cloud environment registers it (the repository's `.claude/settings.json` does **not** install plugins in those sessions).
 - **Testing a branch:** add `"ref": "<branch>"` to `source`.
