@@ -24,6 +24,18 @@
 - **A plan run by the project's owner hides missing permissions** of the identity that will really apply the change: the owner can read everything. Only a run as that identity shows what it lacks.
 - **Project IDs are permanent:** immutable, and a deleted ID is never available again. Limits: 6 to 30 characters, lowercase letters, digits and hyphens, starting with a letter.
 
+## GCP — organization policies
+
+A recent organization comes with a set of security policies already enforced. Seen in my organization on 2026-11-15 (25 active), the ones that affect how projects are built:
+
+- **Service account keys cannot be created or uploaded** (`iam.disableServiceAccountKeyCreation`, `iam.disableServiceAccountKeyUpload`), nor API keys bound to service accounts. Anything outside GCP reaches it through identity federation, never with a key file.
+- **Default service accounts get no automatic roles** (`iam.automaticIamGrantsForDefaultServiceAccounts`). A service that runs as the default account of Compute Engine or Cloud Run starts with no permissions: each service needs its own service account with explicit roles.
+- **Cloud Build has no default service account of its own** and uses the Compute Engine one (`cloudbuild.disableCreateDefaultServiceAccount`, `cloudbuild.useComputeServiceAccount`), which, by the previous item, has no roles. A deploy from source (`gcloud run deploy --source`) builds through Cloud Build and fails until that is set up explicitly.
+- **Buckets only accept uniform access** (`storage.uniformBucketLevelAccess`): permissions per bucket, no per-object ACLs.
+- **Domain-restricted sharing was NOT active** (`iam.allowedPolicyMemberDomains` not in the list): a Cloud Run service can be made public (`allUsers`).
+- A legacy constraint and its `managed` successor can coexist (for example, `iam.disableServiceAccountKeyCreation` active and `iam.managed.disableServiceAccountKeyCreation` inactive); one of them active is enough.
+- Creating folders needs `roles/resourcemanager.folderCreator`, and changing policies needs `roles/orgpolicy.policyAdmin`; the organization administrator role includes neither.
+
 ## GCP — Terraform provider (google 8.x)
 
 - **`activation_policy` of `google_sql_database_instance` is filled in with `ALWAYS` when absent.** An apply while the instance is stopped starts it again, unless the field is under `ignore_changes`.

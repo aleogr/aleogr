@@ -401,7 +401,7 @@ Declaration (replaces a simple `domains` field):
 - **Every GCP project lives inside the organization**, never loose under my user account.
 - **One folder per environment**, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `lab`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
 - **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
-- **Few organization policies, chosen one by one.** The first: forbid the creation of service account keys, because CI reaches the cloud without long-lived keys ([section 4](#4-cicd)).
+- **Few organization policies, chosen one by one.** The organization already comes with a set enforced by default, which stays as it is ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); it includes the one that matters most here, forbidding the creation of service account keys, because CI reaches the cloud without long-lived keys ([section 4](#4-cicd)). Consequence for every project: each service runs as its own service account with explicit roles, since default service accounts get none.
 - Not used: deep folder hierarchies, more than one organization, separate administrative roles per person.
 - The identifiers of the organization, the folders and the billing account are not versioned (the repository is public); they follow [section 7](#7-where-data-lives).
 
