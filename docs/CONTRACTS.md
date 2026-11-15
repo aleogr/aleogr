@@ -48,7 +48,7 @@ These rules apply to every action of every family, in addition to [DESIGN.md sec
 ### 1.3 Inputs
 
 - Provider-neutral field names (`owner`, `name`, `environment`, `component`...). Provider-specific options live in the family plugin's sub-schema, under `options`.
-- Every action that creates runtime resources receives `project`, `environment` (`lab` | `hom` | `prod`) and, for component-scoped families, `component`.
+- Every action that creates runtime resources receives `project`, `environment` (`lab` | `hom` | `prd`) and, for component-scoped families, `component`.
 - Names and labels follow [DESIGN.md section 1](DESIGN.md#1-names); the skill derives them, the user never types them.
 - **Secret values never pass through the conversation.** A secret input is a `secretRef` (`{ "store": "<secrets provider>", "name": "<name>" }`). A secret produced by an action (API key, password, signing key) is piped directly from the producing command into the secrets-* store, never printed; the output carries only its `secretRef`. When a human must type a value, the skill shows the command for the user to run with `!` (e.g. `! gh secret set NAME`).
 
@@ -120,7 +120,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 Notes:
 
 - `branch-protect` runs twice in apply: step 1 (no checks yet) and step 10 (with `checks` from `ci-setup`).
-- Project environments (`lab`/`hom`/`prod`) map to the provider's deployment environments; covered by the `environment` scope.
+- Project environments (`lab`/`hom`/`prd`) map to the provider's deployment environments; covered by the `environment` scope.
 - Repository deletion is not in the contract: only the test cleanup deletes repositories.
 - Bitbucket has no topics; the federated layout and tests depend on topics (recorded limitation).
 - Topic `aleogr-<project>` would collide with `aleogr-test` for a project named `test`: that is why the name `test` is reserved as well as the `test-` prefix ([DESIGN.md section 1](DESIGN.md#tests)).
@@ -151,7 +151,7 @@ Notes: no transfer or deletion in the contract. Renewal price is always shown be
 |---|---|---|
 | `zone-describe` | zone | exists, nameservers, records (filterable by name pattern) |
 | `zone-create` | zone | zone id, nameservers (request to registrar-* `nameservers-set`) |
-| `record-add` | name, type, target, TTL, proxied (if supported; off in `lab` and `hom`, on in `prod`) | record id; upsert (idempotent) |
+| `record-add` | name, type, target, TTL, proxied (if supported; off in `lab` and `hom`, on in `prd`) | record id; upsert (idempotent) |
 | `record-remove` | name, type | removed |
 
 Notes:
@@ -161,7 +161,7 @@ Notes:
 
 ### cdn-* (exclusive per domain, domain) — cloudflare, akamai, aws-cloudfront
 
-`shared`: n/a. Records in `lab` and `hom` are unproxied (DESIGN.md section 6.2), so there is no CDN in front of them; cdn-* applies to `prod`.
+`shared`: n/a. Records in `lab` and `hom` are unproxied (DESIGN.md section 6.2), so there is no CDN in front of them; cdn-* applies to `prd`.
 
 | Action | Input | Output |
 |---|---|---|
@@ -172,7 +172,7 @@ Notes:
 | `cache-purge` | host, paths (or all) | purged |
 | `cdn-remove` | host | removed |
 
-Notes: `tls-setup` covers proxied hosts, that is, `prod` (a multi-tenant project needs its own domain to be covered by the free certificate). In `lab` and `hom` the certificate is issued by the destination (DESIGN.md section 6.2).
+Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project needs its own domain to be covered by the free certificate). In `lab` and `hom` the certificate is issued by the destination (DESIGN.md section 6.2).
 
 ---
 
@@ -226,7 +226,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 | `instance-create` | engine, version, tier, region | instance id, `cost.fixed: true` (`dedicated` only; refused in `lab`) |
 | `database-create` | project, engine, environment | host/port/database, connection method, `secretRef` of the password (generated) |
 | `access-grant` | identity (runtime, CI migrations), database | applied grants / connection permissions |
-| `backup-configure` | schedule, retention, point-in-time | applied policy (`prod`) |
+| `backup-configure` | schedule, retention, point-in-time | applied policy (`prd`) |
 | `database-remove` | project, environment | removed (guarded; dump offered first) |
 
 ### cache-* (exclusive, project) — aws-elasticache, gcp-memorystore, redis-cloud
@@ -362,7 +362,7 @@ Special care. `test` mode by default; `shared`: n/a (one account, test mode in l
 | Action | Input | Output |
 |---|---|---|
 | `flags-describe` | project | project, environments, SDK keys (names) |
-| `project-create` | project, environments (`lab`/`hom`/`prod`) | project id, environments |
+| `project-create` | project, environments (`lab`/`hom`/`prd`) | project id, environments |
 | `sdk-key-create` | environment, type (server/client) | `secretRef` (client keys may go to `ciVariables` — not secret) |
 | `project-remove` | project | removed |
 

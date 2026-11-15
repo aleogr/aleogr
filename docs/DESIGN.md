@@ -47,7 +47,7 @@ Personal premises:
 
 Terminology (these are different things):
 
-- **Project environment**: `lab`, `hom`, `prod` ([section 6](#6-the-lab-project-environments-and-minimum-cost)).
+- **Project environment**: `lab`, `hom`, `prd` ([section 6](#6-the-lab-project-environments-and-minimum-cost)).
 - **Claude Code cloud environment**: the configuration where Claude Code cloud sessions run ([section 14](#14-where-i-run-claude-code)).
 
 Working rules for this repository:
@@ -350,8 +350,8 @@ Settings block:
 
 - **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev`, served by the wildcard `*.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
 - **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with its own wildcard `*.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant and captured by the project's wildcard.
-- **`prod`** (optional): the project's own domain or, without one, `<project>.aleogr.dev` (first-level subdomain, covered by Cloudflare's free certificate).
-- **A multi-tenant project in `prod` requires its own domain:** `<tenant>.<project>.aleogr.dev` is second level and is not covered by the free certificate, while `<tenant>.<own-domain>` is.
+- **`prd`** (optional): the project's own domain or, without one, `<project>.aleogr.dev` (first-level subdomain, covered by Cloudflare's free certificate).
+- **A multi-tenant project in `prd` requires its own domain:** `<tenant>.<project>.aleogr.dev` is second level and is not covered by the free certificate, while `<tenant>.<own-domain>` is.
 - The orchestrator derives the names from the project name and the environment; I only declare which environments the project has.
 
 Declaration (replaces a simple `domains` field):
@@ -360,7 +360,7 @@ Declaration (replaces a simple `domains` field):
 "environments": {
   "lab":  { "host": "project2.lab.aleogr.dev",     "tenants": "wildcard" },
   "hom":  { "host": "project2-hom.lab.aleogr.dev", "tenants": "wildcard" },
-  "prod": null
+  "prd":  null
 }
 ```
 
@@ -368,7 +368,7 @@ Declaration (replaces a simple `domains` field):
 
 - `.dev` requires HTTPS (the domain is on browsers' HSTS preload list): there is no HTTP, not even in development.
 - Cloudflare's free Universal SSL covers only the root domain and the first subdomain level. `project1.lab.aleogr.dev` (second level) and tenants (third level), with proxy on, are **NOT covered** and fail with errors like `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
-- **Decision:** `lab` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prod` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
+- **Decision:** `lab` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prd` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
 - The destination must therefore issue the certificates of the lab, including the tenants' wildcard (`*.<project>.lab.aleogr.dev`); how that is done for the wildcard is **PENDING**, with the redesign of the lab platform ([section 18](#18-open-items)): Cloud Run domain mappings use one record per hostname ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
 
 ### 6.3 Protection and single access point
