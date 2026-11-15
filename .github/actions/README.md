@@ -2,10 +2,11 @@
 
 Composite actions reusable by projects (one subfolder per action, with `action.yml`).
 
-Source of truth: [`docs/DESIGN.md` — sections 3 and 4](../../docs/DESIGN.md#3-public-repository-conditions).
+Source of truth: [`docs/DESIGN.md` — sections 3 and 4](../../docs/DESIGN.md#3-public-repository-conditions) (names in [section 1](../../docs/DESIGN.md#composite-actions)).
 
 ## Local rules
 
+- Names: actions of a technology are `<technology>-<action>`, technology first (`go-setup`, `java-setup`); generic actions are verb and object (`detect-changes`).
 - Reference from projects: `aleogr/aleogr/.github/actions/<name>@<sha>` — always pinned by **SHA** (Dependabot/Renovate update it). Within this repository: `./.github/actions/<name>`.
 - Versioning by prefixed tags: `actions-v1`, `actions-v2`...
 - Generic tooling only; never data, IDs or secrets (the repository is public).

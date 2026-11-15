@@ -6,9 +6,10 @@ Source of truth: [`docs/DESIGN.md` — sections 1, 8, 9, 10 and 12](../../docs/D
 
 ## Names
 
-- Orchestrator: `aleogr` (skills without provider, e.g. `declare-project`).
+- Orchestrator: `aleogr` (skills without provider, e.g. `project-declare`).
 - Family plugins: `aleogr-<family>-<provider>` (e.g. `aleogr-repo-github`).
-- Family skills: `<provider>-<action>`, given by the **folder name** (e.g. `skills/github-create-repo/`).
+- Family skills: `<provider>_<action>`, given by the **folder name** (e.g. `skills/github_repo-create/`, `skills/aws-route53_record-add/`). Exactly one underscore, between provider and action; hyphens inside each part.
+- Object first, action after, in every skill: `repo-create`, `branch-protect`, `project-declare` (the verb may carry a complement: `ci-set-secret`).
 - **No `SKILL.md` has `name:` in its frontmatter.** The `description` names the provider.
 - Never use built-in command names (`init`, `doctor`, `status`, `review`, `context`, `config`...).
 
@@ -16,14 +17,14 @@ Source of truth: [`docs/DESIGN.md` — sections 1, 8, 9, 10 and 12](../../docs/D
 
 - **Exclusive** (one provider per project/domain), **combinable** (several at once); **project**, **component** or **domain** scope. Full map in section 9.
 - Each family has a minimum contract of actions, defined in [`docs/CONTRACTS.md`](../../docs/CONTRACTS.md); extra skills follow the same naming convention.
-- Every family has a `describe-*` action, and every skill ends with an `aleogr-result` block (CONTRACTS.md section 1).
+- Every family has a `*-describe` action, and every skill ends with an `aleogr-result` block (CONTRACTS.md section 1).
 
 ## Plugin skeleton
 
 ```
 aleogr-<family>-<provider>/
 ├── .claude-plugin/plugin.json   ← only the manifest in here
-├── skills/<provider>-<action>/SKILL.md
+├── skills/<provider>_<action>/SKILL.md
 ├── agents/                      (optional)
 ├── hooks/hooks.json             (optional)
 ├── scripts/                     (optional; reference with ${CLAUDE_PLUGIN_ROOT})
