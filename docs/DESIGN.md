@@ -111,6 +111,13 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
 
 - Named by **NEEDS PROFILE** (e.g. `lab`, `lab-android`). By project only as a last resort, for a heavy and rare combination of profiles ([section 14.2](#142-claude-code-cloud-environments)).
 
+### Cloud environments (GCP project IDs)
+
+- `aleogr-<environment>-<project>-<random>` (e.g. `aleogr-lab-iam-c4vc`).
+- `<environment>`: `lab`, `hom` or `prd`. It comes first, so that every laboratory and every production environment sort together and the thing that must not be confused is at the front of the name.
+- `<random>`: four random characters, lowercase letters and digits, to make the ID unique.
+- GCP limits an ID to 30 characters, which leaves **14 characters for the project name**. IDs are permanent: immutable, and a deleted one is never available again.
+
 ### Project and platform resources in the lab
 
 - Project resources in the lab: services `<project>-<component>`, database `<project>` (normalized to the format accepted by the database), record `<project>.lab.aleogr.dev`, label `aleogr-project=<project>`.
@@ -142,6 +149,7 @@ aleogr/aleogr/
 ├── docs/
 │   ├── DESIGN.md                              ← source of truth (skeleton)
 │   ├── CONTRACTS.md                           ← contracts of every plugin family
+│   ├── PROVIDER-FACTS.md                      ← how the providers behave (facts, not decisions)
 │   └── cloud-environments/                    (future) canonical version of the Claude Code cloud environments
 │       └── lab.md                             ← setup script, allowed domains, no IDs or secrets
 ├── .devcontainer/
@@ -361,12 +369,12 @@ Declaration (replaces a simple `domains` field):
 - `.dev` requires HTTPS (the domain is on browsers' HSTS preload list): there is no HTTP, not even in development.
 - Cloudflare's free Universal SSL covers only the root domain and the first subdomain level. `project1.lab.aleogr.dev` (second level) and tenants (third level), with proxy on, are **NOT covered** and fail with errors like `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
 - **Decision:** `lab` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prod` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
-- The destination must therefore issue the certificates of the lab, including the tenants' wildcard (`*.<project>.lab.aleogr.dev`); whether the current lab does it is **PENDING** investigation ([section 18](#18-open-items)).
+- The destination must therefore issue the certificates of the lab, including the tenants' wildcard (`*.<project>.lab.aleogr.dev`); how that is done for the wildcard is **PENDING**, with the redesign of the lab platform ([section 18](#18-open-items)): Cloud Run domain mappings use one record per hostname ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
 
 ### 6.3 Protection and single access point
 
 - **Lab protection:** the lab must require login, but Cloudflare Access is **NOT** available for it, because it requires proxied records ([section 6.2](#62-https-and-certificates)). The mechanism (at the destination, at the single access point or in the application) is **PENDING** ([section 18](#18-open-items)). It is applied once for the whole lab, and external testers must be easy to add.
-- **Single access point:** today I access all lab projects through a single access point, WITHOUT a load balancer. The current implementation is **PENDING** investigation ([section 18](#18-open-items)). If it is a single routing point (e.g. a Cloudflare Worker routing by hostname), adding a project to the lab becomes "adding a route" at that point, with a single DNS wildcard configured once; the dns-* contract in the lab will be adjusted according to the result.
+- **Single access point:** the previous lab had none: `lab.aleogr.dev` was a static index page and every hostname had its own DNS record. Whether the new lab gets a single routing point (which would turn "add a record" into "add a route" in the dns-* contract) is decided with the redesign of the lab platform ([section 18](#18-open-items)).
 
 ### 6.4 Lab platform × project resources
 
@@ -821,7 +829,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 ## 17. Implementation strategy
 
 - Build guided by the **NEXT REAL PROJECT**: only the plugins, workflows, actions and Features it requires (probably `aleogr`, `aleogr-repo-github`, `aleogr-cloud-gcp`, `aleogr-dns-cloudflare`, the `base` Feature, the `lab` cloud environment and the reusable workflows for the project's stacks). **Goal:** the project comes out of nothing without me opening any dashboard.
-- Before the first project: understand and declare the existing lab platform ([sections 6](#6-the-lab-project-environments-and-minimum-cost) and [7](#7-where-data-lives)), based on the pending investigation.
+- Before the first project: redesign and declare the lab platform, from scratch ([sections 6](#6-the-lab-project-environments-and-minimum-cost), [7](#7-where-data-lives) and [18](#18-open-items)).
 - **Orchestrator MVP:** `tools-check`, `project-declare`, `project-plan`, `project-apply`, plus the destructive command guard hook (already with the test exceptions) and read permissions in `allow`.
 - The next real project's declaration, with fictitious values, becomes the first example in `marketplace/schemas/examples/` and the first end-to-end test, before being applied to the real project.
 - New families, providers, actions, workflows, Features and cloud environments come in when a real project needs them.
@@ -830,11 +838,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 ## 18. Open items
 
-- [ ] **INVESTIGATE (read-only) how the lab works today:**
-  - in Cloudflare: DNS records for `lab` and `*.lab` (CNAME to `*.cfargotunnel.com` = tunnel; to `ghs.googlehosted.com` = Cloud Run domain mapping; to `*.run.app` = direct service; A record = VM with reverse proxy; proxy on or off), Workers and routes on `lab.aleogr.dev`, tunnels and Access (Zero Trust), SSL/TLS → Edge Certificates (advanced certificates, Total TLS);
-  - in GCP: Cloud Run domain mappings, VMs and the shared Cloud SQL instance.
-  - Also check: whether the destination issues the certificates for unproxied records, including the tenants' wildcard; and how the lab is protected today.
-  - The result defines: how certificates are issued in the lab, the lab protection mechanism (Cloudflare Access is ruled out, section 6.3), the dns-* contract in the lab (record or route) and the lab platform declaration.
+- [ ] **Redesign the lab platform from scratch.** The investigation of the previous lab is done and that lab is being removed (its repository, the shared GCP project and the projects that lived in it). What it showed: no single routing point (`lab.aleogr.dev` was a static index page), one unproxied DNS record per hostname with the certificate issued by the destination, no wildcard, and no login in front of the projects. Its decisions are NOT inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md). To decide: what the lab platform shares (Cloud SQL does not scale to zero), how it is declared and applied, how the lab is protected, how tenant wildcards get certificates, and the dns-* contract in the lab.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
 - [ ] Measure the project SessionStart hook in cloud sessions (it runs on every session start, without the setup script cache) to define the practical limit of a "light" need; above it, the need goes to an environment.
 - [ ] Check how Claude Code cloud environments can be associated with repositories in the current product (section 14.2 says they do not belong to repositories) and whether that changes the naming rule.

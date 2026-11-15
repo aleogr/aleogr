@@ -157,7 +157,7 @@ Notes: no transfer or deletion in the contract. Renewal price is always shown be
 Notes:
 
 - `record-add` consumes the `dnsRecords` requests of every other family (deploy hostnames, tenant wildcards, e-mail SPF/DKIM/DMARC, domain verification TXT).
-- If the lab single access point is a router, a sibling action `route-add` replaces `record-add` in `shared` mode (decided after the investigation).
+- If the lab single access point is a router, a sibling action `route-add` replaces `record-add` in `shared` mode (decided with the redesign of the lab platform).
 
 ### cdn-* (exclusive per domain, domain) — cloudflare, akamai, aws-cloudfront
 
@@ -523,4 +523,4 @@ Decided (reflected in DESIGN.md):
 
 Open:
 
-9. dns-* in `lab`: `record-add` vs `route-add` — depends on the lab investigation ([DESIGN.md section 18](DESIGN.md#18-open-items)).
+9. dns-* in `lab`: `record-add` vs `route-add` — depends on the redesign of the lab platform ([DESIGN.md section 18](DESIGN.md#18-open-items)).
