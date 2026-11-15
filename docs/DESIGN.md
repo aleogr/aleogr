@@ -396,6 +396,15 @@ Declaration (replaces a simple `domains` field):
 
 - In `marketplace/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
 
+### 6.7 GCP: organization, folders and billing
+
+- **Every GCP project lives inside the organization**, never loose under my user account.
+- **One folder per environment**, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `lab`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
+- **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
+- **Few organization policies, chosen one by one.** The first: forbid the creation of service account keys, because CI reaches the cloud without long-lived keys ([section 4](#4-cicd)).
+- Not used: deep folder hierarchies, more than one organization, separate administrative roles per person.
+- The identifiers of the organization, the folders and the billing account are not versioned (the repository is public); they follow [section 7](#7-where-data-lives).
+
 ---
 
 ## 7. Where data lives
