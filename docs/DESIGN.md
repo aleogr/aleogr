@@ -47,7 +47,7 @@ Personal premises:
 
 Terminology (these are different things):
 
-- **Project environment**: `lab`, `homolog`, `prod` ([section 6](#6-the-lab-project-environments-and-minimum-cost)).
+- **Project environment**: `lab`, `hom`, `prod` ([section 6](#6-the-lab-project-environments-and-minimum-cost)).
 - **Claude Code cloud environment**: the configuration where Claude Code cloud sessions run ([section 14](#14-where-i-run-claude-code)).
 
 Working rules for this repository:
@@ -329,7 +329,7 @@ Settings block:
 ### 6.1 Addresses of a project's environments
 
 - **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev`, served by the wildcard `*.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
-- **`homolog`** (optional): environment as a **SUFFIX** of the project, `<project>-homolog.lab.aleogr.dev`, with its own wildcard `*.<project>-homolog.lab.aleogr.dev`. Never `homolog.<project>.lab...`, which would be confused with a tenant and captured by the project's wildcard.
+- **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with its own wildcard `*.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant and captured by the project's wildcard.
 - **`prod`** (optional): the project's own domain or, without one, `<project>.aleogr.dev` (first-level subdomain, covered by Cloudflare's free certificate).
 - The orchestrator derives the names from the project name and the environment; I only declare which environments the project has.
 
@@ -337,9 +337,9 @@ Declaration (replaces a simple `domains` field):
 
 ```json
 "environments": {
-  "lab":     { "host": "project2.lab.aleogr.dev",         "tenants": "wildcard" },
-  "homolog": { "host": "project2-homolog.lab.aleogr.dev", "tenants": "wildcard" },
-  "prod":    null
+  "lab":  { "host": "project2.lab.aleogr.dev",     "tenants": "wildcard" },
+  "hom":  { "host": "project2-hom.lab.aleogr.dev", "tenants": "wildcard" },
+  "prod": null
 }
 ```
 
@@ -701,7 +701,7 @@ The configuration in which each cloud session runs.
 
 > This section records the **DIRECTION** of the tests. Execution details are still open and will be defined before implementation; **do not implement anything from this section without confirmation**.
 
-Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleogr:new-project` with this declaration, does a working project come out?". Not to be confused with the `homolog` project environment, which tests a product. Tests are a lab activity and use the **LAB PLATFORM** (zero extra infrastructure cost and realism: they exercise the same sharing as real projects).
+Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleogr:new-project` with this declaration, does a working project come out?". Not to be confused with the `hom` project environment, which tests a product. Tests are a lab activity and use the **LAB PLATFORM** (zero extra infrastructure cost and realism: they exercise the same sharing as real projects).
 
 ### 15.1 Layer 1 — in the repository itself (static, creating nothing outside), on every PR
 
@@ -734,7 +734,7 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
 - **Example scenarios:**
   - simple backend (1 component, 1 project environment);
   - multi-tenant monorepo (2 components, wildcard, CI running only the changed component's job);
-  - two project environments (lab + homolog, with promotion in cd.yml);
+  - two project environments (lab + hom, with promotion in cd.yml);
   - Android app (only repository, CI and devcontainer, no DNS or cloud).
 - Not every test needs a new repository: skills that only touch files of an existing project can use a FIXED test repository in the organization, reused on each run.
 - Initially run manually; automate later, if it makes sense.
@@ -776,7 +776,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Test projects (with code) inside `aleogr/aleogr`; test repositories in the personal account; a separate cloud project only for tests (fixed "sandbox" on GCP); a new cloud project for each test.
 - Separate DNS trees for tests (`sandbox.aleogr.dev`, `sandbox.lab.aleogr.dev`): tests live directly in the lab with a reserved prefix, for the shorter URL.
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
-- Staging as `homolog.<project>.lab.aleogr.dev` (conflicts with tenants).
+- Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
+- The name `homolog` for the staging project environment: shortened to `hom`.
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
 - Using `aleogr/aleogr` as the Codespaces dotfiles repository.
 - One CI workflow per component with an `on.push.paths` filter (blocks required checks).
