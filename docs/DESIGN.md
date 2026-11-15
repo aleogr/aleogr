@@ -93,6 +93,12 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
 
 - Reusable workflows: prefix by purpose (`ci-`, `cd-`, `release-`).
 - Workflows that run in this repository itself: prefix `self-`.
+- The purpose comes first because the workflows folder is flat (the prefix is the only grouping) and it mirrors the projects' `ci.yml`/`cd.yml`.
+
+### Composite actions
+
+- Actions of a technology: `<technology>-<action>`, technology first (e.g. `go-setup`, `java-setup`), in the same order as skills (`go_setup`) and Features (`go`). It groups a technology's actions together and avoids confusion with the official ones (`actions/setup-go`).
+- Generic actions, without a technology: verb and object (e.g. `detect-changes`).
 
 ### Dev Container Features
 
@@ -157,8 +163,8 @@ aleogr/aleogr/
 │   ├── actions/                               ← composite actions (subfolders allowed)
 │   │   ├── README.md                          ← how to reference, actions-v1, SHA (skeleton)
 │   │   ├── detect-changes/action.yml          (future)
-│   │   ├── setup-go/action.yml                (future)
-│   │   └── setup-java/action.yml              (future)
+│   │   ├── go-setup/action.yml                (future)
+│   │   └── java-setup/action.yml              (future)
 │   └── workflows/                             ← flat folder (GitHub requirement), organized by prefix
 │       ├── README.md                          ← prefixes, workflow_call only, workflows-v1 (skeleton)
 │       ├── self-validate-marketplace.yml      ← validates marketplace and example declarations on every PR
@@ -777,6 +783,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - `aleogr-` prefix on Features (e.g. `aleogr-setup`, `aleogr-go`): redundant with the address `ghcr.io/aleogr/aleogr/`; use `base`, `go`, `java`...
 - Per-technology Features that reinstall the language, that use `dependsOn` on the official one, or that wrap the official one to receive the version themselves.
 - Family skills with the action only (`create-repo`): would be cleaner and trust the namespace, but I chose the additional protection of the provider in the name.
+- Composite actions named like the official ones, action first (`setup-go`, `setup-java`): replaced by technology first (`go-setup`, `java-setup`).
 - `<action>-<provider>` format (`create-repo-github`): replaced by `<provider>_<action>` (`github_create-repo`), which groups skills by provider.
 - `name:` field in the frontmatter of plugin `SKILL.md`.
 - `dependencies` linking the orchestrator to the family plugins.
