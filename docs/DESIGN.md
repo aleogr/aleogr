@@ -482,6 +482,8 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - **dns-\***: `<provider>_record-add` (receives name + target). In the lab, it may become "add a route to the single access point" ([section 6.3](#63-protection-and-single-access-point)).
 - **stack-\***: `<technology>_setup` (receives the component directory).
 
+**Where contracts are recorded:** in this section, while they are read only by people. When the validation is implemented, the lists move to a machine-readable `contracts.json` (family, type, scope and actions), read by `marketplace-validate`, `self-validate-marketplace.yml`, `project-plan`/`project-apply` and `plugin-create`; it becomes the source of the lists, and this section keeps the rules and reasons, pointing to it. No second text document for contracts. Its location is open ([section 18](#18-open-items)).
+
 ### 10.2 Mode, names and labels
 
 - Every family skill accepts the `shared` mode (inside the lab platform) or `dedicated` (own resources); in the `lab` project environment, the default is `shared`.
@@ -844,6 +846,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Test referencing a local Feature in a nested path (`./features/src/base`); if it doesn't work, move the Features up one level.
 - [ ] Mark the Features as public on GHCR after the first publication.
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
+- [ ] Test whether an installed plugin can read files of `marketplace/` outside its own folder. The result defines where `contracts.json` (section 10.1) and `defaults.json` live: in `marketplace/`, or inside the orchestrator plugin (`marketplace/plugins/aleogr/`).
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [ ] Configure protection of `aleogr/aleogr`'s `main` (require PR) and check 2FA.
