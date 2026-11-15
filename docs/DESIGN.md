@@ -747,7 +747,7 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
   - multi-tenant monorepo (2 components, wildcard, CI running only the changed component's job);
   - two project environments (lab + hom, with promotion in cd.yml);
   - Android app (only repository, CI and devcontainer, no DNS or cloud).
-- Not every test needs a new repository: skills that only touch files of an existing project can use a FIXED test repository in the organization, reused on each run.
+- **Every test creates a new `test-<id>` repository**; there is no fixed, reused test repository. Skills that only touch files of a project are tested with a minimal declaration (repository only, no cloud or DNS).
 - Initially run manually; automate later, if it makes sense.
 
 ### 15.4 Payments
@@ -785,6 +785,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - A strict "never by repository or project" rule for Claude Code cloud environments: environments do not compose, so combined profiles are solved by the repository's SessionStart hook and, as a last resort, by a per-project environment.
 - Creating or configuring repositories from Claude Code cloud sessions (GitHub proxy limits).
 - `.gitkeep` where a short README can document the folder; `.github/README.md` (would replace the profile README); plugin folder created before the plugin.
+- A fixed test repository reused on each run: it would need a second naming pattern outside the reserved `test-` prefix (or the cleanup would delete it) and logic to restore its initial state.
 - Test projects (with code) inside `aleogr/aleogr`; test repositories in the personal account; a separate cloud project only for tests (fixed "sandbox" on GCP); a new cloud project for each test.
 - Separate DNS trees for tests (`sandbox.aleogr.dev`, `sandbox.lab.aleogr.dev`): tests live directly in the lab with a reserved prefix, for the shorter URL.
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
