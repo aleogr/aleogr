@@ -126,7 +126,7 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
   - database `test_<id>`;
   - record `test-<id>.lab.aleogr.dev`;
   - label `aleogr-test=<id>`.
-- The `test-` prefix is **RESERVED**: the schema and `project-declare` reject real project names starting with `test-`.
+- The name `test` and the `test-` prefix are **RESERVED**: the schema and `project-declare` reject real project names equal to `test` (its topic `aleogr-test` would collide with the test marker) or starting with `test-`.
 
 ---
 
@@ -141,6 +141,7 @@ aleogr/aleogr/
 ├── README.md                                  ← GitHub profile (do not touch without asking)
 ├── docs/
 │   ├── DESIGN.md                              ← source of truth (skeleton)
+│   ├── CONTRACTS.md                           ← contracts of every plugin family
 │   └── cloud-environments/                    (future) canonical version of the Claude Code cloud environments
 │       └── lab.md                             ← setup script, allowed domains, no IDs or secrets
 ├── .devcontainer/
@@ -292,6 +293,8 @@ Settings block:
 - **Do NOT use one workflow per component with `on.push.paths`:** the native filter applies to the whole workflow, and a workflow that didn't trigger leaves the required check pending forever, blocking the PR. A job skipped by `if:` counts as success.
 - Secrets are passed explicitly by name to reusable workflows (**do not use `secrets: inherit`**), making visible in the project what each one receives.
 - Deploy in `cd.yml` (or later jobs of the same file) with `needs:` on the component's CI and a condition to run only on `main`. With multiple project environments ([section 6](#6-the-lab-project-environments-and-minimum-cost)), `cd.yml` deploys to `lab` and promotes to the following environments.
+- CI is the **single deploy path**, hosting-* included: no provider Git integration deploying on its own on every push (previews per PR, when wanted, are also made by CI).
+- CI reaches clouds without long-lived keys: cloud-* `ci-identity-setup` sets up OIDC federation.
 - **Future GitLab:** reusable workflows and composite actions only serve GitHub Actions. A `gitlab_ci-setup` would need pipeline templates.
   - Preferred option (fewer repositories): templates in `aleogr/aleogr` itself (e.g. `.gitlab/ci/`), included in projects by public URL.
   - Alternative: CI/CD components from the GitLab catalog (requires a project hosted on GitLab).
@@ -379,6 +382,7 @@ Declaration (replaces a simple `domains` field):
 - Nothing with fixed cost per project (load balancer, static IP, NAT, dedicated instances).
 - Warn and ask for confirmation before creating anything with a fixed cost.
 - Budget alerts configured on each provider's lab platform.
+- Cache and search (whose managed offerings usually have fixed cost): in the lab, prefer serverless or free-tier providers, with one namespace/index prefix per project.
 
 ### 6.6 Personal defaults
 
@@ -465,24 +469,17 @@ Notes:
 
 ### 10.1 Contracts
 
-Each family has a contract: the same ACTIONS, with the same kind of result, across providers; the skill is named `<provider>_<action>`. The orchestrator builds the name by joining the provider (from the declaration) with the action (fixed in the contract). Current contracts:
+Each family has a contract: the same ACTIONS, with the same kind of result, across providers; the skill is named `<provider>_<action>`. The orchestrator builds the name by joining the provider (from the declaration) with the action (fixed in the contract).
 
-- **repo-\***:
-  - `<provider>_repo-create` (URL and remote);
-  - `<provider>_repo-configure` (merge, features);
-  - `<provider>_branch-protect` (rules on the main branch);
-  - `<provider>_ci-set-secret` (repo or org/group level);
-  - `<provider>_ci-setup` (thin pipeline per component).
-  - E.g. `github_repo-create` ↔ `gitlab_repo-create`.
-- **cloud-\***:
-  - `<provider>_environment-create` (returns the environment ID);
-  - `<provider>_services-enable`;
-  - `<provider>_deploy-setup` (returns the public hostname).
-  - The object is "environment", not "project", because clouds have different concepts (project on GCP, account on AWS, subscription/resource group on Azure).
-- **dns-\***: `<provider>_record-add` (receives name + target). In the lab, it may become "add a route to the single access point" ([section 6.3](#63-protection-and-single-access-point)).
-- **stack-\***: `<technology>_setup` (receives the component directory).
+**The contracts of every family live in [`docs/CONTRACTS.md`](CONTRACTS.md)** (common rules + one action table per family). Decided common rules:
 
-**Where contracts are recorded:** in this section, while they are read only by people. When the validation is implemented, the lists move to a machine-readable `contracts.json` (family, type, scope and actions), read by `marketplace-validate`, `self-validate-marketplace.yml`, `project-plan`/`project-apply` and `plugin-create`; it becomes the source of the lists, and this section keeps the rules and reasons, pointing to it. No second text document for contracts. Its location is open ([section 18](#18-open-items)).
+- Standard verbs (`*-describe`, `*-create`, `*-configure`, `*-setup`, `*-grant`, `*-remove`/`*-archive`); **`*-describe` is mandatory in every family** (read-only, normalized state; basis of `project-plan` and of every final verification).
+- Modes: `plan`/`apply` in every changing action; `shared`/`dedicated`; `test`/`live` in special-care families.
+- **Every skill ends with an `aleogr-result` JSON block** (status, resources, outputs, `secretRef`s, cost, pending items). Its `requests` field (DNS records, CI secrets/variables, devcontainer Features, required checks) is how a family hands work to another: families never call each other; the orchestrator routes the requests in the right apply step.
+- Secret values never pass through the conversation: secrets are produced straight into secrets-* and referenced by `secretRef`.
+- In cloud-*, the object is "environment", not "project", because clouds have different concepts (project on GCP, account on AWS, subscription/resource group on Azure).
+
+**Machine-readable version:** `CONTRACTS.md` is the text source of the contracts. When the validation is implemented, the mandatory actions of each family are also available in a `contracts.json` (family, type, scope and actions), read by `marketplace-validate`, `self-validate-marketplace.yml`, `project-plan`/`project-apply` and `plugin-create`; how the two are kept in sync (one generated from the other, or checked against it) is decided then. Its location is open ([section 18](#18-open-items)).
 
 ### 10.2 Mode, names and labels
 
@@ -527,7 +524,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
   - never replacement.
 - Stack hooks filter by file extension and exit silently if it is not their language.
 
-### 10.8 Special-care families (payments, registrar, store)
+### 10.8 Special-care families (payments, registrar, store, sms, publish)
 
 - Test mode by default.
 - No purchase, production or store submission without explicit confirmation.
@@ -548,7 +545,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - Exclusive families = object; combinable = list.
 - Exactly one `primary` cloud (contains + minContains/maxContains = 1).
 - payments `mode` with default "test".
-- Project names cannot start with `test-`.
+- Project names cannot be `test` nor start with `test-`.
 - `environments` field ([section 6.1](#61-addresses-of-a-projects-environments)).
 - Plugin name derived from family + provider.
 - Each family plugin may publish a sub-schema for its options.
@@ -813,6 +810,10 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Versioning the same project on more than one Git host (mirroring).
 - The same component replicated on more than one cloud.
 - Mandatory central repository in multi-repo projects.
+- Family skills calling other families' skills directly: replaced by `requests` in the `aleogr-result` block, routed by the orchestrator.
+- Deploys through the hosting provider's own Git integration: CI is the single deploy path.
+- Long-lived cloud keys stored as CI secrets: replaced by OIDC (`ci-identity-setup`).
+- Managed cache/search with fixed cost in the lab: serverless or free tier instead.
 - Versioned content in Portuguese: everything in the repository is in English (section 0).
 
 ---
