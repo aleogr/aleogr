@@ -111,7 +111,7 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
 
 ### Tests
 
-- Separate GitHub organization, with the **NAME STILL OPEN** (referred to here as `<test-org>`).
+- Separate GitHub organization: `aleogr-sandbox`. It may also hold my own experiments, which never use the `test-` prefix or the `aleogr-test` topic.
 - One short random `<id>` per test, used in **ALL** of the test's resources:
   - repository `test-<id>`;
   - topic `aleogr-test`;
@@ -727,7 +727,7 @@ Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleog
 
 The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, because only a real repository reproduces what is tested: repository creation and protection, secrets, workflows (GitHub only runs those at the root; cross-repository calls must be exercised), Codespaces and `.claude/settings.json` (read from the root). Tests inside `aleogr/aleogr` would also change the repository's own protection and secrets and pollute its history.
 
-- Separate GitHub organization (`<test-org>`, name open), free: test repositories never show up in my personal account, and organization-level secrets can be tested. Address: `github.com/<test-org>/test-<id>`.
+- Separate GitHub organization (`aleogr-sandbox`), free: test repositories never show up in my personal account, and organization-level secrets can be tested. Address: `github.com/aleogr-sandbox/test-<id>`.
 - Run from the **WINDOWS APP** (repository creation doesn't work in cloud sessions, [section 14](#14-where-i-run-claude-code)).
 - Test what is in the PR's **BRANCH**, before merge:
   - reusable workflows referenced by branch name (`@<branch>`);
@@ -822,7 +822,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Define how FAMILY plugins reach cloud sessions. Options:
   - (a) the `lab` setup script installs all marketplace plugins (no collision, thanks to the provider in skill names, but more skills in context);
   - (b) a project SessionStart hook, only when `CLAUDE_CODE_REMOTE=true`, installs the declaration's plugins (test whether they load without restarting the session).
-- [ ] Decide the name of the GitHub test organization. Ideas: `aleogr-sandbox`; or `aleogr-graveyard`, which would also receive my retired projects (transferred and ALWAYS archived, never with the `test-` prefix or the `aleogr-test` topic). The guard's exception rules already cover both scenarios.
+- [ ] Create the GitHub organization `aleogr-sandbox` (check that the name is available).
 - [ ] Define the test execution details ([section 15](#15-tests)) before implementing them.
 - [ ] Define the lab platform identifiers that cannot be deduced and store them as Actions variables in `aleogr/aleogr`; configure budget alerts.
 - [ ] Test registration via `extraKnownMarketplaces` with `path` (and with a branch `ref`) and the resolution of relative paths from `marketplace/`.
