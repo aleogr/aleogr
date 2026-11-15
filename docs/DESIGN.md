@@ -91,7 +91,7 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
 
 ### Workflows
 
-- Reusable workflows: prefix by purpose (`ci-`, `deploy-`, `release-`).
+- Reusable workflows: prefix by purpose (`ci-`, `cd-`, `release-`).
 - Workflows that run in this repository itself: prefix `self-`.
 
 ### Dev Container Features
@@ -168,7 +168,7 @@ aleogr/aleogr/
 │       ├── self-cleanup-tests.yml             ← scheduled: deletes resources of old tests
 │       ├── ci-go.yml                          (future, reusable)
 │       ├── ci-java.yml                        (future, reusable)
-│       └── deploy-cloud-run.yml               (future, reusable)
+│       └── cd-cloud-run.yml                   (future, reusable)
 └── marketplace/                               ← marketplace root
     ├── README.md                              ← how to register the marketplace (skeleton)
     ├── defaults.json                          ← my personal defaults (choices only, no IDs) (future)
