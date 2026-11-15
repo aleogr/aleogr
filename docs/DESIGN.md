@@ -478,7 +478,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
   - `<provider>_environment-create` (returns the environment ID);
   - `<provider>_services-enable`;
   - `<provider>_deploy-setup` (returns the public hostname).
-  - Proposal: "environment" instead of "project", because clouds have different concepts (project on GCP, account on AWS, subscription/resource group on Azure).
+  - The object is "environment", not "project", because clouds have different concepts (project on GCP, account on AWS, subscription/resource group on Azure).
 - **dns-\***: `<provider>_record-add` (receives name + target). In the lab, it may become "add a route to the single access point" ([section 6.3](#63-protection-and-single-access-point)).
 - **stack-\***: `<technology>_setup` (receives the component directory).
 
@@ -844,7 +844,6 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Test referencing a local Feature in a nested path (`./features/src/base`); if it doesn't work, move the Features up one level.
 - [ ] Mark the Features as public on GHCR after the first publication.
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
-- [ ] Confirm "environment-create" as the cloud-* action name.
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [ ] Configure protection of `aleogr/aleogr`'s `main` (require PR) and check 2FA.
