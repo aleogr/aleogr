@@ -414,7 +414,7 @@ Declaration (replaces a simple `domains` field):
 - **Shared database:** one Cloud SQL PostgreSQL instance, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`).
 - **The instance is OFF by default** (it does not scale to zero, and it is the only fixed cost of the lab):
   - **started on demand**, when I am going to work: by the skill `gcp-cloud-sql_instance-start` (where `gcloud` is authenticated) or by a manually triggered workflow of `aleogr/aleogr` (from anywhere, including the phone);
-  - **stopped every night by a scheduler inside GCP**, at a fixed time, so that stopping never depends on me remembering; `gcp-cloud-sql_instance-stop` stops it by hand;
+  - **stopped every night by a scheduler inside GCP**, at a fixed time, so that stopping never depends on me remembering; it can also be stopped by hand, by the skill `gcp-cloud-sql_instance-stop` or by the same manually triggered workflow (which offers both start and stop);
   - starting takes minutes ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)): skills and deploys that need the database check whether it is running and say so, instead of failing with a connection error;
   - the backup window must fall in hours when the instance is usually running.
 
