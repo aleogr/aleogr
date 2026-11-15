@@ -340,6 +340,7 @@ Settings block:
 - **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev`, served by the wildcard `*.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
 - **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with its own wildcard `*.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant and captured by the project's wildcard.
 - **`prod`** (optional): the project's own domain or, without one, `<project>.aleogr.dev` (first-level subdomain, covered by Cloudflare's free certificate).
+- **A multi-tenant project in `prod` requires its own domain:** `<tenant>.<project>.aleogr.dev` is second level and is not covered by the free certificate, while `<tenant>.<own-domain>` is.
 - The orchestrator derives the names from the project name and the environment; I only declare which environments the project has.
 
 Declaration (replaces a simple `domains` field):
@@ -356,17 +357,17 @@ Declaration (replaces a simple `domains` field):
 
 - `.dev` requires HTTPS (the domain is on browsers' HSTS preload list): there is no HTTP, not even in development.
 - Cloudflare's free Universal SSL covers only the root domain and the first subdomain level. `project1.lab.aleogr.dev` (second level) and tenants (third level), with proxy on, are **NOT covered** and fail with errors like `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
-- Ways out: Advanced Certificate Manager (paid) with Total TLS or advanced certificates; or unproxied records, with the certificate issued by the destination.
-- The solution used today in my lab is **PENDING** investigation ([section 18](#18-open-items)).
+- **Decision:** `lab` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prod` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
+- The destination must therefore issue the certificates of the lab, including the tenants' wildcard (`*.<project>.lab.aleogr.dev`); whether the current lab does it is **PENDING** investigation ([section 18](#18-open-items)).
 
 ### 6.3 Protection and single access point
 
-- **Lab protection:** Cloudflare Access requiring login for `*.lab.aleogr.dev` (requires proxied records). Extra skill of the Cloudflare plugin, applied once for the whole lab. External testers are added by e-mail to the rule.
+- **Lab protection:** the lab must require login, but Cloudflare Access is **NOT** available for it, because it requires proxied records ([section 6.2](#62-https-and-certificates)). The mechanism (at the destination, at the single access point or in the application) is **PENDING** ([section 18](#18-open-items)). It is applied once for the whole lab, and external testers must be easy to add.
 - **Single access point:** today I access all lab projects through a single access point, WITHOUT a load balancer. The current implementation is **PENDING** investigation ([section 18](#18-open-items)). If it is a single routing point (e.g. a Cloudflare Worker routing by hostname), adding a project to the lab becomes "adding a route" at that point, with a single DNS wildcard configured once; the dns-* contract in the lab will be adjusted according to the result.
 
 ### 6.4 Lab platform × project resources
 
-- **Lab platform:** created ONCE and shared by all projects in development (e.g. a single Cloud SQL instance, the single access point under `lab.aleogr.dev`, the DNS wildcard, Access protection, the lab's secret vault). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
+- **Lab platform:** created ONCE and shared by all projects in development (e.g. a single Cloud SQL instance, the single access point under `lab.aleogr.dev`, the DNS wildcard, the lab protection, the lab's secret vault). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
 - **Project resources:** created INSIDE the platform (e.g. database + user on the shared instance, service in the lab's cloud environment, route in the single access point, secrets prefixed with the project).
 - The family contract gains the `shared` or `dedicated` mode; in the `lab` project environment the default is `shared`. E.g. db-* in the lab creates database + user on the single instance; in production, its own instance.
 - Isolation within shared resources by name and labels ([section 1](#1-names)); a project's `project-plan` sees only what is its own; `*-remove` never touches what belongs to another.
@@ -488,7 +489,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 ### 10.3 Extending contracts
 
-- The contract is the common MINIMUM; plugins may have extra skills, following the same naming convention (e.g. `github_claude-app-install`, `github_codespaces-configure`, `cloudflare_lab-protect`).
+- The contract is the common MINIMUM; plugins may have extra skills, following the same naming convention (e.g. `github_claude-app-install`, `github_codespaces-configure`, `cloudflare_cache-purge`).
 - Contracts are only extracted when a second real provider exists; do not invent them in the abstract.
 - When a feature depends on the provider's plan and is not available, the skill warns and records it as an open item in the checklist, instead of failing or pretending it was applied.
 
@@ -800,6 +801,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Separate DNS trees for tests (`sandbox.aleogr.dev`, `sandbox.lab.aleogr.dev`): tests live directly in the lab with a reserved prefix, for the shorter URL.
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
 - Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
+- Proxied records in `lab` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the lab protection (requires proxied records).
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
 - Using `aleogr/aleogr` as the Codespaces dotfiles repository.
 - One CI workflow per component with an `on.push.paths` filter (blocks required checks).
@@ -828,7 +830,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] **INVESTIGATE (read-only) how the lab works today:**
   - in Cloudflare: DNS records for `lab` and `*.lab` (CNAME to `*.cfargotunnel.com` = tunnel; to `ghs.googlehosted.com` = Cloud Run domain mapping; to `*.run.app` = direct service; A record = VM with reverse proxy; proxy on or off), Workers and routes on `lab.aleogr.dev`, tunnels and Access (Zero Trust), SSL/TLS → Edge Certificates (advanced certificates, Total TLS);
   - in GCP: Cloud Run domain mappings, VMs and the shared Cloud SQL instance.
-  - The result defines: the certificate solution, the dns-* contract in the lab (record or route) and the lab platform declaration.
+  - Also check: whether the destination issues the certificates for unproxied records, including the tenants' wildcard; and how the lab is protected today.
+  - The result defines: how certificates are issued in the lab, the lab protection mechanism (Cloudflare Access is ruled out, section 6.3), the dns-* contract in the lab (record or route) and the lab platform declaration.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
 - [ ] Measure the project SessionStart hook in cloud sessions (it runs on every session start, without the setup script cache) to define the practical limit of a "light" need; above it, the need goes to an environment.
 - [ ] Check how Claude Code cloud environments can be associated with repositories in the current product (section 14.2 says they do not belong to repositories) and whether that changes the naming rule.
