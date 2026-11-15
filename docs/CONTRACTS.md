@@ -89,7 +89,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
   - `dnsRecords` → dns-* (or the lab single access point) in step 8;
   - `ciSecrets` / `ciVariables` → repo-* `ci-set-secret` / `ci-set-variable` in step 10;
   - `devcontainerFeatures` → orchestrator assembles `devcontainer.json` in step 7;
-  - `checks` → repo-* `protect-branch` (required checks) in step 10.
+  - `checks` → repo-* `branch-protect` (required checks) in step 10.
 - `cost.fixed: true` means the action needed (and got) explicit confirmation.
 - `pending` items end up in the project checklist.
 
@@ -111,7 +111,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 | `repo-describe` | owner, name | exists, visibility, default branch, merge settings, protection, topics, secret/variable **names** |
 | `repo-create` | owner, name, visibility, description, topics, local directory | HTTPS/SSH URLs, default branch, remote configured |
 | `repo-configure` | merge methods, delete branch on merge, features (issues, wiki, projects) | applied settings |
-| `protect-branch` | branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit) |
+| `branch-protect` | branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit) |
 | `ci-set-secret` | name, scope (`repo` \| `org` \| `environment`), value source | name and scope (never the value) |
 | `ci-set-variable` | name, value, scope (`repo` \| `org` \| `environment`) | name, scope, value |
 | `ci-setup` | components (directory, stack/platform CI parameters), project environments | generated files (`ci.yml`, `cd.yml`), `checks` (required check names) |
@@ -119,7 +119,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 
 Notes:
 
-- `protect-branch` runs twice in apply: step 1 (no checks yet) and step 10 (with `checks` from `ci-setup`).
+- `branch-protect` runs twice in apply: step 1 (no checks yet) and step 10 (with `checks` from `ci-setup`).
 - Project environments (`lab`/`hom`/`prod`) map to the provider's deployment environments; covered by the `environment` scope.
 - Repository deletion is not in the contract: only the test cleanup deletes repositories.
 - Bitbucket has no topics; the federated layout and tests depend on topics (recorded limitation).
