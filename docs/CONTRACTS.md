@@ -185,7 +185,7 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 | Action | Input | Output |
 |---|---|---|
 | `environment-describe` | environment id or project | exists, enabled services, identities, budget alerts |
-| `environment-create` | project, billing reference, region | environment id (GCP project / AWS account / Azure subscription + resource group) |
+| `environment-create` | project, environment, parent (on GCP: the folder of the environment), billing reference, region | environment id (GCP project / AWS account / Azure subscription + resource group) |
 | `services-enable` | capabilities (neutral list: `run`, `sql`, `secrets`, `storage`, `registry`...) | enabled provider APIs/services |
 | `ci-identity-setup` | repository (owner/name), allowed branches/environments, roles | keyless CI identity (OIDC / workload identity federation); `ciVariables` with its non-secret identifiers |
 | `deploy-setup` | component, image or source, environment, scaling (min 0 in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
