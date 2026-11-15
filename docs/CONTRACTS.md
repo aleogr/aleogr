@@ -206,7 +206,7 @@ Notes:
 |---|---|---|
 | `store-describe` | project | store exists, secret **names** (prefix-filtered), versions, accessors |
 | `store-create` | project, region | store id (in `shared`: verification only) |
-| `secret-store` | name, value source (`generate` \| `pipe` from a command \| `user` via `!`) | `secretRef`, version (never the value) |
+| `secret-set` | name, value source (`generate` \| `pipe` from a command \| `user` via `!`) | `secretRef`, version (never the value) |
 | `access-grant` | identity, secret names or prefix, role (read) | applied bindings |
 | `secret-remove` | name | removed (versions destroyed only with confirmation) |
 
@@ -302,7 +302,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 | `domain-verify` | sending domain | `dnsRecords` (SPF, DKIM, DMARC, verification), status |
 | `api-key-create` | project, environment, scope (send only) | `secretRef` |
 | `sender-configure` | from address, reply-to | applied |
-| `test-send` | recipient | delivered? |
+| `test-message-send` | recipient | delivered? |
 | `api-key-remove` | project, environment | revoked |
 
 ### sms-* (exclusive, project) — twilio, vonage, sinch
@@ -315,7 +315,7 @@ Treated as special care (numbers and messages cost money). `test` mode by defaul
 | `sender-setup` | country, type (number / alphanumeric / messaging service) | sender id, `cost.fixed: true` if a number is bought |
 | `compliance-register` | use case, business data | status, usually `pending` (manual review) |
 | `api-key-create` | project, environment | `secretRef` (test credentials in `test`) |
-| `test-send` | recipient | delivered? |
+| `test-message-send` | recipient | delivered? |
 | `sender-remove` | sender id | released (confirmed) |
 
 ### push-* (combinable, component) — fcm, apns, onesignal
@@ -328,7 +328,7 @@ Treated as special care (numbers and messages cost money). `test` mode by defaul
 | `app-register` | component, platform (android/ios/web), app id / bundle id | app registration id, config file reference |
 | `credentials-upload` | platform, `secretRef` (APNs key, FCM service account) | uploaded |
 | `server-key-create` | component, environment | `secretRef` |
-| `test-send` | device token / topic | delivered? |
+| `test-message-send` | device token / topic | delivered? |
 
 ### payments-* (combinable, project) — stripe, paypal, adyen
 
@@ -447,7 +447,7 @@ Notes: embedded/wearable platforms may add extras such as `device-flash`.
 | `channel-describe` | project | channel(s), connected sources |
 | `channel-create` | project, purpose (`ci`, `alerts`, `general`) | channel id |
 | `source-connect` | source (repo events, CI, monitoring), channel | applied integration; webhook as `secretRef` |
-| `test-send` | channel | delivered? |
+| `test-message-send` | channel | delivered? |
 | `channel-archive` | channel | archived |
 
 ---
