@@ -14,7 +14,7 @@ Free text after the skill name, as `key=value` pairs. All five are required (if 
 
 | Argument | Meaning |
 |---|---|
-| `displayName=<name>` | The budget's display name; it identifies the budget. |
+| `displayName=<name>` | The budget's display name; it identifies the budget. Letters, digits, `.`, `_`, `-` only. |
 | `amount=<number>` | The budget amount, for example `100`. |
 | `currency=<code>` | The currency code, for example `BRL`. |
 | `thresholds=<list>` | Comma-separated fractions of the amount, for example `0.5,0.9,1.0`. |
@@ -25,7 +25,7 @@ Free text after the skill name, as `key=value` pairs. All five are required (if 
 
 Before running any command, check the arguments. Any failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
 
-- `displayName` is not empty.
+- `displayName` starts with a letter or digit, contains only letters, digits, `.`, `_` and `-` (no space, quote or other character), and has at most 60 characters.
 - `amount` is a number greater than 0.
 - `currency` is three uppercase letters.
 - `thresholds` is a comma-separated list of numbers, each greater than 0 and at most 1.
