@@ -34,6 +34,7 @@ out="$work/claude.out"
 claude_status=$?
 
 failed=()
+if [ "$claude_status" -ne 0 ]; then failed+=("(claude exited with status $claude_status)"); fi
 while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in ''|'#'*) continue ;; esac
   kind="${line%% *}"

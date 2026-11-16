@@ -9,7 +9,8 @@
 echo "$*" >> "${FAKE_LOG:?FAKE_LOG is not set}"
 dir="${FAKE_RESPONSES:-}"
 [ -d "$dir" ] || exit 0
-key="${*// /_}"
+key="$*"
+key="${key// /_}"
 for f in "$dir"/*; do
   [ -f "$f" ] || continue
   base="$(basename "$f")"
