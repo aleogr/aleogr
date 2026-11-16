@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "cloud": { "provider": "gcp", "region": "us-central1" },
+  "lab": { "domain": "lab.aleogr.dev" },
+  "platform": {
+    "shared": { "project": "shared", "environment": "lab", "services": ["cloudresourcemanager.googleapis.com", "billingbudgets.googleapis.com"] },
+    "budget": { "displayName": "aleogr-lab", "amount": 100, "currency": "BRL", "thresholds": [0.5, 0.9, 1.0] }
+  }
+}

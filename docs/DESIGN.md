@@ -187,7 +187,6 @@ aleogr/aleogr/
 │       └── cd-cloud-run.yml                   (future, reusable)
 └── marketplace/                               ← marketplace root
     ├── README.md                              ← how to register the marketplace (skeleton)
-    ├── defaults.json                          ← my personal defaults (choices only, no IDs) (future)
     ├── .claude-plugin/
     │   └── marketplace.json
     ├── schemas/
@@ -199,8 +198,11 @@ aleogr/aleogr/
         ├── README.md                          ← names, family types, plugin skeleton (skeleton)
         ├── aleogr/                            ← orchestrator (MVP)
         │   ├── .claude-plugin/plugin.json
+        │   ├── defaults.json              ← my personal defaults (choices only, no IDs)
         │   ├── skills/
         │   │   ├── tools-check/SKILL.md
+        │   │   ├── platform-plan/SKILL.md
+        │   │   ├── platform-apply/SKILL.md
         │   │   ├── project-declare/SKILL.md
         │   │   ├── project-plan/SKILL.md
         │   │   └── project-apply/SKILL.md
@@ -236,6 +238,7 @@ aleogr/aleogr/
 - `marketplace.json` lives at `marketplace/.claude-plugin/marketplace.json`. The marketplace root is `marketplace/` (the directory containing `.claude-plugin/`); `source` paths are relative to it (`./plugins/aleogr`), without `..`.
 - Each plugin has `.claude-plugin/plugin.json` (only the manifest lives inside `.claude-plugin/`); `skills/`, `agents/`, `hooks/`, `scripts/` and `.mcp.json` live at the plugin root. Scripts are referenced with `${CLAUDE_PLUGIN_ROOT}`.
 - Local validation: `claude plugin validate ./marketplace`. Local test: `claude plugin marketplace add ./marketplace`.
+- A plugin cannot read files outside its own folder once installed, so files the skills read (`defaults.json`, `contracts.json`) live inside the plugin that uses them: the orchestrator, `marketplace/plugins/aleogr/`. Skills reference them as `${CLAUDE_PLUGIN_ROOT}/defaults.json`.
 - **Do NOT use the `dependencies` field** to link the orchestrator to the family plugins: that would install every family in every project. Activation is decided by each project's declaration, via `plugins-sync`.
 
 ### 2.3 Registering the marketplace
@@ -400,7 +403,7 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.6 Personal defaults
 
-- In `marketplace/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
+- In `marketplace/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
 
 ### 6.7 GCP: organization, folders and billing
 
@@ -446,7 +449,7 @@ Declaration (replaces a simple `domains` field):
   - label on everything that accepts labels (`aleogr-platform`, `aleogr-project`, `aleogr-test`);
   - name by convention ALWAYS (it is the identifier of resources without labels, such as databases inside the shared instance and DNS records);
   - variables only for what cannot be deduced (ideally only IDs chosen once).
-- The platform's change history comes from the hooks' audit log and the providers' audit logs; decisions are versioned in Git (`defaults.json`).
+- The platform's change history comes from the hooks' audit log and the providers' audit logs; decisions are versioned in Git (`marketplace/plugins/aleogr/defaults.json`).
 - PROJECT data (`project.json`, `state.json`) stays in each project's repository. **Open question:** apply the same discovery principle to projects, making `state.json` lighter or just a cache (see in practice, with the MVP).
 
 ---
@@ -608,9 +611,12 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 ## 12. Skills of the `aleogr` orchestrator
 
 - **Core:**
+  - `platform-plan`: compares the lab platform choices in `defaults.json` with the cloud; changes nothing;
+  - `platform-apply`: creates and changes the lab platform ([section 6.8](#68-lab-shared-resources)) as `platform-plan` lists;
   - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
   - `project-plan`: compares declaration, state and reality; changes nothing;
   - `project-apply`: executes the plan in order.
+  - `platform-*` act on the lab platform; `project-*` remain for projects.
 - **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
   - `tools-check`: CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
@@ -889,7 +895,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Test referencing a local Feature in a nested path (`./features/src/base`); if it doesn't work, move the Features up one level.
 - [ ] Mark the Features as public on GHCR after the first publication.
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
-- [ ] Test whether an installed plugin can read files of `marketplace/` outside its own folder. The result defines where `contracts.json` (section 10.1) and `defaults.json` live: in `marketplace/`, or inside the orchestrator plugin (`marketplace/plugins/aleogr/`).
+- [x] Can an installed plugin read files of `marketplace/` outside its own folder? No. `defaults.json` lives in the orchestrator plugin (`marketplace/plugins/aleogr/`) and `contracts.json` (section 10.1) will live there too.
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [ ] Configure protection of `aleogr/aleogr`'s `main` (require PR) and check 2FA.

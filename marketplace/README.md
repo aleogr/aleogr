@@ -39,4 +39,4 @@ Where to put it, depending on where Claude Code runs:
 - Validation: `claude plugin validate ./marketplace`. Local test: `claude plugin marketplace add ./marketplace`.
 - Every `marketplace.json` entry has `category` and `displayName`, and its name equals the `plugin.json` `name`.
 - Do not use `dependencies` to link the orchestrator to the family plugins.
-- `defaults.json` (future): personal choices only, no IDs or secrets.
+- `plugins/aleogr/defaults.json`: personal choices only, no IDs or secrets. It lives inside the orchestrator plugin because an installed plugin cannot read files outside its own folder; skills read it as `${CLAUDE_PLUGIN_ROOT}/defaults.json`. `contracts.json` will live there too.
