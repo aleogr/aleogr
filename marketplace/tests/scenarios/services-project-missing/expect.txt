@@ -1,0 +1,5 @@
+CALLED ^projects list .*aleogr-project=shared
+NOT_CALLED ^services enable
+NOT_CALLED ^projects create
+OUTPUT "status": "failed"
+OUTPUT [Cc]reate
