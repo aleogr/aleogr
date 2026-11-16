@@ -28,7 +28,15 @@ Show each command before running it. Run only the commands below, in this order.
    gcloud --version
    ```
 
-   - Command not found, or a non-zero exit: `gcloud` state is `missing` and `fix` is the official install instructions at https://cloud.google.com/sdk/docs/install. Skip step 3 and end with `failed`.
+   - Exit 0: `command` is `gcloud`. Go on.
+   - Command not found (the shell does not know the command: `command not found` or exit code 127 in bash, `not recognized` in PowerShell): state `missing`, `fix` is the official install instructions at https://cloud.google.com/sdk/docs/install. Skip step 3 and end with `failed`.
+   - Found but exits non-zero (it failed to start, as can happen under Git Bash on Windows): run once
+
+     ```
+     gcloud.cmd --version
+     ```
+
+     Exit 0: `command` is `gcloud.cmd`; go on, and use `gcloud.cmd` in place of `gcloud` in step 3. Otherwise the state is `missing` with the same `fix`, the answer shows the first line of the `gcloud --version` error, and the skill skips step 3 and ends with `failed`.
 
 3. Is `gcloud` authenticated:
 
@@ -46,7 +54,7 @@ Show each command before running it. Run only the commands below, in this order.
 
 ## Answer
 
-One line per tool: its name and `ok`, `missing` or `not authenticated`, and the fix when it is not ok. Then one line with where it runs.
+One line per tool: its name and `ok`, `missing` or `not authenticated`, and the fix when it is not ok. If the command name is `gcloud.cmd`, say that every `gcloud` command must be run as `gcloud.cmd`. Then one line with where it runs.
 
 - If any tool is not `ok`, say what cannot be done until it is fixed (every platform skill needs `gcloud`).
 - If `where` is `cloud-session`, add one sentence: infrastructure setup is done from the local app, where the CLIs are authenticated. Still report what was found.
@@ -69,7 +77,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   "outputs": {
     "where": "local",
     "tools": [
-      { "name": "gcloud", "state": "ok", "fix": null }
+      { "name": "gcloud", "command": "gcloud", "state": "ok", "fix": null }
     ]
   },
   "cost": { "fixed": false, "notes": "read-only check" },
@@ -79,4 +87,5 @@ End with exactly one fenced block tagged `aleogr-result`:
 
 - `mode` is always `plan`. `status` is `unchanged` when every tool is `ok`, otherwise `failed`.
 - `state` is `ok`, `missing` or `not-authenticated`. `fix` is a command or a URL, or `null` when `ok`.
+- `command` is the command name to run the tool with: `gcloud.cmd` when only `gcloud.cmd --version` worked, otherwise `gcloud`.
 - `resources` is empty. The block never contains an account e-mail.

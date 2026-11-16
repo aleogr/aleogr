@@ -19,19 +19,19 @@ Free text after the skill name, as `key=value` pairs.
 Show each command before running it. Other skills end with their own `aleogr-result` block: use those blocks only as input, never repeat them. Your answer ends with exactly one block, its own.
 
 1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json`. If `cloud.provider` is not `gcp`, stop with `failed`: only GCP is implemented. Run no command. Take the same values `platform-plan` takes.
-2. Invoke `aleogr:platform-plan`. Its `status`:
+2. Invoke `aleogr:platform-plan`. Every `gcloud` command in the skills run below uses the command name the plan's tools-check reported (`gcloud` or `gcloud.cmd`). Its `status`:
    - `failed`: stop with `failed` and carry its `pending[].how`.
    - `unchanged`: say `nothing to do` and end with `unchanged`. Run no creating step.
 3. Confirmation. Without `confirm=yes`, show the plan table and ask one yes/no question: create the items marked `create` or `update`? If the answer is not a clear yes (or nobody answers), change nothing: end with `pending`, `pending[].how` being `platform-apply confirm=yes`. With `confirm=yes`, go on without asking.
 4. Create, in this order (the services come before the budget because the budget commands need the Budget API enabled on the quota project):
    1. `aleogr-cloud-gcp:gcp_environment-create` with `project=<shared.project> environment=<shared.environment> platform=lab mode=apply`. Take `projectId` from its result.
-   2. `aleogr-cloud-gcp:gcp_services-enable` with `project=<shared.project> environment=<shared.environment> services=<comma-separated> mode=apply`.
+   2. `aleogr-cloud-gcp:gcp_services-enable` with `projectId=<projectId> services=<comma-separated> mode=apply` (by id: a search by labels may not show a project created seconds ago).
    3. `aleogr-cloud-gcp:gcp_budget-alert-setup` with `displayName=<..> amount=<..> currency=<..> thresholds=<comma-separated> quotaProject=<projectId> mode=apply`.
 
    `projectId` is the one the create step returned when it ran; when it was skipped (the plan marked the project `none`), it is the plan's `outputs.projectId`. Never guess it and never run a describe only to find it. If it is `null` when the services or budget step is due, stop with `failed`.
 
    Run each skill in full, including the describe it starts with: the plan's results are stale once an earlier step has changed something. Skip a step whose item the plan marked `none`. If a step ends `failed` or `pending`, stop: run no later step, end with that same status, mark that item `blocked` and the later ones with the plan's action, and carry the step's `pending[].how` into `pending`.
-5. Run `aleogr:platform-plan` again, in full, even when every step succeeded: its own commands are the proof. Say exactly `nothing to do` only if every action in that last plan is `none`. Otherwise list the leftover items and end with `pending`, `pending[].how` being `platform-apply confirm=yes`.
+5. Run `aleogr:platform-plan projectId=<projectId>` again (without `projectId` if the project still does not exist), in full, even when every step succeeded: its own commands are the proof. Say exactly `nothing to do` only if every action in that last plan is `none`. Otherwise list the leftover items and end with `pending`, `pending[].how` being `platform-apply confirm=yes`.
 
 ## Answer
 

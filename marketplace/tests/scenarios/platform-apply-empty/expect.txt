@@ -10,10 +10,13 @@ CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--displa
 ORDER ^projects create >> ^billing projects link
 ORDER ^billing projects link >> ^services enable
 ORDER ^services enable >> ^billing budgets create
-# Only the closing re-plan reaches these counts. Without it: projects list is called 3 times
-# (first plan, create step, services step), budgets list 2 (budget step and its verification),
-# services list 2 (services step's describe and its verification). The re-plan adds one each.
-COUNT 4 ^projects list .*aleogr-project=shared
+# The label search never shows the new project (it can lag behind the create on real
+# Google Cloud): the services step and the closing re-plan must use the project id instead,
+# through projects describe (the first describe answers the create's lifecycleState check).
+COUNT 2 ^projects describe aleogr-lab-shared-zz99 --format=json
+# Only the closing re-plan reaches these counts. Without it: budgets list is called 2 times
+# (budget step and its verification), services list 2 (services step's describe and its
+# verification). The re-plan adds one each.
 COUNT 3 ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-lab-shared-zz99
 COUNT 3 ^services list --enabled --project=aleogr-lab-shared-zz99
 OUTPUT "action": "platform-apply"
