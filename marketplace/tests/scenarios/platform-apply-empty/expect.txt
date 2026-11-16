@@ -10,8 +10,14 @@ CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--displa
 ORDER ^projects create >> ^billing projects link
 ORDER ^billing projects link >> ^services enable
 ORDER ^services enable >> ^billing budgets create
-COUNT 3 ^projects list .*aleogr-project=shared
+# Only the closing re-plan reaches these counts. Without it: projects list is called 3 times
+# (first plan, create step, services step), budgets list 2 (budget step and its verification),
+# services list 2 (services step's describe and its verification). The re-plan adds one each.
+COUNT 4 ^projects list .*aleogr-project=shared
+COUNT 3 ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-lab-shared-zz99
+COUNT 3 ^services list --enabled --project=aleogr-lab-shared-zz99
 OUTPUT "action": "platform-apply"
 OUTPUT "mode": "apply"
 OUTPUT "status": "created"
+OUTPUT "projectId": "aleogr-lab-shared-zz99"
 OUTPUT [Nn]othing to do

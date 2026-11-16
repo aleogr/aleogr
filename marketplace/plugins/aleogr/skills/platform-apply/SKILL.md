@@ -28,8 +28,10 @@ Show each command before running it. Other skills end with their own `aleogr-res
    2. `aleogr-cloud-gcp:gcp_services-enable` with `project=<shared.project> environment=<shared.environment> services=<comma-separated> mode=apply`.
    3. `aleogr-cloud-gcp:gcp_budget-alert-setup` with `displayName=<..> amount=<..> currency=<..> thresholds=<comma-separated> quotaProject=<projectId> mode=apply`.
 
+   `projectId` is the one the create step returned when it ran; when it was skipped (the plan marked the project `none`), it is the plan's `outputs.projectId`. Never guess it and never run a describe only to find it. If it is `null` when the services or budget step is due, stop with `failed`.
+
    Run each skill in full, including the describe it starts with: the plan's results are stale once an earlier step has changed something. Skip a step whose item the plan marked `none`. If a step ends `failed` or `pending`, stop: run no later step, end with that same status, mark that item `blocked` and the later ones with the plan's action, and carry the step's `pending[].how` into `pending`.
-5. Run `aleogr:platform-plan` again. Say exactly `nothing to do` only if every action in that last plan is `none`; otherwise list what is left.
+5. Run `aleogr:platform-plan` again, in full, even when every step succeeded: its own commands are the proof. Say exactly `nothing to do` only if every action in that last plan is `none`. Otherwise list the leftover items and end with `pending`, `pending[].how` being `platform-apply confirm=yes`.
 
 ## Answer
 
@@ -49,6 +51,7 @@ The table of what each step did (item, state, action), the result of the last pl
     { "type": "project", "id": "<projectId>", "name": "shared", "labels": {} }
   ],
   "outputs": {
+    "projectId": "<projectId>",
     "items": [
       { "item": "shared project", "state": "created", "action": "none" },
       { "item": "services", "state": "enabled", "action": "none" },
@@ -60,6 +63,6 @@ The table of what each step did (item, state, action), the result of the last pl
 }
 ```
 
-- `mode` is `apply`. `status`: `created` when the project was created, `updated` when only existing things changed, `unchanged` when there was nothing to do, otherwise `pending` or `failed` as taken from the step that stopped (or the confirmation that was not given).
+- `mode` is `apply`. `status`: `created` when the project was created, `updated` when only existing things changed, `unchanged` when there was nothing to do, otherwise `pending` or `failed` as taken from the step that stopped (or the confirmation that was not given). Every step succeeded but the final plan still shows an action other than `none`: `pending`, with each leftover item in `pending`.
 - Each item's `state` and `action` come from the final plan; for a stopped run, the stopped item is `blocked`.
-- `resources` lists the shared project when it exists; empty otherwise. No organization, folder or billing identifiers except inside `pending[].how`.
+- `outputs.projectId` and `resources` carry the shared project whenever it exists, also when a later step ended `pending` or `failed`; `projectId` is `null` and `resources` empty when it does not exist. No organization, folder or billing identifiers except inside `pending[].how`.

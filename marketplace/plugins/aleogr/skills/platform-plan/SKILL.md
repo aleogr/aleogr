@@ -19,7 +19,7 @@ Show each command before running it. Other skills end with their own `aleogr-res
 3. Invoke `aleogr-cloud-gcp:gcp_environment-describe` with `project=<shared.project> environment=<shared.environment>`.
    - `status` `failed`: stop with `failed` and its cause.
    - `exists` false: the shared project, its services and its budget are all to create. Run no command for the services and the budget: both need the project, so they are checked after it exists. Go to the answer.
-   - Otherwise take `projectId` and `billingLinked`.
+   - Otherwise take `projectId` and `billingLinked`; `projectId` goes into the result as `outputs.projectId`.
 4. Services (project exists): invoke `aleogr-cloud-gcp:gcp_services-enable` with `project=<shared.project> environment=<shared.environment> services=<shared.services, comma-separated> mode=plan`.
 5. Budget (project exists): invoke `aleogr-cloud-gcp:gcp_budget-alert-setup` with `displayName=<..> amount=<..> currency=<..> thresholds=<comma-separated> quotaProject=<projectId> mode=plan`.
 
@@ -51,6 +51,7 @@ Print the table (item, state, action). Then one line: `nothing to do` when every
   "status": "would-create",
   "resources": [],
   "outputs": {
+    "projectId": null,
     "items": [
       { "item": "shared project", "state": "missing", "action": "create" },
       { "item": "services", "state": "not checked, will be checked after the project exists", "action": "create" },
@@ -64,4 +65,4 @@ Print the table (item, state, action). Then one line: `nothing to do` when every
 
 - `status`: `unchanged` when every action is `none`; otherwise `would-create` if the shared project is missing, else `would-update`; `failed` when a step failed or tools-check failed or the provider is not `gcp`.
 - `failed`: `outputs.items` lists what was checked before the stop, and `pending[].how` holds the fix or next command the stopped step gave.
-- `resources` is empty. The block never holds organization, folder or billing identifiers.
+- `outputs.projectId` is the shared project's id when it exists, `null` when it does not (as in the example). `resources` lists the shared project (`{ "type": "project", "id": "<projectId>", "name": "<shared.project>", "labels": {} }`) when it exists, and is empty otherwise. When a step `failed` after the project was found, keep `projectId` and `resources`. The block never holds organization, folder or billing identifiers.
