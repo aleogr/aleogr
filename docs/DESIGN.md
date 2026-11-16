@@ -772,7 +772,8 @@ Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleog
 - `self-validate-marketplace.yml`: validation of the marketplace and naming rules, and of the example declarations against the schema.
 - `self-lint.yml`: static checks of workflows and hook scripts.
 - `self-test-features.yml`: Feature tests with the dev containers CLI, using `.devcontainer/features/test/`.
-- The only "tests folder" in the repository is `marketplace/schemas/examples/`, with the test INPUTS (declarations with fictitious values), never projects with code.
+- Skill tests (`marketplace/tests/`): `run.sh <scenario>` runs the real skills headless (`claude -p`) against fake CLIs (a fake `gcloud` in `marketplace/tests/bin/`) and checks the logged calls against the scenario's `expect.txt`. They create nothing outside the repository, are run by hand for now (no workflow), and each run costs model usage.
+- Apart from `marketplace/tests/`, the only "tests folder" in the repository is `marketplace/schemas/examples/`, with the test INPUTS (declarations with fictitious values), never projects with code.
 
 ### 15.2 Layer 2 — local development
 
