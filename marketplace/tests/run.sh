@@ -43,6 +43,12 @@ while IFS= read -r line || [ -n "$line" ]; do
   case "$kind" in
     CALLED)     grep -Eq -- "$arg" "$log" || ok=0 ;;
     NOT_CALLED) ! grep -Eq -- "$arg" "$log" || ok=0 ;;
+    COUNT)
+      n="${arg%% *}"; re="${arg#* }"
+      case "$n" in ''|*[!0-9]*) echo "bad COUNT number: $line" >&2; ok=0 ;; *)
+        [ "$(grep -Ec -- "$re" "$log")" -ge "$n" ] || ok=0 ;;
+      esac
+      ;;
     OUTPUT)     grep -Eq -- "$arg" "$out" || ok=0 ;;
     ORDER)
       first="${arg%% >> *}"; second="${arg#* >> }"

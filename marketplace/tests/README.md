@@ -42,6 +42,7 @@ Create `scenarios/<name>/` with:
 |---|---|
 | `CALLED <regex>` | some logged call matches (the log has the arguments only, without `gcloud`) |
 | `NOT_CALLED <regex>` | no logged call matches |
+| `COUNT <n> <regex>` | at least `<n>` logged calls match (pins a repeated call, such as a check before and after a change) |
 | `OUTPUT <regex>` | Claude's final answer matches |
 | `ORDER <regex1> >> <regex2>` | the first call matching regex1 comes before the first matching regex2 |
 

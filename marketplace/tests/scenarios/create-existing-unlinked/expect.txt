@@ -6,3 +6,4 @@ NOT_CALLED ^projects create
 OUTPUT "status": "updated"
 OUTPUT aleogr-lab-shared-zz99
 ORDER ^billing projects link >> ^projects describe aleogr-lab-shared-zz99 .*lifecycleState
+COUNT 2 ^billing projects describe
