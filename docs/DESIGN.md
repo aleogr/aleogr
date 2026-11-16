@@ -348,8 +348,9 @@ Settings block:
 
 ### 6.1 Addresses of a project's environments
 
-- **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev`, served by the wildcard `*.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
-- **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with its own wildcard `*.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant and captured by the project's wildcard.
+- **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
+- **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with tenants `<tenant>.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant.
+- **Tenants in `lab` and `hom` are EXPLICIT, there is no wildcard:** I create each tenant by hand, so each one is declared and gets its own DNS record and its own mapping at the destination, with its own certificate. A new tenant takes a few minutes to answer, while the certificate is issued.
 - **`prd`** (optional): the project's own domain or, without one, `<project>.aleogr.dev` (first-level subdomain, covered by Cloudflare's free certificate).
 - **A multi-tenant project in `prd` requires its own domain:** `<tenant>.<project>.aleogr.dev` is second level and is not covered by the free certificate, while `<tenant>.<own-domain>` is.
 - The orchestrator derives the names from the project name and the environment; I only declare which environments the project has.
@@ -358,8 +359,8 @@ Declaration (replaces a simple `domains` field):
 
 ```json
 "environments": {
-  "lab":  { "host": "project2.lab.aleogr.dev",     "tenants": "wildcard" },
-  "hom":  { "host": "project2-hom.lab.aleogr.dev", "tenants": "wildcard" },
+  "lab":  { "host": "project2.lab.aleogr.dev",     "tenants": ["acme", "globex"] },
+  "hom":  { "host": "project2-hom.lab.aleogr.dev", "tenants": ["acme"] },
   "prd":  null
 }
 ```
@@ -369,12 +370,12 @@ Declaration (replaces a simple `domains` field):
 - `.dev` requires HTTPS (the domain is on browsers' HSTS preload list): there is no HTTP, not even in development.
 - Cloudflare's free Universal SSL covers only the root domain and the first subdomain level. `project1.lab.aleogr.dev` (second level) and tenants (third level), with proxy on, are **NOT covered** and fail with errors like `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
 - **Decision:** `lab` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prd` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
-- The destination must therefore issue the certificates of the lab, including the tenants' wildcard (`*.<project>.lab.aleogr.dev`); how that is done for the wildcard is **PENDING**, with the redesign of the lab platform ([section 18](#18-open-items)): Cloud Run domain mappings use one record per hostname ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
+- The destination issues one certificate per hostname: the project's host and each tenant's. On GCP, a Cloud Run domain mapping per hostname ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
 
 ### 6.3 Protection and single access point
 
 - **Lab protection:** the lab must require login, but Cloudflare Access is **NOT** available for it, because it requires proxied records ([section 6.2](#62-https-and-certificates)). The mechanism (at the destination, at the single access point or in the application) is **PENDING** ([section 18](#18-open-items)). It is applied once for the whole lab, and external testers must be easy to add.
-- **Single access point:** the previous lab had none: `lab.aleogr.dev` was a static index page and every hostname had its own DNS record. Whether the new lab gets a single routing point (which would turn "add a record" into "add a route" in the dns-* contract) is decided with the redesign of the lab platform ([section 18](#18-open-items)).
+- **No single access point:** every hostname has its own DNS record pointing to its destination. The dns-* contract in the lab is `record-add`; there is no router and no route.
 
 ### 6.4 Lab platform × project resources
 
@@ -401,6 +402,7 @@ Declaration (replaces a simple `domains` field):
 
 - **Every GCP project lives inside the organization**, never loose under my user account.
 - **One folder per environment**, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `lab`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
+- **Preferred region: `us-central1`**, for every project and for the shared environment (same region as the shared database; Cloud Run domain mappings exist there). It is the default in `defaults.json` ([section 6.6](#66-personal-defaults)).
 - **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
 - **Few organization policies, chosen one by one.** The organization already comes with a set enforced by default, which stays as it is ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); it includes the one that matters most here, forbidding the creation of service account keys, because CI reaches the cloud without long-lived keys ([section 4](#4-cicd)). Consequence for every project: each service runs as its own service account with explicit roles, since default service accounts get none.
 - Not used: deep folder hierarchies, more than one organization, separate administrative roles per person.
@@ -602,7 +604,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
   - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
   - `project-plan`: compares declaration, state and reality; changes nothing;
   - `project-apply`: executes the plan in order.
-- **Shortcuts:** `project-create`, `component-add`, `service-add`.
+- **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
   - `tools-check`: CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
   - `plugins-sync`: writes `extraKnownMarketplaces` and installs/disables family plugins in project scope;
@@ -781,7 +783,7 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
   - final `project-plan` saying "nothing to do".
 - **Example scenarios:**
   - simple backend (1 component, 1 project environment);
-  - multi-tenant monorepo (2 components, wildcard, CI running only the changed component's job);
+  - multi-tenant monorepo (2 components, two tenants, CI running only the changed component's job);
   - two project environments (lab + hom, with promotion in cd.yml);
   - Android app (only repository, CI and devcontainer, no DNS or cloud).
 - **Every test creates a new `test-<id>` repository**; there is no fixed, reused test repository. Skills that only touch files of a project are tested with a minimal declaration (repository only, no cloud or DNS).
@@ -831,6 +833,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
 - Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
 - Proxied records in `lab` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the lab protection (requires proxied records).
+- For tenant addresses in the lab: a Cloudflare Worker routing every lab hostname, with proxied records and flattened names (a format different from production, undoes the unproxied decision, and one piece whose failure takes the whole lab down); a load balancer with a wildcard certificate (fixed cost); tenants by path or header only in the lab (behaviour different from production). Chosen: one record and one mapping per tenant.
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
 - A single lab cloud environment holding the resources of every project: each project has its own, and only fixed-cost resources are shared.
 - For the shared lab database: always on (fixed cost with nobody using it); sleeping only on weeknights (saves little); a serverless PostgreSQL outside GCP (another provider, and a connection different from production). Chosen: off by default, started on demand.
@@ -862,7 +865,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 ## 18. Open items
 
-- [ ] **Redesign the lab platform from scratch.** The investigation of the previous lab is done and that lab is being removed (its repository, the shared GCP project and the projects that lived in it). What it showed: no single routing point (`lab.aleogr.dev` was a static index page), one unproxied DNS record per hostname with the certificate issued by the destination, no wildcard, and no login in front of the projects. Its decisions are NOT inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md). To decide: what the lab platform shares (Cloud SQL does not scale to zero), how it is declared and applied, how the lab is protected, how tenant wildcards get certificates, and the dns-* contract in the lab.
+- [ ] **Finish the redesign of the lab platform.** Decided: what is shared and the on-demand database ([section 6.8](#68-lab-shared-resources)), explicit tenant addresses without a wildcard ([section 6.1](#61-addresses-of-a-projects-environments)), no single access point ([section 6.3](#63-protection-and-single-access-point)). The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md). Still to decide: how the lab is protected (login), how the platform is declared and applied, and how a multi-tenant project is served in `prd` (own domain, proxied).
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
 - [ ] Measure the project SessionStart hook in cloud sessions (it runs on every session start, without the setup script cache) to define the practical limit of a "light" need; above it, the need goes to an environment.
 - [ ] Check how Claude Code cloud environments can be associated with repositories in the current product (section 14.2 says they do not belong to repositories) and whether that changes the naming rule.

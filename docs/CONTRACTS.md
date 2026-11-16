@@ -156,8 +156,7 @@ Notes: no transfer or deletion in the contract. Renewal price is always shown be
 
 Notes:
 
-- `record-add` consumes the `dnsRecords` requests of every other family (deploy hostnames, tenant wildcards, e-mail SPF/DKIM/DMARC, domain verification TXT).
-- If the lab single access point is a router, a sibling action `route-add` replaces `record-add` in `shared` mode (decided with the redesign of the lab platform).
+- `record-add` consumes the `dnsRecords` requests of every other family (deploy hostnames, one per tenant, e-mail SPF/DKIM/DMARC, domain verification TXT).
 
 ### cdn-* (exclusive per domain, domain) — cloudflare, akamai, aws-cloudfront
 
@@ -195,6 +194,7 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 Notes:
 
 - CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation.
+- `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `lab` and `hom` (DESIGN.md section 6.1).
 - In `lab`, `deploy-setup` must scale to zero and use the smallest size (DESIGN.md section 6.5).
 - Only the primary cloud receives secrets-* by default.
 
@@ -288,7 +288,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 |---|---|---|
 | `auth-describe` | project, environment | tenant, application, callback URLs, providers |
 | `application-create` | project, environment, type (web/SPA/native/API) | client id, `secretRef` of the client secret |
-| `application-configure` | callback/logout/origin URLs (derived from the environment hosts, tenant wildcards included) | applied settings |
+| `application-configure` | callback/logout/origin URLs (derived from the environment hosts, each tenant's included) | applied settings |
 | `providers-configure` | social/enterprise providers, `secretRef`s of their credentials | enabled providers |
 | `application-remove` | project, environment | removed |
 
@@ -520,7 +520,4 @@ Decided (reflected in DESIGN.md):
 6. sms-* and publish-* are special-care families.
 7. hosting-*: deploys only from CI.
 8. cache-* and search-* in `lab`: serverless or free tier.
-
-Open:
-
-9. dns-* in `lab`: `record-add` vs `route-add` — depends on the redesign of the lab platform ([DESIGN.md section 18](DESIGN.md#18-open-items)).
+9. dns-* in `lab` is `record-add`: every hostname has its own record; there is no router and no `route-add`.
