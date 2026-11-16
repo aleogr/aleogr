@@ -6,7 +6,7 @@ description: Google Cloud (GCP) budget alert setup. Use to create one budget ale
 
 Creates one budget alert on the owner's billing account (the whole account, not one project). A budget whose display name already equals `displayName` is left alone. A budget only alerts; it does not cap spending, and it has no fixed cost.
 
-The budget commands need the Budget API (`billingbudgets.googleapis.com`) enabled on the quota project. Their exact flags are unverified against real Google Cloud until the first real run: if a command fails, look there first.
+The budget commands need the Budget API (`billingbudgets.googleapis.com`) enabled on the quota project. A project created seconds ago may still refuse them: that is what the single retry in step 2 is for.
 
 ## Arguments
 

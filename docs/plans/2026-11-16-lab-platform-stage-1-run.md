@@ -53,12 +53,14 @@ Prerequisites on Windows found in the first run: `git` installed (the app uses i
 - The final plan output (the table and the `aleogr-result` block of the last `platform-plan` inside `platform-apply`).
 - The full text of any error, from any step.
 
-## 5. Not verified against real Google Cloud until this run
+## 5. Result of the first run (2026-11-16)
 
-- The flags of `gcloud billing budgets`.
-- Whether the Budget API must be enabled on the quota project (the skills enable it before creating the budget).
-- The syntax of the folder and label filters.
-- Whether the plugins install in the Windows app from the catalog at the standard location, with the plugin folders inside `.claude-plugin/`.
-- Whether a plugin skill folder with an underscore in its name (`gcp_environment-create`) loads on Windows.
+The run ended with `nothing to do`: the shared project, its two APIs and the budget alert exist.
 
-Whatever fails becomes a fix in the skills and, when it is provider behaviour, a line in [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md).
+- The flags of `gcloud billing budgets` work as written.
+- The plugins install in the Windows app from the catalog at the standard location, and skill folders with an underscore load. The marketplace was added in the plugin browser (the **+** button, "add from a repository", `aleogr/aleogr#<branch>`), not through step 1: the app did not register it from the settings file after it had been removed once.
+- The project creation failed once, before creating anything: PowerShell split the unquoted `--labels` value at its commas. The skill now quotes it.
+- The first budget listing was denied on the project created seconds before; the skill's single retry, a minute later, succeeded.
+- Still not verified: the label filter finding an existing project (the last plan looked the project up by id), and the folder filter (the shared project is not in a folder).
+
+Whatever failed became a fix in the skills and, when it is provider behaviour, a line in [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md).

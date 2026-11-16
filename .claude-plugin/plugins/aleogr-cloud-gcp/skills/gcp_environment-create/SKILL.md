@@ -65,14 +65,16 @@ For steps 2 to 4: a non-zero exit, or empty output, stops the skill with `failed
    - With `platform=lab` (the shared project, under the organization, with the platform label):
 
      ```
-     gcloud projects create <projectId> --organization=<id> --name="<environment> <project>" --labels=aleogr-project=<project>,aleogr-environment=<environment>,aleogr-platform=lab
+     gcloud projects create <projectId> --organization=<id> --name="<environment> <project>" --labels="aleogr-project=<project>,aleogr-environment=<environment>,aleogr-platform=lab"
      ```
 
    - Otherwise (in the environment's folder, without the platform label):
 
      ```
-     gcloud projects create <projectId> --folder=<id> --name="<environment> <project>" --labels=aleogr-project=<project>,aleogr-environment=<environment>
+     gcloud projects create <projectId> --folder=<id> --name="<environment> <project>" --labels="aleogr-project=<project>,aleogr-environment=<environment>"
      ```
+
+   Keep the quotes around the `--labels` value: PowerShell splits an unquoted value at its commas, and `gcloud` then rejects the arguments.
 
    A non-zero exit stops with `failed` (nothing was created). From here on the project exists: any later failure ends with `pending`, never `failed`, with `outputs.projectId` set to the project ID, `resources` listing the project, and `pending[].how` holding the next command to run.
 

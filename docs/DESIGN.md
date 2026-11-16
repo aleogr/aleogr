@@ -883,8 +883,9 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 ## 18. Open items
 
-- [ ] **Create the lab platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-lab-shared-resources)). Implemented by `platform-plan` and `platform-apply`; waits for the first real run.
-- [ ] **First real run of stage 1**, by me in the Windows app, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). What it shows becomes a fix and, when it is provider behaviour, a line in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [x] **Create the lab platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-lab-shared-resources)). Created on 2026-11-16 by `platform-apply`, in the Windows app.
+- [x] **First real run of stage 1**, by me in the Windows app, on 2026-11-16, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). It ended with `nothing to do`; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] Confirm that `platform-plan`, run without a project id, finds the existing shared project by its labels (the run's last plan looked it up by id).
 - [ ] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
@@ -897,7 +898,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Define the test execution details ([section 15](#15-tests)) before implementing them.
 - [ ] Define the lab platform identifiers that cannot be deduced and store them as Actions variables in `aleogr/aleogr`; configure budget alerts.
 - [x] Registration via `extraKnownMarketplaces` with `path`: tested on 2026-11-16 in the Windows app. The marketplace is downloaded, but the app lists no plugin from it. The catalog moved to the standard location ([section 2.2](#22-marketplace-structure-rules)).
-- [ ] Confirm in the Windows app that the plugins install from the catalog at the standard location, with the plugin folders inside `.claude-plugin/`.
+- [x] Plugins install in the Windows app from the catalog at the standard location, with the plugin folders inside `.claude-plugin/`: confirmed on 2026-11-16.
 - [ ] Test referencing a local Feature in a nested path (`./features/src/base`); if it doesn't work, move the Features up one level.
 - [ ] Mark the Features as public on GHCR after the first publication.
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
