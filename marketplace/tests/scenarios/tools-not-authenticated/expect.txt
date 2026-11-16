@@ -1,0 +1,7 @@
+CALLED ^--version
+CALLED ^auth list --filter=status:ACTIVE
+NOT_CALLED ^(projects|services|billing|organizations|resource-manager) 
+OUTPUT "status": "failed"
+OUTPUT "state": "not-authenticated"
+OUTPUT not authenticated
+OUTPUT gcloud auth login

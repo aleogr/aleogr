@@ -1,0 +1,4 @@
+CALLED ^--version
+NOT_CALLED ^(projects|services|billing|organizations|resource-manager) 
+OUTPUT "status": "failed"
+OUTPUT "state": "missing"
