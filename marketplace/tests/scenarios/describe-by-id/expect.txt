@@ -1,0 +1,10 @@
+# With projectId the label search is skipped (it may not show a seconds-old project).
+NOT_CALLED ^projects list
+CALLED ^projects describe aleogr-lab-shared-zz99
+CALLED ^billing projects describe aleogr-lab-shared-zz99
+CALLED ^services list --enabled --project=aleogr-lab-shared-zz99
+NOT_CALLED ^(projects create|organizations list|resource-manager folders list)
+OUTPUT "exists": true
+OUTPUT "projectId": "aleogr-lab-shared-zz99"
+OUTPUT "billingLinked": true
+OUTPUT "status": "unchanged"

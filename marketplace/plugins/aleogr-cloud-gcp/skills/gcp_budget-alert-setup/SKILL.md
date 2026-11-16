@@ -34,7 +34,7 @@ Before running any command, check the arguments. Any failure ends the skill with
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order.
+Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. The billing account id appears in the commands shown and in `pending[].how`; it never appears in the result block's `outputs` nor in the prose of the final answer.
 
 1. Discover the billing account:
 
@@ -50,7 +50,7 @@ Show each command before running it. Run only the commands below, in this order.
    gcloud billing budgets list --billing-account=<id> --billing-project=<quotaProject> --format="value(displayName)"
    ```
 
-   A non-zero exit stops with `failed` and one sentence of cause, without raw error text; it never means "no budget". Only a successful call with no match means none.
+   In `apply` mode only, if this first list exits non-zero (the Budget API can take a moment after being enabled), wait about one minute and run it once more. A non-zero exit (in `apply`, the second one) stops with `failed` and one sentence of cause, without raw error text; it never means "no budget". Only a successful call with no match means none.
    - A line equal to `displayName`: run nothing else and end with `unchanged`. Do not compare or change the existing budget's amount or thresholds; say so in the answer.
    - `plan` mode, no match: run nothing else and end with `would-create`.
 
@@ -62,9 +62,9 @@ Show each command before running it. Run only the commands below, in this order.
 
    A non-zero exit stops with `failed` and one sentence of cause, without raw error text (nothing was created).
 
-4. Verify by running the step 2 command again. The display name must be in the output. A non-zero exit, or no match, ends with `pending`: say that the budget could not be confirmed, and set `pending[].how` to the step 2 command, written out with the real bare billing account id and quota project so it can be run as is. This is the only place the billing account id may appear.
+4. Verify by running the step 2 command again. The display name must be in the output. A non-zero exit, or no match, ends with `pending`: say that the budget could not be confirmed, and set `pending[].how` to the step 2 command, written out with the real bare billing account id and quota project so it can be run as is.
 
-Then answer in a few lines: the display name, amount, currency and thresholds, whether the budget was created or already existed, and the result block. Never print the billing account id, except in `pending[].how`.
+Then answer in a few lines: the display name, amount, currency and thresholds, whether the budget was created or already existed, and the result block.
 
 ## Result block
 

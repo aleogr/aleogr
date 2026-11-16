@@ -14,6 +14,7 @@ Free text after the skill name, as `key=value` pairs.
 |---|---|
 | `project=<name>` | The aleogr project name (for the shared platform project: `shared`). |
 | `environment=lab\|hom\|prd` | The project environment. |
+| `projectId=<id>` | Instead of `project` and `environment`: the GCP project id, when the caller already knows it. |
 | `services=<list>` | Comma-separated API names, for example `a.googleapis.com,b.googleapis.com`. |
 | `mode=plan\|apply` | `plan` (default) reports what would change and changes nothing; `apply` executes. |
 
@@ -21,14 +22,15 @@ Free text after the skill name, as `key=value` pairs.
 
 Before running any command, check the arguments. Any failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
 
-- `project`, `environment` and `services` are required (if one is missing, ask for it instead); `environment` is one of `lab`, `hom`, `prd`; `mode` is `plan` or `apply`.
+- `services` is required, and either `projectId` or both `project` and `environment` (if one is missing, ask for it instead); `environment` is one of `lab`, `hom`, `prd`; `mode` is `plan` or `apply`.
+- `projectId`, when given, has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`.
 - Every entry of `services` ends with `.googleapis.com` and has only `a-z`, `0-9`, `-` and `.` before that suffix. Remove duplicates.
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order.
+Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
 
-1. Find the project and the enabled services: invoke `aleogr-cloud-gcp:gcp_environment-describe` with `project=<project> environment=<environment>`. Use its result only as input and do not repeat it; this skill's answer ends with exactly one `aleogr-result` block, its own.
+1. Find the project and the enabled services: invoke `aleogr-cloud-gcp:gcp_environment-describe` with `projectId=<projectId>` when it was given, otherwise with `project=<project> environment=<environment>`. Use its result only as input and do not repeat it; this skill's answer ends with exactly one `aleogr-result` block, its own.
    - `status` `failed`: stop with `failed`.
    - `exists` false: stop with `failed`, saying the environment must be created first (`gcp_environment-create`). Never create a project.
    - Otherwise take `projectId` and `enabledServices`.

@@ -14,12 +14,15 @@ Free text after the skill name, as `key=value` pairs.
 |---|---|
 | `project=<name>` | The aleogr project name (for the shared platform project: `shared`). |
 | `environment=lab\|hom\|prd` | The project environment. |
+| `projectId=<id>` | Instead of `project` and `environment`: the GCP project id, when the caller already knows it. |
 
-If either is missing, ask for it before running any command.
+Without `projectId`, if `project` or `environment` is missing, ask for it before running any command. `projectId`, when given, must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`; otherwise end with the result block with `status` `failed`, one sentence saying so, and no command.
 
 ## Steps
 
-The project is found by its labels, so the organization and the folder are not needed: do not run `gcloud organizations list` or `gcloud resource-manager folders list`. Show each command before running it. Run only the commands below, in this order.
+The project is found by its labels, so the organization and the folder are not needed: do not run `gcloud organizations list` or `gcloud resource-manager folders list`. Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
+
+With `projectId`, skip step 1: that is the project ID (a search by labels may not show a project created seconds ago). Take `project` and `environment` for the result from its labels in step 2.
 
 1. Find the project:
 
