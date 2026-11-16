@@ -84,9 +84,7 @@ For steps 2 to 4: a non-zero exit, or empty output, stops the skill with `failed
    gcloud billing projects describe <projectId> --format="value(billingEnabled)"
    ```
 
-   Expect `ACTIVE` and `True`. A non-zero exit, or any other value, ends with `pending` (the project exists) and a sentence saying what could not be verified; `pending[].how` is the command that checks it, for example `gcloud billing projects describe <projectId> --format="value(billingEnabled)"`.
-
-   When repairing an existing project, check the lifecycle as above and check billing with `gcloud billing projects describe <projectId> --format="value(billingAccountName)"` instead: expect a non-empty value.
+   Expect `ACTIVE` and `True`, also when repairing an existing project (a non-empty `billingAccountName` is not enough). A non-zero exit, or any other value, ends with `pending` (the project exists) and a sentence saying what could not be verified; `pending[].how` is the command that checks it, for example `gcloud billing projects describe <projectId> --format="value(billingEnabled)"`.
 
 Then answer in a few lines: the project ID, its parent type, whether billing is linked, and the result block.
 

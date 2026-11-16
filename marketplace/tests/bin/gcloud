@@ -6,6 +6,9 @@
 # must start with the file name minus its extension (projects_list.txt answers
 # "projects list ..."). Fallback: default.txt, else nothing. A file whose name
 # ends in .exit1 (projects_list.txt.exit1) prints its content, then exits 1.
+# Numbered responses: files <prefix>.1.txt, <prefix>.2.txt, ... answer the 1st,
+# 2nd, ... call that matches <prefix>; later calls get the last file. The call
+# counter lives in a file next to FAKE_LOG.
 echo "$*" >> "${FAKE_LOG:?FAKE_LOG is not set}"
 dir="${FAKE_RESPONSES:-}"
 [ -d "$dir" ] || exit 0
@@ -16,9 +19,28 @@ for f in "$dir"/*; do
   base="$(basename "$f")"
   name="${base%.exit1}"
   name="${name%.*}"
+  num=""
+  case "$name" in
+    *.[0-9]*) num="${name##*.}"; name="${name%.*}" ;;
+  esac
   [ "$name" = default ] && continue
   case "$key" in
     "$name"*)
+      if [ -n "$num" ]; then
+        # Numbered set: pick the file for this call's ordinal (or the last one).
+        counter="$(dirname "$FAKE_LOG")/.count_${name//[^A-Za-z0-9_-]/#}"
+        n=$(( $(cat "$counter" 2>/dev/null || echo 0) + 1 ))
+        echo "$n" > "$counter"
+        chosen="" ; chosen_n=0
+        for g in "$dir"/"$name".[0-9]*; do
+          [ -f "$g" ] || continue
+          gb="$(basename "$g")"
+          gn="${gb%.exit1}"; gn="${gn%.txt}"; gn="${gn##*.}"
+          if [ "$gn" -le "$n" ] && [ "$gn" -gt "$chosen_n" ]; then chosen="$g"; chosen_n="$gn"; fi
+        done
+        [ -n "$chosen" ] || chosen="$f"
+        f="$chosen"; base="$(basename "$f")"
+      fi
       cat "$f"
       case "$base" in *.exit1) exit 1 ;; esac
       exit 0

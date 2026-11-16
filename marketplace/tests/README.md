@@ -32,6 +32,10 @@ Create `scenarios/<name>/` with:
   written as `_` (`projects_list.txt` answers `projects list ...`). Otherwise
   `default.txt` answers, or nothing is printed. A name ending in `.exit1`
   (`projects_create.txt.exit1`) prints its content and makes the call fail.
+  Numbered files (`billing_projects_describe_x.1.txt`, `...2.txt`) answer the
+  first, second, ... call that matches the prefix, and later calls get the
+  last file (`.exit1` may follow any number). Use them when a call must
+  answer differently before and after a change, such as a billing link.
 - `expect.txt`, one check per line (blank lines and `#` comments are ignored):
 
 | Line | Holds when |
