@@ -1,0 +1,8 @@
+CALLED ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-lab-shared-zz99
+CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr-lab.? .*--budget-amount=100BRL .*--threshold-rule=percent=0.5 .*--threshold-rule=percent=0.9 .*--threshold-rule=percent=1(\.0)? .*--billing-project=aleogr-lab-shared-zz99
+ORDER ^billing budgets list >> ^billing budgets create
+COUNT 2 ^billing budgets list
+OUTPUT "status": "created"
+OUTPUT "amount": 100
+OUTPUT "currency": "BRL"
+OUTPUT "displayName": "aleogr-lab"
