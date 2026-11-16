@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_environment-create project=shared environment=lab platform=lab mode=plan

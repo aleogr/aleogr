@@ -1,0 +1,4 @@
+CALLED ^projects create aleogr-lab-shared-[a-z0-9]{4} .*--organization=111111111111
+CALLED ^billing projects link aleogr-lab-shared-[a-z0-9]{4} --billing-account=0X0X0X-0X0X0X-0X0X0X
+OUTPUT "status": "pending"
+OUTPUT "how": "gcloud billing projects link aleogr-lab-shared-[a-z0-9]{4} --billing-account=

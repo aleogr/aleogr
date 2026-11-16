@@ -1,0 +1,7 @@
+CALLED ^projects list .*aleogr-project=shared
+CALLED ^organizations list
+NOT_CALLED ^resource-manager folders list
+NOT_CALLED ^projects create
+NOT_CALLED ^billing projects link
+OUTPUT "status": "would-create"
+OUTPUT "mode": "plan"
