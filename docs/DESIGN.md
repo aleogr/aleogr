@@ -141,7 +141,7 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
 
 **Premise: clean root.** Only `README.md`, `docs/` and `marketplace/` are visible at the root; everything else lives in the dot folders required by convention (`.github/`, `.devcontainer/`).
 
-The tree below is the **TARGET**; "(skeleton)" marks what exists since the first task.
+The tree below is the **TARGET**; "(skeleton)" marks what exists since the first task and "(built)" what exists with its stage 1 content. Everything else is planned.
 
 ```
 aleogr/aleogr/
@@ -150,6 +150,7 @@ aleogr/aleogr/
 │   ├── DESIGN.md                              ← source of truth (skeleton)
 │   ├── CONTRACTS.md                           ← contracts of every plugin family
 │   ├── PROVIDER-FACTS.md                      ← how the providers behave (facts, not decisions)
+│   ├── plans/                                 ← implementation plans and run checklists (built)
 │   └── cloud-environments/                    (future) canonical version of the Claude Code cloud environments
 │       └── lab.md                             ← setup script, allowed domains, no IDs or secrets
 ├── .devcontainer/
@@ -188,7 +189,8 @@ aleogr/aleogr/
 └── marketplace/                               ← marketplace root
     ├── README.md                              ← how to register the marketplace (skeleton)
     ├── .claude-plugin/
-    │   └── marketplace.json
+    │   └── marketplace.json                   (built: aleogr, aleogr-cloud-gcp)
+    ├── tests/                             ← skill tests: run.sh, fake gcloud in bin/, scenarios/ (built, section 15.1)
     ├── schemas/
     │   ├── README.md                          ← purpose, versioning and examples of the schema (skeleton)
     │   ├── project.schema.json
@@ -196,13 +198,13 @@ aleogr/aleogr/
     │       └── go-gcp-cloudflare.json         (future)
     └── plugins/
         ├── README.md                          ← names, family types, plugin skeleton (skeleton)
-        ├── aleogr/                            ← orchestrator (MVP)
+        ├── aleogr/                            ← orchestrator (MVP; built: manifest, defaults.json and the three platform skills)
         │   ├── .claude-plugin/plugin.json
         │   ├── defaults.json              ← my personal defaults (choices only, no IDs)
         │   ├── skills/
-        │   │   ├── tools-check/SKILL.md
-        │   │   ├── platform-plan/SKILL.md
-        │   │   ├── platform-apply/SKILL.md
+        │   │   ├── tools-check/SKILL.md           (built)
+        │   │   ├── platform-plan/SKILL.md         (built)
+        │   │   ├── platform-apply/SKILL.md        (built)
         │   │   ├── project-declare/SKILL.md
         │   │   ├── project-plan/SKILL.md
         │   │   └── project-apply/SKILL.md
@@ -217,9 +219,9 @@ aleogr/aleogr/
         │       ├── github_ci-set-secret/SKILL.md      ← contract
         │       ├── github_ci-setup/SKILL.md           ← contract
         │       └── github_claude-app-install/SKILL.md ← extra (future)
-        ├── aleogr-cloud-gcp/                  (MVP)
+        ├── aleogr-cloud-gcp/                  (MVP; built: manifest and the four skills below)
         │   ├── .claude-plugin/plugin.json
-        │   └── skills/ gcp_environment-create, gcp_services-enable, gcp_deploy-setup
+        │   └── skills/ gcp_environment-describe (built), gcp_environment-create (built), gcp_services-enable (built), gcp_budget-alert-setup (built), gcp_deploy-setup
         └── aleogr-dns-cloudflare/             (MVP)
             ├── .claude-plugin/plugin.json
             ├── .mcp.json                      ← official Cloudflare MCP (https://mcp.cloudflare.com/mcp)
@@ -612,15 +614,15 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 ## 12. Skills of the `aleogr` orchestrator
 
 - **Core:**
-  - `platform-plan`: compares the lab platform choices in `defaults.json` with the cloud; changes nothing;
-  - `platform-apply`: creates and changes the lab platform ([section 6.8](#68-lab-shared-resources)) as `platform-plan` lists;
+  - `platform-plan`: compares the lab platform choices in `defaults.json` with the cloud; changes nothing (implemented for the free part: shared project, APIs, budget alert);
+  - `platform-apply`: creates and changes the lab platform ([section 6.8](#68-lab-shared-resources)) as `platform-plan` lists (implemented for the free part; asks for one confirmation unless called with `confirm=yes`);
   - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
   - `project-plan`: compares declaration, state and reality; changes nothing;
   - `project-apply`: executes the plan in order.
   - `platform-*` act on the lab platform; `project-*` remain for projects.
 - **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
-  - `tools-check`: CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
+  - `tools-check` (implemented for `gcloud` and where Claude runs): CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
   - `plugins-sync`: writes `extraKnownMarketplaces` and installs/disables family plugins in project scope;
   - `component-remove`, `service-remove`: stop before deleting, asking for confirmation.
 - **Marketplace** (perhaps in a separate `aleogr-dev` plugin, open decision):
@@ -772,7 +774,7 @@ Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleog
 - `self-validate-marketplace.yml`: validation of the marketplace and naming rules, and of the example declarations against the schema.
 - `self-lint.yml`: static checks of workflows and hook scripts.
 - `self-test-features.yml`: Feature tests with the dev containers CLI, using `.devcontainer/features/test/`.
-- Skill tests (`marketplace/tests/`): `run.sh <scenario>` runs the real skills headless (`claude -p`) against fake CLIs (a fake `gcloud` in `marketplace/tests/bin/`) and checks the logged calls against the scenario's `expect.txt`. They create nothing outside the repository, are run by hand for now (no workflow), and each run costs model usage.
+- Skill tests (`marketplace/tests/`): `run.sh <scenario>` runs the real skills headless (`claude -p`) against fake CLIs (a fake `gcloud` in `marketplace/tests/bin/`, with numbered responses for calls that must answer differently before and after a change) and checks the logged calls and the final answer against the scenario's `expect.txt` (line types in `marketplace/tests/README.md`). They create nothing outside the repository, are run by hand for now (no workflow), and each run costs model usage.
 - Apart from `marketplace/tests/`, the only "tests folder" in the repository is `marketplace/schemas/examples/`, with the test INPUTS (declarations with fictitious values), never projects with code.
 
 ### 15.2 Layer 2 — local development
@@ -882,7 +884,9 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 ## 18. Open items
 
-- [ ] **Create the lab platform** as redesigned ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the shared project, the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it, and the budget alert. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] **Create the lab platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-lab-shared-resources)). Implemented by `platform-plan` and `platform-apply`; waits for the first real run.
+- [ ] **First real run of stage 1**, by me in the Windows app, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). What it shows becomes a fix and, when it is provider behaviour, a line in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.

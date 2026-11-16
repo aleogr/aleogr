@@ -30,3 +30,9 @@ aleogr-<family>-<provider>/
 ├── scripts/                     (optional; reference with ${CLAUDE_PLUGIN_ROOT})
 └── .mcp.json                    (optional; official MCP when there is no good CLI)
 ```
+
+## What exists
+
+- `aleogr` (orchestrator): skills `tools-check`, `platform-plan`, `platform-apply`; `defaults.json`.
+- `aleogr-cloud-gcp`: skills `gcp_environment-describe`, `gcp_environment-create`, `gcp_services-enable`, `gcp_budget-alert-setup`.
+- Everything else in the design (other families, project skills, hooks) is planned; the tests are in `../tests/`.
