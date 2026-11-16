@@ -1,0 +1,6 @@
+{
+  "name": "aleogr",
+  "version": "0.1.0",
+  "description": "Orchestrator: checks tools and plans and creates the lab platform.",
+  "author": { "name": "aleogr" }
+}

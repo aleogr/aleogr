@@ -1,0 +1,7 @@
+CALLED ^projects list .*aleogr-project=shared
+CALLED ^billing accounts list
+NOT_CALLED ^projects create
+NOT_CALLED ^billing projects link
+OUTPUT "status": "failed"
+OUTPUT [Ww]hich
+OUTPUT [Bb]illing account

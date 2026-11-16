@@ -1,0 +1,6 @@
+{
+  "name": "aleogr-cloud-gcp",
+  "version": "0.1.0",
+  "description": "Google Cloud family: project environments, services and budget alerts.",
+  "author": { "name": "aleogr" }
+}

@@ -1,0 +1,7 @@
+# The first list fails (API just enabled), the retry succeeds with no budget, then the
+# create and its verification: three lists in all.
+COUNT 3 ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-lab-shared-zz99
+CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr-lab.? .*--budget-amount=100BRL .*--billing-project=aleogr-lab-shared-zz99
+ORDER ^billing budgets list >> ^billing budgets create
+OUTPUT "status": "created"
+OUTPUT "displayName": "aleogr-lab"

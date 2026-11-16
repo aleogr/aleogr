@@ -1,0 +1,10 @@
+ORDER ^organizations list >> ^resource-manager folders list
+CALLED ^resource-manager folders list --organization=111111111111 .*displayName=lab
+CALLED ^projects create aleogr-lab-demo-[a-z0-9]{4} .*--folder=222222222222
+CALLED ^projects create .*--name="?lab demo"?
+CALLED ^projects create .*aleogr-project=demo
+CALLED ^projects create .*aleogr-environment=lab
+NOT_CALLED ^projects create .*--organization=
+NOT_CALLED ^projects create .*aleogr-platform
+CALLED ^billing projects link aleogr-lab-demo-[a-z0-9]{4} --billing-account=0X0X0X-0X0X0X-0X0X0X
+OUTPUT "status": "created"

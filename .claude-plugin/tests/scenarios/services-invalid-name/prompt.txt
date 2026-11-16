@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_services-enable project=shared environment=lab services=billingbudgets mode=apply

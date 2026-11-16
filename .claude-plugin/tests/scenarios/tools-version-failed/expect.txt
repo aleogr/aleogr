@@ -1,0 +1,8 @@
+CALLED ^--version
+NOT_CALLED ^(projects|services|billing|organizations|resource-manager) 
+OUTPUT "status": "failed"
+OUTPUT "state": "missing"
+# gcloud is found but fails to start; gcloud.cmd is not on this PATH, so the state is missing
+# and the answer shows the first line of the error.
+OUTPUT gcloud failed to start
+OUTPUT "command": "gcloud"

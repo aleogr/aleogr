@@ -33,7 +33,7 @@ A personal Claude Code plugin marketplace to automate the setup of new projects 
 Everything lives in my GitHub profile repository, `aleogr/aleogr`, which has **four roles**:
 
 1. GitHub profile (root `README.md`).
-2. Claude Code plugin marketplace (`marketplace/`).
+2. Claude Code plugin marketplace (`.claude-plugin/`).
 3. Reusable CI/CD: parameterized workflows and composite actions (`.github/`).
 4. Dev Container Features for GitHub Codespaces (`.devcontainer/features/`).
 
@@ -139,9 +139,9 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
 
 ## 2. Structure of aleogr/aleogr
 
-**Premise: clean root.** Only `README.md`, `docs/` and `marketplace/` are visible at the root; everything else lives in the dot folders required by convention (`.github/`, `.devcontainer/`).
+**Premise: clean root.** Only `README.md` and `docs/` are visible at the root; everything else lives in dot folders: `.github/` and `.devcontainer/`, required by convention, and `.claude-plugin/`, which holds the whole marketplace.
 
-The tree below is the **TARGET**; "(skeleton)" marks what exists since the first task.
+The tree below is the **TARGET**; "(skeleton)" marks what exists since the first task and "(built)" what exists with its stage 1 content. Everything else is planned.
 
 ```
 aleogr/aleogr/
@@ -150,6 +150,7 @@ aleogr/aleogr/
 │   ├── DESIGN.md                              ← source of truth (skeleton)
 │   ├── CONTRACTS.md                           ← contracts of every plugin family
 │   ├── PROVIDER-FACTS.md                      ← how the providers behave (facts, not decisions)
+│   ├── plans/                                 ← implementation plans and run checklists (built)
 │   └── cloud-environments/                    (future) canonical version of the Claude Code cloud environments
 │       └── lab.md                             ← setup script, allowed domains, no IDs or secrets
 ├── .devcontainer/
@@ -185,11 +186,10 @@ aleogr/aleogr/
 │       ├── ci-go.yml                          (future, reusable)
 │       ├── ci-java.yml                        (future, reusable)
 │       └── cd-cloud-run.yml                   (future, reusable)
-└── marketplace/                               ← marketplace root
+└── .claude-plugin/                            ← the whole marketplace; the repository root is the marketplace root
     ├── README.md                              ← how to register the marketplace (skeleton)
-    ├── defaults.json                          ← my personal defaults (choices only, no IDs) (future)
-    ├── .claude-plugin/
-    │   └── marketplace.json
+    ├── marketplace.json                       (built: aleogr, aleogr-cloud-gcp)
+    ├── tests/                             ← skill tests: run.sh, fake gcloud in bin/, scenarios/ (built, section 15.1)
     ├── schemas/
     │   ├── README.md                          ← purpose, versioning and examples of the schema (skeleton)
     │   ├── project.schema.json
@@ -197,10 +197,13 @@ aleogr/aleogr/
     │       └── go-gcp-cloudflare.json         (future)
     └── plugins/
         ├── README.md                          ← names, family types, plugin skeleton (skeleton)
-        ├── aleogr/                            ← orchestrator (MVP)
+        ├── aleogr/                            ← orchestrator (MVP; built: manifest, defaults.json and the three platform skills)
         │   ├── .claude-plugin/plugin.json
+        │   ├── defaults.json              ← my personal defaults (choices only, no IDs)
         │   ├── skills/
-        │   │   ├── tools-check/SKILL.md
+        │   │   ├── tools-check/SKILL.md           (built)
+        │   │   ├── platform-plan/SKILL.md         (built)
+        │   │   ├── platform-apply/SKILL.md        (built)
         │   │   ├── project-declare/SKILL.md
         │   │   ├── project-plan/SKILL.md
         │   │   └── project-apply/SKILL.md
@@ -215,9 +218,9 @@ aleogr/aleogr/
         │       ├── github_ci-set-secret/SKILL.md      ← contract
         │       ├── github_ci-setup/SKILL.md           ← contract
         │       └── github_claude-app-install/SKILL.md ← extra (future)
-        ├── aleogr-cloud-gcp/                  (MVP)
+        ├── aleogr-cloud-gcp/                  (MVP; built: manifest and the four skills below)
         │   ├── .claude-plugin/plugin.json
-        │   └── skills/ gcp_environment-create, gcp_services-enable, gcp_deploy-setup
+        │   └── skills/ gcp_environment-describe (built), gcp_environment-create (built), gcp_services-enable (built), gcp_budget-alert-setup (built), gcp_deploy-setup
         └── aleogr-dns-cloudflare/             (MVP)
             ├── .claude-plugin/plugin.json
             ├── .mcp.json                      ← official Cloudflare MCP (https://mcp.cloudflare.com/mcp)
@@ -233,14 +236,16 @@ aleogr/aleogr/
 
 ### 2.2 Marketplace structure rules
 
-- `marketplace.json` lives at `marketplace/.claude-plugin/marketplace.json`. The marketplace root is `marketplace/` (the directory containing `.claude-plugin/`); `source` paths are relative to it (`./plugins/aleogr`), without `..`.
+- `marketplace.json` lives at `.claude-plugin/marketplace.json`, the standard location. The marketplace root is therefore the repository root (the directory containing `.claude-plugin/`); `source` paths are relative to it (`./.claude-plugin/plugins/aleogr`), without `..`.
+- **Everything of the marketplace lives inside `.claude-plugin/`** (plugins, tests, schemas), to keep the repository root clean, in the same way as `.github/actions/` and `.devcontainer/features/`. Claude Code only requires the catalog file there; keeping the rest beside it is my choice.
 - Each plugin has `.claude-plugin/plugin.json` (only the manifest lives inside `.claude-plugin/`); `skills/`, `agents/`, `hooks/`, `scripts/` and `.mcp.json` live at the plugin root. Scripts are referenced with `${CLAUDE_PLUGIN_ROOT}`.
-- Local validation: `claude plugin validate ./marketplace`. Local test: `claude plugin marketplace add ./marketplace`.
+- Local validation: `claude plugin validate .` (from the repository root). Local test: `claude plugin marketplace add .`.
+- A plugin cannot read files outside its own folder once installed, so files the skills read (`defaults.json`, `contracts.json`) live inside the plugin that uses them: the orchestrator, `.claude-plugin/plugins/aleogr/`. Skills reference them as `${CLAUDE_PLUGIN_ROOT}/defaults.json`.
 - **Do NOT use the `dependencies` field** to link the orchestrator to the family plugins: that would install every family in every project. Activation is decided by each project's declaration, via `plugins-sync`.
 
 ### 2.3 Registering the marketplace
 
-Since `marketplace.json` is not at the repository root, `claude plugin marketplace add aleogr/aleogr` **does not work**. Registration is done in `extraKnownMarketplaces`, through four paths, depending on where Claude Code runs:
+The catalog is at the standard location, so the marketplace is registered like any other: `claude plugin marketplace add aleogr/aleogr`, or the `extraKnownMarketplaces` block below. Where it is done depends on where Claude Code runs:
 
 - **Local (Windows app):** by hand once per computer in `~/.claude/settings.json`; and by `plugins-sync` in each project's `.claude/settings.json` (family plugins in project scope).
 - **Codespaces:** by the `base` Feature.
@@ -255,9 +260,7 @@ Settings block:
     "aleogr": {
       "source": {
         "source": "github",
-        "repo": "aleogr/aleogr",
-        "path": "marketplace/.claude-plugin/marketplace.json",
-        "sparsePaths": ["marketplace"]
+        "repo": "aleogr/aleogr"
       }
     }
   },
@@ -267,14 +270,15 @@ Settings block:
 }
 ```
 
+- **Registering is not installing:** `enabledPlugins` only marks a plugin as enabled. Each plugin is installed once per computer, from the plugin browser of the app or with `claude plugin install <plugin>@aleogr`.
 - **Visibility (local):** the marketplace catalog shows all plugins; among installed ones, `aleogr` appears everywhere (user scope) and family plugins appear only in the projects that activated them (project scope).
-- **Schema URL in projects:** `https://raw.githubusercontent.com/aleogr/aleogr/main/marketplace/schemas/project.schema.json`.
+- **Schema URL in projects:** `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`.
 
 ---
 
 ## 3. Public repository conditions
 
-- The profile repository must be public; marketplace, actions, workflows and Features are public. They contain only **generic TOOLING, NEVER data** (see [section 7](#7-where-data-lives)). Example declarations in `marketplace/schemas/examples/` use fictitious values; `defaults.json` and `docs/cloud-environments/` contain only choices, no IDs or secrets.
+- The profile repository must be public; marketplace, actions, workflows and Features are public. They contain only **generic TOOLING, NEVER data** (see [section 7](#7-where-data-lives)). Example declarations in `.claude-plugin/schemas/examples/` use fictitious values; `defaults.json` and `docs/cloud-environments/` contain only choices, no IDs or secrets.
 - **Separate versions per product:**
   - prefixed tags for workflows and actions (`workflows-v1`, `actions-v1`);
   - the marketplace follows the default branch and the `plugin.json` versions;
@@ -400,11 +404,12 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.6 Personal defaults
 
-- In `marketplace/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
+- In `.claude-plugin/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
 
 ### 6.7 GCP: organization, folders and billing
 
 - **Every GCP project lives inside the organization**, never loose under my user account.
+- **The shared project is the one exception to the folders:** it lives directly under the organization, outside every folder, because it serves both `lab` and `hom` and belongs to neither ([section 6.8](#68-lab-shared-resources)). Rules applied to a folder do not reach it; only the organization's do.
 - **One folder per environment**, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `lab`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
 - **Preferred region: `us-central1`**, for every project and for the shared environment (same region as the shared database; Cloud Run domain mappings exist there). It is the default in `defaults.json` ([section 6.6](#66-personal-defaults)).
 - **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
@@ -414,7 +419,7 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.8 Lab shared resources
 
-- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`; "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
+- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`, so on GCP it is created directly under the organization, not in the folder of an environment ([section 6.7](#67-gcp-organization-folders-and-billing)); "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
 - `shared` is a **RESERVED** project name ([section 11.1](#111-json-schema)).
 - Accepted trade: `lab` and `hom` of every project share performance and availability, and the separation between them protects against accidents only ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A project that needs an isolated `hom` uses the `dedicated` mode.
 - **Shared database:** one Cloud SQL PostgreSQL instance, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`).
@@ -446,7 +451,7 @@ Declaration (replaces a simple `domains` field):
   - label on everything that accepts labels (`aleogr-platform`, `aleogr-project`, `aleogr-test`);
   - name by convention ALWAYS (it is the identifier of resources without labels, such as databases inside the shared instance and DNS records);
   - variables only for what cannot be deduced (ideally only IDs chosen once).
-- The platform's change history comes from the hooks' audit log and the providers' audit logs; decisions are versioned in Git (`defaults.json`).
+- The platform's change history comes from the hooks' audit log and the providers' audit logs; decisions are versioned in Git (`.claude-plugin/plugins/aleogr/defaults.json`).
 - PROJECT data (`project.json`, `state.json`) stays in each project's repository. **Open question:** apply the same discovery principle to projects, making `state.json` lighter or just a cache (see in practice, with the MVP).
 
 ---
@@ -579,7 +584,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 ### 11.1 JSON Schema
 
-- In `marketplace/schemas/project.schema.json` (versioned; `version` field in project.json; `$schema` for autocomplete).
+- In `.claude-plugin/schemas/project.schema.json` (versioned; `version` field in project.json; `$schema` for autocomplete).
 - Exclusive families = object; combinable = list.
 - Exactly one `primary` cloud (contains + minContains/maxContains = 1).
 - payments `mode` with default "test".
@@ -608,12 +613,15 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 ## 12. Skills of the `aleogr` orchestrator
 
 - **Core:**
+  - `platform-plan`: compares the lab platform choices in `defaults.json` with the cloud; changes nothing (implemented for the free part: shared project, APIs, budget alert);
+  - `platform-apply`: creates and changes the lab platform ([section 6.8](#68-lab-shared-resources)) as `platform-plan` lists (implemented for the free part; asks for one confirmation unless called with `confirm=yes`);
   - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
   - `project-plan`: compares declaration, state and reality; changes nothing;
   - `project-apply`: executes the plan in order.
+  - `platform-*` act on the lab platform; `project-*` remain for projects.
 - **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
-  - `tools-check`: CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
+  - `tools-check` (implemented for `gcloud` and where Claude runs): CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
   - `plugins-sync`: writes `extraKnownMarketplaces` and installs/disables family plugins in project scope;
   - `component-remove`, `service-remove`: stop before deleting, asking for confirmation.
 - **Marketplace** (perhaps in a separate `aleogr-dev` plugin, open decision):
@@ -624,14 +632,14 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 `marketplace-validate` (and the `self-validate-marketplace.yml` workflow, on every PR) checks:
 
-- `claude plugin validate ./marketplace`;
+- `claude plugin validate .`;
 - family skills in the `<provider>_<action>` format, with the object first in the action;
-- NO `name:` in the frontmatter of `SKILL.md` files inside `marketplace/plugins/`;
+- NO `name:` in the frontmatter of `SKILL.md` files inside `.claude-plugin/plugins/`;
 - no skill name equal to a built-in command;
 - `marketplace.json` entry equal to the `plugin.json` `name`;
 - `category` and `displayName` present;
 - mandatory contract skills present in each family plugin;
-- declarations in `marketplace/schemas/examples/` valid against the schema.
+- declarations in `.claude-plugin/schemas/examples/` valid against the schema.
 
 ### 12.2 Apply order
 
@@ -765,11 +773,12 @@ Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleog
 - `self-validate-marketplace.yml`: validation of the marketplace and naming rules, and of the example declarations against the schema.
 - `self-lint.yml`: static checks of workflows and hook scripts.
 - `self-test-features.yml`: Feature tests with the dev containers CLI, using `.devcontainer/features/test/`.
-- The only "tests folder" in the repository is `marketplace/schemas/examples/`, with the test INPUTS (declarations with fictitious values), never projects with code.
+- Skill tests (`.claude-plugin/tests/`): `run.sh <scenario>` runs the real skills headless (`claude -p`) against fake CLIs (a fake `gcloud` in `.claude-plugin/tests/bin/`, with numbered responses for calls that must answer differently before and after a change) and checks the logged calls and the final answer against the scenario's `expect.txt` (line types in `.claude-plugin/tests/README.md`). They create nothing outside the repository, are run by hand for now (no workflow), and each run costs model usage.
+- Apart from `.claude-plugin/tests/`, the only "tests folder" in the repository is `.claude-plugin/schemas/examples/`, with the test INPUTS (declarations with fictitious values), never projects with code.
 
 ### 15.2 Layer 2 — local development
 
-- Load a plugin straight from its folder with `--plugin-dir`, or register the local marketplace with `claude plugin marketplace add ./marketplace`, and experiment in a test folder in the Windows app. Nothing is published.
+- Load a plugin straight from its folder with `--plugin-dir`, or register the local marketplace with `claude plugin marketplace add .`, and experiment in a test folder in the Windows app. Nothing is published.
 
 ### 15.3 Layer 3 — end to end
 
@@ -782,7 +791,7 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
   - marketplace registered with `"ref": "<branch>"`;
   - Features tested by layer 1 (and, if needed, published with a pre-release version).
 - Each test uses an `<id>` in ALL resources ([section 1](#1-names)): repository `test-<id>`, services `test-<id>-<component>` in the lab's cloud environment, database `test_<id>` on the shared instance, `test-<id>.lab.aleogr.dev` (with project environments: `test-<id>-<environment>.lab.aleogr.dev`; tenants: `<tenant>.test-<id>.lab.aleogr.dev`).
-- **The test:** run `/aleogr:project-create` with a declaration from `marketplace/schemas/examples/`; check:
+- **The test:** run `/aleogr:project-create` with a declaration from `.claude-plugin/schemas/examples/`; check:
   - green CI;
   - address responding (and tenants, if any);
   - codespace opening with the right tools;
@@ -817,7 +826,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Dedicated marketplace repository (`aleogr-claude-plugins`): replaced by `aleogr/aleogr`.
 - Tooling in a private repository (`aleogr/lab` with everything): on the free plan it would lose branch protection, unlimited Actions minutes and use of the workflows by repositories of other owners (such as the test organization), and would complicate Features, schema and marketplace.
 - Private `aleogr/lab` repository only for lab platform data: replaced by secrets in the vault, identifiers by convention and Actions variables, and state discovered in the cloud.
-- `marketplace.json` at the repository root (with `metadata.pluginRoot`): passed over in favor of everything inside `marketplace/`, for organization.
+- The catalog in a subfolder (`marketplace/.claude-plugin/marketplace.json`, registered with `path`): the Claude Code desktop app downloads such a marketplace but lists no plugin from it ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). The catalog is at the standard location, and the marketplace content went into `.claude-plugin/`.
 - `actions/` folder at the root: composite actions live in `.github/actions/`.
 - `devcontainers/`, `codespaces/` or `features/` folders at the root: Features live in `.devcontainer/features/`.
 - `aleogr-` prefix on Features (e.g. `aleogr-setup`, `aleogr-go`): redundant with the address `ghcr.io/aleogr/aleogr/`; use `base`, `go`, `java`...
@@ -867,14 +876,17 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Build guided by the **NEXT REAL PROJECT**: only the plugins, workflows, actions and Features it requires (probably `aleogr`, `aleogr-repo-github`, `aleogr-cloud-gcp`, `aleogr-dns-cloudflare`, the `base` Feature, the `lab` cloud environment and the reusable workflows for the project's stacks). **Goal:** the project comes out of nothing without me opening any dashboard.
 - Before the first project: redesign and declare the lab platform, from scratch ([sections 6](#6-the-lab-project-environments-and-minimum-cost), [7](#7-where-data-lives) and [18](#18-open-items)).
 - **Orchestrator MVP:** `tools-check`, `project-declare`, `project-plan`, `project-apply`, plus the destructive command guard hook (already with the test exceptions) and read permissions in `allow`.
-- The next real project's declaration, with fictitious values, becomes the first example in `marketplace/schemas/examples/` and the first end-to-end test, before being applied to the real project.
+- The next real project's declaration, with fictitious values, becomes the first example in `.claude-plugin/schemas/examples/` and the first end-to-end test, before being applied to the real project.
 - New families, providers, actions, workflows, Features and cloud environments come in when a real project needs them.
 
 ---
 
 ## 18. Open items
 
-- [ ] **Create the lab platform** as redesigned ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the shared project, the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it, and the budget alert. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [x] **Create the lab platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-lab-shared-resources)). Created on 2026-11-16 by `platform-apply`, in the Windows app.
+- [x] **First real run of stage 1**, by me in the Windows app, on 2026-11-16, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). It ended with `nothing to do`; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [x] `platform-plan`, run without a project id, finds the existing shared project by its labels: confirmed on 2026-11-16, in a new session.
+- [ ] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
@@ -885,11 +897,12 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
   - (b) a project SessionStart hook, only when `CLAUDE_CODE_REMOTE=true`, installs the declaration's plugins (test whether they load without restarting the session).
 - [ ] Define the test execution details ([section 15](#15-tests)) before implementing them.
 - [ ] Define the lab platform identifiers that cannot be deduced and store them as Actions variables in `aleogr/aleogr`; configure budget alerts.
-- [ ] Test registration via `extraKnownMarketplaces` with `path` (and with a branch `ref`) and the resolution of relative paths from `marketplace/`.
+- [x] Registration via `extraKnownMarketplaces` with `path`: tested on 2026-11-16 in the Windows app. The marketplace is downloaded, but the app lists no plugin from it. The catalog moved to the standard location ([section 2.2](#22-marketplace-structure-rules)).
+- [x] Plugins install in the Windows app from the catalog at the standard location, with the plugin folders inside `.claude-plugin/`: confirmed on 2026-11-16.
 - [ ] Test referencing a local Feature in a nested path (`./features/src/base`); if it doesn't work, move the Features up one level.
 - [ ] Mark the Features as public on GHCR after the first publication.
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
-- [ ] Test whether an installed plugin can read files of `marketplace/` outside its own folder. The result defines where `contracts.json` (section 10.1) and `defaults.json` live: in `marketplace/`, or inside the orchestrator plugin (`marketplace/plugins/aleogr/`).
+- [x] Can an installed plugin read files of the marketplace outside its own folder? No. `defaults.json` lives in the orchestrator plugin (`.claude-plugin/plugins/aleogr/`) and `contracts.json` (section 10.1) will live there too.
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [ ] Configure protection of `aleogr/aleogr`'s `main` (require PR) and check 2FA.

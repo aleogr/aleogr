@@ -183,17 +183,19 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 
 | Action | Input | Output |
 |---|---|---|
-| `environment-describe` | environment id or project | exists, enabled services, identities, budget alerts |
-| `environment-create` | project, environment, parent (on GCP: the folder of the environment), billing reference, region | environment id (GCP project / AWS account / Azure subscription + resource group) |
-| `services-enable` | capabilities (neutral list: `run`, `sql`, `secrets`, `storage`, `registry`...) | enabled provider APIs/services |
+| `environment-describe` | project and environment, or the environment id (`projectId` on GCP) | exists, parent, billing linked, enabled services, labels; identities and budget alerts (planned) |
+| `environment-create` | project, environment, `platform` (`lab`: the lab's shared environment), parent and billing reference (discovered by the skill), region (planned) | environment id (GCP project / AWS account / Azure subscription + resource group); repairs an existing environment whose billing is not linked |
+| `services-enable` | project and environment, or the environment id (`projectId` on GCP); provider API names (neutral capabilities `run`, `sql`, `secrets`, `storage`, `registry`... planned) | enabled and already enabled provider APIs/services |
 | `ci-identity-setup` | repository (owner/name), allowed branches/environments, roles | keyless CI identity (OIDC / workload identity federation); `ciVariables` with its non-secret identifiers |
 | `deploy-setup` | component, image or source, environment, hosts, access (login or public), scaling (min 0 and a maximum of instances in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
 | `access-grant` | component, environment, person (e-mail) | applied binding |
 | `deploy-remove` | component, environment | removed |
-| `budget-alert-setup` | scope (lab platform or project), amount, thresholds, notification target | alert id |
+| `budget-alert-setup` | display name, amount, currency, thresholds, quota project (scope: the whole billing account; per project and notification target planned) | display name (the alert id) |
 
 Notes:
 
+- On GCP the parent of an environment is the folder of its environment, except for the lab's shared environment (`platform=lab`), which is created directly under the organization (DESIGN.md section 6.7). The skill discovers the parent and the billing account; the owner never types them.
+- Implemented: `environment-describe`, `environment-create`, `services-enable` and `budget-alert-setup` (skills in `.claude-plugin/plugins/aleogr-cloud-gcp/skills/`). The other actions are planned.
 - CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation.
 - `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `lab` and `hom` (DESIGN.md section 6.1).
 - In `lab`, `deploy-setup` must scale to zero, use the smallest size and set a maximum of instances (DESIGN.md section 6.5).

@@ -1,0 +1,6 @@
+CALLED ^--version
+CALLED ^projects list .*aleogr-project=shared
+NOT_CALLED ^(projects create|billing projects link|services enable|billing budgets create)
+OUTPUT "action": "platform-apply"
+OUTPUT "status": "pending"
+OUTPUT "item": "shared project"

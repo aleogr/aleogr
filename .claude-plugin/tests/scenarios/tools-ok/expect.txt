@@ -1,0 +1,8 @@
+CALLED ^--version
+CALLED ^auth list --filter=status:ACTIVE --format="?value\(account\)"?
+NOT_CALLED ^(projects|services|billing|organizations|resource-manager) 
+OUTPUT "status": "unchanged"
+OUTPUT "action": "tools-check"
+OUTPUT "mode": "plan"
+OUTPUT "state": "ok"
+OUTPUT "command": "gcloud"

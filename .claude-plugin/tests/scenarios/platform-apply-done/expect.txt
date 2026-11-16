@@ -1,0 +1,8 @@
+CALLED ^--version
+CALLED ^projects list .*aleogr-project=shared
+CALLED ^services list --enabled --project=aleogr-lab-shared-zz99
+CALLED ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-lab-shared-zz99
+NOT_CALLED ^(projects create|billing projects link|services enable|billing budgets create)
+OUTPUT "action": "platform-apply"
+OUTPUT "status": "unchanged"
+OUTPUT [Nn]othing to do

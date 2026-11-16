@@ -1,0 +1,21 @@
+{
+  "name": "aleogr",
+  "owner": { "name": "aleogr" },
+  "description": "Personal marketplace: the aleogr orchestrator and its cloud family plugins.",
+  "plugins": [
+    {
+      "name": "aleogr",
+      "source": "./.claude-plugin/plugins/aleogr",
+      "description": "Orchestrator: checks tools and plans and creates the lab platform.",
+      "category": "orchestrator",
+      "displayName": "aleogr (orchestrator)"
+    },
+    {
+      "name": "aleogr-cloud-gcp",
+      "source": "./.claude-plugin/plugins/aleogr-cloud-gcp",
+      "description": "Google Cloud family: project environments, services and budget alerts.",
+      "category": "cloud",
+      "displayName": "Google Cloud (cloud)"
+    }
+  ]
+}
