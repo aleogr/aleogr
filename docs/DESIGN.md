@@ -408,6 +408,7 @@ Declaration (replaces a simple `domains` field):
 ### 6.7 GCP: organization, folders and billing
 
 - **Every GCP project lives inside the organization**, never loose under my user account.
+- **The shared project is the one exception to the folders:** it lives directly under the organization, outside every folder, because it serves both `lab` and `hom` and belongs to neither ([section 6.8](#68-lab-shared-resources)). Rules applied to a folder do not reach it; only the organization's do.
 - **One folder per environment**, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `lab`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
 - **Preferred region: `us-central1`**, for every project and for the shared environment (same region as the shared database; Cloud Run domain mappings exist there). It is the default in `defaults.json` ([section 6.6](#66-personal-defaults)).
 - **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
@@ -417,7 +418,7 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.8 Lab shared resources
 
-- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`; "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
+- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`, so on GCP it is created directly under the organization, not in the folder of an environment ([section 6.7](#67-gcp-organization-folders-and-billing)); "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
 - `shared` is a **RESERVED** project name ([section 11.1](#111-json-schema)).
 - Accepted trade: `lab` and `hom` of every project share performance and availability, and the separation between them protects against accidents only ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A project that needs an isolated `hom` uses the `dedicated` mode.
 - **Shared database:** one Cloud SQL PostgreSQL instance, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`).
