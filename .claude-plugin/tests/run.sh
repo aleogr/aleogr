@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs one scenario headless against the fake gcloud and checks expect.txt.
-# Usage: marketplace/tests/run.sh <scenario>
+# Usage: .claude-plugin/tests/run.sh <scenario>
 # Env:   TEST_MODEL (default: sonnet)
 set -u
 

@@ -195,7 +195,7 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 Notes:
 
 - On GCP the parent of an environment is the folder of its environment, except for the lab's shared environment (`platform=lab`), which is created directly under the organization (DESIGN.md section 6.7). The skill discovers the parent and the billing account; the owner never types them.
-- Implemented: `environment-describe`, `environment-create`, `services-enable` and `budget-alert-setup` (skills in `marketplace/plugins/aleogr-cloud-gcp/skills/`). The other actions are planned.
+- Implemented: `environment-describe`, `environment-create`, `services-enable` and `budget-alert-setup` (skills in `.claude-plugin/plugins/aleogr-cloud-gcp/skills/`). The other actions are planned.
 - CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation.
 - `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `lab` and `hom` (DESIGN.md section 6.1).
 - In `lab`, `deploy-setup` must scale to zero, use the smallest size and set a maximum of instances (DESIGN.md section 6.5).

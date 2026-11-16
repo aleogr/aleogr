@@ -5,14 +5,14 @@
   "plugins": [
     {
       "name": "aleogr",
-      "source": "./plugins/aleogr",
+      "source": "./.claude-plugin/plugins/aleogr",
       "description": "Orchestrator: checks tools and plans and creates the lab platform.",
       "category": "orchestrator",
       "displayName": "aleogr (orchestrator)"
     },
     {
       "name": "aleogr-cloud-gcp",
-      "source": "./plugins/aleogr-cloud-gcp",
+      "source": "./.claude-plugin/plugins/aleogr-cloud-gcp",
       "description": "Google Cloud family: project environments, services and budget alerts.",
       "category": "cloud",
       "displayName": "Google Cloud (cloud)"

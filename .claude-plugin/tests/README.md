@@ -5,7 +5,7 @@ A headless harness that runs the real skills of `plugins/aleogr` and
 which `gcloud` calls the skill made. Nothing is created outside the repository.
 
 ```
-bash marketplace/tests/run.sh <scenario>
+bash .claude-plugin/tests/run.sh <scenario>
 ```
 
 It exits 0 when every line of the scenario's `expect.txt` holds. On failure it

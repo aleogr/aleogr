@@ -21,9 +21,7 @@ Open the user settings file (`~/.claude/settings.json`) and add the block below.
       "source": {
         "source": "github",
         "repo": "aleogr/aleogr",
-        "ref": "claude/fervent-planck-78eaxs",
-        "path": "marketplace/.claude-plugin/marketplace.json",
-        "sparsePaths": ["marketplace"]
+        "ref": "claude/fervent-planck-78eaxs"
       }
     }
   },
@@ -38,9 +36,11 @@ If the file already has these keys, merge the entries instead of repeating the k
 
 `aleogr-cloud-gcp@aleogr` is enabled at user scope here because the platform has no project repository; for projects, DESIGN.md puts family plugins in project scope.
 
-## 2. Restart and check
+## 2. Restart and install the plugins
 
-Restart Claude Code, then type `/plugin`. Both `aleogr` and `aleogr-cloud-gcp` must be listed and enabled. If not, send back what `/plugin` shows.
+Restart Claude Code. Registering the marketplace does not install its plugins: in a session on this computer, open the plugin browser (the **+** button of the message box, then **Plugins**, then browse), go to the **Code** tab, and install `aleogr` and `aleogr-cloud-gcp` for your user. If they are not listed, send back what the screen shows.
+
+Prerequisites on Windows found in the first run: `git` installed (the app uses it to download the marketplace), `gcloud` installed, and PowerShell allowed to run local scripts (`Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`), because in PowerShell `gcloud` is a script.
 
 ## 3. Run the three skills, in this order
 
@@ -58,7 +58,7 @@ Restart Claude Code, then type `/plugin`. Both `aleogr` and `aleogr-cloud-gcp` m
 - The flags of `gcloud billing budgets`.
 - Whether the Budget API must be enabled on the quota project (the skills enable it before creating the budget).
 - The syntax of the folder and label filters.
-- The marketplace registration through `extraKnownMarketplaces` with `path`.
+- Whether the plugins install in the Windows app from the catalog at the standard location, with the plugin folders inside `.claude-plugin/`.
 - Whether a plugin skill folder with an underscore in its name (`gcp_environment-create`) loads on Windows.
 
 Whatever fails becomes a fix in the skills and, when it is provider behaviour, a line in [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md).

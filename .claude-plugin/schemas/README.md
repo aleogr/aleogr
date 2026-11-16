@@ -7,7 +7,7 @@ Source of truth: [`docs/DESIGN.md` — section 11](../../docs/DESIGN.md#11-proje
 ## Local rules
 
 - `project.schema.json` is versioned; `project.json` has a `version` field and `$schema` for autocomplete:
-  `https://raw.githubusercontent.com/aleogr/aleogr/main/marketplace/schemas/project.schema.json`.
+  `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`.
 - Exclusive families = object; combinable = list; exactly one `primary` cloud; payments `mode` defaults to `"test"`; `environments` field; optional `notes` field.
 - Project names **cannot** be `test` or `shared`, nor start with `test-` (reserved for tests and for the lab's shared environment).
 - Family plugins may publish sub-schemas for their options.

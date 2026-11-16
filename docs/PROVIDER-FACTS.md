@@ -59,3 +59,11 @@ A recent organization comes with a set of security policies already enforced. Se
 - **GitHub Pages with a custom subdomain uses a `CNAME` record** to `<owner>.github.io`; `A` records are for an apex domain. Certificate issuance usually takes minutes, sometimes hours, and needs the record to stay unproxied.
 - **A GitHub Pages site of a public repository is public**, whatever the audience it was written for.
 - **Scheduled workflows are delayed under load**, routinely by minutes. They are not suitable for anything that must happen at an exact time.
+
+## Claude Code
+
+- **The desktop app (Windows, version 5.1231.2, seen on 2026-11-16) lists no plugin from a marketplace whose catalog is in a subfolder.** A marketplace declared in `extraKnownMarketplaces` with `path` is registered and downloaded (the catalog and the plugin folders are on disk), but the plugin browser shows it empty, "check for updates" fails, and installing a plugin from it reports that the plugin cannot be found.
+- **`enabledPlugins` in settings does not install a plugin.** It only marks it as enabled; the plugin is installed from the plugin browser or with `claude plugin install`.
+- **The `claude plugin` commands of the CLI ignore a marketplace declared only in settings**: `claude plugin marketplace list` does not show it and `claude plugin install` cannot find its plugins. Only a marketplace added with `claude plugin marketplace add` is usable from the CLI.
+- **Plugin folders may live inside `.claude-plugin/`**, beside the catalog (`"source": "./.claude-plugin/plugins/<name>"`): the CLI (2.1.325) validates and installs them.
+- **The desktop app does not install the `claude` command-line tool**, and in PowerShell `gcloud` is a script (`gcloud.ps1`) that the default execution policy blocks; `gcloud.cmd` is not affected.
