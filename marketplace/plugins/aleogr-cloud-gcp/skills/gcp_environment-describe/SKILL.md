@@ -46,7 +46,7 @@ The project is found by its labels, so the organization and the folder are not n
    gcloud billing projects describe <projectId> --format="value(billingEnabled)"
    ```
 
-   `billingLinked` is true when the output is `True`, false otherwise.
+   `billingLinked` is true when the output is `True`, and false only when the command succeeds with empty output (or `False`). A non-zero exit is not "not linked": it is a failure (see below).
 
 4. Enabled services:
 
@@ -55,6 +55,8 @@ The project is found by its labels, so the organization and the folder are not n
    ```
 
    `enabledServices` is the list of lines, sorted.
+
+If any command in steps 2 to 4 exits non-zero (permission denied, API disabled, any error), stop at once: do not run the remaining steps and do not guess the missing values. Say the cause in one sentence, with no raw error text, and end with the result block with `status` `failed`.
 
 Then answer in a few lines: the project ID, its parent, whether billing is linked, the number of enabled services, and the result block.
 
@@ -86,6 +88,6 @@ End with exactly one fenced block tagged `aleogr-result`:
 }
 ```
 
-- `status` is `unchanged` whenever the state was read, whether or not the project exists. It is `failed` only when it could not be read (see step 1); then `resources` is empty and `outputs` is `{ "exists": null }`.
+- `status` is `unchanged` whenever the state was read, whether or not the project exists. It is `failed` when any command exited non-zero or the project IDs were ambiguous (see steps 1 to 4); then `resources` is empty and `outputs` is `{ "exists": null }`.
 - Project does not exist: `resources` is empty and `outputs` is `{ "exists": false, "projectId": null, "parent": null, "billingLinked": false, "enabledServices": [], "labels": {} }`.
 - `mode` is always `plan`: the skill only reads.
