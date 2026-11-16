@@ -183,9 +183,9 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 
 | Action | Input | Output |
 |---|---|---|
-| `environment-describe` | environment id or project | exists, parent, billing linked, enabled services, labels; identities and budget alerts (planned) |
+| `environment-describe` | project and environment, or the environment id (`projectId` on GCP) | exists, parent, billing linked, enabled services, labels; identities and budget alerts (planned) |
 | `environment-create` | project, environment, `platform` (`lab`: the lab's shared environment), parent and billing reference (discovered by the skill), region (planned) | environment id (GCP project / AWS account / Azure subscription + resource group); repairs an existing environment whose billing is not linked |
-| `services-enable` | project, environment, provider API names (neutral capabilities `run`, `sql`, `secrets`, `storage`, `registry`... planned) | enabled and already enabled provider APIs/services |
+| `services-enable` | project and environment, or the environment id (`projectId` on GCP); provider API names (neutral capabilities `run`, `sql`, `secrets`, `storage`, `registry`... planned) | enabled and already enabled provider APIs/services |
 | `ci-identity-setup` | repository (owner/name), allowed branches/environments, roles | keyless CI identity (OIDC / workload identity federation); `ciVariables` with its non-secret identifiers |
 | `deploy-setup` | component, image or source, environment, hosts, access (login or public), scaling (min 0 and a maximum of instances in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
 | `access-grant` | component, environment, person (e-mail) | applied binding |

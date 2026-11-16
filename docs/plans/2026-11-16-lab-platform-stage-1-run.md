@@ -4,6 +4,12 @@ For the owner. Run this in the Claude Code Windows app, where `gcloud` is authen
 
 Source of truth: [`DESIGN.md`](../DESIGN.md) sections 2.3, 6.7, 6.8 and 18.
 
+## Before you start
+
+- The Google account used by `gcloud` can create projects in the organization.
+- That account administers the billing account.
+- The billing account's currency is BRL (the budget alert is in BRL).
+
 ## 1. Register the marketplace
 
 Open the user settings file (`~/.claude/settings.json`) and add the block below. While the work is unmerged, keep the `"ref"` line; after the merge, remove it.
@@ -30,6 +36,8 @@ Open the user settings file (`~/.claude/settings.json`) and add the block below.
 
 If the file already has these keys, merge the entries instead of repeating the keys.
 
+`aleogr-cloud-gcp@aleogr` is enabled at user scope here because the platform has no project repository; for projects, DESIGN.md puts family plugins in project scope.
+
 ## 2. Restart and check
 
 Restart Claude Code, then type `/plugin`. Both `aleogr` and `aleogr-cloud-gcp` must be listed and enabled. If not, send back what `/plugin` shows.
@@ -38,7 +46,7 @@ Restart Claude Code, then type `/plugin`. Both `aleogr` and `aleogr-cloud-gcp` m
 
 1. `/aleogr:tools-check`: expected to say `gcloud` is `ok` and that Claude runs `local`. If it says `not authenticated`, run `gcloud auth login` and repeat.
 2. `/aleogr:platform-plan`: changes nothing. Expected on a first run: a table with `shared project` missing (`create`), and `services` and `budget alert` marked `not checked, will be checked after the project exists` (`create`).
-3. `/aleogr:platform-apply`: shows the plan and asks **one** confirmation (answer yes). It then creates the shared project under the organization, links billing, enables the APIs, and creates one budget alert of R$ 100 per month with alerts at 50%, 90% and 100%. It ends with a new plan that must say `nothing to do`. Everything here is free.
+3. `/aleogr:platform-apply`: shows the plan and asks **one** confirmation (answer yes). It then creates the shared project under the organization, links billing, enables the APIs, and creates one budget alert of R$ 100 per month with alerts at 50%, 90% and 100%. It ends with a new plan that must say `nothing to do`. Everything here is free. If it stops before the end, send its output and run `/aleogr:platform-apply` again: it resumes from what already exists.
 
 ## 4. What to send back
 
