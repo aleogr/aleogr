@@ -1,0 +1,17 @@
+CALLED ^--version
+CALLED ^projects create aleogr-lab-shared-zz99 .*--organization=111111111111
+CALLED ^projects create .*aleogr-platform=lab
+NOT_CALLED ^projects create .*--folder=
+CALLED ^billing projects link aleogr-lab-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X
+CALLED ^services enable .*billingbudgets.googleapis.com
+CALLED ^services enable .*cloudresourcemanager.googleapis.com
+CALLED ^services enable .*--project=aleogr-lab-shared-zz99
+CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr-lab.? .*--budget-amount=100BRL .*--threshold-rule=percent=0.5 .*--threshold-rule=percent=0.9 .*--threshold-rule=percent=1(\.0)? .*--billing-project=aleogr-lab-shared-zz99
+ORDER ^projects create >> ^billing projects link
+ORDER ^billing projects link >> ^services enable
+ORDER ^services enable >> ^billing budgets create
+COUNT 3 ^projects list .*aleogr-project=shared
+OUTPUT "action": "platform-apply"
+OUTPUT "mode": "apply"
+OUTPUT "status": "created"
+OUTPUT [Nn]othing to do

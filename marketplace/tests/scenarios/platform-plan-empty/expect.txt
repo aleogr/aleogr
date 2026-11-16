@@ -1,0 +1,14 @@
+CALLED ^--version
+CALLED ^auth list --filter=status:ACTIVE
+ORDER ^--version >> ^projects list .*aleogr-project=shared
+CALLED ^projects list .*aleogr-project=shared
+NOT_CALLED ^(projects create|billing projects link|services enable|billing budgets create)
+NOT_CALLED ^services list
+NOT_CALLED ^billing budgets
+OUTPUT "action": "platform-plan"
+OUTPUT "mode": "plan"
+OUTPUT "status": "would-create"
+OUTPUT "item": "shared project"
+OUTPUT "item": "services"
+OUTPUT "item": "budget alert"
+OUTPUT "action": "create"
