@@ -187,7 +187,8 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 | `environment-create` | project, environment, parent (on GCP: the folder of the environment), billing reference, region | environment id (GCP project / AWS account / Azure subscription + resource group) |
 | `services-enable` | capabilities (neutral list: `run`, `sql`, `secrets`, `storage`, `registry`...) | enabled provider APIs/services |
 | `ci-identity-setup` | repository (owner/name), allowed branches/environments, roles | keyless CI identity (OIDC / workload identity federation); `ciVariables` with its non-secret identifiers |
-| `deploy-setup` | component, image or source, environment, scaling (min 0 in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
+| `deploy-setup` | component, image or source, environment, hosts, access (login or public), scaling (min 0 and a maximum of instances in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
+| `access-grant` | component, environment, person (e-mail) | applied binding |
 | `deploy-remove` | component, environment | removed |
 | `budget-alert-setup` | scope (lab platform or project), amount, thresholds, notification target | alert id |
 
@@ -195,7 +196,8 @@ Notes:
 
 - CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation.
 - `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `lab` and `hom` (DESIGN.md section 6.1).
-- In `lab`, `deploy-setup` must scale to zero and use the smallest size (DESIGN.md section 6.5).
+- In `lab`, `deploy-setup` must scale to zero, use the smallest size and set a maximum of instances (DESIGN.md section 6.5).
+- In `lab` and `hom`, `deploy-setup` puts the lab login in front of the service unless the component is declared public (DESIGN.md section 6.3); `access-grant` adds a person to the allowed list.
 - Only the primary cloud receives secrets-* by default.
 
 ### secrets-* (exclusive, project) — aws-secrets-manager, gcp-secret-manager, azure-key-vault

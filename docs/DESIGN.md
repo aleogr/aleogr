@@ -374,7 +374,10 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.3 Protection and single access point
 
-- **Lab protection:** the lab must require login, but Cloudflare Access is **NOT** available for it, because it requires proxied records ([section 6.2](#62-https-and-certificates)). The mechanism (at the destination, at the single access point or in the application) is **PENDING** ([section 18](#18-open-items)). It is applied once for the whole lab, and external testers must be easy to add.
+- **Lab protection: a login in front of every service, by default.** The concern is COST: any public address is found and visited by bots, and each visit wakes the service. So in `lab` and `hom` every service requires a login that is checked BEFORE the request reaches it; whoever is not on the allowed list is refused by the provider and the service does not even wake up. On GCP: IAP enabled directly on the Cloud Run service, with a Google account, no load balancer ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A tester is added by e-mail to the allowed list.
+- **A component that must stay open is declared public** in `project.json` (e.g. an API that receives webhooks from a payment provider, an API called by a mobile app), and only that one has no login. Everything that calls a service without a logged-in person stops working behind the login.
+- **Cost ceilings are always on**, with or without login ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)); they are what protects the components declared public.
+- In `prd` none of this applies: production is public by definition.
 - **No single access point:** every hostname has its own DNS record pointing to its destination. The dns-* contract in the lab is `record-add`; there is no router and no route.
 
 ### 6.4 Lab platform × project resources
@@ -390,6 +393,7 @@ Declaration (replaces a simple `domains` field):
 - Scale to zero whenever possible.
 - Smallest tier/size available.
 - Nothing with fixed cost per project (load balancer, static IP, NAT, dedicated instances).
+- **Ceilings:** every service has a maximum number of instances (one or two), and every paid service the project uses (LLM, SMS, e-mail...) gets its own spending limit, so that the worst case has a known cost.
 - Warn and ask for confirmation before creating anything with a fixed cost.
 - Budget alerts configured on each provider's lab platform.
 - Cache and search (whose managed offerings usually have fixed cost): in the lab, prefer serverless or free-tier providers, with one namespace/index prefix per project.
@@ -578,6 +582,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - Exactly one `primary` cloud (contains + minContains/maxContains = 1).
 - payments `mode` with default "test".
 - Project names cannot be `test` or `shared`, nor start with `test-`.
+- A component may be declared public; without it, in `lab` and `hom` the component is behind the lab login ([section 6.3](#63-protection-and-single-access-point)).
 - `environments` field ([section 6.1](#61-addresses-of-a-projects-environments)).
 - Plugin name derived from family + provider.
 - Each family plugin may publish a sub-schema for its options.
@@ -833,6 +838,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
 - Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
 - Proxied records in `lab` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the lab protection (requires proxied records).
+- For the lab protection: no login, only cost ceilings (bots keep spending up to the ceiling, including on endpoints that call paid services); login only inside the application (the request reaches the service and costs before the login is checked). Chosen: a login in front of every service, plus the ceilings.
 - For tenant addresses in the lab: a Cloudflare Worker routing every lab hostname, with proxied records and flattened names (a format different from production, undoes the unproxied decision, and one piece whose failure takes the whole lab down); a load balancer with a wildcard certificate (fixed cost); tenants by path or header only in the lab (behaviour different from production). Chosen: one record and one mapping per tenant.
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
 - A single lab cloud environment holding the resources of every project: each project has its own, and only fixed-cost resources are shared.
@@ -865,7 +871,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 ## 18. Open items
 
-- [ ] **Finish the redesign of the lab platform.** Decided: what is shared and the on-demand database ([section 6.8](#68-lab-shared-resources)), explicit tenant addresses without a wildcard ([section 6.1](#61-addresses-of-a-projects-environments)), no single access point ([section 6.3](#63-protection-and-single-access-point)). The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md). Still to decide: how the lab is protected (login), how the platform is declared and applied, and how a multi-tenant project is served in `prd` (own domain, proxied).
+- [ ] **Finish the redesign of the lab platform.** Decided: what is shared and the on-demand database ([section 6.8](#68-lab-shared-resources)), explicit tenant addresses without a wildcard ([section 6.1](#61-addresses-of-a-projects-environments)), no single access point, lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md). the lab protection, a login in front of every service plus cost ceilings ([section 6.3](#63-protection-and-single-access-point)). Still to decide: how the platform is declared and applied, and how a multi-tenant project is served in `prd` (own domain, proxied).
+- [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
 - [ ] Measure the project SessionStart hook in cloud sessions (it runs on every session start, without the setup script cache) to define the practical limit of a "light" need; above it, the need goes to an environment.
 - [ ] Check how Claude Code cloud environments can be associated with repositories in the current product (section 14.2 says they do not belong to repositories) and whether that changes the naming rule.

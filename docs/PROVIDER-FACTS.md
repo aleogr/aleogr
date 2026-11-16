@@ -46,6 +46,9 @@ A recent organization comes with a set of security policies already enforced. Se
 
 - **Domain mappings use one DNS record per hostname**, a `CNAME` to `ghs.googlehosted.com`, with a Google-managed certificate. In the previous lab every hostname was mapped explicitly; there was no wildcard.
 
+- **IAP can be enabled directly on a Cloud Run service, without a load balancer** (documentation read on 2026-11-16). Requests are authenticated with a Google account before they reach the container; access is granted with the role `roles/iap.httpsResourceAccessor`. It replaces the caller's identity, so anything that calls the service with its own authentication (for example, Pub/Sub) may fail behind it.
+- **Cloud Run charges only while a service is handling requests**, with a monthly free tier; any public address is found by bots (issued certificates are published in public logs) and every visit wakes the service.
+
 ## Cloudflare
 
 - **An unproxied record lets the destination issue the certificate** (GitHub Pages and Cloud Run domain mappings both did).
