@@ -1,0 +1,7 @@
+CALLED ^projects list .*aleogr-project=shared
+NOT_CALLED ^projects create
+NOT_CALLED ^projects describe
+NOT_CALLED ^organizations list
+NOT_CALLED ^resource-manager folders list
+OUTPUT "exists": false
+OUTPUT "status": "unchanged"

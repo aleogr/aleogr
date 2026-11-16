@@ -1,0 +1,13 @@
+CALLED ^projects list .*aleogr-project=shared
+CALLED ^projects describe aleogr-lab-shared-zz99
+CALLED ^billing projects describe aleogr-lab-shared-zz99
+CALLED ^services list --enabled --project=aleogr-lab-shared-zz99
+NOT_CALLED ^projects create
+NOT_CALLED ^organizations list
+NOT_CALLED ^resource-manager folders list
+OUTPUT aleogr-lab-shared-zz99
+OUTPUT "exists": true
+OUTPUT "billingLinked": true
+OUTPUT "parent": "organizations/111111111111"
+OUTPUT billingbudgets.googleapis.com
+OUTPUT "status": "unchanged"
