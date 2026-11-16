@@ -885,7 +885,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 - [x] **Create the lab platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-lab-shared-resources)). Created on 2026-11-16 by `platform-apply`, in the Windows app.
 - [x] **First real run of stage 1**, by me in the Windows app, on 2026-11-16, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). It ended with `nothing to do`; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
-- [ ] Confirm that `platform-plan`, run without a project id, finds the existing shared project by its labels (the run's last plan looked it up by id).
+- [x] `platform-plan`, run without a project id, finds the existing shared project by its labels: confirmed on 2026-11-16, in a new session.
 - [ ] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.

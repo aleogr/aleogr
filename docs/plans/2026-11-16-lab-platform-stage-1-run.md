@@ -61,6 +61,7 @@ The run ended with `nothing to do`: the shared project, its two APIs and the bud
 - The plugins install in the Windows app from the catalog at the standard location, and skill folders with an underscore load. The marketplace was added in the plugin browser (the **+** button, "add from a repository", `aleogr/aleogr#<branch>`), not through step 1: the app did not register it from the settings file after it had been removed once.
 - The project creation failed once, before creating anything: PowerShell split the unquoted `--labels` value at its commas. The skill now quotes it.
 - The first budget listing was denied on the project created seconds before; the skill's single retry, a minute later, succeeded.
-- Still not verified: the label filter finding an existing project (the last plan looked the project up by id), and the folder filter (the shared project is not in a folder).
+- A second `platform-plan`, in a new session and without a project id, found the project by its labels and ended with `nothing to do`.
+- Still not verified: the folder filter (the shared project is not in a folder).
 
 Whatever failed became a fix in the skills and, when it is provider behaviour, a line in [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md).
