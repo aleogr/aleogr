@@ -156,8 +156,7 @@ Notes: no transfer or deletion in the contract. Renewal price is always shown be
 
 Notes:
 
-- `record-add` consumes the `dnsRecords` requests of every other family (deploy hostnames, tenant wildcards, e-mail SPF/DKIM/DMARC, domain verification TXT).
-- If the lab single access point is a router, a sibling action `route-add` replaces `record-add` in `shared` mode (decided with the redesign of the lab platform).
+- `record-add` consumes the `dnsRecords` requests of every other family (deploy hostnames, one per tenant, e-mail SPF/DKIM/DMARC, domain verification TXT).
 
 ### cdn-* (exclusive per domain, domain) — cloudflare, akamai, aws-cloudfront
 
@@ -180,7 +179,7 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 
 ### cloud-* (combinable with exactly one primary, project) — aws, azure, gcp
 
-`shared`: the lab's cloud environment already exists; `environment-create` only verifies it and returns its id.
+`shared`/`dedicated`: n/a. Every project has its own environment per project environment; `environment-create` always creates it (idempotent). The lab's shared environment is part of the lab platform (DESIGN.md section 6.8).
 
 | Action | Input | Output |
 |---|---|---|
@@ -188,14 +187,17 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 | `environment-create` | project, environment, parent (on GCP: the folder of the environment), billing reference, region | environment id (GCP project / AWS account / Azure subscription + resource group) |
 | `services-enable` | capabilities (neutral list: `run`, `sql`, `secrets`, `storage`, `registry`...) | enabled provider APIs/services |
 | `ci-identity-setup` | repository (owner/name), allowed branches/environments, roles | keyless CI identity (OIDC / workload identity federation); `ciVariables` with its non-secret identifiers |
-| `deploy-setup` | component, image or source, environment, scaling (min 0 in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
+| `deploy-setup` | component, image or source, environment, hosts, access (login or public), scaling (min 0 and a maximum of instances in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
+| `access-grant` | component, environment, person (e-mail) | applied binding |
 | `deploy-remove` | component, environment | removed |
 | `budget-alert-setup` | scope (lab platform or project), amount, thresholds, notification target | alert id |
 
 Notes:
 
 - CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation.
-- In `lab`, `deploy-setup` must scale to zero and use the smallest size (DESIGN.md section 6.5).
+- `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `lab` and `hom` (DESIGN.md section 6.1).
+- In `lab`, `deploy-setup` must scale to zero, use the smallest size and set a maximum of instances (DESIGN.md section 6.5).
+- In `lab` and `hom`, `deploy-setup` puts the lab login in front of the service unless the component is declared public (DESIGN.md section 6.3); `access-grant` adds a person to the allowed list.
 - Only the primary cloud receives secrets-* by default.
 
 ### secrets-* (exclusive, project) — aws-secrets-manager, gcp-secret-manager, azure-key-vault
@@ -288,7 +290,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 |---|---|---|
 | `auth-describe` | project, environment | tenant, application, callback URLs, providers |
 | `application-create` | project, environment, type (web/SPA/native/API) | client id, `secretRef` of the client secret |
-| `application-configure` | callback/logout/origin URLs (derived from the environment hosts, tenant wildcards included) | applied settings |
+| `application-configure` | callback/logout/origin URLs (derived from the environment hosts, each tenant's included) | applied settings |
 | `providers-configure` | social/enterprise providers, `secretRef`s of their credentials | enabled providers |
 | `application-remove` | project, environment | removed |
 
@@ -520,7 +522,4 @@ Decided (reflected in DESIGN.md):
 6. sms-* and publish-* are special-care families.
 7. hosting-*: deploys only from CI.
 8. cache-* and search-* in `lab`: serverless or free tier.
-
-Open:
-
-9. dns-* in `lab`: `record-add` vs `route-add` — depends on the redesign of the lab platform ([DESIGN.md section 18](DESIGN.md#18-open-items)).
+9. dns-* in `lab` is `record-add`: every hostname has its own record; there is no router and no `route-add`.

@@ -348,8 +348,9 @@ Settings block:
 
 ### 6.1 Addresses of a project's environments
 
-- **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev`, served by the wildcard `*.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
-- **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with its own wildcard `*.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant and captured by the project's wildcard.
+- **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
+- **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with tenants `<tenant>.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant.
+- **Tenants in `lab` and `hom` are EXPLICIT, there is no wildcard:** I create each tenant by hand, so each one is declared and gets its own DNS record and its own mapping at the destination, with its own certificate. A new tenant takes a few minutes to answer, while the certificate is issued.
 - **`prd`** (optional): the project's own domain or, without one, `<project>.aleogr.dev` (first-level subdomain, covered by Cloudflare's free certificate).
 - **A multi-tenant project in `prd` requires its own domain:** `<tenant>.<project>.aleogr.dev` is second level and is not covered by the free certificate, while `<tenant>.<own-domain>` is.
 - The orchestrator derives the names from the project name and the environment; I only declare which environments the project has.
@@ -358,8 +359,8 @@ Declaration (replaces a simple `domains` field):
 
 ```json
 "environments": {
-  "lab":  { "host": "project2.lab.aleogr.dev",     "tenants": "wildcard" },
-  "hom":  { "host": "project2-hom.lab.aleogr.dev", "tenants": "wildcard" },
+  "lab":  { "host": "project2.lab.aleogr.dev",     "tenants": ["acme", "globex"] },
+  "hom":  { "host": "project2-hom.lab.aleogr.dev", "tenants": ["acme"] },
   "prd":  null
 }
 ```
@@ -369,17 +370,21 @@ Declaration (replaces a simple `domains` field):
 - `.dev` requires HTTPS (the domain is on browsers' HSTS preload list): there is no HTTP, not even in development.
 - Cloudflare's free Universal SSL covers only the root domain and the first subdomain level. `project1.lab.aleogr.dev` (second level) and tenants (third level), with proxy on, are **NOT covered** and fail with errors like `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
 - **Decision:** `lab` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prd` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
-- The destination must therefore issue the certificates of the lab, including the tenants' wildcard (`*.<project>.lab.aleogr.dev`); how that is done for the wildcard is **PENDING**, with the redesign of the lab platform ([section 18](#18-open-items)): Cloud Run domain mappings use one record per hostname ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
+- The destination issues one certificate per hostname: the project's host and each tenant's. On GCP, a Cloud Run domain mapping per hostname ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
 
 ### 6.3 Protection and single access point
 
-- **Lab protection:** the lab must require login, but Cloudflare Access is **NOT** available for it, because it requires proxied records ([section 6.2](#62-https-and-certificates)). The mechanism (at the destination, at the single access point or in the application) is **PENDING** ([section 18](#18-open-items)). It is applied once for the whole lab, and external testers must be easy to add.
-- **Single access point:** the previous lab had none: `lab.aleogr.dev` was a static index page and every hostname had its own DNS record. Whether the new lab gets a single routing point (which would turn "add a record" into "add a route" in the dns-* contract) is decided with the redesign of the lab platform ([section 18](#18-open-items)).
+- **Lab protection: a login in front of every service, by default.** The concern is COST: any public address is found and visited by bots, and each visit wakes the service. So in `lab` and `hom` every service requires a login that is checked BEFORE the request reaches it; whoever is not on the allowed list is refused by the provider and the service does not even wake up. On GCP: IAP enabled directly on the Cloud Run service, with a Google account, no load balancer ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A tester is added by e-mail to the allowed list.
+- **A component that must stay open is declared public** in `project.json` (e.g. an API that receives webhooks from a payment provider, an API called by a mobile app), and only that one has no login. Everything that calls a service without a logged-in person stops working behind the login.
+- **Cost ceilings are always on**, with or without login ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)); they are what protects the components declared public.
+- In `prd` none of this applies: production is public by definition.
+- **No single access point:** every hostname has its own DNS record pointing to its destination. The dns-* contract in the lab is `record-add`; there is no router and no route.
 
 ### 6.4 Lab platform × project resources
 
-- **Lab platform:** created ONCE and shared by all projects in development (e.g. a single Cloud SQL instance, the single access point under `lab.aleogr.dev`, the DNS wildcard, the lab protection, the lab's secret vault). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
-- **Project resources:** created INSIDE the platform (e.g. database + user on the shared instance, service in the lab's cloud environment, route in the single access point, secrets prefixed with the project).
+- **Each project has its own cloud environment per project environment** (on GCP, its own project: [section 1](#cloud-environments-gcp-project-ids)). Whatever costs nothing while idle belongs to the project: services that scale to zero, secrets, storage, image registry.
+- **Lab platform:** only what has a FIXED cost is shared, created ONCE ([section 6.8](#68-lab-shared-resources)). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
+- **Project resources in the platform:** created INSIDE the shared resource (e.g. database + user on the shared instance).
 - The family contract gains the `shared` or `dedicated` mode; in the `lab` project environment the default is `shared`. E.g. db-* in the lab creates database + user on the single instance; in production, its own instance.
 - Isolation within shared resources by name and labels ([section 1](#1-names)); a project's `project-plan` sees only what is its own; `*-remove` never touches what belongs to another.
 
@@ -388,6 +393,7 @@ Declaration (replaces a simple `domains` field):
 - Scale to zero whenever possible.
 - Smallest tier/size available.
 - Nothing with fixed cost per project (load balancer, static IP, NAT, dedicated instances).
+- **Ceilings:** every service has a maximum number of instances (one or two), and every paid service the project uses (LLM, SMS, e-mail...) gets its own spending limit, so that the worst case has a known cost.
 - Warn and ask for confirmation before creating anything with a fixed cost.
 - Budget alerts configured on each provider's lab platform.
 - Cache and search (whose managed offerings usually have fixed cost): in the lab, prefer serverless or free-tier providers, with one namespace/index prefix per project.
@@ -400,10 +406,25 @@ Declaration (replaces a simple `domains` field):
 
 - **Every GCP project lives inside the organization**, never loose under my user account.
 - **One folder per environment**, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `lab`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
+- **Preferred region: `us-central1`**, for every project and for the shared environment (same region as the shared database; Cloud Run domain mappings exist there). It is the default in `defaults.json` ([section 6.6](#66-personal-defaults)).
 - **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
 - **Few organization policies, chosen one by one.** The organization already comes with a set enforced by default, which stays as it is ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); it includes the one that matters most here, forbidding the creation of service account keys, because CI reaches the cloud without long-lived keys ([section 4](#4-cicd)). Consequence for every project: each service runs as its own service account with explicit roles, since default service accounts get none.
 - Not used: deep folder hierarchies, more than one organization, separate administrative roles per person.
 - The identifiers of the organization, the folders and the billing account are not versioned (the repository is public); they follow [section 7](#7-where-data-lives).
+
+### 6.8 Lab shared resources
+
+- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`; "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
+- `shared` is a **RESERVED** project name ([section 11.1](#111-json-schema)).
+- Accepted trade: `lab` and `hom` of every project share performance and availability, and the separation between them protects against accidents only ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A project that needs an isolated `hom` uses the `dedicated` mode.
+- **Shared database:** one Cloud SQL PostgreSQL instance, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`).
+- **The instance is OFF by default** (it does not scale to zero, and it is the only fixed cost of the lab):
+  - **started on demand**, when I am going to work: by the skill `gcp-cloud-sql_instance-start` (where `gcloud` is authenticated) or by a manually triggered workflow of `aleogr/aleogr` (from anywhere, including the phone);
+  - **stopped every night by a scheduler inside GCP**, at a fixed time, so that stopping never depends on me remembering; it can also be stopped by hand, by the skill `gcp-cloud-sql_instance-stop` or by the same manually triggered workflow (which offers both start and stop);
+  - starting takes minutes ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)): skills and deploys that need the database check whether it is running and say so, instead of failing with a connection error;
+  - the backup window must fall in hours when the instance is usually running.
+- **What the platform is made of** (on GCP): the shared project, the database instance, the scheduler that stops it, the identity the manual workflow uses to start and stop it, and the budget alert.
+- **How it is created and changed:** by the orchestrator, with skills that run commands, from the platform declaration ([section 11](#11-project-model)) — the same mechanism as the projects, with the same rules ([section 10.4](#104-behavior-of-every-skill)). It is created once, from the Windows app, where the CLIs are authenticated ([section 14](#14-where-i-run-claude-code)). Its state is what exists in the cloud ([section 7](#7-where-data-lives)).
 
 ---
 
@@ -562,7 +583,8 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - Exclusive families = object; combinable = list.
 - Exactly one `primary` cloud (contains + minContains/maxContains = 1).
 - payments `mode` with default "test".
-- Project names cannot be `test` nor start with `test-`.
+- Project names cannot be `test` or `shared`, nor start with `test-`.
+- A component may be declared public; without it, in `lab` and `hom` the component is behind the lab login ([section 6.3](#63-protection-and-single-access-point)).
 - `environments` field ([section 6.1](#61-addresses-of-a-projects-environments)).
 - Plugin name derived from family + provider.
 - Each family plugin may publish a sub-schema for its options.
@@ -589,7 +611,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
   - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
   - `project-plan`: compares declaration, state and reality; changes nothing;
   - `project-apply`: executes the plan in order.
-- **Shortcuts:** `project-create`, `component-add`, `service-add`.
+- **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
   - `tools-check`: CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
   - `plugins-sync`: writes `extraKnownMarketplaces` and installs/disables family plugins in project scope;
@@ -768,7 +790,7 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
   - final `project-plan` saying "nothing to do".
 - **Example scenarios:**
   - simple backend (1 component, 1 project environment);
-  - multi-tenant monorepo (2 components, wildcard, CI running only the changed component's job);
+  - multi-tenant monorepo (2 components, two tenants, CI running only the changed component's job);
   - two project environments (lab + hom, with promotion in cd.yml);
   - Android app (only repository, CI and devcontainer, no DNS or cloud).
 - **Every test creates a new `test-<id>` repository**; there is no fixed, reused test repository. Skills that only touch files of a project are tested with a minimal declaration (repository only, no cloud or DNS).
@@ -818,7 +840,12 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
 - Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
 - Proxied records in `lab` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the lab protection (requires proxied records).
+- Terraform for the lab platform, applied by CI (alone, or mixed with skills for the projects): deterministic and reviewable, but a second way of working for five or six pieces created once, with a state bucket, an identity with many permissions and a pull request per change. It stays as the way out if the shared instance suffers unwanted changes.
+- For the lab protection: no login, only cost ceilings (bots keep spending up to the ceiling, including on endpoints that call paid services); login only inside the application (the request reaches the service and costs before the login is checked). Chosen: a login in front of every service, plus the ceilings.
+- For tenant addresses in the lab: a Cloudflare Worker routing every lab hostname, with proxied records and flattened names (a format different from production, undoes the unproxied decision, and one piece whose failure takes the whole lab down); a load balancer with a wildcard certificate (fixed cost); tenants by path or header only in the lab (behaviour different from production). Chosen: one record and one mapping per tenant.
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
+- A single lab cloud environment holding the resources of every project: each project has its own, and only fixed-cost resources are shared.
+- For the shared lab database: always on (fixed cost with nobody using it); sleeping only on weeknights (saves little); a serverless PostgreSQL outside GCP (another provider, and a connection different from production). Chosen: off by default, started on demand.
 - Using `aleogr/aleogr` as the Codespaces dotfiles repository.
 - One CI workflow per component with an `on.push.paths` filter (blocks required checks).
 - `secrets: inherit` in reusable workflows.
@@ -847,7 +874,9 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 ## 18. Open items
 
-- [ ] **Redesign the lab platform from scratch.** The investigation of the previous lab is done and that lab is being removed (its repository, the shared GCP project and the projects that lived in it). What it showed: no single routing point (`lab.aleogr.dev` was a static index page), one unproxied DNS record per hostname with the certificate issued by the destination, no wildcard, and no login in front of the projects. Its decisions are NOT inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md). To decide: what the lab platform shares (Cloud SQL does not scale to zero), how it is declared and applied, how the lab is protected, how tenant wildcards get certificates, and the dns-* contract in the lab.
+- [ ] **Create the lab platform** as redesigned ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the shared project, the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it, and the budget alert. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
+- [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
 - [ ] Measure the project SessionStart hook in cloud sessions (it runs on every session start, without the setup script cache) to define the practical limit of a "light" need; above it, the need goes to an environment.
 - [ ] Check how Claude Code cloud environments can be associated with repositories in the current product (section 14.2 says they do not belong to repositories) and whether that changes the naming rule.
