@@ -423,6 +423,8 @@ Declaration (replaces a simple `domains` field):
   - **stopped every night by a scheduler inside GCP**, at a fixed time, so that stopping never depends on me remembering; it can also be stopped by hand, by the skill `gcp-cloud-sql_instance-stop` or by the same manually triggered workflow (which offers both start and stop);
   - starting takes minutes ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)): skills and deploys that need the database check whether it is running and say so, instead of failing with a connection error;
   - the backup window must fall in hours when the instance is usually running.
+- **What the platform is made of** (on GCP): the shared project, the database instance, the scheduler that stops it, the identity the manual workflow uses to start and stop it, and the budget alert.
+- **How it is created and changed:** by the orchestrator, with skills that run commands, from the platform declaration ([section 11](#11-project-model)) — the same mechanism as the projects, with the same rules ([section 10.4](#104-behavior-of-every-skill)). It is created once, from the Windows app, where the CLIs are authenticated ([section 14](#14-where-i-run-claude-code)). Its state is what exists in the cloud ([section 7](#7-where-data-lives)).
 
 ---
 
@@ -838,6 +840,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
 - Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
 - Proxied records in `lab` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the lab protection (requires proxied records).
+- Terraform for the lab platform, applied by CI (alone, or mixed with skills for the projects): deterministic and reviewable, but a second way of working for five or six pieces created once, with a state bucket, an identity with many permissions and a pull request per change. It stays as the way out if the shared instance suffers unwanted changes.
 - For the lab protection: no login, only cost ceilings (bots keep spending up to the ceiling, including on endpoints that call paid services); login only inside the application (the request reaches the service and costs before the login is checked). Chosen: a login in front of every service, plus the ceilings.
 - For tenant addresses in the lab: a Cloudflare Worker routing every lab hostname, with proxied records and flattened names (a format different from production, undoes the unproxied decision, and one piece whose failure takes the whole lab down); a load balancer with a wildcard certificate (fixed cost); tenants by path or header only in the lab (behaviour different from production). Chosen: one record and one mapping per tenant.
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
@@ -871,7 +874,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 
 ## 18. Open items
 
-- [ ] **Finish the redesign of the lab platform.** Decided: what is shared and the on-demand database ([section 6.8](#68-lab-shared-resources)); explicit tenant addresses, without a wildcard ([section 6.1](#61-addresses-of-a-projects-environments)); no single access point, and a login in front of every service plus cost ceilings ([section 6.3](#63-protection-and-single-access-point)). The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md). Still to decide: how the platform is declared and applied, and how a multi-tenant project is served in `prd` (own domain, proxied).
+- [ ] **Create the lab platform** as redesigned ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the shared project, the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it, and the budget alert. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
 - [ ] Measure the project SessionStart hook in cloud sessions (it runs on every session start, without the setup script cache) to define the practical limit of a "light" need; above it, the need goes to an environment.
