@@ -74,16 +74,15 @@ Note the **next run** time of each. **Force run** is optional now: the creation 
 - The two jobs' next run times, and, if you forced a run, whether it succeeded.
 - The full text of any error, from any step. Never paste the three secret values.
 
-## 8. Not verified until this run
+## 8. Result of the first run (2026-11-17)
 
-- Every `gcloud sql`, `gcloud scheduler` and `gcloud iam` flag used by the new skills.
-- Whether the instance can be created directly in the stopped state, or must be created and then stopped.
-- Whether "idle" in the address charge means "stopped": the first bill confirms it.
-- The rule that derives `stopped` from the activation policy (`NEVER` is `stopped`; `ALWAYS` with `RUNNABLE` is `running`): that `gcloud` and the API report these values as assumed.
-- The text of the "does not exist" error of `gcloud sql instances describe`: the skills rely on `does not exist` or `404`.
-- Whether `db-f1-micro` exists for the PostgreSQL version chosen (the newest one Cloud SQL offers).
-- That the Cloud SQL Admin API accepts the jobs' call: Cloud Scheduler cannot send a `PATCH`, so each job sends a `POST` with the header `X-HTTP-Method-Override: PATCH`. The creation in step 3 proves it (or says it does not work).
-- `gcloud scheduler jobs run`, which the creation uses to run the weeknight job once.
-- The PowerShell quoting of the provider's `--attribute-condition` value, which holds `&&` and single quotes inside double quotes.
+The run ended with `nothing to do` on the first attempt: five APIs enabled, the switch created (nine parts), the instance `aleogr-lab` created and stopped.
 
-What fails becomes a fix in the skills and, when it is provider behaviour, a line in [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md).
+- The night stop was proven at creation: the job `aleogr-lab-stop-weeknight` stopped the new instance, so `POST` with the method-override header works through Cloud Scheduler.
+- `db-f1-micro` exists for PostgreSQL 18 in the `ENTERPRISE` edition; the "does not exist" error was recognised; the attribute condition survived PowerShell.
+- The three GitHub secrets were pasted by hand and the workflow ran `status`, `start` and `stop`, all green. The stop run waited 46 seconds for the operation.
+- Creating took about 8.5 minutes and starting about 9 minutes.
+- Seen and not foreseen: the workflow reports `running` seconds after a start is accepted (the API has no "starting" state); a new instance is integrated with Knowledge Catalog by default.
+- Still not verified: the timeout branch of the creation's night-stop proof; the weekend job (same settings, never run); that "idle", in the address charge, means "stopped" (the first bill).
+
+Whatever failed became a fix in the skills; provider behaviour is in [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md).
