@@ -1,0 +1,3 @@
+NOT_CALLED ^sql instances (create|patch)
+OUTPUT "status": "unchanged"
+OUTPUT "state": "running"

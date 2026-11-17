@@ -1,0 +1,1 @@
+/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-create projectId=aleogr-lab-shared-zz99 instance=aleogr-lab platform=lab version=POSTGRES_17 tier=db-f1-micro edition=enterprise region=southamerica-east1 storageGb=10 backupStartUtc=06:00 retainedBackups=7 mode=apply
