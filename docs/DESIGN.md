@@ -919,5 +919,5 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [x] Protection of `aleogr/aleogr`'s `main`: a branch ruleset named `main`, created by hand on 2026-11-17 (active, empty bypass list, default branch; restrict deletions, block force pushes, require a pull request with 0 approvals). Made by hand because the repository of the marketplace is not created by the skills; `github_branch-protect` ([`CONTRACTS.md`](CONTRACTS.md)) must find it and change nothing when it exists.
-- [ ] Check that the GitHub account has two-factor authentication on.
+- [x] The GitHub account has two-factor authentication on (checked on 2026-11-17).
 - [ ] Choose the next real project to guide the MVP.
