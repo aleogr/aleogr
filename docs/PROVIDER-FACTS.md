@@ -39,7 +39,7 @@
 ## GCP — organizations
 
 - **A standalone organization (no domain) is created automatically** when a Google account signs up to Google Cloud, and only one per user account; a user can be invited to own several. There is no way to create a second one from the same account without a domain (Google's documentation, read on 2026-11-17).
-- **An organization's display name is not used by any API**, and an organization owner edits it on the "Organization details" page (documentation read on 2026-11-17). The IAM settings page of the console says an organization cannot be renamed (seen on 2026-11-17).
+- **An organization's display name is not used by any API**, and an organization owner edits it on the "Organization details" page (documentation read on 2026-11-17). The IAM settings page of the console says an organization cannot be renamed (seen on 2026-11-17). My standalone organization was renamed that day, and nothing that had been built needed any change.
 - **A folder is renamed with `gcloud resource-manager folders update <id> --display-name=<name>`** (its id does not change), and `gcloud resource-manager folders list --organization=<id>` lists only the folders directly under the organization, not the ones inside them (2026-11-17).
 - **A deleted project stays recoverable for 30 days** (`gcloud projects undelete`), and its id is never available again. A Cloud SQL instance with deletion protection must have it turned off (`gcloud sql instances patch --no-deletion-protection`) before `gcloud sql instances delete` (2026-11-17).
 
