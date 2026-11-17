@@ -918,5 +918,6 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [x] Can an installed plugin read files of the marketplace outside its own folder? No. `defaults.json` lives in the orchestrator plugin (`.claude-plugin/plugins/aleogr/`) and `contracts.json` (section 10.1) will live there too.
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
-- [ ] Configure protection of `aleogr/aleogr`'s `main` (require PR) and check 2FA.
+- [x] Protection of `aleogr/aleogr`'s `main`: a branch ruleset named `main`, created by hand on 2026-11-17 (active, empty bypass list, default branch; restrict deletions, block force pushes, require a pull request with 0 approvals). Made by hand because the repository of the marketplace is not created by the skills; `github_branch-protect` ([`CONTRACTS.md`](CONTRACTS.md)) must find it and change nothing when it exists.
+- [x] The GitHub account has two-factor authentication on (checked on 2026-11-17).
 - [ ] Choose the next real project to guide the MVP.
