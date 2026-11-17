@@ -224,10 +224,16 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 `shared`: database + user on the lab's single instance.
 
+`instance-describe`, `instance-start`, `instance-stop` and `instance-switch-setup` are actions of providers whose instances do not scale to zero (`gcp-cloud-sql`): the instance stays stopped and is started on demand ([DESIGN.md](DESIGN.md) section 6.8).
+
 | Action | Input | Output |
 |---|---|---|
 | `database-describe` | project, environment | instance, database, users, size tier, backups |
-| `instance-create` | engine, version, tier, region | instance id, `cost.fixed: true` (`dedicated` only; refused in `lab`) |
+| `instance-create` | engine, version, tier, region; `platform` (`lab`: the lab's shared instance, passed only by the orchestrator's platform skills) | instance id, `cost.fixed: true` (`dedicated` only; refused in `lab`, except `platform=lab`) |
+| `instance-describe` | project id, instance name | exists, state (`stopped`, `starting`, `running`, `creating`), settings, last backup |
+| `instance-start` | project id, instance name | state (`starting` after the change) |
+| `instance-stop` | project id, instance name | state (`stopped`) |
+| `instance-switch-setup` | project id, instance name, region, time zone, stop schedules, repository, `mode` | `ready`, parts still missing; in the answer's prose, the values of the GitHub secrets |
 | `database-create` | project, engine, environment | host/port/database, connection method, `secretRef` of the password (generated) |
 | `access-grant` | identity (runtime, CI migrations), database | applied grants / connection permissions |
 | `backup-configure` | schedule, retention, point-in-time | applied policy (`prd`) |

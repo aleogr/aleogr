@@ -183,6 +183,7 @@ aleogr/aleogr/
 │       ├── self-test-features.yml             ← tests the Features (test/ folder) on every PR
 │       ├── self-publish-features.yml          ← publishes the Features to GHCR
 │       ├── self-cleanup-tests.yml             ← scheduled: deletes resources of old tests
+│       ├── self-lab-database.yml              ← manually triggered: starts, stops or shows the state of the lab's shared database
 │       ├── ci-go.yml                          (future, reusable)
 │       ├── ci-java.yml                        (future, reusable)
 │       └── cd-cloud-run.yml                   (future, reusable)
@@ -221,6 +222,9 @@ aleogr/aleogr/
         ├── aleogr-cloud-gcp/                  (MVP; built: manifest and the four skills below)
         │   ├── .claude-plugin/plugin.json
         │   └── skills/ gcp_environment-describe (built), gcp_environment-create (built), gcp_services-enable (built), gcp_budget-alert-setup (built), gcp_deploy-setup
+        ├── aleogr-db-gcp-cloud-sql/           ← the lab's shared database: instance skills (describe, create, start, stop, switch-setup)
+        │   ├── .claude-plugin/plugin.json
+        │   └── skills/ gcp-cloud-sql_instance-describe, gcp-cloud-sql_instance-create, gcp-cloud-sql_instance-start, gcp-cloud-sql_instance-stop, gcp-cloud-sql_instance-switch-setup
         └── aleogr-dns-cloudflare/             (MVP)
             ├── .claude-plugin/plugin.json
             ├── .mcp.json                      ← official Cloudflare MCP (https://mcp.cloudflare.com/mcp)
@@ -422,13 +426,15 @@ Declaration (replaces a simple `domains` field):
 - **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`, so on GCP it is created directly under the organization, not in the folder of an environment ([section 6.7](#67-gcp-organization-folders-and-billing)); "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
 - `shared` is a **RESERVED** project name ([section 11.1](#111-json-schema)).
 - Accepted trade: `lab` and `hom` of every project share performance and availability, and the separation between them protects against accidents only ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A project that needs an isolated `hom` uses the `dedicated` mode.
-- **Shared database:** one Cloud SQL PostgreSQL instance, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`).
-- **The instance is OFF by default** (it does not scale to zero, and it is the only fixed cost of the lab):
+- **Shared database:** one Cloud SQL PostgreSQL instance, `aleogr-lab`, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`). It has a public address with no authorized networks, so nothing connects to it directly: access goes through the Cloud SQL connector, authenticated by IAM. The disk is 10 GiB with automatic growth off (disks never shrink, and `gcloud` has no flag for a growth limit); a full disk in the lab is a visible failure and I grow it by hand. Deletion protection is on.
+- **The instance is OFF by default** (it does not scale to zero, and it is the only fixed cost of the lab). Stopped, it still costs its disk and its idle public address: about R$ 50 per month while stopped ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). Nothing with that cost is created without my seeing the amount and saying yes:
   - **started on demand**, when I am going to work: by the skill `gcp-cloud-sql_instance-start` (where `gcloud` is authenticated) or by a manually triggered workflow of `aleogr/aleogr` (from anywhere, including the phone);
-  - **stopped every night by a scheduler inside GCP**, at a fixed time, so that stopping never depends on me remembering; it can also be stopped by hand, by the skill `gcp-cloud-sql_instance-stop` or by the same manually triggered workflow (which offers both start and stop);
+  - **stopped by a scheduler inside GCP**, so that stopping never depends on me remembering: two Cloud Scheduler jobs in the shared project call the Cloud SQL Admin API directly, in `America/Sao_Paulo` time, at 22:30 from Sunday to Thursday and at 04:00 on Saturday and Sunday (Friday and Saturday nights have no fixed end). It can also be stopped by hand, by the skill `gcp-cloud-sql_instance-stop` or by the same manually triggered workflow (`self-lab-database.yml`, which offers `start`, `stop` and `status`);
   - starting takes minutes ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)): skills and deploys that need the database check whether it is running and say so, instead of failing with a connection error;
-  - the backup window must fall in hours when the instance is usually running.
-- **What the platform is made of** (on GCP): the shared project, the database instance, the scheduler that stops it, the identity the manual workflow uses to start and stop it, and the budget alert.
+  - the backup window starts at 20:00 (`America/Sao_Paulo`), an hour when the instance is usually running; a window that falls while it is stopped produces no backup and no error.
+- **What the platform is made of** (on GCP): the shared project, the database instance, the scheduler that stops it, the identity that starts and stops it, and the budget alert.
+- **One switch identity:** a service account, `aleogr-lab-sql-switch`, with a custom role limited to reading and updating the instance (`cloudsql.instances.get`, `cloudsql.instances.update`). The scheduler jobs run as it, and the workflow impersonates it through workload identity federation (a pool and a GitHub provider in the shared project, accepting only tokens of `aleogr/aleogr` on `main`); no key file exists. The switch is created before the instance, so that the night stop already exists if the creation is interrupted.
+- **GitHub secrets:** the workflow reads three Actions secrets of `aleogr/aleogr` (the shared project's id, the federation provider's name and the switch account's e-mail), pasted by hand from the values the platform skills print; the repository's logs are public and only secrets are masked.
 - **How it is created and changed:** by the orchestrator, with skills that run commands, from the platform declaration ([section 11](#11-project-model)) — the same mechanism as the projects, with the same rules ([section 10.4](#104-behavior-of-every-skill)). It is created once, from the Windows app, where the CLIs are authenticated ([section 14](#14-where-i-run-claude-code)). Its state is what exists in the cloud ([section 7](#7-where-data-lives)).
 
 ---
@@ -669,6 +675,7 @@ Deterministic guarantees; general ones live in `aleogr`, specific ones in each f
   - DNS records `test-<id>` or `test-<id>-<environment>` under `lab.aleogr.dev`, and the tenants below them;
   - databases `test_<id>`;
   - cloud services/resources `test-<id>-...` with label `aleogr-test=<id>`.
+  - The hook is built with the first `*-remove` skill (`database-remove`), when there is something for it to guard and a real case to test it against on Windows. Until then the lab's shared instance is covered by the provider's deletion protection.
 - **PreToolUse on Write/Edit** blocking secrets in versioned files.
 - **PostToolUse on Write/Edit** validating project.json against the schema.
 - **PostToolUse formatting** per stack.
@@ -854,6 +861,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - For tenant addresses in the lab: a Cloudflare Worker routing every lab hostname, with proxied records and flattened names (a format different from production, undoes the unproxied decision, and one piece whose failure takes the whole lab down); a load balancer with a wildcard certificate (fixed cost); tenants by path or header only in the lab (behaviour different from production). Chosen: one record and one mapping per tenant.
 - In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
 - A single lab cloud environment holding the resources of every project: each project has its own, and only fixed-cost resources are shared.
+- For the shared lab database, a private address only (no address charge, about R$ 9 per month instead of about R$ 50): the database would be reachable only from inside Google Cloud, with no access from my computer or from GitHub Actions, and every project would have to be attached to a shared network.
 - For the shared lab database: always on (fixed cost with nobody using it); sleeping only on weeknights (saves little); a serverless PostgreSQL outside GCP (another provider, and a connection different from production). Chosen: off by default, started on demand.
 - Using `aleogr/aleogr` as the Codespaces dotfiles repository.
 - One CI workflow per component with an `on.push.paths` filter (blocks required checks).
@@ -886,7 +894,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [x] **Create the lab platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-lab-shared-resources)). Created on 2026-11-16 by `platform-apply`, in the Windows app.
 - [x] **First real run of stage 1**, by me in the Windows app, on 2026-11-16, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). It ended with `nothing to do`; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [x] `platform-plan`, run without a project id, finds the existing shared project by its labels: confirmed on 2026-11-16, in a new session.
-- [ ] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): the database instance (off by default), the scheduler that stops it, the identity and the manual workflow to start and stop it. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): implemented; waits for the first real run. The previous lab was removed and its decisions were not inherited; only the provider behaviour learned there was kept, in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] Build the destructive-command hook ([section 13.1](#131-hooks)) with the first `*-remove` skill (`database-remove`); until then the shared instance relies on the provider's deletion protection.
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
 - [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
