@@ -1,4 +1,11 @@
-# A run that stopped after the switch: only the instance is missing.
+# A run that stopped after the switch: only the instance is missing. It is created and
+# stopped by the weeknight job; the cost is stated before it is created, and the secrets
+# are shown again because the switch is ready.
 NOT_CALLED ^iam (roles|service-accounts) create
+NOT_CALLED ^scheduler jobs (create|update)
 CALLED ^sql instances create
+CALLED ^scheduler jobs run aleogr-lab-stop-weeknight
+NOT_CALLED ^sql instances patch
+OUTPUT about R\$ 50 per month while stopped
+OUTPUT GitHub secrets
 OUTPUT "status": "created"

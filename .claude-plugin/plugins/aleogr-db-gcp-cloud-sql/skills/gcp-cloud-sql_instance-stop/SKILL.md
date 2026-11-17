@@ -25,7 +25,8 @@ Show each command before running it. Run only the commands below, in this order.
    - Describe `status` `failed`: stop with `failed` and its one-sentence cause. Run nothing else.
    - `exists` false: stop with `failed` and one sentence saying the instance does not exist. Run nothing else.
    - `state` is `stopped`: run nothing else and end with `status` `unchanged` and `outputs.state` `stopped`.
-   - Any other state: continue.
+   - `state` is `creating`: do not patch an instance that is still being created. Run nothing else and end with `failed`, `outputs.state` `creating`, and one sentence: wait for the creation to end, then run this skill again.
+   - Any other state (`running`, `starting`, or `unknown`): continue.
 
 2. Stop it:
 
@@ -80,5 +81,5 @@ End with exactly one fenced block tagged `aleogr-result`:
 - `status` is one of `updated` (the instance is now stopped), `unchanged` (it already was), `failed`.
 - `mode` is always `apply`: the skill acts.
 - `updated` and `unchanged`: `outputs.state` is `stopped`.
-- `failed` because an argument is invalid or the check failed: `resources` is empty and `outputs` is `{ "exists": null, "state": null }`. Instance missing: `resources` is empty and `outputs` is `{ "exists": false, "state": null }`. The patch or the verification failed: `resources` lists the instance and `outputs` is `{ "exists": true, "state": "<last state seen>" }`.
+- `failed` because an argument is invalid or the check failed: `resources` is empty and `outputs` is `{ "exists": null, "state": null }`. Instance missing: `resources` is empty and `outputs` is `{ "exists": false, "state": null }`. The instance is still being created, or the patch or the verification failed: `resources` lists the instance and `outputs` is `{ "exists": true, "state": "<last state seen>" }`.
 - Always `cost` as above.

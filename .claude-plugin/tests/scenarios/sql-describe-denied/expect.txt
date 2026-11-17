@@ -1,2 +1,3 @@
+CALLED ^sql instances describe aleogr-lab
 OUTPUT "status": "failed"
 NOT_CALLED ^sql backups list

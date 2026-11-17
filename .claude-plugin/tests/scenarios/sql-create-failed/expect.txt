@@ -1,2 +1,3 @@
+CALLED ^sql instances create aleogr-lab
 NOT_CALLED ^sql instances patch
 OUTPUT "status": "failed"

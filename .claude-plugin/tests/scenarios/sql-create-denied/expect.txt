@@ -1,2 +1,3 @@
-NOT_CALLED ^sql instances create
+CALLED ^sql instances describe aleogr-lab
+NOT_CALLED ^sql instances (create|patch)
 OUTPUT "status": "failed"

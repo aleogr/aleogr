@@ -1,5 +1,6 @@
 # Stage 1 items are ready and all services are enabled; the switch and the instance are missing.
-NOT_CALLED (create|^services enable|patch|add-iam-policy-binding)
+NOT_CALLED (create|^services enable|patch|add-iam-policy-binding|^scheduler jobs run)
 OUTPUT database switch
 OUTPUT database instance
+OUTPUT Cost: the database instance has a fixed cost of about R\$ 50 per month while stopped
 OUTPUT "status": "would-update"

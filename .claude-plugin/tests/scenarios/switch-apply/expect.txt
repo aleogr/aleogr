@@ -9,7 +9,13 @@ CALLED ^iam service-accounts add-iam-policy-binding .*roles/iam.workloadIdentity
 CALLED ^iam service-accounts add-iam-policy-binding .*principalSet://.*/attribute.repository/aleogr/aleogr
 CALLED ^scheduler jobs create http aleogr-lab-stop-weeknight .*--schedule=30 22 \* \* 0-4
 CALLED ^scheduler jobs create http aleogr-lab-stop-weekend .*--time-zone=America/Sao_Paulo
-CALLED ^scheduler jobs create http .*--http-method=PATCH
+# Cloud Scheduler has no PATCH: POST with the method override header (never PUT).
+CALLED ^scheduler jobs create http aleogr-lab-stop-weeknight .*--http-method=POST
+CALLED ^scheduler jobs create http aleogr-lab-stop-weekend .*--http-method=POST
+CALLED ^scheduler jobs create http aleogr-lab-stop-weeknight .*--headers=[^ ]*X-HTTP-Method-Override=PATCH
+CALLED ^scheduler jobs create http aleogr-lab-stop-weekend .*--headers=[^ ]*X-HTTP-Method-Override=PATCH
+CALLED ^scheduler jobs create http .*--headers=[^ ]*Content-Type=application/json
+NOT_CALLED --http-method=(PATCH|PUT|patch|put)
 CALLED ^scheduler jobs create http .*stop-body.json
 ORDER ^iam service-accounts create >> ^scheduler jobs create
 OUTPUT "status": "created"

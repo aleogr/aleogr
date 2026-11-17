@@ -66,6 +66,9 @@ A boolean that is absent from the JSON is `false`.
 | `ALWAYS` | `RUNNABLE` | `running` |
 | `ALWAYS` | `PENDING_CREATE` | `creating` |
 | `ALWAYS` | anything else | `starting` |
+| any other value, or absent | any | `unknown` |
+
+When the state is `unknown`, the answer reports the raw `settings.activationPolicy` value (or that it is absent); the status stays `unchanged`.
 
 ## Result block
 
@@ -85,18 +88,18 @@ End with exactly one fenced block tagged `aleogr-result`:
   "outputs": {
     "exists": true,
     "state": "stopped",
-    "databaseVersion": "POSTGRES_17",
+    "databaseVersion": "POSTGRES_18",
     "edition": "ENTERPRISE",
     "tier": "db-f1-micro",
-    "region": "southamerica-east1",
+    "region": "us-central1",
     "diskSizeGb": 10,
-    "storageAutoIncrease": true,
+    "storageAutoIncrease": false,
     "publicAddress": true,
     "authorizedNetworks": 0,
     "backupEnabled": true,
-    "backupStartUtc": "06:00",
-    "deletionProtection": false,
-    "lastBackup": "2026-11-16T06:12:03.123Z"
+    "backupStartUtc": "23:00",
+    "deletionProtection": true,
+    "lastBackup": "2026-11-16T23:12:03.123Z"
   },
   "cost": { "fixed": false, "notes": "read-only" },
   "pending": []

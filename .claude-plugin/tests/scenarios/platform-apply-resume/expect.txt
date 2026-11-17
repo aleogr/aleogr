@@ -1,10 +1,8 @@
 # A run that stopped earlier: the project exists with billing, the Budget API is not enabled
-# and there is no budget. services list without the Budget API: the plan's describe, the
-# describe of the plan's services check, the apply services step's describe; with it: that
-# step's verification and the closing plan. The static fake counts calls, so this fixture
-# assumes the plan's services check runs its own describe (as observed); if a model reuses
-# the plan's describe instead, the apply step sees the API enabled and this scenario fails.
-# budgets list: the budget step's list (none), its verification and the closing plan (exists).
+# and there is no budget. The services list and the budgets list answer by state (the
+# "+after+" fixtures): without the APIs until `services enable` runs, with them afterwards;
+# no budget until `billing budgets create` runs. How many times a skill reads them does not
+# change the answers.
 CALLED ^projects list .*aleogr-project=shared
 NOT_CALLED ^(projects create|billing projects link)
 CALLED ^services enable .*billingbudgets.googleapis.com.* --project=aleogr-lab-shared-zz99
