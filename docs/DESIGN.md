@@ -720,6 +720,7 @@ Deterministic guarantees; general ones live in `aleogr`, specific ones in each f
 
 - I use Claude Code in the Windows app and on the web (cloud sessions), and I want to be able to use GitHub Codespaces.
 - Infrastructure setup (creating repositories, gcloud auth login, Cloudflare OAuth, gh auth login) is done in the **WINDOWS APP**. Avoid storing admin-level credentials in the cloud.
+- **From a browser only** (a computer where nothing can be installed): Claude Code runs inside **Google Cloud Shell**, the terminal of the Google Cloud console, which is already signed in to my Google account and has `gcloud`. The skills run there as in the Windows app, with no credential leaving Google and no new identity. Set-up, once: [section 14.3](#143-claude-code-in-google-cloud-shell). A cloud session ([section 14.1](#141-claude-code-cloud-sessions-web-app-mobile-claude---cloud)) cannot do this: its `gcloud` has no login, and the organization forbids the keys that would give it one.
 - iOS/watchOS require macOS (build via macOS runner in CI); embedded and wearables usually require the device connected to the Windows app.
 
 ### 14.1 Claude Code cloud sessions (web, app, mobile, `claude --cloud`)
@@ -766,6 +767,17 @@ The configuration in which each cloud session runs.
 
 - Environments are configured in the claude.ai interface, not by file. The CANONICAL version (setup script, allowed domains, description of network secrets without values) is versioned in `docs/cloud-environments/<environment>.md` in `aleogr/aleogr`, without IDs or secrets, and copied to the interface when it changes.
 - **Setup scripts are assembled from FRAGMENTS:** each profile is one fragment (e.g. base, Android SDK); an environment's script is the sum of the fragments it needs, with every additional environment starting from the base fragment. A combined environment reuses the fragments instead of duplicating script text.
+
+---
+
+### 14.3 Claude Code in Google Cloud Shell
+
+For running the skills against real Google Cloud from a browser. Tested on 2026-11-17 ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
+
+- Claude Code, the marketplace and the plugins are installed once in the Cloud Shell home directory, which Google keeps between sessions. The step-by-step instructions (set-up, daily use, updating) are in [`cloud-shell.md`](cloud-shell.md).
+- The orchestrator reads its `defaults.json` from the plugin's folder, outside the working directory, and Claude Code asks to allow that read: allow that one read each time, never every read outside the working directory, because the home directory holds the Google credentials.
+- It is slower than the Windows app (a small shared machine), and Cloud Shell disconnects after a while idle.
+- Other families' CLIs (`gh`, the Cloudflare one) are not signed in there: this path is for the Google Cloud skills.
 
 ---
 
@@ -898,7 +910,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Confirm on the first bill that the public address is charged only while the instance is stopped, and the real fixed cost of the stopped instance.
 - [x] The `starting` state works in a real run (2026-11-17): the workflow showed `starting` after a start and `running` minutes later; the switch account may list the instance's operations.
 - [x] Knowledge Catalog integration turned off on the shared instance (2026-11-17); new instances are created with it off.
-- [ ] Confirm in a real run the fields two checks read: an existing budget's amount and thresholds (`gcloud billing budgets describe`), and a scheduler job's last run (`lastAttemptTime`, `status.code`). When a field is not found, the budget is reported as `exists, not compared` and a job's last run as not failed: neither changes anything.
+- [x] The fields the budget comparison and the jobs' last run read are right (2026-11-17, `platform-plan` in Cloud Shell): the budget showed as compared and equal, the weeknight job's last run as succeeded, the weekend job as never run. Not exercised: `gcloud billing budgets update` (nothing differed) and a job whose last run failed.
 - [ ] Build the destructive-command hook ([section 13.1](#131-hooks)) with the first `*-remove` skill (`database-remove`); until then the shared instance relies on the provider's deletion protection.
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
