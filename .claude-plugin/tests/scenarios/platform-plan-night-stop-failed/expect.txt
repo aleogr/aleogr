@@ -3,5 +3,5 @@
 NOT_CALLED (create|^services enable|patch|add-iam-policy-binding|update)
 OUTPUT "status": "unchanged"
 OUTPUT [Nn]othing to do
-OUTPUT The last run of .*failed
+OUTPUT [Tt]he last run of .*failed
 OUTPUT night stop may not be working
