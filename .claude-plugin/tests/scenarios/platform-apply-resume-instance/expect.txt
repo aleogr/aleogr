@@ -1,0 +1,4 @@
+# A run that stopped after the switch: only the instance is missing.
+NOT_CALLED ^iam (roles|service-accounts) create
+CALLED ^sql instances create
+OUTPUT "status": "created"

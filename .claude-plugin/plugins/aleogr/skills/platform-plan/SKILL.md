@@ -1,10 +1,10 @@
 ---
-description: aleogr platform plan. Use to see what the free part of the owner's lab platform on Google Cloud (shared project with billing, required APIs, one budget alert) is missing, comparing the owner's defaults with the real cloud. Changes nothing.
+description: aleogr platform plan. Use to see what the free part of the owner's lab platform on Google Cloud (shared project with billing, required APIs, one budget alert, the shared Cloud SQL instance and the switch that stops it at night) is missing, comparing the owner's defaults with the real cloud. Changes nothing.
 ---
 
 # platform-plan
 
-Compares the owner's choices in `${CLAUDE_PLUGIN_ROOT}/defaults.json` with what exists in the cloud and prints a table: item, current state, action. It changes nothing and has no cost. `platform-apply` runs it first.
+Compares the owner's choices in `${CLAUDE_PLUGIN_ROOT}/defaults.json` with what exists in the cloud and prints a table: item, current state, action. It changes nothing and has no cost (the instance's own fixed cost starts only when `platform-apply` creates it). `platform-apply` runs it first.
 
 ## Arguments
 
@@ -20,16 +20,18 @@ Before running any command, check it: `projectId`, when given, has 6 to 30 chara
 
 Show each command before running it. Other skills end with their own `aleogr-result` block: use those blocks only as input, never repeat them. Your answer ends with exactly one block, its own.
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json`. If `cloud.provider` is not `gcp`, stop here with `status` `failed`: only GCP is implemented. Run no command. Otherwise take `platform.shared` (`project`, `environment`, `services`) and `platform.budget` (`displayName`, `amount`, `currency`, `thresholds`).
+1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json`. If `cloud.provider` is not `gcp`, stop here with `status` `failed`: only GCP is implemented. Run no command. Otherwise take `platform.shared` (`project`, `environment`, `services`) and `platform.budget` (`displayName`, `amount`, `currency`, `thresholds`), `platform.database` (`instance`) and `platform.switch` (`timeZone`, `weeknightStop`, `weekendStop`, `repository`), and `cloud.region`.
 2. Invoke `aleogr:tools-check`. If its `status` is `failed`, stop with `failed`, carry its `fix` into `pending[].how`, and run nothing else. Every `gcloud` command in the skills run below uses the command name tools-check reported (`command`: `gcloud` or `gcloud.cmd`).
 3. Invoke `aleogr-cloud-gcp:gcp_environment-describe` with `projectId=<projectId>` when `projectId` was given, otherwise with `project=<shared.project> environment=<shared.environment>`.
    - `status` `failed`: stop with `failed` and its cause.
-   - `exists` false: the shared project, its services and its budget are all to create. Run no command for the services and the budget: both need the project, so they are checked after it exists. Go to the answer.
+   - `exists` false: the shared project, its services, its budget, the database switch and the database instance are all to create. Run no command for the other four: all need the project, so they are checked after it exists. Go to the answer.
    - Otherwise take `projectId` and `billingLinked`; `projectId` goes into the result as `outputs.projectId`.
 4. Services (project exists): invoke `aleogr-cloud-gcp:gcp_services-enable` with `projectId=<projectId> services=<shared.services, comma-separated> mode=plan`.
 5. Budget: never check an item whose prerequisite is not met (project, then billing linked, then services, then budget). Only when `billingLinked` is true and the services result shows `billingbudgets.googleapis.com` already enabled (its `status` is `unchanged`, or the service is in its `alreadyEnabled`), invoke `aleogr-cloud-gcp:gcp_budget-alert-setup` with `displayName=<..> amount=<..> currency=<..> thresholds=<comma-separated> quotaProject=<projectId> mode=plan`. Otherwise run no budget command: the budget commands fail until that API is enabled.
+6. Database switch: only when the project exists and the services result shows every service of `shared.services` enabled (`unchanged`), invoke `aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-switch-setup` with `projectId=<projectId> instance=<database.instance> region=<cloud.region> timeZone=<switch.timeZone> weeknightStop="<switch.weeknightStop>" weekendStop="<switch.weekendStop>" repository=<switch.repository> mode=plan`. Otherwise run no switch command: its commands fail until the APIs are enabled.
+7. Database instance: under the same condition as step 6, invoke `aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe` with `projectId=<projectId> instance=<database.instance>`.
 
-If step 4 or 5 returns `failed`, stop and report it: no later item is guessed.
+If step 4, 5, 6 or 7 returns `failed`, stop and report it: no later item is guessed.
 
 ## Items
 
@@ -38,8 +40,10 @@ If step 4 or 5 returns `failed`, stop and report it: no later item is guessed.
 | `shared project` | Missing: state `missing`, action `create`. Exists with billing linked: `ready`, `none`. Exists without billing: `billing not linked`, `update`. |
 | `services` | Project missing: `not checked, will be checked after the project exists`, `create`. Otherwise from the services result: `unchanged` is `all enabled`, `none`; `would-update` is `missing: <list>`, `update`. |
 | `budget alert` | Project missing: `not checked, will be checked after the project exists`, `create`. Billing not linked or the Budget API not enabled (step 5 not run): `not checked, will be checked after the services are enabled`, `create`. Otherwise `would-create` is `missing`, `create`; `unchanged` is `exists`, `none`. |
+| `database switch` | Project missing: `not checked, will be checked after the project exists`, `create`. Services not all enabled (steps 6 and 7 not run): `not checked, will be checked after the services are enabled`, `create`. Otherwise from the switch result: `unchanged` is `ready`, `none`; `would-create` is `missing`, `create`; `would-update` is `incomplete: <outputs.missing>`, `update`. |
+| `database instance` | Same two "not checked" states as `database switch`. Otherwise from the describe result: `exists` false is `missing`, `create`; otherwise `exists, <state>` (`stopped`, `running`, ...), `none`. A running instance is never a difference: the night jobs stop it. |
 
-An item whose step `failed` has state `unknown` and action `blocked`.
+The items are always listed in this order: `shared project`, `services`, `budget alert`, `database switch`, `database instance`. An item whose step `failed` has state `unknown` and action `blocked`.
 
 ## Answer
 
@@ -61,7 +65,9 @@ Print the table (item, state, action). Then one line: `nothing to do` when every
     "items": [
       { "item": "shared project", "state": "missing", "action": "create" },
       { "item": "services", "state": "not checked, will be checked after the project exists", "action": "create" },
-      { "item": "budget alert", "state": "not checked, will be checked after the project exists", "action": "create" }
+      { "item": "budget alert", "state": "not checked, will be checked after the project exists", "action": "create" },
+      { "item": "database switch", "state": "not checked, will be checked after the project exists", "action": "create" },
+      { "item": "database instance", "state": "not checked, will be checked after the project exists", "action": "create" }
     ]
   },
   "cost": { "fixed": false, "notes": "read-only plan" },

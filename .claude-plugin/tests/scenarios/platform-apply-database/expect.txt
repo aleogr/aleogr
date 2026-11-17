@@ -1,0 +1,8 @@
+# The switch and the instance are missing at the start and present afterwards. The switch
+# (jobs included) comes before the instance. The numbered fixtures assume the order: plan,
+# the skill's own check, its verification, the closing plan.
+ORDER ^scheduler jobs create http >> ^sql instances create
+CALLED ^sql instances create aleogr-lab
+OUTPUT GitHub secrets
+OUTPUT nothing to do
+OUTPUT "status": "created"

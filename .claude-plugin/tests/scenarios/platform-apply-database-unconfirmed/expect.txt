@@ -1,0 +1,3 @@
+NOT_CALLED (create|patch|add-iam-policy-binding)
+OUTPUT about R\$ 50 per month while stopped
+OUTPUT "status": "pending"

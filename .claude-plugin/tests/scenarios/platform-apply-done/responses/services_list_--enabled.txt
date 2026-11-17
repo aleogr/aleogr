@@ -1,2 +1,7 @@
 billingbudgets.googleapis.com
 cloudresourcemanager.googleapis.com
+cloudscheduler.googleapis.com
+iam.googleapis.com
+iamcredentials.googleapis.com
+sqladmin.googleapis.com
+sts.googleapis.com

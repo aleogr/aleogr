@@ -1,0 +1,5 @@
+# Stage 1 items are ready and all services are enabled; the switch and the instance are missing.
+NOT_CALLED (create|^services enable|patch|add-iam-policy-binding)
+OUTPUT database switch
+OUTPUT database instance
+OUTPUT "status": "would-update"
