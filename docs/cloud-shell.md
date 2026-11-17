@@ -89,7 +89,7 @@ claude plugin update aleogr-cloud-gcp@aleogr
 claude plugin update aleogr-db-gcp-cloud-sql@aleogr
 ```
 
-These update commands exist in Claude Code 2.1.326 but were not run in Cloud Shell yet.
+Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
 
 ## What to expect
 
