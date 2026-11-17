@@ -72,13 +72,13 @@ The owner chose **A**, after seeing B in detail, and chose to create the instanc
 | Engine | PostgreSQL, the newest major version Cloud SQL offers when it is created | A new instance has nothing to migrate. |
 | Edition and tier | `ENTERPRISE`, `db-f1-micro` | Smallest; the tier only exists in this edition, which must be stated. |
 | Availability | Single zone | No fixed cost for a standby. |
-| Disk | SSD, 10 GiB (the minimum), automatic growth with a limit of 20 GiB | Disks never shrink; the limit bounds the worst case. |
+| Disk | SSD, 10 GiB (the minimum), automatic growth OFF | Disks never shrink. `gcloud` has no flag for a growth limit (checked on 2026-11-17), so the bound is the fixed size: a full disk in the lab is a visible failure, and the owner grows it by hand. Changed after approval, when the plan was written. |
 | Address | Public, no authorized networks | Approach A. |
 | IAM authentication | Flag `cloudsql.iam_authentication` on | Needed later by IAM database users; free. |
 | Backups | Daily, window starting 20:00 (23:00 UTC), 7 kept | An evening hour when the instance is most likely running; a window that falls while it is stopped produces no backup and no error. |
 | Point-in-time recovery | Off | Lab data; saves log storage. |
 | Deletion protection | On | Replaces the hook in this stage. |
-| Labels | `aleogr-platform=lab` | As the shared project. |
+| Labels | None | `gcloud` has no flag for labels on a Cloud SQL instance (checked on 2026-11-17). The instance is found by its name in the shared project. Changed after approval, when the plan was written. |
 
 No password is set for the built-in `postgres` user and no database or user is created: nothing connects to the instance in this stage.
 
@@ -107,7 +107,7 @@ Stopping an instance that is already stopped changes nothing. Worst case of a fo
 
 A stop can be refused while another operation runs on the instance (a backup, for example). **My call:** each job retries a few times over about an hour (the scheduler's own retry settings), and nothing else: no monitoring and no notification, which would add services and a place to send alerts. A stop that still fails is caught by the next job, and `platform-plan` and `instance-describe` always show whether the instance is running.
 
-Cloud Scheduler's price and free allowance were not verified; the plan verifies them before the jobs are created, and `platform-apply` states the cost in its confirmation.
+Cloud Scheduler gives three free jobs per billing account (pricing page read on 2026-11-17); these two are free while the account has no more than one other job.
 
 ### Identities
 
@@ -165,7 +165,7 @@ The workflow is checked statically; its first real run is by the owner.
 
 A checklist for the owner, as in stage 1, in `docs/plans/`: update the plugins, install the new one, `platform-plan`, `platform-apply` (one confirmation, several minutes), paste the three secrets, run the workflow with `status`, then `start`, then `stop`, and look at the scheduler jobs' next run times. What fails becomes a fix; provider behaviour goes to `PROVIDER-FACTS.md`.
 
-Not verifiable before that run: every `gcloud sql`, `gcloud scheduler`, `gcloud iam` flag used; whether the instance can be created directly in the stopped state or must be created and then stopped; the scheduler's price; the meaning of "idle" in the address charge.
+Not verifiable before that run: every `gcloud sql`, `gcloud scheduler`, `gcloud iam` flag used; whether the instance can be created directly in the stopped state or must be created and then stopped; the meaning of "idle" in the address charge.
 
 ### Documents changed with this work
 
