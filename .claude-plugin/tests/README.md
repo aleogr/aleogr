@@ -44,6 +44,7 @@ Create `scenarios/<name>/` with:
 | `NOT_CALLED <regex>` | no logged call matches |
 | `COUNT <n> <regex>` | at least `<n>` logged calls match (pins a repeated call, such as a check before and after a change) |
 | `OUTPUT <regex>` | Claude's final answer matches |
+| `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |
 | `ORDER <regex1> >> <regex2>` | the first call matching regex1 comes before the first matching regex2 |
 
 Regexes are `grep -E`. Use fictitious values only: the repository is public.

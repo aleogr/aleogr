@@ -1,3 +1,8 @@
+# The weeknight job runs at another time: updated with the full set of values, nothing created.
 CALLED ^scheduler jobs update http aleogr-lab-stop-weeknight .*--schedule=30 22 \* \* 0-4
+CALLED ^scheduler jobs update http aleogr-lab-stop-weeknight .*--uri=https://sqladmin.googleapis.com/v1/projects/aleogr-lab-shared-zz99/instances/aleogr-lab
+CALLED ^scheduler jobs update http aleogr-lab-stop-weeknight .*--message-body-from-file=.*stop-body.json
 NOT_CALLED ^scheduler jobs create
+NOT_CALLED scheduler jobs update http aleogr-lab-stop-weekend
 OUTPUT "status": "updated"
+OUTPUT "ready": true

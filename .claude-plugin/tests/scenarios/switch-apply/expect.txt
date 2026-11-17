@@ -1,7 +1,12 @@
 # Everything missing first, present afterwards (the parts that depend on a missing part are not checked first).
 CALLED ^iam roles create aleogrLabSqlSwitch .*cloudsql.instances.get,cloudsql.instances.update
 CALLED ^iam service-accounts create aleogr-lab-sql-switch
-CALLED ^iam workload-identity-pools providers create-oidc aleogr .*assertion.repository=='aleogr/aleogr'
+CALLED ^iam workload-identity-pools create github
+CALLED ^iam workload-identity-pools providers create-oidc aleogr .*assertion.repository=='aleogr/aleogr' && assertion.ref=='refs/heads/main'
+CALLED ^projects add-iam-policy-binding .*roles/aleogrLabSqlSwitch
+CALLED ^iam service-accounts add-iam-policy-binding .*roles/iam.serviceAccountUser
+CALLED ^iam service-accounts add-iam-policy-binding .*roles/iam.workloadIdentityUser
+CALLED ^iam service-accounts add-iam-policy-binding .*principalSet://.*/attribute.repository/aleogr/aleogr
 CALLED ^scheduler jobs create http aleogr-lab-stop-weeknight .*--schedule=30 22 \* \* 0-4
 CALLED ^scheduler jobs create http aleogr-lab-stop-weekend .*--time-zone=America/Sao_Paulo
 CALLED ^scheduler jobs create http .*--http-method=PATCH
@@ -11,3 +16,5 @@ OUTPUT "status": "created"
 OUTPUT "ready": true
 OUTPUT LAB_GCP_WIF_PROVIDER
 OUTPUT projects/123456789012/locations/global/workloadIdentityPools/github/providers/aleogr
+RESULT_NOT 123456789012
+RESULT_NOT @

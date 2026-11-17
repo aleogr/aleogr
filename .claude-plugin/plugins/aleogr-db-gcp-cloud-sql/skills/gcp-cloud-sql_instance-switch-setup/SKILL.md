@@ -50,10 +50,10 @@ Nine parts, in this order. A part is checked only when the part it depends on ex
 | 5 | `pool` | the pool exists and its state is `ACTIVE` | - |
 | 6 | `provider` | the provider exists and its attribute condition is exactly the one of the create command below for `repository` | `pool` |
 | 7 | `federation-grant` | the service account has `roles/iam.workloadIdentityUser` for the `principalSet` of the pool and `repository` | `account`, `pool` |
-| 8 | `job-weeknight` | the job exists with the schedule and time zone asked | `account` |
+| 8 | `job-weeknight` | the job exists with the schedule, time zone, URI (`https://sqladmin.googleapis.com/v1/projects/<projectId>/instances/<instance>`) and service account (`<account>`) asked, and its state is `ENABLED` | `account` |
 | 9 | `job-weekend` | same, for the weekend job | `account` |
 
-A job that exists with another schedule or time zone is "different" and is updated. A role, pool or provider that exists but differs has no command here to change it: it is not touched, it stays in `missing`, and the answer says what to fix by hand.
+A job that exists with another schedule, time zone, URI or account is "different" and is updated with all its values; a job whose state is not `ENABLED` (paused) is "different" and is resumed. A job that points at another instance would not stop this one, so it is never "equal". A role, pool or provider that exists but differs has no command here to change it: it is not touched, it stays in `missing`, and the answer says what to fix by hand.
 
 ## Steps
 
@@ -77,12 +77,12 @@ Show each command before running it. Run only the commands below, in the order o
    gcloud iam service-accounts get-iam-policy <account> --project=<projectId> --format=json
    gcloud iam workload-identity-pools describe github --project=<projectId> --location=global --format="value(state)"
    gcloud iam workload-identity-pools providers describe aleogr --project=<projectId> --location=global --workload-identity-pool=github --format="value(attributeCondition)"
-   gcloud scheduler jobs describe <job> --project=<projectId> --location=<region> --format="value(schedule,timeZone)"
+   gcloud scheduler jobs describe <job> --project=<projectId> --location=<region> --format="value(schedule,timeZone,state,httpTarget.uri,httpTarget.oauthToken.serviceAccountEmail)"
    ```
 
    The service account policy is read once and answers both `act-as` and `federation-grant`. Run the jobs describe once per job.
 
-3. `plan` ends here, changing nothing: list each part as present, missing or different, and end with `would-create` (some part missing), `would-update` (only jobs differ) or `unchanged` (nothing to do). `ready` is whether nothing is missing or different.
+3. `plan` ends here, changing nothing: list each part as present, missing or different, and end with `would-create` (some part missing and nothing differs that no command can change), `would-update` (only jobs differ), `unchanged` (nothing to do) or `pending` (a role, pool or provider exists but differs: no command changes it, so `pending[].how` is the manual fix, in `plan` too). `ready` is whether nothing is missing or different.
 
 4. `apply`: for each part that is missing, run its command, in the order of the parts. A part that exists and is equal is skipped.
 
@@ -95,17 +95,18 @@ Show each command before running it. Run only the commands below, in the order o
    gcloud iam workload-identity-pools providers create-oidc aleogr --project=<projectId> --location=global --workload-identity-pool=github --issuer-uri="https://token.actions.githubusercontent.com" --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" --attribute-condition="assertion.repository=='<repository>' && assertion.ref=='refs/heads/main'" --quiet
    gcloud iam service-accounts add-iam-policy-binding <account> --project=<projectId> --member="principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/github/attribute.repository/<repository>" --role="roles/iam.workloadIdentityUser" --quiet
    gcloud scheduler jobs create http <job> --project=<projectId> --location=<region> --schedule="<cron>" --time-zone="<timeZone>" --uri="https://sqladmin.googleapis.com/v1/projects/<projectId>/instances/<instance>" --http-method=PATCH --headers="Content-Type=application/json" --message-body-from-file="${CLAUDE_PLUGIN_ROOT}/files/stop-body.json" --oauth-service-account-email=<account> --oauth-token-scope="https://www.googleapis.com/auth/cloud-platform" --max-retry-attempts=5 --min-backoff=5m --max-backoff=15m --max-doublings=2 --attempt-deadline=60s --quiet
-   gcloud scheduler jobs update http <job> --project=<projectId> --location=<region> --schedule="<cron>" --time-zone="<timeZone>" --quiet
+   gcloud scheduler jobs update http <job> --project=<projectId> --location=<region> --schedule="<cron>" --time-zone="<timeZone>" --uri="https://sqladmin.googleapis.com/v1/projects/<projectId>/instances/<instance>" --http-method=PATCH --update-headers="Content-Type=application/json" --message-body-from-file="${CLAUDE_PLUGIN_ROOT}/files/stop-body.json" --oauth-service-account-email=<account> --oauth-token-scope="https://www.googleapis.com/auth/cloud-platform" --quiet
+   gcloud scheduler jobs resume <job> --project=<projectId> --location=<region> --quiet
    ```
 
    - Write `${CLAUDE_PLUGIN_ROOT}` as the real folder of this plugin, so the file is `<plugin folder>/files/stop-body.json`. The body is a file of the plugin, never inline.
-   - The `create` of a job is for a missing job; the `update` is for a job that exists with another schedule or time zone. The two jobs use their own cron.
-   - A job creation that fails is retried once after waiting about one minute (the `act-as` grant may not have propagated yet). A second failure stops the skill.
+   - The `create` of a job is for a missing job; the `update` is for a job that exists with another schedule, time zone, URI or account (always with the full set of values above); the `resume` is for a paused job (state other than `ENABLED`), run after the update when the job also differs. The two jobs use their own cron.
+   - A job creation that fails is retried once after waiting about one minute (the `act-as` grant may not have propagated yet); the single retry applies to each job on its own. A second failure of the same job stops the skill.
    - A failure of any other change command stops the skill at once, with no retry and no later command: end with `pending` when something exists (created in this run or before), `failed` when nothing exists. Say in one sentence which part failed, without raw error text. `outputs.missing` lists every part not present and equal.
 
 5. Verify: run the read commands of step 2 again (all parts, all checked now that their dependencies exist), and read the project number again only if needed. If no change command ran, the check of step 2 already is the verification: do not repeat it. `ready` is true only when no part is missing or different. Anything left ends with `pending` and `outputs.missing`.
 
-6. Status of `apply`: `unchanged` (no change command ran and nothing is missing), `updated` (only job updates ran), `created` (something was created), `pending`, `failed`. If a change ran but verification shows a part still missing, `pending`.
+6. Status of `apply`: `unchanged` (no change command ran and nothing is missing), `updated` (only job updates or resumes ran), `created` (something was created), `pending`, `failed`. If a change ran but verification shows a part still missing, `pending`.
 
 7. When `ready` is true (both modes), the answer's prose has a section titled `GitHub secrets` with the three secrets and their values, one per line:
 

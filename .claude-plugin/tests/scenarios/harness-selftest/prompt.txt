@@ -1,1 +1,1 @@
-Run the command `gcloud projects list --format=json` with the Bash tool and tell me in one sentence what it printed. Do not run any other gcloud command.
+Run the command `gcloud projects list --format=json` with the Bash tool and tell me in one sentence what it printed. Do not run any other gcloud command. End your answer with a fenced code block tagged aleogr-result containing exactly {"aleogr-result": 1, "note": "selftest"}.

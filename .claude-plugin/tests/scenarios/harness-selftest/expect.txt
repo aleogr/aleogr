@@ -1,2 +1,4 @@
 CALLED ^projects list
 NOT_CALLED ^projects create
+RESULT_NOT @
+RESULT_NOT selftest-absent
