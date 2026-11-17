@@ -1,0 +1,1 @@
+30 23 * * 5,6	America/Sao_Paulo

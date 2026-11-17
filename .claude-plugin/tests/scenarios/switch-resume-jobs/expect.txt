@@ -1,0 +1,5 @@
+# Only the two jobs are missing: nothing else is created.
+NOT_CALLED ^iam roles create
+NOT_CALLED ^iam service-accounts create
+COUNT 2 ^scheduler jobs create http
+OUTPUT "status": "created"

@@ -1,0 +1,3 @@
+CALLED ^scheduler jobs update http aleogr-lab-stop-weeknight .*--schedule=30 22 \* \* 0-4
+NOT_CALLED ^scheduler jobs create
+OUTPUT "status": "updated"

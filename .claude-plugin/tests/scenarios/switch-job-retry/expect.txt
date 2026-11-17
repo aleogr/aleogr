@@ -1,0 +1,3 @@
+# The first create is refused, the single retry works, then the second job: three creates in all.
+COUNT 3 ^scheduler jobs create http
+OUTPUT "status": "created"
