@@ -96,7 +96,7 @@ Start and stop are a change of the instance's activation policy (`ALWAYS` / `NEV
 
 ### The night stop
 
-Two Cloud Scheduler jobs in the shared project, both calling the Cloud SQL Admin API directly (an HTTP `PATCH` of the activation policy, authenticated as the switch identity). No function, no code to maintain.
+Two Cloud Scheduler jobs in the shared project, both calling the Cloud SQL Admin API (a change of the activation policy, authenticated as the switch identity). No function, no code to maintain. The API takes the change as an HTTP `PATCH`, which Cloud Scheduler cannot send: each job sends a `POST` with the header `X-HTTP-Method-Override: PATCH`, and `instance-create` proves that it works by stopping the new instance with the weeknight job. Changed when implemented (the design said the jobs send a `PATCH`).
 
 | Job | When (`America/Sao_Paulo`) | Covers |
 |---|---|---|

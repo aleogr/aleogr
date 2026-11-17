@@ -17,12 +17,12 @@
 - **Starting and stopping an instance requires `cloudsql.instances.update`**, the same permission that resizes the disk and turns deletion protection off. There is nothing narrower.
 - **A public IP with no authorized networks accepts no direct connection.** Access then goes through the Cloud SQL connector, authenticated by IAM (`roles/cloudsql.client`; IAM database users also need `roles/cloudsql.instanceUser` and the flag `cloudsql.iam_authentication`).
 - **`gcloud sql instances create` and `patch` have no flag for the storage growth limit nor for labels** (SDK 570, checked on 2026-11-17). The disk size is the only bound, and the instance is found by its name.
-- **The newest PostgreSQL major version of Cloud SQL is 18** (`POSTGRES_18`; the documentation page lists it as the default, read on 2026-11-17).
+- **The newest PostgreSQL major version of Cloud SQL is 18** (the documentation page lists it as the default, read on 2026-11-17). The API value `POSTGRES_18` is inferred from the naming pattern of the earlier versions (`POSTGRES_17`, ...): to confirm at the first creation.
 
 ## GCP — Cloud Scheduler
 
 - **Three jobs are free per billing account**, counted on the account and not on the project; each extra job costs US$ 0.10 per month (pricing page read on 2026-11-17).
-- **A job can call a Google API directly**, with an OAuth token of a service account, with no function in between.
+- **A job can call a Google API with an OAuth token of a service account**, with no function in between, but only with the methods `DELETE`, `GET`, `HEAD`, `POST` and `PUT`: `gcloud scheduler jobs create http` and `update http` have no `PATCH` (SDK 570, checked on 2026-11-17). An API method that needs `PATCH` (such as the Cloud SQL Admin API's `instances.patch`, which starts and stops an instance) is called with `POST` and the header `X-HTTP-Method-Override: PATCH`; `PUT` would replace the whole resource. Not verified against the Cloud SQL Admin API until the first real run: `instance-create` proves it by stopping the new instance with the job.
 
 ## GCP — IAM and identities
 
