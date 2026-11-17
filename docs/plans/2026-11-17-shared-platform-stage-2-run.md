@@ -2,7 +2,7 @@
 
 For the owner. Run this in the Claude Code Windows app, where `gcloud` is authenticated. Unlike stage 1, this run creates something that costs money: one Cloud SQL PostgreSQL instance, about R$ 50 per month while stopped. It is stopped as soon as it is created, and Google Cloud stops it every night.
 
-Source of truth: [`2026-11-17-lab-platform-stage-2-design.md`](2026-11-17-lab-platform-stage-2-design.md) and [`DESIGN.md`](../DESIGN.md) section 6.8.
+Source of truth: [`2026-11-17-shared-platform-stage-2-design.md`](2026-11-17-shared-platform-stage-2-design.md) and [`DESIGN.md`](../DESIGN.md) section 6.8.
 
 ## Before you start
 

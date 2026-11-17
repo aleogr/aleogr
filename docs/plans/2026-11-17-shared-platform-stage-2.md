@@ -8,7 +8,7 @@
 
 **Tech Stack:** Claude Code plugins (Markdown skills, JSON manifests), `gcloud` CLI, Bash test harness, one GitHub Actions workflow.
 
-**Spec:** [`2026-11-17-lab-platform-stage-2-design.md`](2026-11-17-lab-platform-stage-2-design.md). Conventions: [`DESIGN.md`](../DESIGN.md), [`CONTRACTS.md`](../CONTRACTS.md) section 1, and the stage 1 skills in `.claude-plugin/plugins/` (copy their structure: Arguments, Validate first, Steps, Result block).
+**Spec:** [`2026-11-17-shared-platform-stage-2-design.md`](2026-11-17-shared-platform-stage-2-design.md). Conventions: [`DESIGN.md`](../DESIGN.md), [`CONTRACTS.md`](../CONTRACTS.md) section 1, and the stage 1 skills in `.claude-plugin/plugins/` (copy their structure: Arguments, Validate first, Steps, Result block).
 
 ## Global Constraints
 
@@ -62,7 +62,7 @@
     └── scenarios/sql-*/ , switch-*/ , platform-*/     new and updated scenarios
 .github/workflows/self-lab-database.yml                manual start / stop / status
 docs/DESIGN.md, CONTRACTS.md, PROVIDER-FACTS.md        decisions and facts
-docs/plans/2026-11-17-lab-platform-stage-2-run.md      owner's checklist for the real run
+docs/plans/2026-11-17-shared-platform-stage-2-run.md      owner's checklist for the real run
 ```
 
 ## Shared definitions
@@ -401,7 +401,7 @@ git add .claude-plugin && git commit -m "feat: plan and create the lab's databas
 - Consumes: secrets `LAB_GCP_PROJECT_ID`, `LAB_GCP_WIF_PROVIDER`, `LAB_GCP_SWITCH_ACCOUNT`; instance name `aleogr-lab` (written in the file; it is not an identifier of the account).
 
 - [ ] **Step 1: Write the workflow.** `on: workflow_dispatch` with one input `action`, type `choice`, options `status`, `start`, `stop`, default `status`. `permissions: { contents: read, id-token: write }`. `concurrency: lab-database`. One job on `ubuntu-latest`, `if: github.ref == 'refs/heads/main'`, steps:
-  1. Fail with `Missing secret <name>: see docs/plans/2026-11-17-lab-platform-stage-2-run.md` when any of the three secrets is empty (secrets reach the script through `env`, never interpolated in `run`).
+  1. Fail with `Missing secret <name>: see docs/plans/2026-11-17-shared-platform-stage-2-run.md` when any of the three secrets is empty (secrets reach the script through `env`, never interpolated in `run`).
   2. `google-github-actions/auth`, pinned to the commit of its latest release (find it with `git ls-remote --tags https://github.com/google-github-actions/auth`, comment with the tag), with `workload_identity_provider`, `service_account` and `token_format: access_token`.
   3. For `start` or `stop`: `curl` `PATCH https://sqladmin.googleapis.com/v1/projects/$PROJECT/instances/aleogr-lab` with body `{"settings":{"activationPolicy":"ALWAYS"}}` or `"NEVER"`, bearer token from step 2, `--fail-with-body`; print only the HTTP status and the operation's `status` field (`jq`).
   4. Always: `GET` the instance and print one line, `aleogr-lab: <stopped|running|starting>`, by the rule of Shared definitions, to the log and to `$GITHUB_STEP_SUMMARY`. After `start`, add that it takes about ten minutes to accept connections.
@@ -423,10 +423,10 @@ git add .github && git commit -m "feat: add the manual workflow that starts and 
 ### Task 8: Run checklist, full suite, validation
 
 **Files:**
-- Create: `docs/plans/2026-11-17-lab-platform-stage-2-run.md`
+- Create: `docs/plans/2026-11-17-shared-platform-stage-2-run.md`
 - Modify: `.claude-plugin/tests/README.md` (the third plugin), `.claude-plugin/README.md` and `.claude-plugin/plugins/README.md` if they list the plugins
 
-- [ ] **Step 1: Write the owner's checklist**, in the style of `2026-11-16-lab-platform-stage-1-run.md`: (1) after the merge, in the app's plugin browser, update the marketplace `aleogr` and install `Cloud SQL (database)`; (2) new session, `/aleogr:platform-plan`: expected two items to create; (3) `/aleogr:platform-apply`: one question that states `about R$ 50 per month while stopped`; it takes several minutes; expected end `nothing to do` with the instance `stopped`; (4) paste the three GitHub secrets it prints; (5) on GitHub, `Actions`, `self-lab-database`, run with `status`, then `start`, then `stop`; (6) in the Google Cloud console, Cloud Scheduler: two jobs with their next run times; (7) what to send back. End with the list "not verified until this run" from the spec, plus: the rule that derives `stopped` from the activation policy, the text of the "does not exist" error, and whether `db-f1-micro` exists for the chosen PostgreSQL version.
+- [ ] **Step 1: Write the owner's checklist**, in the style of `2026-11-16-shared-platform-stage-1-run.md`: (1) after the merge, in the app's plugin browser, update the marketplace `aleogr` and install `Cloud SQL (database)`; (2) new session, `/aleogr:platform-plan`: expected two items to create; (3) `/aleogr:platform-apply`: one question that states `about R$ 50 per month while stopped`; it takes several minutes; expected end `nothing to do` with the instance `stopped`; (4) paste the three GitHub secrets it prints; (5) on GitHub, `Actions`, `self-lab-database`, run with `status`, then `start`, then `stop`; (6) in the Google Cloud console, Cloud Scheduler: two jobs with their next run times; (7) what to send back. End with the list "not verified until this run" from the spec, plus: the rule that derives `stopped` from the activation policy, the text of the "does not exist" error, and whether `db-f1-micro` exists for the chosen PostgreSQL version.
 
 - [ ] **Step 2: Run the whole suite and the validation.**
 

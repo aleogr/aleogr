@@ -226,7 +226,7 @@ marketplace/
 
 **Files:**
 - Modify: `docs/DESIGN.md` (section 2 tree marks what now exists; section 18), `docs/CONTRACTS.md` (cloud-* table if an input or output changed while implementing), `marketplace/plugins/README.md`
-- Create: `docs/plans/2026-11-16-lab-platform-stage-1-run.md` (the owner's checklist for the first real run)
+- Create: `docs/plans/2026-11-16-shared-platform-stage-1-run.md` (the owner's checklist for the first real run)
 
 - [ ] **Step 1:** Update the docs to what was built; remove nothing that is still planned.
 - [ ] **Step 2:** Write the run checklist: register the marketplace in the Windows app (`extraKnownMarketplaces` block of DESIGN.md section 2.3, with `"ref": "<branch>"` before the merge), enable `aleogr@aleogr` and `aleogr-cloud-gcp@aleogr`, run `/aleogr:tools-check`, `/aleogr:platform-plan`, `/aleogr:platform-apply`, and what to send back (the final plan output and any error).

@@ -931,7 +931,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 ## 18. Open items
 
 - [x] **Create the shared platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-shared-platform-resources)). Created on 2026-11-16 by `platform-apply`, in the Windows app.
-- [x] **First real run of stage 1**, by me in the Windows app, on 2026-11-16, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). It ended with `nothing to do`; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [x] **First real run of stage 1**, by me in the Windows app, on 2026-11-16, following [`plans/2026-11-16-shared-platform-stage-1-run.md`](plans/2026-11-16-shared-platform-stage-1-run.md). It ended with `nothing to do`; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [x] `platform-plan`, run without a project id, finds the existing shared project by its labels: confirmed on 2026-11-16, in a new session.
 - [x] **Create the shared platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-shared-platform-resources)): created on 2026-11-17 by `platform-apply`, in the Windows app, on the first attempt. The night stop was proven at creation, and the manual workflow ran `status`, `start` and `stop`. What the run showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [ ] Confirm on the first bill that the public address is charged only while the instance is stopped, and the real fixed cost of the stopped instance.
