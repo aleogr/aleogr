@@ -18,11 +18,15 @@
 - **A public IP with no authorized networks accepts no direct connection.** Access then goes through the Cloud SQL connector, authenticated by IAM (`roles/cloudsql.client`; IAM database users also need `roles/cloudsql.instanceUser` and the flag `cloudsql.iam_authentication`).
 - **`gcloud sql instances create` and `patch` have no flag for the storage growth limit nor for labels** (SDK 570, checked on 2026-11-17). The disk size is the only bound, and the instance is found by its name.
 - **The newest PostgreSQL major version of Cloud SQL is 18** (the documentation page lists it as the default, read on 2026-11-17). The API value `POSTGRES_18` is inferred from the naming pattern of the earlier versions (`POSTGRES_17`, ...): to confirm at the first creation.
+- **Seen in the first real run (2026-11-17), instance `db-f1-micro`, PostgreSQL 18, `ENTERPRISE`, `us-central1`:** the tier exists for that version and edition, and `POSTGRES_18` is the API value; creating the instance took about 8.5 minutes; stopping it took about a minute; starting it took about 9 minutes; describing an instance that does not exist fails with a message that says so, which separates "missing" from "no permission".
+- **Right after a start is accepted, the instance already reads as running** (activation policy `ALWAYS`, state `RUNNABLE`) while it still takes minutes to accept connections: the API gives no "starting" state to tell the two apart.
+- **A new instance is integrated with Knowledge Catalog by default** (seen in the console on 2026-11-17): technical metadata (names of databases and tables, not data) is extracted periodically. The documentation (read on 2026-11-17) says storing that metadata has no charge and that the extraction uses some CPU of the instance. It is turned off in the instance's flags and parameters.
 
 ## GCP — Cloud Scheduler
 
 - **Three jobs are free per billing account**, counted on the account and not on the project; each extra job costs US$ 0.10 per month (pricing page read on 2026-11-17).
 - **A job can call a Google API with an OAuth token of a service account**, with no function in between, but only with the methods `DELETE`, `GET`, `HEAD`, `POST` and `PUT`: `gcloud scheduler jobs create http` and `update http` have no `PATCH` (SDK 570, checked on 2026-11-17). An API method that needs `PATCH` (such as the Cloud SQL Admin API's `instances.patch`, which starts and stops an instance) is called with `POST` and the header `X-HTTP-Method-Override: PATCH`; `PUT` would replace the whole resource. Not verified against the Cloud SQL Admin API until the first real run: `instance-create` proves it by stopping the new instance with the job.
+- **`POST` with `X-HTTP-Method-Override: PATCH` is honoured by the Cloud SQL Admin API through Cloud Scheduler:** on 2026-11-17 a job created that way, run with `gcloud scheduler jobs run`, stopped a running instance.
 
 ## GCP — IAM and identities
 
@@ -67,6 +71,7 @@ A recent organization comes with a set of security policies already enforced. Se
 - **GitHub Pages with a custom subdomain uses a `CNAME` record** to `<owner>.github.io`; `A` records are for an apex domain. Certificate issuance usually takes minutes, sometimes hours, and needs the record to stay unproxied.
 - **A GitHub Pages site of a public repository is public**, whatever the audience it was written for.
 - **Scheduled workflows are delayed under load**, routinely by minutes. They are not suitable for anything that must happen at an exact time.
+- **Workload identity federation works from a manually triggered workflow with no key:** with `google-github-actions/auth` and `token_format: access_token`, a workflow of `aleogr/aleogr` on `main` got a token as the switch service account and called the Cloud SQL Admin API (2026-11-17). A whole run takes 5 to 10 seconds, about a minute when it waits for a stop.
 
 ## Claude Code
 
@@ -78,3 +83,5 @@ A recent organization comes with a set of security policies already enforced. Se
 - **"Add from a repository" in the desktop app accepts a branch** as `<owner>/<repo>#<branch>`, and a marketplace at the standard location with its plugin folders inside `.claude-plugin/` lists and installs its plugins there. Skill folders with an underscore in the name (`gcp_environment-create`) load on Windows.
 - **In the desktop app on Windows, commands run in PowerShell, which splits an unquoted argument at its commas**: `--labels=a=1,b=2` reaches `gcloud` as separate arguments and is rejected; `--labels="a=1,b=2"` works.
 - **The desktop app does not install the `claude` command-line tool**, and in PowerShell `gcloud` is a script (`gcloud.ps1`) that the default execution policy blocks; `gcloud.cmd` is not affected.
+- **In the desktop app, a marketplace is updated from its `···` menu in the plugin browser**; after that the new plugins of the catalog appear with a `+`, and an installed plugin whose version changed asks to be updated (seen on 2026-11-17). A new session is needed to use them.
+- **The PowerShell quoting of a value with `&&` and single quotes inside double quotes** (`--attribute-condition="assertion.repository=='<owner>/<repo>' && assertion.ref=='refs/heads/main'"`) reached `gcloud` intact in the desktop app (2026-11-17).
