@@ -1,10 +1,10 @@
-CALLED ^sql instances create aleogr-lab .*--tier=db-f1-micro
+CALLED ^sql instances create aleogr-shared .*--tier=db-f1-micro
 CALLED ^sql instances create .*--edition=enterprise
 CALLED ^sql instances create .*--no-storage-auto-increase
 CALLED ^sql instances create .*--deletion-protection
 CALLED ^sql instances create .*--storage-size=10
 NOT_CALLED --authorized-networks
-ORDER ^sql instances create >> ^sql instances patch aleogr-lab .*--activation-policy=NEVER
+ORDER ^sql instances create >> ^sql instances patch aleogr-shared .*--activation-policy=NEVER
 OUTPUT "status": "created"
 OUTPUT "state": "stopped"
 CALLED ^sql instances create .*--no-enable-dataplex-integration

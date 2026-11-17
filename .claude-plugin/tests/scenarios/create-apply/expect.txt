@@ -1,16 +1,17 @@
 ORDER ^projects list .*aleogr-project=shared >> ^projects create
+NOT_CALLED ^projects list .*aleogr-environment
 CALLED ^organizations list
 NOT_CALLED ^resource-manager folders list
-CALLED ^projects create aleogr-lab-shared-[a-z0-9]{4} .*--organization=111111111111
-CALLED ^projects create .*--name="?lab shared"?
+CALLED ^projects create aleogr-shared-[a-z0-9]{4} .*--organization=111111111111
+CALLED ^projects create .*--name="?shared"?
 CALLED ^projects create .*aleogr-project=shared
-CALLED ^projects create .*aleogr-environment=lab
-CALLED ^projects create .*aleogr-platform=lab
+NOT_CALLED ^projects create .*aleogr-environment
+CALLED ^projects create .*aleogr-platform=shared
 NOT_CALLED ^projects create .*--folder=
 NOT_CALLED --organization=organizations/
 ORDER ^projects create >> ^billing projects link
-CALLED ^billing projects link aleogr-lab-shared-[a-z0-9]{4} --billing-account=0X0X0X-0X0X0X-0X0X0X
+CALLED ^billing projects link aleogr-shared-[a-z0-9]{4} --billing-account=0X0X0X-0X0X0X-0X0X0X
 NOT_CALLED --billing-account=billingAccounts/
-CALLED ^projects describe aleogr-lab-shared-[a-z0-9]{4}
+CALLED ^projects describe aleogr-shared-[a-z0-9]{4}
 OUTPUT "status": "created"
-OUTPUT "projectId": "aleogr-lab-shared-[a-z0-9]{4}"
+OUTPUT "projectId": "aleogr-shared-[a-z0-9]{4}"

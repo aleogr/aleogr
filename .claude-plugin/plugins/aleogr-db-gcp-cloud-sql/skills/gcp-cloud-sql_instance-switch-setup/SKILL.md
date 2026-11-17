@@ -1,10 +1,10 @@
 ---
-description: Google Cloud SQL (gcp-cloud-sql) instance switch setup. Use to create, in the lab's shared Google Cloud project, what starts and stops the shared instance without the owner - a custom role, a service account, its grants, a GitHub Actions workload identity federation pool and provider, and two Cloud Scheduler jobs that stop the instance at night. Idempotent; plan by default.
+description: Google Cloud SQL (gcp-cloud-sql) instance switch setup. Use to create, in the shared platform's Google Cloud project, what starts and stops the shared instance without the owner - a custom role, a service account, its grants, a GitHub Actions workload identity federation pool and provider, and two Cloud Scheduler jobs that stop the instance at night. Idempotent; plan by default.
 ---
 
 # gcp-cloud-sql_instance-switch-setup
 
-Creates the "switch": a custom role (`aleogrLabSqlSwitch`) that can only get and update Cloud SQL instances, a service account (`aleogr-lab-sql-switch`) that holds it, a workload identity federation pool (`github`) and provider (`aleogr`) that let GitHub Actions of one repository, on `main`, act as that account, and two Cloud Scheduler jobs (`aleogr-lab-stop-weeknight`, `aleogr-lab-stop-weekend`) that stop the instance at night. Without the jobs an instance left running would keep running all night, so `ready` is true only when every part exists and matches. There is no fixed cost beyond the instance's own (about R$ 50 per month while stopped); the jobs are free at this volume.
+Creates the "switch": a custom role (`aleogrSharedSqlSwitch`) that can only get and update Cloud SQL instances, a service account (`aleogr-shared-sql-switch`) that holds it, a workload identity federation pool (`github`) and provider (`aleogr`) that let GitHub Actions of one repository, on `main`, act as that account, and two Cloud Scheduler jobs (`aleogr-shared-stop-weeknight`, `aleogr-shared-stop-weekend`) that stop the instance at night. Without the jobs an instance left running would keep running all night, so `ready` is true only when every part exists and matches. There is no fixed cost beyond the instance's own (about R$ 50 per month while stopped); the jobs are free at this volume.
 
 ## Arguments
 
@@ -12,8 +12,8 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 
 | Argument | Meaning |
 |---|---|
-| `projectId=<id>` | The lab's shared GCP project. |
-| `instance=<name>` | The instance the jobs stop (the lab uses `aleogr-lab`). |
+| `projectId=<id>` | The shared platform's GCP project. |
+| `instance=<name>` | The instance the jobs stop (the shared platform uses `aleogr-shared`). |
 | `region=<region>` | The Cloud Scheduler location, for example `southamerica-east1`. |
 | `timeZone=<tz>` | The time zone of both schedules, for example `America/Sao_Paulo`. |
 | `weeknightStop="<cron>"` | Cron schedule of the weeknight stop, for example `"30 22 * * 0-4"`. |
@@ -35,7 +35,7 @@ Before any command, check the arguments. If one required argument is missing, as
 
 ## Names
 
-`<account>` is `aleogr-lab-sql-switch@<projectId>.iam.gserviceaccount.com`. `<number>` is the project number, read in step 1. `<active account>` is the account `gcloud` is logged in as (step 1). The jobs are `aleogr-lab-stop-weeknight` (schedule `weeknightStop`) and `aleogr-lab-stop-weekend` (schedule `weekendStop`).
+`<account>` is `aleogr-shared-sql-switch@<projectId>.iam.gserviceaccount.com`. `<number>` is the project number, read in step 1. `<active account>` is the account `gcloud` is logged in as (step 1). The jobs are `aleogr-shared-stop-weeknight` (schedule `weeknightStop`) and `aleogr-shared-stop-weekend` (schedule `weekendStop`).
 
 ## The parts
 
@@ -79,9 +79,9 @@ Show each command before running it. Run only the commands below, in the order o
 2. Check the parts, in order, with these read commands. A non-zero exit whose text contains `NOT_FOUND` (or `404`) means the part is missing; any other non-zero exit is a failure of the check: stop with `failed` (or `pending` if a change was already made) and never treat it as missing.
 
    ```
-   gcloud iam roles describe aleogrLabSqlSwitch --project=<projectId> --format="value(includedPermissions)"
+   gcloud iam roles describe aleogrSharedSqlSwitch --project=<projectId> --format="value(includedPermissions)"
    gcloud iam service-accounts describe <account> --project=<projectId> --format="value(email)"
-   gcloud projects get-iam-policy <projectId> --flatten="bindings[].members" --filter="bindings.role:roles/aleogrLabSqlSwitch" --format="value(bindings.members)"
+   gcloud projects get-iam-policy <projectId> --flatten="bindings[].members" --filter="bindings.role:roles/aleogrSharedSqlSwitch" --format="value(bindings.members)"
    gcloud iam service-accounts get-iam-policy <account> --project=<projectId> --format=json
    gcloud iam workload-identity-pools describe github --project=<projectId> --location=global --format="value(state)"
    gcloud iam workload-identity-pools providers describe aleogr --project=<projectId> --location=global --workload-identity-pool=github --format="value(attributeCondition)"
@@ -95,9 +95,9 @@ Show each command before running it. Run only the commands below, in the order o
 4. `apply`: for each part that is missing, run its command, in the order of the parts. A part that exists and is equal is skipped.
 
    ```
-   gcloud iam roles create aleogrLabSqlSwitch --project=<projectId> --title="aleogr lab SQL switch" --permissions="cloudsql.instances.get,cloudsql.instances.update" --stage=GA --quiet
-   gcloud iam service-accounts create aleogr-lab-sql-switch --project=<projectId> --display-name="aleogr lab SQL switch" --quiet
-   gcloud projects add-iam-policy-binding <projectId> --member="serviceAccount:<account>" --role="projects/<projectId>/roles/aleogrLabSqlSwitch" --condition=None --quiet
+   gcloud iam roles create aleogrSharedSqlSwitch --project=<projectId> --title="aleogr shared SQL switch" --permissions="cloudsql.instances.get,cloudsql.instances.update" --stage=GA --quiet
+   gcloud iam service-accounts create aleogr-shared-sql-switch --project=<projectId> --display-name="aleogr shared SQL switch" --quiet
+   gcloud projects add-iam-policy-binding <projectId> --member="serviceAccount:<account>" --role="projects/<projectId>/roles/aleogrSharedSqlSwitch" --condition=None --quiet
    gcloud iam service-accounts add-iam-policy-binding <account> --project=<projectId> --member="user:<active account>" --role="roles/iam.serviceAccountUser" --quiet
    gcloud iam workload-identity-pools create github --project=<projectId> --location=global --display-name="GitHub" --quiet
    gcloud iam workload-identity-pools providers create-oidc aleogr --project=<projectId> --location=global --workload-identity-pool=github --issuer-uri="https://token.actions.githubusercontent.com" --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref" --attribute-condition="assertion.repository=='<repository>' && assertion.ref=='refs/heads/main'" --quiet
@@ -119,9 +119,9 @@ Show each command before running it. Run only the commands below, in the order o
 
 7. When `ready` is true (both modes), the answer's prose has a section titled `GitHub secrets` with the three secrets and their values, one per line:
 
-   - `LAB_GCP_PROJECT_ID`: the project id.
-   - `LAB_GCP_WIF_PROVIDER`: `projects/<number>/locations/global/workloadIdentityPools/github/providers/aleogr`.
-   - `LAB_GCP_SWITCH_ACCOUNT`: `<account>`.
+   - `GCP_SHARED_PROJECT_ID`: the project id.
+   - `GCP_SHARED_WIF_PROVIDER`: `projects/<number>/locations/global/workloadIdentityPools/github/providers/aleogr`.
+   - `GCP_SHARED_SWITCH_ACCOUNT`: `<account>`.
 
    And where to paste them: in the repository on GitHub, `Settings`, `Secrets and variables`, `Actions`, `New repository secret`. This section is prose only: the result block holds none of these values. When `ready` is false, there is no such section; say which parts are missing.
 
@@ -140,12 +140,12 @@ End with exactly one fenced block tagged `aleogr-result`:
   "mode": "apply",
   "status": "created",
   "resources": [
-    { "type": "role", "id": "aleogrLabSqlSwitch", "name": "aleogrLabSqlSwitch", "labels": {} },
-    { "type": "service-account", "id": "aleogr-lab-sql-switch", "name": "aleogr-lab-sql-switch", "labels": {} },
+    { "type": "role", "id": "aleogrSharedSqlSwitch", "name": "aleogrSharedSqlSwitch", "labels": {} },
+    { "type": "service-account", "id": "aleogr-shared-sql-switch", "name": "aleogr-shared-sql-switch", "labels": {} },
     { "type": "workload-identity-pool", "id": "github", "name": "github", "labels": {} },
     { "type": "workload-identity-provider", "id": "github/aleogr", "name": "aleogr", "labels": {} },
-    { "type": "scheduler-job", "id": "aleogr-lab-stop-weeknight", "name": "aleogr-lab-stop-weeknight", "labels": {} },
-    { "type": "scheduler-job", "id": "aleogr-lab-stop-weekend", "name": "aleogr-lab-stop-weekend", "labels": {} }
+    { "type": "scheduler-job", "id": "aleogr-shared-stop-weeknight", "name": "aleogr-shared-stop-weeknight", "labels": {} },
+    { "type": "scheduler-job", "id": "aleogr-shared-stop-weekend", "name": "aleogr-shared-stop-weekend", "labels": {} }
   ],
   "outputs": { "ready": true, "missing": [], "lastRunFailed": [] },
   "cost": { "fixed": false, "notes": "the switch has no cost of its own; the instance costs about R$ 50 per month while stopped" },

@@ -1,11 +1,11 @@
 {
   "version": 1,
   "cloud": { "provider": "gcp", "region": "us-central1" },
-  "lab": { "domain": "lab.aleogr.dev" },
+  "domain": "aleogr.dev",
   "platform": {
-    "shared": { "project": "shared", "environment": "lab", "services": ["cloudresourcemanager.googleapis.com", "billingbudgets.googleapis.com", "sqladmin.googleapis.com", "cloudscheduler.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com"] },
-    "budget": { "displayName": "aleogr-lab", "amount": 100, "currency": "BRL", "thresholds": [0.5, 0.9, 1.0] },
-    "database": { "instance": "aleogr-lab", "version": "POSTGRES_18", "edition": "enterprise", "tier": "db-f1-micro", "storageGb": 10, "backupStartUtc": "23:00", "retainedBackups": 7 },
+    "shared": { "project": "shared", "services": ["cloudresourcemanager.googleapis.com", "billingbudgets.googleapis.com", "sqladmin.googleapis.com", "cloudscheduler.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com"] },
+    "budget": { "displayName": "aleogr", "amount": 100, "currency": "BRL", "thresholds": [0.5, 0.9, 1.0] },
+    "database": { "instance": "aleogr-shared", "version": "POSTGRES_18", "edition": "enterprise", "tier": "db-f1-micro", "storageGb": 10, "backupStartUtc": "23:00", "retainedBackups": 7 },
     "switch": { "timeZone": "America/Sao_Paulo", "weeknightStop": "30 22 * * 0-4", "weekendStop": "0 4 * * 6,0", "repository": "aleogr/aleogr" }
   }
 }

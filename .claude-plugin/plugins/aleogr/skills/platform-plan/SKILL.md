@@ -1,5 +1,5 @@
 ---
-description: aleogr platform plan. Use to see what the free part of the owner's lab platform on Google Cloud (shared project with billing, required APIs, one budget alert, the shared Cloud SQL instance and the switch that stops it at night) is missing, comparing the owner's defaults with the real cloud. Changes nothing.
+description: aleogr platform plan. Use to see what the owner's shared platform on Google Cloud (shared project with billing, required APIs, one budget alert, the shared Cloud SQL instance and the switch that stops it at night) is missing, comparing the owner's defaults with the real cloud. Changes nothing.
 ---
 
 # platform-plan
@@ -20,9 +20,9 @@ Before running any command, check it: `projectId`, when given, has 6 to 30 chara
 
 Show each command before running it. Other skills end with their own `aleogr-result` block: use those blocks only as input, never repeat them. Your answer ends with exactly one block, its own.
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json`. If `cloud.provider` is not `gcp`, stop here with `status` `failed`: only GCP is implemented. Run no command. Otherwise take `platform.shared` (`project`, `environment`, `services`) and `platform.budget` (`displayName`, `amount`, `currency`, `thresholds`), `platform.database` (`instance`) and `platform.switch` (`timeZone`, `weeknightStop`, `weekendStop`, `repository`), and `cloud.region`.
+1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json`. If `cloud.provider` is not `gcp`, stop here with `status` `failed`: only GCP is implemented. Run no command. Otherwise take `platform.shared` (`project`, `services`) and `platform.budget` (`displayName`, `amount`, `currency`, `thresholds`), `platform.database` (`instance`) and `platform.switch` (`timeZone`, `weeknightStop`, `weekendStop`, `repository`), and `cloud.region`.
 2. Invoke `aleogr:tools-check`. If its `status` is `failed`, stop with `failed`, carry its `fix` into `pending[].how`, and run nothing else. Every `gcloud` command in the skills run below uses the command name tools-check reported (`command`: `gcloud` or `gcloud.cmd`).
-3. Invoke `aleogr-cloud-gcp:gcp_environment-describe` with `projectId=<projectId>` when `projectId` was given, otherwise with `project=<shared.project> environment=<shared.environment>`.
+3. Invoke `aleogr-cloud-gcp:gcp_environment-describe` with `projectId=<projectId>` when `projectId` was given, otherwise with `project=<shared.project> platform=shared` (the shared project has no environment).
    - `status` `failed`: stop with `failed` and its cause.
    - `exists` false: the shared project, its services, its budget, the database switch and the database instance are all to create. Run no command for the other four: all need the project, so they are checked after it exists. Go to the answer.
    - Otherwise take `projectId` and `billingLinked`; `projectId` goes into the result as `outputs.projectId`.

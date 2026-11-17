@@ -4,7 +4,7 @@
 NOT_CALLED ^iam (roles|service-accounts) create
 NOT_CALLED ^scheduler jobs (create|update)
 CALLED ^sql instances create
-CALLED ^scheduler jobs run aleogr-lab-stop-weeknight
+CALLED ^scheduler jobs run aleogr-shared-stop-weeknight
 NOT_CALLED ^sql instances patch
 OUTPUT about R\$ 50 per month while stopped
 OUTPUT GitHub secrets

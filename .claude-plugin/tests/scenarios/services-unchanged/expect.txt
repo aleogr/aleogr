@@ -1,3 +1,3 @@
-CALLED ^services list --enabled --project=aleogr-lab-shared-zz99
+CALLED ^services list --enabled --project=aleogr-shared-zz99
 NOT_CALLED ^services enable
 OUTPUT "status": "unchanged"

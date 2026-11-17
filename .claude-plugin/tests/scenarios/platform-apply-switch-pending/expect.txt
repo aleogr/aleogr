@@ -1,7 +1,7 @@
 # Everything exists except the two night-stop jobs and the instance. The weeknight job's
 # creation fails twice (the retry too): the switch ends pending, and the instance is never
 # created without its night stop.
-COUNT 2 ^scheduler jobs create http aleogr-lab-stop-weeknight
+COUNT 2 ^scheduler jobs create http aleogr-shared-stop-weeknight
 NOT_CALLED ^sql instances (create|patch)
 NOT_CALLED ^scheduler jobs run
 OUTPUT "status": "pending"

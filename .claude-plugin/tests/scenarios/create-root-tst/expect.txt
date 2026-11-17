@@ -1,0 +1,19 @@
+# root=tst: the folder tst is found under the organization, then the folder of the
+# environment inside tst, and the project is created in that folder.
+ORDER ^organizations list >> ^resource-manager folders list --organization=111111111111
+CALLED ^resource-manager folders list --organization=111111111111 .*displayName=tst
+NOT_CALLED ^resource-manager folders list --organization=.*displayName=dev
+CALLED ^resource-manager folders list --folder=333333333333 .*displayName=dev
+ORDER ^resource-manager folders list --organization= >> ^resource-manager folders list --folder=333333333333
+ORDER ^resource-manager folders list --folder= >> ^projects create
+CALLED ^projects create aleogr-dev-pilot-[a-z0-9]{4} .*--folder=444444444444
+NOT_CALLED ^projects create .*--folder=333333333333
+NOT_CALLED ^projects create .*--organization=
+NOT_CALLED --folder=folders/
+CALLED ^projects create .*aleogr-project=pilot
+CALLED ^projects create .*aleogr-environment=dev
+NOT_CALLED ^projects create .*aleogr-platform
+CALLED ^billing projects link aleogr-dev-pilot-[a-z0-9]{4} --billing-account=0X0X0X-0X0X0X-0X0X0X
+OUTPUT "status": "created"
+RESULT_NOT 333333333333
+RESULT_NOT 444444444444

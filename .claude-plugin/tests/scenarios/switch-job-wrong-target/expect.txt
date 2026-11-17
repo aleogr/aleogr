@@ -1,6 +1,6 @@
 # Right schedule, but the job stops another instance: it is updated, and ready only after the re-read.
-CALLED ^scheduler jobs update http aleogr-lab-stop-weeknight .*--uri=https://sqladmin.googleapis.com/v1/projects/aleogr-lab-shared-zz99/instances/aleogr-lab( |$)
+CALLED ^scheduler jobs update http aleogr-shared-stop-weeknight .*--uri=https://sqladmin.googleapis.com/v1/projects/aleogr-shared-zz99/instances/aleogr-shared( |$)
 NOT_CALLED ^scheduler jobs create
-COUNT 2 ^scheduler jobs describe aleogr-lab-stop-weeknight
+COUNT 2 ^scheduler jobs describe aleogr-shared-stop-weeknight
 OUTPUT "status": "updated"
 OUTPUT "ready": true

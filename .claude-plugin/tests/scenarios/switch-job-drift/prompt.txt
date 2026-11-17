@@ -1,1 +1,1 @@
-/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-switch-setup projectId=aleogr-lab-shared-zz99 instance=aleogr-lab region=southamerica-east1 timeZone=America/Sao_Paulo weeknightStop="30 22 * * 0-4" weekendStop="0 4 * * 6,0" repository=aleogr/aleogr mode=apply
+/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-switch-setup projectId=aleogr-shared-zz99 instance=aleogr-shared region=southamerica-east1 timeZone=America/Sao_Paulo weeknightStop="30 22 * * 0-4" weekendStop="0 4 * * 6,0" repository=aleogr/aleogr mode=apply

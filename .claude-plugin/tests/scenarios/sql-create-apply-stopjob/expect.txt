@@ -1,8 +1,8 @@
 # With stopJob the new instance is stopped by running the night-stop job, not by the
 # skill's own patch: the job stops it, so the night stop is proven and the status is created.
-CALLED ^sql instances create aleogr-lab
-CALLED ^scheduler jobs run aleogr-lab-stop-weeknight .*--project=aleogr-lab-shared-zz99
-CALLED ^scheduler jobs run aleogr-lab-stop-weeknight .*--location=southamerica-east1
+CALLED ^sql instances create aleogr-shared
+CALLED ^scheduler jobs run aleogr-shared-stop-weeknight .*--project=aleogr-shared-zz99
+CALLED ^scheduler jobs run aleogr-shared-stop-weeknight .*--location=southamerica-east1
 ORDER ^sql instances create >> ^scheduler jobs run
 NOT_CALLED ^sql instances patch
 OUTPUT "status": "created"

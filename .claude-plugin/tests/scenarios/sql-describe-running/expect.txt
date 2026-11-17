@@ -1,4 +1,4 @@
-CALLED ^sql backups list .*--instance=aleogr-lab
+CALLED ^sql backups list .*--instance=aleogr-shared
 OUTPUT "state": "running"
 OUTPUT "lastBackup": null
-CALLED ^sql operations list .*--instance=aleogr-lab
+CALLED ^sql operations list .*--instance=aleogr-shared

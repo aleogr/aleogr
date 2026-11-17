@@ -1,9 +1,9 @@
 # Nothing exists; the project is created but the billing link fails. The run stops there.
-CALLED ^projects create aleogr-lab-shared-zz99 .*--organization=111111111111
-CALLED ^billing projects link aleogr-lab-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X
+CALLED ^projects create aleogr-shared-zz99 .*--organization=111111111111
+CALLED ^billing projects link aleogr-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X
 NOT_CALLED ^services enable
 NOT_CALLED ^billing budgets
 OUTPUT "action": "platform-apply"
 OUTPUT "status": "pending"
-OUTPUT "projectId": "aleogr-lab-shared-zz99"
-OUTPUT billing projects link aleogr-lab-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X
+OUTPUT "projectId": "aleogr-shared-zz99"
+OUTPUT billing projects link aleogr-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X

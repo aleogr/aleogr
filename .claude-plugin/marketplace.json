@@ -6,7 +6,7 @@
     {
       "name": "aleogr",
       "source": "./.claude-plugin/plugins/aleogr",
-      "description": "Orchestrator: checks tools and plans and creates the lab platform.",
+      "description": "Orchestrator: checks tools and plans and creates the shared platform.",
       "category": "orchestrator",
       "displayName": "aleogr (orchestrator)"
     },
@@ -20,7 +20,7 @@
     {
       "name": "aleogr-db-gcp-cloud-sql",
       "source": "./.claude-plugin/plugins/aleogr-db-gcp-cloud-sql",
-      "description": "Cloud SQL family: the lab's shared PostgreSQL instance and its start and stop.",
+      "description": "Cloud SQL family: the shared platform's PostgreSQL instance and its start and stop.",
       "category": "db",
       "displayName": "Cloud SQL (database)"
     }

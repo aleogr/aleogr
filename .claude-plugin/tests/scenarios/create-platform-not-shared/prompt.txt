@@ -1,1 +1,1 @@
-/aleogr-cloud-gcp:gcp_environment-create project=demo environment=lab platform=lab mode=apply
+/aleogr-cloud-gcp:gcp_environment-create project=demo platform=shared mode=apply

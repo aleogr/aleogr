@@ -1,10 +1,10 @@
 ---
-description: Google Cloud (GCP) services enable. Use to enable the Google APIs a GCP project of an aleogr project and environment needs, enabling only the ones still missing. Idempotent; plan by default.
+description: Google Cloud (GCP) services enable. Use to enable the Google APIs a GCP project of an aleogr project and environment (or the shared platform project) needs, enabling only the ones still missing. Idempotent; plan by default.
 ---
 
 # gcp_services-enable
 
-Enables Google Cloud APIs on the GCP project that belongs to a project and an environment. It compares the requested APIs with the enabled ones and enables only the missing ones. It never creates a project and has no fixed cost.
+Enables Google Cloud APIs on the GCP project that belongs to a project and an environment (or on the shared platform project). It compares the requested APIs with the enabled ones and enables only the missing ones. It never creates a project and has no fixed cost.
 
 ## Arguments
 
@@ -13,8 +13,9 @@ Free text after the skill name, as `key=value` pairs.
 | Argument | Meaning |
 |---|---|
 | `project=<name>` | The aleogr project name (for the shared platform project: `shared`). |
-| `environment=lab\|hom\|prd` | The project environment. |
-| `projectId=<id>` | Instead of `project` and `environment`: the GCP project id, when the caller already knows it. |
+| `environment=dev\|hom\|prd` | The project environment. |
+| `platform=shared` | Instead of `environment`, with `project=shared`: the shared platform project, which has no environment. |
+| `projectId=<id>` | Instead of the others: the GCP project id, when the caller already knows it. |
 | `services=<list>` | Comma-separated API names, for example `a.googleapis.com,b.googleapis.com`. |
 | `mode=plan\|apply` | `plan` (default) reports what would change and changes nothing; `apply` executes. |
 
@@ -22,7 +23,8 @@ Free text after the skill name, as `key=value` pairs.
 
 Before running any command, check the arguments. Any failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
 
-- `services` is required, and either `projectId` or both `project` and `environment` (if one is missing, ask for it instead); `environment` is one of `lab`, `hom`, `prd`; `mode` is `plan` or `apply`.
+- `services` is required, and the project is named in one of three ways: `projectId`, `project=<name> environment=<environment>`, or `project=shared platform=shared` (if `project` or `environment` is missing, ask for it instead); `environment` is one of `dev`, `hom`, `prd`; `platform` is absent or `shared`; `mode` is `plan` or `apply`.
+- `platform=shared` needs `project=shared` and no `environment`; `project=shared` needs `platform=shared`.
 - `projectId`, when given, has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`.
 - Every entry of `services` ends with `.googleapis.com` and has only `a-z`, `0-9`, `-` and `.` before that suffix. Remove duplicates.
 
@@ -30,7 +32,7 @@ Before running any command, check the arguments. Any failure ends the skill with
 
 Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
 
-1. Find the project and the enabled services: invoke `aleogr-cloud-gcp:gcp_environment-describe` with `projectId=<projectId>` when it was given, otherwise with `project=<project> environment=<environment>`. Use its result only as input and do not repeat it; this skill's answer ends with exactly one `aleogr-result` block, its own.
+1. Find the project and the enabled services: invoke `aleogr-cloud-gcp:gcp_environment-describe` with `projectId=<projectId>` when it was given, otherwise with `project=shared platform=shared` (shared platform project) or `project=<project> environment=<environment>`. Use its result only as input and do not repeat it; this skill's answer ends with exactly one `aleogr-result` block, its own.
    - `status` `failed`: stop with `failed`.
    - `exists` false: stop with `failed`, saying the environment must be created first (`gcp_environment-create`). Never create a project.
    - Otherwise take `projectId` and `enabledServices`.
