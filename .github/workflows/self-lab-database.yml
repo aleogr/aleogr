@@ -4,7 +4,10 @@ name: self-lab-database
 # Manual only. Authenticates by workload identity federation (no key): the
 # provider accepts only tokens of this repository on `main`, and the service
 # account can only read and update Cloud SQL instances.
-# Logs are public: no step prints the project, the account or an API response.
+# Logs are public: no step prints the project, the account, an operation name or
+# an API response.
+# `stop` waits until the Cloud SQL operation is done; `start` returns once the
+# change is accepted (the instance takes about ten minutes to accept connections).
 
 on:
   workflow_dispatch:
@@ -56,6 +59,7 @@ jobs:
           token_format: access_token
 
       - name: Change the activation policy
+        id: change
         if: inputs.action == 'start' || inputs.action == 'stop'
         env:
           ACTION: ${{ inputs.action }}
@@ -81,12 +85,46 @@ jobs:
             exit 1
           }
           echo "HTTP status: ${code}"
-          echo "Operation status: $(jq -r '.status // "unknown"' "$body" 2>/dev/null || echo unknown)"
+          # The operation name is an opaque id: kept in a variable, never printed.
+          operation="$(jq -r '.name // ""' "$body" 2>/dev/null || true)"
+          case "$operation" in
+            ''|*[!A-Za-z0-9-]*)
+              echo "::error::The Cloud SQL API accepted the change but returned no usable operation."
+              exit 1
+              ;;
+          esac
+          if [ "$ACTION" = "start" ]; then
+            # Starting takes about ten minutes: the change is accepted, do not wait for it.
+            echo "The start was accepted."
+            exit 0
+          fi
+          # Stop: wait until the operation is done (every 15 seconds, at most about 5 minutes).
+          for attempt in $(seq 1 20); do
+            sleep 15
+            op="$(mktemp)"
+            if curl --silent --fail-with-body --output "$op" \
+              --header "Authorization: Bearer ${TOKEN}" \
+              "https://sqladmin.googleapis.com/v1/projects/${PROJECT}/operations/${operation}" \
+              2>/dev/null; then
+              status="$(jq -r '.status // ""' "$op" 2>/dev/null || true)"
+              if [ "$status" = "DONE" ]; then
+                if jq -e 'has("error")' "$op" >/dev/null 2>&1; then
+                  echo "::error::The stop operation ended with an error."
+                  exit 1
+                fi
+                echo "The stop is done."
+                exit 0
+              fi
+            fi
+          done
+          echo "::error::The stop operation did not finish within about 5 minutes."
+          exit 1
 
       - name: Report the state
-        if: always()
+        if: always() && steps.auth.outcome == 'success'
         env:
           ACTION: ${{ inputs.action }}
+          CHANGE: ${{ steps.change.outcome }}
           PROJECT: ${{ secrets.LAB_GCP_PROJECT_ID }}
           TOKEN: ${{ steps.auth.outputs.access_token }}
         run: |
@@ -99,12 +137,14 @@ jobs:
             echo "::error::Could not read the instance (HTTP status ${code:-unknown})."
             exit 1
           }
-          policy="$(jq -r '.settings.activationPolicy // ""' "$body")"
-          state="$(jq -r '.state // ""' "$body")"
+          policy="$(jq -r '.settings.activationPolicy // ""' "$body" 2>/dev/null || true)"
+          state="$(jq -r '.state // ""' "$body" 2>/dev/null || true)"
           if [ "$policy" = "NEVER" ]; then
             line=stopped
           elif [ "$policy" = "ALWAYS" ] && [ "$state" = "RUNNABLE" ]; then
             line=running
+          elif [ "$policy" = "ALWAYS" ] && [ "$state" = "PENDING_CREATE" ]; then
+            line=creating
           elif [ "$policy" = "ALWAYS" ]; then
             line=starting
           else
@@ -112,8 +152,8 @@ jobs:
             exit 1
           fi
           message="${INSTANCE}: ${line}"
-          if [ "$ACTION" = "start" ]; then
-            message="${message} (it takes about ten minutes to accept connections)"
+          if [ "$ACTION" = "start" ] && [ "$CHANGE" = "success" ]; then
+            message="${message} (right after a start it may show stopped for a moment; it takes about ten minutes to accept connections)"
           fi
           echo "$message"
           echo "$message" >> "$GITHUB_STEP_SUMMARY"
