@@ -1,5 +1,5 @@
 ---
-description: Google Cloud SQL (gcp-cloud-sql) instance stop. Use to stop the lab's shared Cloud SQL instance when nobody needs the database, so it stops costing by the hour. Acts at once, no mode; an instance that is already stopped is left alone. Fixed cost of about R$ 50 per month while stopped.
+description: Google Cloud SQL (gcp-cloud-sql) instance stop. Use to stop the shared platform's Cloud SQL instance when nobody needs the database, so it stops costing by the hour. Acts at once, no mode; an instance that is already stopped is left alone. Fixed cost of about R$ 50 per month while stopped.
 ---
 
 # gcp-cloud-sql_instance-stop
@@ -13,7 +13,7 @@ Free text after the skill name, as `key=value` pairs. Both are required.
 | Argument | Meaning |
 |---|---|
 | `projectId=<id>` | The GCP project that holds the instance. |
-| `instance=<name>` | The Cloud SQL instance name (the lab uses `aleogr-lab`). |
+| `instance=<name>` | The Cloud SQL instance name (the shared platform uses `aleogr-shared`). |
 
 Validate before any command. If one is missing, ask for it. `projectId` must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. `instance` must be lowercase letters, digits and `-`, starting with a letter, at most 60 characters. If a value is invalid, end with the result block with `status` `failed`, one sentence saying which argument is wrong, and no command.
 

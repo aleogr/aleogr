@@ -1,1 +1,1 @@
-/aleogr-cloud-gcp:gcp_budget-alert-setup displayName=aleogr-lab amount=100 currency=BRL thresholds=0.5,1.5 quotaProject=aleogr-lab-shared-zz99 mode=apply
+/aleogr-cloud-gcp:gcp_budget-alert-setup displayName=aleogr amount=100 currency=BRL thresholds=0.5,1.5 quotaProject=aleogr-shared-zz99 mode=apply

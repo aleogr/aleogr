@@ -1,6 +1,6 @@
 # PROVIDER FACTS — how the providers behave
 
-> **Facts, not decisions.** Each item describes how a provider behaves, whatever design is chosen. They were learned in practice in the previous lab, removed in November 2026 to start from scratch. Nothing here says how the lab must be built: decisions live in [DESIGN.md](DESIGN.md). Measured values carry the date they were measured; check them again before relying on them.
+> **Facts, not decisions.** Each item describes how a provider behaves, whatever design is chosen. They were learned in practice in the previous lab, removed in November 2026 to start from scratch. Nothing here says how anything must be built: decisions live in [DESIGN.md](DESIGN.md). Measured values carry the date they were measured; check them again before relying on them.
 
 ## GCP — Cloud SQL
 
@@ -35,6 +35,11 @@
 - **A plan run by the project's owner hides missing permissions** of the identity that will really apply the change: the owner can read everything. Only a run as that identity shows what it lacks.
 - **A project created seconds ago may refuse calls made on its behalf.** On 2026-11-16, `gcloud billing budgets list` with a new project as quota project (`--billing-project`) was denied right after the Budget API was enabled on it, and succeeded about a minute later.
 - **Project IDs are permanent:** immutable, and a deleted ID is never available again. Limits: 6 to 30 characters, lowercase letters, digits and hyphens, starting with a letter.
+
+## GCP — organizations
+
+- **A standalone organization (no domain) is created automatically** when a Google account signs up to Google Cloud, and only one per user account; a user can be invited to own several. There is no way to create a second one from the same account without a domain (Google's documentation, read on 2026-11-17).
+- **An organization's display name is not used by any API**, and an organization owner edits it on the "Organization details" page (documentation read on 2026-11-17). The IAM settings page of the console says an organization cannot be renamed (seen on 2026-11-17).
 
 ## GCP — organization policies
 
@@ -83,6 +88,7 @@ A recent organization comes with a set of security policies already enforced. Se
 - **"Add from a repository" in the desktop app accepts a branch** as `<owner>/<repo>#<branch>`, and a marketplace at the standard location with its plugin folders inside `.claude-plugin/` lists and installs its plugins there. Skill folders with an underscore in the name (`gcp_environment-create`) load on Windows.
 - **In the desktop app on Windows, commands run in PowerShell, which splits an unquoted argument at its commas**: `--labels=a=1,b=2` reaches `gcloud` as separate arguments and is rejected; `--labels="a=1,b=2"` works.
 - **The desktop app does not install the `claude` command-line tool**, and in PowerShell `gcloud` is a script (`gcloud.ps1`) that the default execution policy blocks; `gcloud.cmd` is not affected.
+- **Google Cloud Shell has `gh` preinstalled** (version 2.104.0, seen on 2026-11-17), not signed in.
 - **Claude Code runs inside Google Cloud Shell** (2026-11-17, version 2.1.326, default machine): the native installer puts it in `~/.local/bin`, which is not on the `PATH` until added to `~/.bashrc`; the login is the usual browser flow with a code pasted in the terminal; `claude plugin marketplace add` and `claude plugin install` work; the skills ran `gcloud` with the account Cloud Shell is signed in to. A full `platform-plan` took about two minutes, noticeably slower than the desktop app. Reading a file of a plugin (`defaults.json`) counts as a read outside the working directory and asks for permission.
 - **In the desktop app, a marketplace is updated from its `···` menu in the plugin browser**; after that the new plugins of the catalog appear with a `+`, and an installed plugin whose version changed asks to be updated (seen on 2026-11-17). A new session is needed to use them.
 - **The PowerShell quoting of a value with `&&` and single quotes inside double quotes** (`--attribute-condition="assertion.repository=='<owner>/<repo>' && assertion.ref=='refs/heads/main'"`) reached `gcloud` intact in the desktop app (2026-11-17).

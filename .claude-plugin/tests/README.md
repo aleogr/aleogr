@@ -26,7 +26,7 @@ temporary directory, the log and Claude's output are removed afterwards.
 
 Create `scenarios/<name>/` with:
 
-- `prompt.txt`: what the user types, for example `/aleogr-cloud-gcp:gcp_environment-describe project=demo environment=lab`.
+- `prompt.txt`: what the user types, for example `/aleogr-cloud-gcp:gcp_environment-describe project=demo environment=dev`.
 - `responses/`: the canned output of the fake `gcloud`. A file answers a call
   when its name, without extension, is a prefix of the arguments with spaces
   written as `_` (`projects_list.txt` answers `projects list ...`). Otherwise

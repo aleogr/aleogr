@@ -1,5 +1,5 @@
-CALLED ^sql instances describe aleogr-lab .*--project=aleogr-lab-shared-zz99
-CALLED ^sql backups list .*--instance=aleogr-lab
+CALLED ^sql instances describe aleogr-shared .*--project=aleogr-shared-zz99
+CALLED ^sql backups list .*--instance=aleogr-shared
 OUTPUT "state": "stopped"
 OUTPUT "exists": true
 OUTPUT "lastBackup": "20

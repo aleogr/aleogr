@@ -5,11 +5,11 @@
 # change the answers.
 CALLED ^projects list .*aleogr-project=shared
 NOT_CALLED ^(projects create|billing projects link)
-CALLED ^services enable .*billingbudgets.googleapis.com.* --project=aleogr-lab-shared-zz99
+CALLED ^services enable .*billingbudgets.googleapis.com.* --project=aleogr-shared-zz99
 NOT_CALLED ^services enable .*cloudresourcemanager
-CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr-lab.? .*--budget-amount=100BRL .*--billing-project=aleogr-lab-shared-zz99
+CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr.? .*--budget-amount=100BRL .*--billing-project=aleogr-shared-zz99
 ORDER ^services enable >> ^billing budgets
 OUTPUT "action": "platform-apply"
 OUTPUT "status": "updated"
-OUTPUT "projectId": "aleogr-lab-shared-zz99"
+OUTPUT "projectId": "aleogr-shared-zz99"
 OUTPUT [Nn]othing to do

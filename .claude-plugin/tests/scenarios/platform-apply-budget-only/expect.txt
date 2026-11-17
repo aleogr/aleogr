@@ -3,13 +3,13 @@
 CALLED ^--version
 CALLED ^projects list .*aleogr-project=shared
 NOT_CALLED ^(projects create|billing projects link|services enable)
-CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr-lab.? .*--budget-amount=100BRL .*--threshold-rule=percent=0.5 .*--threshold-rule=percent=0.9 .*--threshold-rule=percent=1(\.0)? .*--billing-project=aleogr-lab-shared-zz99
+CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr.? .*--budget-amount=100BRL .*--threshold-rule=percent=0.5 .*--threshold-rule=percent=0.9 .*--threshold-rule=percent=1(\.0)? .*--billing-project=aleogr-shared-zz99
 NOT_CALLED ^billing budgets create .*--billing-project=($| )
 # plan list, the budget skill's own list, its verification, the closing plan's list; the list
 # answers by state (no budget until `billing budgets create` runs)
-COUNT 4 ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-lab-shared-zz99
+COUNT 4 ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-shared-zz99
 OUTPUT "action": "platform-apply"
 OUTPUT "mode": "apply"
 OUTPUT "status": "updated"
-OUTPUT "projectId": "aleogr-lab-shared-zz99"
+OUTPUT "projectId": "aleogr-shared-zz99"
 OUTPUT [Nn]othing to do

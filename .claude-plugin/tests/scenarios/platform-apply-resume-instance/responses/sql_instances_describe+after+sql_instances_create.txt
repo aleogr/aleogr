@@ -1,6 +1,6 @@
 {
-  "name": "aleogr-lab",
-  "project": "aleogr-lab-shared-zz99",
+  "name": "aleogr-shared",
+  "project": "aleogr-shared-zz99",
   "databaseVersion": "POSTGRES_18",
   "region": "us-central1",
   "state": "RUNNABLE",

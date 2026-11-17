@@ -2,11 +2,11 @@
 # must not list budgets (real gcloud would fail), and reports the budget as not checked.
 CALLED ^--version
 CALLED ^projects list .*aleogr-project=shared
-CALLED ^services list --enabled --project=aleogr-lab-shared-zz99
+CALLED ^services list --enabled --project=aleogr-shared-zz99
 NOT_CALLED ^billing budgets
 NOT_CALLED ^(projects create|billing projects link|services enable)
 OUTPUT "action": "platform-plan"
 OUTPUT "status": "would-update"
-OUTPUT "projectId": "aleogr-lab-shared-zz99"
+OUTPUT "projectId": "aleogr-shared-zz99"
 OUTPUT "item": "budget alert"
 OUTPUT not checked, will be checked after the services are enabled

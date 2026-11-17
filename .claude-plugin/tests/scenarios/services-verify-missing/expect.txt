@@ -1,4 +1,4 @@
-CALLED ^services enable billingbudgets.googleapis.com --project=aleogr-lab-shared-zz99
+CALLED ^services enable billingbudgets.googleapis.com --project=aleogr-shared-zz99
 OUTPUT "status": "pending"
-OUTPUT "how": "gcloud services list --enabled --project=aleogr-lab-shared-zz99
+OUTPUT "how": "gcloud services list --enabled --project=aleogr-shared-zz99
 COUNT 2 ^services list --enabled

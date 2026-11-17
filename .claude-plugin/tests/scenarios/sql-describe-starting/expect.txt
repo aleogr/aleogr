@@ -1,5 +1,5 @@
 # Cloud SQL shows RUNNABLE as soon as a start is accepted: the unfinished UPDATE operation
 # is what makes the state "starting".
-CALLED ^sql operations list .*--instance=aleogr-lab
+CALLED ^sql operations list .*--instance=aleogr-shared
 OUTPUT "state": "starting"
 OUTPUT [Tt]en minutes

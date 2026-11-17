@@ -1,7 +1,7 @@
 {
   "amount": { "specifiedAmount": { "currencyCode": "BRL", "units": "80" } },
   "budgetFilter": { "calendarPeriod": "MONTH", "creditTypesTreatment": "INCLUDE_ALL_CREDITS" },
-  "displayName": "aleogr-lab",
+  "displayName": "aleogr",
   "name": "billingAccounts/0X0X0X-0X0X0X-0X0X0X/budgets/b1b1b1b1-0000-4000-8000-000000000001",
   "thresholdRules": [
     { "spendBasis": "CURRENT_SPEND", "thresholdPercent": 0.5 },

@@ -1,5 +1,5 @@
 # Right everything, but the job is paused: it is resumed, not recreated.
-CALLED ^scheduler jobs resume aleogr-lab-stop-weeknight
+CALLED ^scheduler jobs resume aleogr-shared-stop-weeknight
 NOT_CALLED ^scheduler jobs create
 OUTPUT "status": "updated"
 OUTPUT "ready": true

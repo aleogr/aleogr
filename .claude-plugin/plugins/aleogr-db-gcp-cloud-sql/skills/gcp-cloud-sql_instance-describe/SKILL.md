@@ -1,5 +1,5 @@
 ---
-description: Google Cloud SQL (gcp-cloud-sql) instance describe. Use to learn whether the lab's shared Cloud SQL instance exists and what state it is in (running or stopped, version, tier, disk, network exposure, backups, deletion protection). Read-only; the other Cloud SQL skills and the platform plan call it first.
+description: Google Cloud SQL (gcp-cloud-sql) instance describe. Use to learn whether the shared platform's Cloud SQL instance exists and what state it is in (running or stopped, version, tier, disk, network exposure, backups, deletion protection). Read-only; the other Cloud SQL skills and the platform plan call it first.
 ---
 
 # gcp-cloud-sql_instance-describe
@@ -13,7 +13,7 @@ Free text after the skill name, as `key=value` pairs. Both are required.
 | Argument | Meaning |
 |---|---|
 | `projectId=<id>` | The GCP project that holds the instance. |
-| `instance=<name>` | The Cloud SQL instance name (the lab uses `aleogr-lab`). |
+| `instance=<name>` | The Cloud SQL instance name (the shared platform uses `aleogr-shared`). |
 
 Validate before any command. If one is missing, ask for it. `projectId` must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. `instance` must be lowercase letters, digits and `-`, starting with a letter, at most 60 characters. If a value is invalid, end with the result block with `status` `failed`, one sentence saying which argument is wrong, and no command.
 

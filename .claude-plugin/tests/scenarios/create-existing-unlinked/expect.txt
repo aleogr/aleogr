@@ -1,9 +1,9 @@
 CALLED ^projects list .*aleogr-project=shared
-CALLED ^billing projects describe aleogr-lab-shared-zz99
+CALLED ^billing projects describe aleogr-shared-zz99
 CALLED ^billing accounts list
-CALLED ^billing projects link aleogr-lab-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X
+CALLED ^billing projects link aleogr-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X
 NOT_CALLED ^projects create
 OUTPUT "status": "updated"
-OUTPUT aleogr-lab-shared-zz99
-ORDER ^billing projects link >> ^projects describe aleogr-lab-shared-zz99 .*lifecycleState
+OUTPUT aleogr-shared-zz99
+ORDER ^billing projects link >> ^projects describe aleogr-shared-zz99 .*lifecycleState
 COUNT 2 ^billing projects describe

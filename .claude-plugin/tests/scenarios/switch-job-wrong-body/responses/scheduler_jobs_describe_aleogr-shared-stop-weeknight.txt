@@ -1,0 +1,1 @@
+30 22 * * 0-4	America/Sao_Paulo	ENABLED	https://sqladmin.googleapis.com/v1/projects/aleogr-shared-zz99/instances/aleogr-shared	aleogr-shared-sql-switch@aleogr-shared-zz99.iam.gserviceaccount.com	POST	Content-Type=application/json;User-Agent=Google-Cloud-Scheduler;X-HTTP-Method-Override=PATCH	e30=	https://www.googleapis.com/auth/cloud-platform

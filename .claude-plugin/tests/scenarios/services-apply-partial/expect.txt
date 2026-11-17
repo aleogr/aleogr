@@ -1,9 +1,9 @@
 CALLED ^projects list .*aleogr-project=shared
-CALLED ^services enable billingbudgets.googleapis.com --project=aleogr-lab-shared-zz99
+CALLED ^services enable billingbudgets.googleapis.com --project=aleogr-shared-zz99
 NOT_CALLED ^services enable .*cloudresourcemanager
 NOT_CALLED ^projects create
 OUTPUT "status": "updated"
 OUTPUT "enabled": \["billingbudgets.googleapis.com"\]
 OUTPUT "alreadyEnabled": \["cloudresourcemanager.googleapis.com"\]
-OUTPUT "projectId": "aleogr-lab-shared-zz99"
+OUTPUT "projectId": "aleogr-shared-zz99"
 COUNT 2 ^services list --enabled

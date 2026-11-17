@@ -1,8 +1,8 @@
 # The night-stop job cannot be run: the skill stops the instance itself, and ends pending
 # saying the night stop does not work. (The 5-minute timeout branch is left to the real run.)
-CALLED ^sql instances create aleogr-lab
-CALLED ^scheduler jobs run aleogr-lab-stop-weeknight
-ORDER ^scheduler jobs run >> ^sql instances patch aleogr-lab .*--activation-policy=NEVER
+CALLED ^sql instances create aleogr-shared
+CALLED ^scheduler jobs run aleogr-shared-stop-weeknight
+ORDER ^scheduler jobs run >> ^sql instances patch aleogr-shared .*--activation-policy=NEVER
 OUTPUT "status": "pending"
 OUTPUT "state": "stopped"
 OUTPUT the night stop does not work

@@ -1,0 +1,9 @@
+# No folder tst under the organization: the skill stops, creates nothing and never
+# creates folders.
+CALLED ^resource-manager folders list --organization=111111111111 .*displayName=tst
+NOT_CALLED ^resource-manager folders list --folder=
+NOT_CALLED ^resource-manager folders create
+NOT_CALLED ^projects create
+NOT_CALLED ^billing projects link
+OUTPUT "status": "failed"
+OUTPUT tst

@@ -1,1 +1,1 @@
-/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-start projectId=aleogr-lab-shared-zz99 instance=aleogr-lab
+/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-start projectId=aleogr-shared-zz99 instance=aleogr-shared
