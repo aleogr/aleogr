@@ -10,7 +10,7 @@
 - [3. Public repository conditions](#3-public-repository-conditions)
 - [4. CI/CD](#4-cicd)
 - [5. Dev containers and Codespaces](#5-dev-containers-and-codespaces)
-- [6. The lab, project environments and minimum cost](#6-the-lab-project-environments-and-minimum-cost)
+- [6. Project environments, the shared platform and minimum cost](#6-project-environments-the-shared-platform-and-minimum-cost)
 - [7. Where data lives](#7-where-data-lives)
 - [8. Family types](#8-family-types)
 - [9. Family map](#9-family-map-direction-not-a-task-list)
@@ -37,7 +37,7 @@ Everything lives in my GitHub profile repository, `aleogr/aleogr`, which has **f
 3. Reusable CI/CD: parameterized workflows and composite actions (`.github/`).
 4. Dev Container Features for GitHub Codespaces (`.devcontainer/features/`).
 
-All of this is **TOOLING** for my development laboratory (the "lab", at `lab.aleogr.dev`).
+All of this is **TOOLING** for my projects, which live under my domain `aleogr.dev` ([section 6](#6-project-environments-the-shared-platform-and-minimum-cost)).
 
 Personal premises:
 
@@ -47,7 +47,8 @@ Personal premises:
 
 Terminology (these are different things):
 
-- **Project environment**: `lab`, `hom`, `prd` ([section 6](#6-the-lab-project-environments-and-minimum-cost)).
+- **Project environment**: `dev`, `hom`, `prd` ([section 6](#6-project-environments-the-shared-platform-and-minimum-cost)).
+- **Shared platform**: the resources with a fixed cost that `dev`, `hom` and the tests share ([section 6.8](#68-shared-platform-resources)). Everything that is not production has no special name.
 - **Claude Code cloud environment**: the configuration where Claude Code cloud sessions run ([section 14](#14-where-i-run-claude-code)).
 
 Working rules for this repository:
@@ -109,19 +110,21 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
 
 ### Claude Code cloud environments
 
-- Named by **NEEDS PROFILE** (e.g. `lab`, `lab-android`). By project only as a last resort, for a heavy and rare combination of profiles ([section 14.2](#142-claude-code-cloud-environments)).
+- Named by **NEEDS PROFILE** (e.g. `base`, `android`). By project only as a last resort, for a heavy and rare combination of profiles ([section 14.2](#142-claude-code-cloud-environments)).
 
 ### Cloud environments (GCP project IDs)
 
-- `aleogr-<environment>-<project>-<random>` (e.g. `aleogr-lab-iam-c4vc`).
-- `<environment>`: `lab`, `hom` or `prd`. It comes first, so that every laboratory and every production environment sort together and the thing that must not be confused is at the front of the name.
+- `aleogr-<environment>-<project>-<random>` (e.g. `aleogr-dev-iam-c4vc`).
+- `<environment>`: `dev`, `hom` or `prd`. It comes first, so that every development and every production environment sort together and the thing that must not be confused is at the front of the name.
 - `<random>`: four random characters, lowercase letters and digits, to make the ID unique.
 - GCP limits an ID to 30 characters, which leaves **14 characters for the project name**. IDs are permanent: immutable, and a deleted one is never available again.
+- The shared platform project is the one exception: `aleogr-shared-<random>`, with no environment, because it serves `dev`, `hom` and the tests ([section 6.8](#68-shared-platform-resources)).
+- Labels: `aleogr-project=<project>` and `aleogr-environment=dev|hom|prd`; the shared project has `aleogr-project=shared` and `aleogr-platform=shared`, and no `aleogr-environment`.
 
-### Project and platform resources in the lab
+### Project and shared platform resources
 
-- Project resources in the lab: services `<project>-<component>`, database `<project>` (normalized to the format accepted by the database), record `<project>.lab.aleogr.dev`, label `aleogr-project=<project>`.
-- Lab platform resources: label `aleogr-platform=lab`.
+- Project resources: services `<project>-<component>`, database `<project>` on the shared instance (normalized to the format accepted by the database), record `<project>-<environment>.aleogr.dev` ([section 6.1](#61-addresses-of-a-projects-environments)), labels `aleogr-project=<project>` and `aleogr-environment=<environment>`.
+- Shared platform resources: names starting with `aleogr-shared` (project `aleogr-shared-<random>`, instance `aleogr-shared`, jobs `aleogr-shared-stop-weeknight` and `aleogr-shared-stop-weekend`, service account `aleogr-shared-sql-switch`; the custom role is `aleogrSharedSqlSwitch`, since role ids take no hyphen; the budget alert is `aleogr`, on the whole billing account) and label `aleogr-platform=shared` ([section 6.8](#68-shared-platform-resources)).
 
 ### Tests
 
@@ -131,7 +134,8 @@ description: Creates a GitHub repository using the gh CLI and configures the loc
   - topic `aleogr-test`;
   - services `test-<id>-<component>`;
   - database `test_<id>`;
-  - record `test-<id>.lab.aleogr.dev`;
+  - GCP projects `aleogr-<environment>-test-<id>-<random>`, in the folder of their environment inside `tst` ([section 6.7](#67-gcp-organization-folders-and-billing));
+  - records `test-<id>-<environment>.aleogr.dev`, tenants `<tenant>.test-<id>-<environment>.aleogr.dev`;
   - label `aleogr-test=<id>`.
 - The name `test` and the `test-` prefix are **RESERVED**: the schema and `project-declare` reject real project names equal to `test` (its topic `aleogr-test` would collide with the test marker) or starting with `test-`.
 
@@ -152,7 +156,7 @@ aleogr/aleogr/
 │   ├── PROVIDER-FACTS.md                      ← how the providers behave (facts, not decisions)
 │   ├── plans/                                 ← implementation plans and run checklists (built)
 │   └── cloud-environments/                    (future) canonical version of the Claude Code cloud environments
-│       └── lab.md                             ← setup script, allowed domains, no IDs or secrets
+│       └── base.md                            ← setup script, allowed domains, no IDs or secrets
 ├── .devcontainer/
 │   ├── devcontainer.json                      ← environment of aleogr/aleogr itself (uses the local Features)
 │   └── features/                              ← Dev Container Features distributed to projects
@@ -183,7 +187,7 @@ aleogr/aleogr/
 │       ├── self-test-features.yml             ← tests the Features (test/ folder) on every PR
 │       ├── self-publish-features.yml          ← publishes the Features to GHCR
 │       ├── self-cleanup-tests.yml             ← scheduled: deletes resources of old tests
-│       ├── self-lab-database.yml              ← manually triggered: starts, stops or shows the state of the lab's shared database
+│       ├── self-shared-database.yml           ← manually triggered: starts, stops or shows the state of the shared platform's database
 │       ├── ci-go.yml                          (future, reusable)
 │       ├── ci-java.yml                        (future, reusable)
 │       └── cd-cloud-run.yml                   (future, reusable)
@@ -222,7 +226,7 @@ aleogr/aleogr/
         ├── aleogr-cloud-gcp/                  (MVP; built: manifest and the four skills below)
         │   ├── .claude-plugin/plugin.json
         │   └── skills/ gcp_environment-describe (built), gcp_environment-create (built), gcp_services-enable (built), gcp_budget-alert-setup (built), gcp_deploy-setup
-        ├── aleogr-db-gcp-cloud-sql/           ← the lab's shared database: instance skills (describe, create, start, stop, switch-setup)
+        ├── aleogr-db-gcp-cloud-sql/           ← the shared platform's database: instance skills (describe, create, start, stop, switch-setup)
         │   ├── .claude-plugin/plugin.json
         │   └── skills/ gcp-cloud-sql_instance-describe, gcp-cloud-sql_instance-create, gcp-cloud-sql_instance-start, gcp-cloud-sql_instance-stop, gcp-cloud-sql_instance-switch-setup
         └── aleogr-dns-cloudflare/             (MVP)
@@ -308,7 +312,7 @@ Settings block:
   - two components of the same stack = two jobs calling the same reusable workflow.
 - **Do NOT use one workflow per component with `on.push.paths`:** the native filter applies to the whole workflow, and a workflow that didn't trigger leaves the required check pending forever, blocking the PR. A job skipped by `if:` counts as success.
 - Secrets are passed explicitly by name to reusable workflows (**do not use `secrets: inherit`**), making visible in the project what each one receives.
-- Deploy in `cd.yml` (or later jobs of the same file) with `needs:` on the component's CI and a condition to run only on `main`. With multiple project environments ([section 6](#6-the-lab-project-environments-and-minimum-cost)), `cd.yml` deploys to `lab` and promotes to the following environments.
+- Deploy in `cd.yml` (or later jobs of the same file) with `needs:` on the component's CI and a condition to run only on `main`. With multiple project environments ([section 6](#6-project-environments-the-shared-platform-and-minimum-cost)), `cd.yml` deploys to `dev` and promotes to the following environments.
 - CI is the **single deploy path**, hosting-* included: no provider Git integration deploying on its own on every push (previews per PR, when wanted, are also made by CI).
 - CI reaches clouds without long-lived keys: cloud-* `ci-identity-setup` sets up OIDC federation.
 - **Future GitLab:** reusable workflows and composite actions only serve GitHub Actions. A `gitlab_ci-setup` would need pipeline templates.
@@ -322,7 +326,7 @@ Settings block:
 
 - Codespaces reads the `.devcontainer/devcontainer.json` of the opened repository; each project has its own, **THIN**, generated by the orchestrator from the declaration. What is reusable are the Dev Container Features (open standard: they work in Codespaces, local VS Code and JetBrains IDEs).
 - Every project gets: the official Claude Code Feature (`ghcr.io/anthropics/devcontainer-features/claude-code:1.0`) and `ghcr.io/aleogr/aleogr/base:1`.
-- **`base`:** registers the `aleogr` marketplace (block from [section 2.3](#23-registering-the-marketplace)) in Claude Code's user settings inside the container, so the orchestrator is available in any codespace, even an empty one, and brings what is common to all projects. The `base` Feature (Codespaces) and the setup script of the `lab` cloud environment (Claude Code cloud sessions, [section 14](#14-where-i-run-claude-code)) have the **SAME responsibility, in two vehicles**; keep both consistent.
+- **`base`:** registers the `aleogr` marketplace (block from [section 2.3](#23-registering-the-marketplace)) in Claude Code's user settings inside the container, so the orchestrator is available in any codespace, even an empty one, and brings what is common to all projects. The `base` Feature (Codespaces) and the setup script of the `base` cloud environment (Claude Code cloud sessions, [section 14](#14-where-i-run-claude-code)) have the **SAME responsibility, in two vehicles**; keep both consistent.
 - **Per-technology Features** (`go`, `java`, `python`, `android`...) are a **PREFERENCES LAYER** over the official Features (e.g. `ghcr.io/devcontainers/features/go`): linters, formatter, language server, debugger, editor extensions. **They do NOT reinstall the language.** They declare `"installsAfter": ["ghcr.io/devcontainers/features/<technology>"]` to run after the official one.
 - **Do NOT use `dependsOn` for the official one:** a dependency's options are fixed in the Feature definition, and the version declared in project.json would not reach the installed language. The generated `devcontainer.json` lists BOTH, with the version on the official one:
 
@@ -350,25 +354,27 @@ Settings block:
 
 ---
 
-## 6. The lab, project environments and minimum cost
+## 6. Project environments, the shared platform and minimum cost
 
-- I own the domain `aleogr.dev`. The lab (`lab.aleogr.dev`) is **EVERYTHING that is not production**: development and staging of my projects and the tests of the tooling itself.
+- I own the domain `aleogr.dev`. A project has up to three environments: `dev` (development), `hom` (staging) and `prd` (production). Everything that is not production (`dev`, `hom` and the tests of the tooling itself) has no special name; the resources it shares are **the shared platform** ([section 6.8](#68-shared-platform-resources)).
 
 ### 6.1 Addresses of a project's environments
 
-- **`lab`** (development): `<project>.lab.aleogr.dev`; tenants: `<tenant>.<project>.lab.aleogr.dev` (per-tenant routing is done by the application, by hostname).
-- **`hom`** (optional): environment as a **SUFFIX** of the project, `<project>-hom.lab.aleogr.dev`, with tenants `<tenant>.<project>-hom.lab.aleogr.dev`. Never `hom.<project>.lab...`, which would be confused with a tenant.
-- **Tenants in `lab` and `hom` are EXPLICIT, there is no wildcard:** I create each tenant by hand, so each one is declared and gets its own DNS record and its own mapping at the destination, with its own certificate. A new tenant takes a few minutes to answer, while the certificate is issued.
-- **`prd`** (optional): the project's own domain or, without one, `<project>.aleogr.dev` (first-level subdomain, covered by Cloudflare's free certificate).
-- **A multi-tenant project in `prd` requires its own domain:** `<tenant>.<project>.aleogr.dev` is second level and is not covered by the free certificate, while `<tenant>.<own-domain>` is.
+- **Every address is directly under `aleogr.dev`, with the environment as a SUFFIX of the project:** `<project>-<environment>.aleogr.dev` (`prj1-dev.aleogr.dev`, `prj1-hom.aleogr.dev`, `prj1-prd.aleogr.dev`); tenants: `<tenant>.<project>-<environment>.aleogr.dev` (per-tenant routing is done by the application, by hostname). The environment is always in the name, so no project can collide with the other names of the domain. Never `hom.<project>...`, which would be confused with a tenant.
+- **`id.aleogr.dev` is reserved** (my e-mail aliases): it is never a project address.
+- **`dev`** (development) and **`hom`** (optional, staging) use those addresses.
+- **Tenants in `dev` and `hom` are EXPLICIT, there is no wildcard:** I create each tenant by hand, so each one is declared and gets its own DNS record and its own mapping at the destination, with its own certificate. A new tenant takes a few minutes to answer, while the certificate is issued.
+- **`prd`** (optional): `<project>-prd.aleogr.dev` only for simple systems. **A sensitive system, such as an identity provider (IAM), uses its own domain in `prd`:** every address under `aleogr.dev` is the same site to a browser, so a development system can set cookies that reach a production one.
+- **A multi-tenant project in `prd` requires its own domain:** `<tenant>.<project>-prd.aleogr.dev` is second level and is not covered by the free certificate, while `<tenant>.<own-domain>` is.
+- **Tests:** `test-<id>-<environment>.aleogr.dev`, tenants `<tenant>.test-<id>-<environment>.aleogr.dev` ([section 15](#15-tests)).
 - The orchestrator derives the names from the project name and the environment; I only declare which environments the project has.
 
 Declaration (replaces a simple `domains` field):
 
 ```json
 "environments": {
-  "lab":  { "host": "project2.lab.aleogr.dev",     "tenants": ["acme", "globex"] },
-  "hom":  { "host": "project2-hom.lab.aleogr.dev", "tenants": ["acme"] },
+  "dev":  { "host": "project2-dev.aleogr.dev", "tenants": ["acme", "globex"] },
+  "hom":  { "host": "project2-hom.aleogr.dev", "tenants": ["acme"] },
   "prd":  null
 }
 ```
@@ -376,78 +382,83 @@ Declaration (replaces a simple `domains` field):
 ### 6.2 HTTPS and certificates
 
 - `.dev` requires HTTPS (the domain is on browsers' HSTS preload list): there is no HTTP, not even in development.
-- Cloudflare's free Universal SSL covers only the root domain and the first subdomain level. `project1.lab.aleogr.dev` (second level) and tenants (third level), with proxy on, are **NOT covered** and fail with errors like `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
-- **Decision:** `lab` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prd` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
+- Cloudflare's free Universal SSL covers only the root domain and the first subdomain level. Project addresses (`project1-dev.aleogr.dev`) are first level and covered; tenants (`acme.project1-dev.aleogr.dev`, second level), with proxy on, are **NOT covered** and fail with errors like `ERR_SSL_VERSION_OR_CIPHER_MISMATCH`.
+- **Decision:** `dev` and `hom` use **UNPROXIED** records (DNS only), with the certificate issued by the destination; only `prd` uses proxied records, covered by the free certificate. Nothing is paid for certificates.
+  - For a project's address this is a **CHOICE**, not a limit: the free certificate would cover it, but the login already refuses strangers ([section 6.3](#63-protection-and-single-access-point)) and each extra layer is one more thing to fail.
+  - Tenants are second level and stay unproxied, with the destination's certificate.
+  - Before proxying any environment (`prd` included), test that the destination (a Cloud Run domain mapping) still issues and renews its certificate behind the proxy ([section 18](#18-open-items)).
 - The destination issues one certificate per hostname: the project's host and each tenant's. On GCP, a Cloud Run domain mapping per hostname ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
 
 ### 6.3 Protection and single access point
 
-- **Lab protection: a login in front of every service, by default.** The concern is COST: any public address is found and visited by bots, and each visit wakes the service. So in `lab` and `hom` every service requires a login that is checked BEFORE the request reaches it; whoever is not on the allowed list is refused by the provider and the service does not even wake up. On GCP: IAP enabled directly on the Cloud Run service, with a Google account, no load balancer ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A tester is added by e-mail to the allowed list.
+- **Protection outside production: a login in front of every service, by default.** The concern is COST: any public address is found and visited by bots, and each visit wakes the service. So in `dev` and `hom` every service requires a login that is checked BEFORE the request reaches it; whoever is not on the allowed list is refused by the provider and the service does not even wake up. On GCP: IAP enabled directly on the Cloud Run service, with a Google account, no load balancer ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A tester is added by e-mail to the allowed list.
 - **A component that must stay open is declared public** in `project.json` (e.g. an API that receives webhooks from a payment provider, an API called by a mobile app), and only that one has no login. Everything that calls a service without a logged-in person stops working behind the login.
-- **Cost ceilings are always on**, with or without login ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)); they are what protects the components declared public.
+- **Cost ceilings are always on**, with or without login ([section 6.5](#65-minimum-cost-contract-rule-in-the-dev-project-environment)); they are what protects the components declared public.
 - In `prd` none of this applies: production is public by definition.
-- **No single access point:** every hostname has its own DNS record pointing to its destination. The dns-* contract in the lab is `record-add`; there is no router and no route.
+- **No single access point:** every hostname has its own DNS record pointing to its destination. The dns-* contract in `dev` and `hom` is `record-add`; there is no router and no route.
 
-### 6.4 Lab platform × project resources
+### 6.4 Shared platform × project resources
 
 - **Each project has its own cloud environment per project environment** (on GCP, its own project: [section 1](#cloud-environments-gcp-project-ids)). Whatever costs nothing while idle belongs to the project: services that scale to zero, secrets, storage, image registry.
-- **Lab platform:** only what has a FIXED cost is shared, created ONCE ([section 6.8](#68-lab-shared-resources)). Each cloud provider (GCP, AWS, Azure) has its own version of the lab platform, with the same logic.
+- **Shared platform:** only what has a FIXED cost is shared, created ONCE ([section 6.8](#68-shared-platform-resources)). Each cloud provider (GCP, AWS, Azure) has its own version of the shared platform, with the same logic.
 - **Project resources in the platform:** created INSIDE the shared resource (e.g. database + user on the shared instance).
-- The family contract gains the `shared` or `dedicated` mode; in the `lab` project environment the default is `shared`. E.g. db-* in the lab creates database + user on the single instance; in production, its own instance.
+- The family contract gains the `shared` or `dedicated` mode; in the `dev` project environment the default is `shared`. E.g. db-* in `dev` creates database + user on the single instance; in production, its own instance.
 - Isolation within shared resources by name and labels ([section 1](#1-names)); a project's `project-plan` sees only what is its own; `*-remove` never touches what belongs to another.
 
-### 6.5 Minimum cost (contract rule in the `lab` project environment)
+### 6.5 Minimum cost (contract rule in the `dev` project environment)
 
 - Scale to zero whenever possible.
 - Smallest tier/size available.
 - Nothing with fixed cost per project (load balancer, static IP, NAT, dedicated instances).
 - **Ceilings:** every service has a maximum number of instances (one or two), and every paid service the project uses (LLM, SMS, e-mail...) gets its own spending limit, so that the worst case has a known cost.
 - Warn and ask for confirmation before creating anything with a fixed cost.
-- Budget alerts configured on each provider's lab platform.
-- Cache and search (whose managed offerings usually have fixed cost): in the lab, prefer serverless or free-tier providers, with one namespace/index prefix per project.
+- Budget alerts configured on each provider's shared platform.
+- Cache and search (whose managed offerings usually have fixed cost): in `dev`, prefer serverless or free-tier providers, with one namespace/index prefix per project.
 
 ### 6.6 Personal defaults
 
-- In `.claude-plugin/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: lab domain (`lab.aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the lab platform shares.
+- In `.claude-plugin/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: the domain (`aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the shared platform shares.
 
 ### 6.7 GCP: organization, folders and billing
 
 - **Every GCP project lives inside the organization**, never loose under my user account.
-- **The shared project is the one exception to the folders:** it lives directly under the organization, outside every folder, because it serves both `lab` and `hom` and belongs to neither ([section 6.8](#68-lab-shared-resources)). Rules applied to a folder do not reach it; only the organization's do.
-- **One folder per environment**, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `lab`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
-- **Preferred region: `us-central1`**, for every project and for the shared environment (same region as the shared database; Cloud Run domain mappings exist there). It is the default in `defaults.json` ([section 6.6](#66-personal-defaults)).
-- **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
+- **The shared project is the one exception to the folders:** it lives directly under the organization, outside every folder, because it serves `dev`, `hom` and the tests and belongs to none of them ([section 6.8](#68-shared-platform-resources)). Rules applied to a folder do not reach it; only the organization's do.
+- **One folder per environment**, directly under the organization, with the same names used in the project IDs ([section 1](#cloud-environments-gcp-project-ids)): `dev`, `hom`, `prd`. A project is created in the folder of its environment, which allows permissions and policies per environment. A folder is created when its first project exists.
+- **A fourth folder, `tst`, is not an environment: it mirrors the organization for the projects that test the tooling** (such as the reference project `pilot`, [section 15](#15-tests)), with the environment folders inside it (`tst/dev`, `tst/hom`; created when first needed). A test project is created by the same rule as a real one, in the folder named after its environment, with the search starting inside `tst` instead of at the organization (`gcp_environment-create` with `root=tst`), so the tests exercise the real path. The automatic cleanup of tests, when it exists, gets permission to delete projects only inside `tst`. The shared project stays outside the folders and serves `tst` too.
+- The skills never create folders: a missing folder stops `gcp_environment-create`, which says which folder to create.
+- **Preferred region: `us-central1`**, for every project and for the shared platform (same region as the shared database; Cloud Run domain mappings exist there). It is the default in `defaults.json` ([section 6.6](#66-personal-defaults)).
+- **The billing account belongs to the organization**, with a budget alert on the whole account ([section 6.5](#65-minimum-cost-contract-rule-in-the-dev-project-environment)).
 - **Few organization policies, chosen one by one.** The organization already comes with a set enforced by default, which stays as it is ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); it includes the one that matters most here, forbidding the creation of service account keys, because CI reaches the cloud without long-lived keys ([section 4](#4-cicd)). Consequence for every project: each service runs as its own service account with explicit roles, since default service accounts get none.
-- Not used: deep folder hierarchies, more than one organization, separate administrative roles per person.
+- Not used: deeper folder hierarchies than the environment folders and `tst`, more than one organization ([section 16](#16-discarded-decisions)), separate administrative roles per person.
 - The identifiers of the organization, the folders and the billing account are not versioned (the repository is public); they follow [section 7](#7-where-data-lives).
 
-### 6.8 Lab shared resources
+### 6.8 Shared platform resources
 
-- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, `aleogr-lab-shared-<random>`. It serves `lab` AND `hom`, so on GCP it is created directly under the organization, not in the folder of an environment ([section 6.7](#67-gcp-organization-folders-and-billing)); "lab" in the name is the umbrella of [section 6](#6-the-lab-project-environments-and-minimum-cost), as in the domain. `prd` never uses it.
+- **One shared cloud environment for everything that is not production**, with a generic name so that it can hold any shared resource that appears: on GCP, the project `aleogr-shared-<random>`, display name `shared`, labels `aleogr-project=shared` and `aleogr-platform=shared` (no environment in the id and no `aleogr-environment` label). It serves `dev`, `hom` and the tests, so on GCP it is created directly under the organization, not in the folder of an environment ([section 6.7](#67-gcp-organization-folders-and-billing)). `prd` never uses it. The skills address it as `project=shared platform=shared`, never with an environment (`gcp_environment-describe`, `gcp_environment-create`, `gcp_services-enable`; the orchestrator's `platform-plan` and `platform-apply` pass it so).
 - `shared` is a **RESERVED** project name ([section 11.1](#111-json-schema)).
-- Accepted trade: `lab` and `hom` of every project share performance and availability, and the separation between them protects against accidents only ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A project that needs an isolated `hom` uses the `dedicated` mode.
-- **Shared database:** one Cloud SQL PostgreSQL instance, `aleogr-lab`, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`). It has a public address with no authorized networks, so nothing connects to it directly: access goes through the Cloud SQL connector, authenticated by IAM. The disk is 10 GiB with automatic growth off (disks never shrink, and `gcloud` has no flag for a growth limit); a full disk in the lab is a visible failure and I grow it by hand. Deletion protection is on.
-- **The instance is OFF by default** (it does not scale to zero, and it is the only fixed cost of the lab). Stopped, it still costs its disk and its idle public address: about R$ 50 per month while stopped ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). Nothing with that cost is created without my seeing the amount and saying yes:
+- Accepted trade: `dev` and `hom` of every project share performance and availability, and the separation between them protects against accidents only ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). A project that needs an isolated `hom` uses the `dedicated` mode.
+- **Shared database:** one Cloud SQL PostgreSQL instance, `aleogr-shared`, the smallest tier, with one database per project and environment (`<project>`, `<project>_hom`). It has a public address with no authorized networks, so nothing connects to it directly: access goes through the Cloud SQL connector, authenticated by IAM. The disk is 10 GiB with automatic growth off (disks never shrink, and `gcloud` has no flag for a growth limit); a full disk is a visible failure and I grow it by hand. Deletion protection is on.
+- **The instance is OFF by default** (it does not scale to zero, and it is the only fixed cost of the shared platform). Stopped, it still costs its disk and its idle public address: about R$ 50 per month while stopped ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). Nothing with that cost is created without my seeing the amount and saying yes:
   - **started on demand**, when I am going to work: by the skill `gcp-cloud-sql_instance-start` (where `gcloud` is authenticated) or by a manually triggered workflow of `aleogr/aleogr` (from anywhere, including the phone);
-  - **stopped by a scheduler inside GCP**, so that stopping never depends on me remembering: two Cloud Scheduler jobs in the shared project call the Cloud SQL Admin API, with no function in between (Cloud Scheduler cannot send the API's HTTP `PATCH`, so each job sends a `POST` with the header `X-HTTP-Method-Override: PATCH`), in `America/Sao_Paulo` time, at 22:30 from Sunday to Thursday and at 04:00 on Saturday and Sunday (Friday and Saturday nights have no fixed end). It can also be stopped by hand, by the skill `gcp-cloud-sql_instance-stop` or by the same manually triggered workflow (`self-lab-database.yml`, which offers `start`, `stop` and `status`);
+  - **stopped by a scheduler inside GCP**, so that stopping never depends on me remembering: two Cloud Scheduler jobs in the shared project (`aleogr-shared-stop-weeknight` and `aleogr-shared-stop-weekend`) call the Cloud SQL Admin API, with no function in between (Cloud Scheduler cannot send the API's HTTP `PATCH`, so each job sends a `POST` with the header `X-HTTP-Method-Override: PATCH`), in `America/Sao_Paulo` time, at 22:30 from Sunday to Thursday and at 04:00 on Saturday and Sunday (Friday and Saturday nights have no fixed end). It can also be stopped by hand, by the skill `gcp-cloud-sql_instance-stop` or by the same manually triggered workflow (`self-shared-database.yml`, which offers `start`, `stop` and `status`);
   - starting takes minutes ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)): skills and deploys that need the database check whether it is running and say so, instead of failing with a connection error;
   - the backup window starts at 20:00 (`America/Sao_Paulo`), an hour when the instance is usually running; a window that falls while it is stopped produces no backup and no error.
-- **What the platform is made of** (on GCP): the shared project, the database instance, the scheduler that stops it, the identity that starts and stops it, and the budget alert.
-- **One switch identity:** a service account, `aleogr-lab-sql-switch`, with a custom role limited to reading and updating the instance (`cloudsql.instances.get`, `cloudsql.instances.update`). The scheduler jobs run as it, and the workflow impersonates it through workload identity federation (a pool and a GitHub provider in the shared project, accepting only tokens of `aleogr/aleogr` on `main`); no key file exists. The switch is created before the instance, so that the night stop already exists if the creation is interrupted.
-- **GitHub secrets:** the workflow reads three Actions secrets of `aleogr/aleogr` (the shared project's id, the federation provider's name and the switch account's e-mail), pasted by hand from the values the platform skills print; the repository's logs are public and only secrets are masked.
-- **How it is created and changed:** by the orchestrator, with skills that run commands, from the platform declaration ([section 11](#11-project-model)) — the same mechanism as the projects, with the same rules ([section 10.4](#104-behavior-of-every-skill)). It is created once, from the Windows app, where the CLIs are authenticated ([section 14](#14-where-i-run-claude-code)). Its state is what exists in the cloud ([section 7](#7-where-data-lives)).
+- **What the platform is made of** (on GCP): the shared project, the database instance, the scheduler that stops it, the identity that starts and stops it, and the budget alert (`aleogr`, on the whole billing account).
+- **One switch identity:** a service account, `aleogr-shared-sql-switch`, with a custom role, `aleogrSharedSqlSwitch`, limited to reading and updating the instance (`cloudsql.instances.get`, `cloudsql.instances.update`). The scheduler jobs run as it, and the workflow impersonates it through workload identity federation (a pool and a GitHub provider in the shared project, accepting only tokens of `aleogr/aleogr` on `main`); no key file exists. The switch is created before the instance, so that the night stop already exists if the creation is interrupted.
+- **GitHub secrets:** the workflow reads three Actions secrets of `aleogr/aleogr`, `GCP_SHARED_PROJECT_ID`, `GCP_SHARED_WIF_PROVIDER` and `GCP_SHARED_SWITCH_ACCOUNT` (the shared project's id, the federation provider's name and the switch account's e-mail), pasted by hand from the values the platform skills print ([`cloud-shell.md`](cloud-shell.md)); the repository's logs are public and only secrets are masked.
+- **How it is created and changed:** by the orchestrator, with skills that run commands, from the platform declaration ([section 11](#11-project-model)) — the same mechanism as the projects, with the same rules ([section 10.4](#104-behavior-of-every-skill)). It is created once, from the Windows app or Google Cloud Shell, where the CLIs are authenticated ([section 14](#14-where-i-run-claude-code)). Its state is what exists in the cloud ([section 7](#7-where-data-lives)).
 
 ---
 
 ## 7. Where data lives
 
-- **There will be NO private `aleogr/lab` repository, nor tooling in a private repository.** Lab platform data is split into three types:
+- **There will be NO private repository for the shared platform's data, nor tooling in a private repository.** Shared platform data is split into three types:
 
 | Type | Where it lives | Publicly visible? |
 |---|---|---|
 | Secrets (passwords, tokens, keys) | the provider's `secrets-*` (e.g. GCP Secret Manager) + GitHub Actions/Codespaces secrets when workflows or codespaces need them + network secrets of the Claude Code cloud environment ([section 14](#14-where-i-run-claude-code)) | no |
-| Identifiers (lab cloud project ID, DNS zone ID...) | naming convention (preferred) + GitHub Actions variables in `aleogr/aleogr`, read with `gh variable get` | no |
-| Lab platform state | discovered in the cloud itself via labels and names (the cloud is the source of truth); if not enough, a state file in a private versioned bucket | no |
+| Identifiers (shared cloud project ID, DNS zone ID...) | naming convention (preferred) + GitHub Actions variables in `aleogr/aleogr`, read with `gh variable get` | no |
+| Shared platform state | discovered in the cloud itself via labels and names (the cloud is the source of truth); if not enough, a state file in a private versioned bucket | no |
 | Tooling | `aleogr/aleogr` | yes, on purpose |
 
 - GitHub secrets cannot be read back: they serve to deliver credentials to workflows/codespaces, not to store information the orchestrator queries.
@@ -532,7 +543,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 ### 10.2 Mode, names and labels
 
-- Every family skill accepts the `shared` mode (inside the lab platform) or `dedicated` (own resources); in the `lab` project environment, the default is `shared`.
+- Every family skill accepts the `shared` mode (inside the shared platform) or `dedicated` (own resources); in the `dev` project environment, the default is `shared`.
 - Every skill applies the labels and conventional names from [section 1](#1-names) to EVERYTHING it creates.
 
 ### 10.3 Extending contracts
@@ -546,7 +557,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - Checks before creating (idempotent).
 - Shows each command before running it.
 - Stops and asks for confirmation before irreversible or costly actions.
-- Follows the MINIMUM COST rule in the lab ([section 6.5](#65-minimum-cost-contract-rule-in-the-lab-project-environment)).
+- Follows the MINIMUM COST rule in `dev` ([section 6.5](#65-minimum-cost-contract-rule-in-the-dev-project-environment)).
 - Ends with a verification (e.g. `gh repo view`, `gcloud ... describe`, DNS lookup).
 - What cannot be automated becomes a checklist.
 - platform-* skills start by checking the environment (OS, SDK, connected device).
@@ -555,7 +566,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 - CLI first (gh, glab, gcloud, aws, az); MCP when there is no good CLI or the official MCP is better. The MCP goes in the family plugin's `.mcp.json`.
 - cloud-* provides the base (account/project, identities, permissions, APIs, deploy); service families assume the base exists. The orchestrator guarantees the order.
-- secrets-* is unique per project, usually on the primary cloud; credentials for other clouds also live there. In the lab, project secrets live in the lab platform's vault, prefixed with the project.
+- secrets-* is unique per project, usually on the primary cloud; credentials for other clouds also live there. In `dev` and `hom`, project secrets live in the shared platform's vault, prefixed with the project.
 
 ### 10.6 "What/how" split
 
@@ -584,9 +595,9 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 ## 11. Project model
 
 - **Personal preference:** the SMALLEST possible number of repositories. Monorepo whenever it makes sense; in multi-repo projects, prefer the federated layout (creates no extra repository).
-- A project is a list of components (stack, platform, deploy/distribution, location = directory or repository), the project environments ([section 6](#6-the-lab-project-environments-and-minimum-cost)) and the project's shared services.
+- A project is a list of components (stack, platform, deploy/distribution, location = directory or repository), the project environments ([section 6](#6-project-environments-the-shared-platform-and-minimum-cost)) and the project's shared services.
 - **Declaration** in `.aleogr/project.json` in the project repository (what I WANT; edited by me or by the `project-declare` skill). **State** in `.aleogr/state.json` (what EXISTS; only the orchestrator writes it). Neither stores secrets, only references.
-- The **lab platform** is managed by the same orchestrator, with the same declaration format (marked as `"kind": "platform"`), but without its own repository: choices in `defaults.json`, identifiers by convention and variables, state discovered in the cloud ([section 7](#7-where-data-lives)). Projects point to it in the `lab` project environment.
+- The **shared platform** is managed by the same orchestrator, with the same declaration format (marked as `"kind": "platform"`), but without its own repository: choices in `defaults.json`, identifiers by convention and variables, state discovered in the cloud ([section 7](#7-where-data-lives)). Projects point to it in the `dev` and `hom` project environments.
 
 ### 11.1 JSON Schema
 
@@ -595,7 +606,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - Exactly one `primary` cloud (contains + minContains/maxContains = 1).
 - payments `mode` with default "test".
 - Project names cannot be `test` or `shared`, nor start with `test-`.
-- A component may be declared public; without it, in `lab` and `hom` the component is behind the lab login ([section 6.3](#63-protection-and-single-access-point)).
+- A component may be declared public; without it, in `dev` and `hom` the component is behind the login ([section 6.3](#63-protection-and-single-access-point)).
 - `environments` field ([section 6.1](#61-addresses-of-a-projects-environments)).
 - Plugin name derived from family + provider.
 - Each family plugin may publish a sub-schema for its options.
@@ -619,12 +630,12 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 ## 12. Skills of the `aleogr` orchestrator
 
 - **Core:**
-  - `platform-plan`: compares the lab platform choices in `defaults.json` with the cloud; changes nothing (implemented for the free part: shared project, APIs, budget alert);
-  - `platform-apply`: creates and changes the lab platform ([section 6.8](#68-lab-shared-resources)) as `platform-plan` lists (implemented for the free part; asks for one confirmation unless called with `confirm=yes`);
+  - `platform-plan`: compares the shared platform choices in `defaults.json` with the cloud; changes nothing (implemented for the free part: shared project, APIs, budget alert);
+  - `platform-apply`: creates and changes the shared platform ([section 6.8](#68-shared-platform-resources)) as `platform-plan` lists (implemented for the free part; asks for one confirmation unless called with `confirm=yes`);
   - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
   - `project-plan`: compares declaration, state and reality; changes nothing;
   - `project-apply`: executes the plan in order.
-  - `platform-*` act on the lab platform; `project-*` remain for projects.
+  - `platform-*` act on the shared platform (they address its project as `project=shared platform=shared`); `project-*` remain for projects.
 - **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
   - `tools-check` (implemented for `gcloud` and where Claude runs): CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
@@ -651,7 +662,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 1. Repositories.
 2. Domain registration.
-3. Cloud base (or verification of the lab platform).
+3. Cloud base (or verification of the shared platform).
 4. Secrets.
 5. Infrastructure (db, cache, storage, registry, search).
 6. Services (auth, email, sms, payments, llm, flags).
@@ -672,16 +683,16 @@ Deterministic guarantees; general ones live in `aleogr`, specific ones in each f
 
 - **PreToolUse on Bash** blocking destructive commands (deleting a project/repo, public visibility, removing DNS, dropping a database, removing services) outside a confirmed *-remove. **NARROW** exceptions, only for test resources listed in a test's state:
   - repositories (test organization + name `test-<id>` + topic `aleogr-test` + NOT archived);
-  - DNS records `test-<id>` or `test-<id>-<environment>` under `lab.aleogr.dev`, and the tenants below them;
+  - DNS records `test-<id>-<environment>` directly under `aleogr.dev`, and the tenants below them;
   - databases `test_<id>`;
-  - cloud services/resources `test-<id>-...` with label `aleogr-test=<id>`.
-- The hook is built with the first `*-remove` skill (`database-remove`), when there is something for it to guard and a real case to test it against on Windows. Until then the lab's shared instance is covered by the provider's deletion protection.
+  - cloud services/resources `test-<id>-...` with label `aleogr-test=<id>`; on GCP, a test's projects only inside the folder `tst` ([section 6.7](#67-gcp-organization-folders-and-billing)).
+- The hook is built with the first `*-remove` skill (`database-remove`), when there is something for it to guard and a real case to test it against on Windows. Until then the shared instance is covered by the provider's deletion protection.
 - **PreToolUse on Write/Edit** blocking secrets in versioned files.
 - **PostToolUse on Write/Edit** validating project.json against the schema.
 - **PostToolUse formatting** per stack.
 - **SessionStart** injecting a summary of the declaration and manual open items.
 - **SessionStart in the project repository**, only when `CLAUDE_CODE_REMOTE=true`, installing the project's light needs in Claude Code cloud sessions ([section 14.2](#142-claude-code-cloud-environments)).
-- **PostToolUse on Bash** recording an audit log of infrastructure commands (also the lab platform's history).
+- **PostToolUse on Bash** recording an audit log of infrastructure commands (also the shared platform's history).
 - Hooks in the repository's `.claude/settings.json` also run in single-repository cloud sessions; to run something only in the cloud, check `CLAUDE_CODE_REMOTE=true`.
 
 ### 13.2 Agents
@@ -719,7 +730,7 @@ Deterministic guarantees; general ones live in `aleogr`, specific ones in each f
 ## 14. Where I run Claude Code
 
 - I use Claude Code in the Windows app and on the web (cloud sessions), and I want to be able to use GitHub Codespaces.
-- Infrastructure setup (creating repositories, gcloud auth login, Cloudflare OAuth, gh auth login) is done in the **WINDOWS APP**. Avoid storing admin-level credentials in the cloud.
+- Infrastructure setup (creating repositories, gcloud auth login, Cloudflare OAuth, gh auth login) is done in the **WINDOWS APP** or in Google Cloud Shell ([section 14.3](#143-claude-code-in-google-cloud-shell)). Do not store admin-level credentials in Claude Code cloud sessions ([section 14.1](#141-claude-code-cloud-sessions-web-app-mobile-claude---cloud)): they are disposable machines. The Cloud Shell home directory is different: it belongs to my Google account.
 - **From a browser only** (a computer where nothing can be installed): Claude Code runs inside **Google Cloud Shell**, the terminal of the Google Cloud console, which is already signed in to my Google account and has `gcloud`. The skills run there as in the Windows app, with no credential leaving Google and no new identity. Set-up, once: [section 14.3](#143-claude-code-in-google-cloud-shell). A cloud session ([section 14.1](#141-claude-code-cloud-sessions-web-app-mobile-claude---cloud)) cannot do this: its `gcloud` has no login, and the organization forbids the keys that would give it one.
 - iOS/watchOS require macOS (build via macOS runner in CI); embedded and wearables usually require the device connected to the Windows app.
 
@@ -746,21 +757,21 @@ The configuration in which each cloud session runs.
 - They are **PERSONAL** (belong to my account) and do **NOT belong to repositories**; the choice is per session (selector on web/app; `/remote-env` sets the command-line default; `remote.defaultEnvironmentId` in a project's `.claude/settings.json` pins the environment of sessions started with `claude --cloud` in that project). Environments shared with an organization only exist on Team/Enterprise plans.
 - **Environments do NOT compose:** a session runs in exactly ONE environment; there is no inheritance or sum of environments. A project that needs two profiles cannot use both.
 - **Composition therefore happens in layers:**
-  1. the `lab` environment is the single base, common to every project;
+  1. the `base` environment is the single base, common to every project;
   2. light project-specific needs are installed by a **SessionStart hook in the project repository** (only when `CLAUDE_CODE_REMOTE=true`), generated by the orchestrator from the declaration, with each `stack-*`/`platform-*` contributing its part — this is the layer that composes;
   3. an additional environment exists only for what the hook cannot provide: heavy toolchain (needs the setup script cache), different network or different network secrets.
 - What ONLY the environment can provide: network access, network secrets, variables and the setup script cache. The repository hook runs on every session start, without that cache, and only reaches what the environment's network allows.
 - **Default:** one environment per NEEDS PROFILE. An environment per project is accepted only as a last resort, for a heavy and rare combination of profiles.
 
-#### `lab` environment (default, the only one at first)
+#### `base` environment (default, the only one at first)
 
-- Custom network: default package manager list + domains the sessions need to reach (e.g. `*.lab.aleogr.dev`).
+- Custom network: default package manager list + domains the sessions need to reach (e.g. the project addresses under `aleogr.dev`).
 - Setup script: registers the `aleogr` marketplace and installs the orchestrator (`claude plugin marketplace add` + `claude plugin install`), and writes my personal `~/.claude/CLAUDE.md`. Same responsibility as the `base` Feature ([section 5](#5-dev-containers-and-codespaces)); keep them consistent. Test whether plugin installation works at this stage.
 - Network secrets for APIs with a fixed token; variables only with non-sensitive values.
 
 #### Additional environments
 
-- ONLY when a truly different profile appears and the repository hook is not enough: heavy toolchain (e.g. `lab-android` with the Android SDK, keeping the `lab` script under the cache limit) or different network (e.g. one without network, for reviewing third-party code).
+- ONLY when a truly different profile appears and the repository hook is not enough: heavy toolchain (e.g. `android` with the Android SDK, keeping the `base` script under the cache limit) or different network (e.g. one without network, for reviewing third-party code).
 - A project that needs an additional profile PLUS something light uses that profile's environment and gets the rest from its SessionStart hook. Only a combination of two heavy profiles requires an environment of its own.
 
 #### Canonical version
@@ -777,7 +788,7 @@ For running the skills against real Google Cloud from a browser. Tested on 2026-
 - Claude Code, the marketplace and the plugins are installed once in the Cloud Shell home directory, which Google keeps between sessions. The step-by-step instructions (set-up, daily use, updating) are in [`cloud-shell.md`](cloud-shell.md).
 - The orchestrator reads its `defaults.json` from the plugin's folder, outside the working directory, and Claude Code asks to allow that read: allow that one read each time, never every read outside the working directory, because the home directory holds the Google credentials.
 - It is slower than the Windows app (a small shared machine), and Cloud Shell disconnects after a while idle.
-- Other families' CLIs (`gh`, the Cloudflare one) are not signed in there: this path is for the Google Cloud skills.
+- Cloud Shell has `gh` preinstalled ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). The other families' CLIs can be signed in there when their skills exist, with the least permissions each skill needs (GitHub: only the scopes the skills use; Cloudflare: an API token limited to editing the DNS of the zone `aleogr.dev`). Until then this path is for the Google Cloud skills.
 
 ---
 
@@ -785,7 +796,7 @@ For running the skills against real Google Cloud from a browser. Tested on 2026-
 
 > This section records the **DIRECTION** of the tests. Execution details are still open and will be defined before implementation; **do not implement anything from this section without confirmation**.
 
-Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleogr:project-create` with this declaration, does a working project come out?". Not to be confused with the `hom` project environment, which tests a product. Tests are a lab activity and use the **LAB PLATFORM** (zero extra infrastructure cost and realism: they exercise the same sharing as real projects).
+Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleogr:project-create` with this declaration, does a working project come out?". Not to be confused with the `hom` project environment, which tests a product. Tests use the **SHARED PLATFORM** (zero extra infrastructure cost and realism: they exercise the same sharing as real projects), and on GCP their projects live in the folder `tst` ([section 6.7](#67-gcp-organization-folders-and-billing)).
 
 ### 15.1 Layer 1 — in the repository itself (static, creating nothing outside), on every PR
 
@@ -809,31 +820,38 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
   - reusable workflows referenced by branch name (`@<branch>`);
   - marketplace registered with `"ref": "<branch>"`;
   - Features tested by layer 1 (and, if needed, published with a pre-release version).
-- Each test uses an `<id>` in ALL resources ([section 1](#1-names)): repository `test-<id>`, services `test-<id>-<component>` in the lab's cloud environment, database `test_<id>` on the shared instance, `test-<id>.lab.aleogr.dev` (with project environments: `test-<id>-<environment>.lab.aleogr.dev`; tenants: `<tenant>.test-<id>.lab.aleogr.dev`).
+- Each test uses an `<id>` in ALL resources ([section 1](#1-names)): repository `test-<id>`, a GCP project per environment created like a real one but inside `tst` (`gcp_environment-create` with `root=tst`), services `test-<id>-<component>`, database `test_<id>` on the shared instance, `test-<id>-<environment>.aleogr.dev` (tenants: `<tenant>.test-<id>-<environment>.aleogr.dev`).
 - **The test:** run `/aleogr:project-create` with a declaration from `.claude-plugin/schemas/examples/`; check:
   - green CI;
   - address responding (and tenants, if any);
   - codespace opening with the right tools;
-  - a Claude Code cloud session in the `lab` environment working on the created repository;
+  - a Claude Code cloud session in the `base` environment working on the created repository;
   - final `project-plan` saying "nothing to do".
 - **Example scenarios:**
   - simple backend (1 component, 1 project environment);
   - multi-tenant monorepo (2 components, two tenants, CI running only the changed component's job);
-  - two project environments (lab + hom, with promotion in cd.yml);
+  - two project environments (dev + hom, with promotion in cd.yml);
   - Android app (only repository, CI and devcontainer, no DNS or cloud).
 - **Every test creates a new `test-<id>` repository**; there is no fixed, reused test repository. Skills that only touch files of a project are tested with a minimal declaration (repository only, no cloud or DNS).
 - Initially run manually; automate later, if it makes sense.
 
-### 15.4 Payments
+### 15.4 Reference project
+
+- **The tooling is driven by a reference project, `pilot`**, in the GitHub organization `aleogr-sandbox` and, on GCP, in the folder `tst` ([section 6.7](#67-gcp-organization-folders-and-billing)): a status page per tenant, multi-tenant from the start, with two components at first, `status` (public by nature) and `admin`.
+- Everything is behind the login by default ([section 6.3](#63-protection-and-single-access-point)); `status` is opened to the public only during the test of that path, because a public address is found by bots and each visit wakes the service.
+- It stands in for the first real project (an identity provider: Go, monorepo, not multi-tenant; later products may be multi-tenant), so that the tooling is proven before a real project depends on it ([section 17](#17-implementation-strategy)).
+- Small disposable `test-<id>` projects, one per scenario of [section 15.3](#153-layer-3--end-to-end), come after both creation AND removal work on `pilot`.
+
+### 15.5 Payments
 
 - Always in test mode.
 
-### 15.5 Cleanup
+### 15.6 Cleanup
 
 The scheduled workflow `self-cleanup-tests.yml` deletes tests older than a few days, in this order:
 
 1. Read the `state.json` of the `test-<id>` repository.
-2. Delete the external resources (cloud, also checking the label `aleogr-test=<id>`; DNS records/routes matching the pattern; databases `test_<id>`; codespaces).
+2. Delete the external resources (cloud, also checking the label `aleogr-test=<id>`; on GCP, projects only inside the folder `tst`; DNS records/routes matching the pattern; databases `test_<id>`; codespaces).
 3. Delete the repository LAST (the state is in it).
 
 The destructive command guard has exceptions ONLY for these cases ([section 13.1](#131-hooks)).
@@ -843,8 +861,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 ## 16. Discarded decisions
 
 - Dedicated marketplace repository (`aleogr-claude-plugins`): replaced by `aleogr/aleogr`.
-- Tooling in a private repository (`aleogr/lab` with everything): on the free plan it would lose branch protection, unlimited Actions minutes and use of the workflows by repositories of other owners (such as the test organization), and would complicate Features, schema and marketplace.
-- Private `aleogr/lab` repository only for lab platform data: replaced by secrets in the vault, identifiers by convention and Actions variables, and state discovered in the cloud.
+- Tooling in a private repository (with everything): on the free plan it would lose branch protection, unlimited Actions minutes and use of the workflows by repositories of other owners (such as the test organization), and would complicate Features, schema and marketplace.
+- A private repository only for the shared platform's data: replaced by secrets in the vault, identifiers by convention and Actions variables, and state discovered in the cloud.
 - The catalog in a subfolder (`marketplace/.claude-plugin/marketplace.json`, registered with `path`): the Claude Code desktop app downloads such a marketplace but lists no plugin from it ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). The catalog is at the standard location, and the marketplace content went into `.claude-plugin/`.
 - `actions/` folder at the root: composite actions live in `.github/actions/`.
 - `devcontainers/`, `codespaces/` or `features/` folders at the root: Features live in `.devcontainer/features/`.
@@ -863,18 +881,18 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Creating or configuring repositories from Claude Code cloud sessions (GitHub proxy limits).
 - `.gitkeep` where a short README can document the folder; `.github/README.md` (would replace the profile README); plugin folder created before the plugin.
 - A fixed test repository reused on each run: it would need a second naming pattern outside the reserved `test-` prefix (or the cleanup would delete it) and logic to restore its initial state.
-- Test projects (with code) inside `aleogr/aleogr`; test repositories in the personal account; a separate cloud project only for tests (fixed "sandbox" on GCP); a new cloud project for each test.
-- Separate DNS trees for tests (`sandbox.aleogr.dev`, `sandbox.lab.aleogr.dev`): tests live directly in the lab with a reserved prefix, for the shorter URL.
-- Path-based tests (`lab.aleogr.dev/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
-- Staging as `hom.<project>.lab.aleogr.dev` (conflicts with tenants).
-- Proxied records in `lab` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the lab protection (requires proxied records).
-- Terraform for the lab platform, applied by CI (alone, or mixed with skills for the projects): deterministic and reviewable, but a second way of working for five or six pieces created once, with a state bucket, an identity with many permissions and a pull request per change. It stays as the way out if the shared instance suffers unwanted changes.
-- For the lab protection: no login, only cost ceilings (bots keep spending up to the ceiling, including on endpoints that call paid services); login only inside the application (the request reaches the service and costs before the login is checked). Chosen: a login in front of every service, plus the ceilings.
-- For tenant addresses in the lab: a Cloudflare Worker routing every lab hostname, with proxied records and flattened names (a format different from production, undoes the unproxied decision, and one piece whose failure takes the whole lab down); a load balancer with a wildcard certificate (fixed cost); tenants by path or header only in the lab (behaviour different from production). Chosen: one record and one mapping per tenant.
-- In the lab: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
-- A single lab cloud environment holding the resources of every project: each project has its own, and only fixed-cost resources are shared.
-- For the shared lab database, a private address only (no address charge, about R$ 9 per month instead of about R$ 50): the database would be reachable only from inside Google Cloud, with no access from my computer or from GitHub Actions, and every project would have to be attached to a shared network.
-- For the shared lab database: always on (fixed cost with nobody using it); sleeping only on weeknights (saves little); a serverless PostgreSQL outside GCP (another provider, and a connection different from production). Chosen: off by default, started on demand.
+- Test projects (with code) inside `aleogr/aleogr`; test repositories in the personal account; a separate cloud project only for tests (fixed "sandbox" on GCP). A test now gets its own cloud projects, created like a real project's inside the folder `tst` ([section 6.7](#67-gcp-organization-folders-and-billing)).
+- A separate DNS tree for tests (`sandbox.aleogr.dev`): tests live directly under `aleogr.dev` with a reserved prefix, for the shorter URL.
+- Path-based tests (`<host>/test-<id>`): would require a router, apps under a subpath (different from reality), origin shared between tests (cookies and storage leaking) and would not support tenants.
+- Staging as `hom.<project>.aleogr.dev` (conflicts with tenants).
+- Proxied tenant records in `dev` and `hom`, paying for Advanced Certificate Manager; and Cloudflare Access as the protection of `dev` and `hom` (requires proxied records).
+- Terraform for the shared platform, applied by CI (alone, or mixed with skills for the projects): deterministic and reviewable, but a second way of working for five or six pieces created once, with a state bucket, an identity with many permissions and a pull request per change. It stays as the way out if the shared instance suffers unwanted changes.
+- For the protection of `dev` and `hom`: no login, only cost ceilings (bots keep spending up to the ceiling, including on endpoints that call paid services); login only inside the application (the request reaches the service and costs before the login is checked). Chosen: a login in front of every service, plus the ceilings.
+- For tenant addresses in `dev` and `hom`: a Cloudflare Worker routing every hostname outside production, with proxied records and flattened names (a format different from production, undoes the unproxied decision, and one piece whose failure takes down everything that is not production); a load balancer with a wildcard certificate (fixed cost); tenants by path or header only outside production (behaviour different from production). Chosen: one record and one mapping per tenant.
+- In `dev`: dedicated instances per project, load balancer, static IP, NAT or any fixed cost per project.
+- A single cloud environment holding the resources of every project outside production: each project has its own, and only fixed-cost resources are shared.
+- For the shared database, a private address only (no address charge, about R$ 9 per month instead of about R$ 50): the database would be reachable only from inside Google Cloud, with no access from my computer or from GitHub Actions, and every project would have to be attached to a shared network.
+- For the shared database: always on (fixed cost with nobody using it); sleeping only on weeknights (saves little); a serverless PostgreSQL outside GCP (another provider, and a connection different from production). Chosen: off by default, started on demand.
 - Using `aleogr/aleogr` as the Codespaces dotfiles repository.
 - One CI workflow per component with an `on.push.paths` filter (blocks required checks).
 - `secrets: inherit` in reusable workflows.
@@ -886,42 +904,53 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - Family skills calling other families' skills directly: replaced by `requests` in the `aleogr-result` block, routed by the orchestrator.
 - Deploys through the hosting provider's own Git integration: CI is the single deploy path.
 - Long-lived cloud keys stored as CI secrets: replaced by OIDC (`ci-identity-setup`).
-- Managed cache/search with fixed cost in the lab: serverless or free tier instead.
+- Managed cache/search with fixed cost in `dev`: serverless or free tier instead.
 - Versioned content in Portuguese: everything in the repository is in English (section 0).
+- A subdomain for everything that is not production (`lab.aleogr.dev`, with addresses such as `<project>.lab.aleogr.dev`): its only purpose was to avoid collisions with other names of the domain, which the environment suffix already prevents ([section 6.1](#61-addresses-of-a-projects-environments)); it also gave the word "lab" two meanings (the umbrella and one environment).
+- A second GCP organization for the tests: an organization is created automatically, one per Google account (or one per Workspace/Cloud Identity account with a domain), so a second one needs a second account or a domain ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); it would also mean two sets of policies to keep equal and skills that must choose between organizations. The folder `tst` gives what matters: a cleanup limited to tests ([section 6.7](#67-gcp-organization-folders-and-billing)).
+- `tst` as a fourth environment, or every test project flat inside `tst`: a test project must go through the real environments and the real "folder of its environment" rule.
 
 ---
 
 ## 17. Implementation strategy
 
-- Build guided by the **NEXT REAL PROJECT**: only the plugins, workflows, actions and Features it requires (probably `aleogr`, `aleogr-repo-github`, `aleogr-cloud-gcp`, `aleogr-dns-cloudflare`, the `base` Feature, the `lab` cloud environment and the reusable workflows for the project's stacks). **Goal:** the project comes out of nothing without me opening any dashboard.
-- Before the first project: redesign and declare the lab platform, from scratch ([sections 6](#6-the-lab-project-environments-and-minimum-cost), [7](#7-where-data-lives) and [18](#18-open-items)).
+- Build guided by the **NEXT REAL PROJECT**: only the plugins, workflows, actions and Features it requires (probably `aleogr`, `aleogr-repo-github`, `aleogr-cloud-gcp`, `aleogr-dns-cloudflare`, the `base` Feature, the `base` cloud environment and the reusable workflows for the project's stacks). **Goal:** the project comes out of nothing without me opening any dashboard.
+- Before the first project: redesign and declare the shared platform, from scratch ([sections 6](#6-project-environments-the-shared-platform-and-minimum-cost), [7](#7-where-data-lives) and [18](#18-open-items)).
 - **Orchestrator MVP:** `tools-check`, `project-declare`, `project-plan`, `project-apply`, plus the destructive command guard hook (already with the test exceptions) and read permissions in `allow`.
 - The next real project's declaration, with fictitious values, becomes the first example in `.claude-plugin/schemas/examples/` and the first end-to-end test, before being applied to the real project.
 - New families, providers, actions, workflows, Features and cloud environments come in when a real project needs them.
+- **Until the first real project starts, the reference project `pilot` drives the tooling** ([section 15.4](#154-reference-project)). The first real project is an identity provider (Go, monorepo, not multi-tenant); later products may be multi-tenant, which is why `pilot` is multi-tenant from the start.
+- **Stages after the shared platform** (stages 1 and 2 created it, [section 18](#18-open-items)); none is implemented yet:
+  3. repository: the GitHub plugin, the declaration, `project-declare`, `project-plan` and `project-apply`, a Go skeleton and CI;
+  4. running in `dev`: the GCP project, a database on the shared instance, both services behind the login, CD;
+  5. addresses and tenants: the Cloudflare plugin, certificates, `tenant-add`, and the test that opens `status` to the public and closes it again;
+  6. the rest: a third component with scheduled checks, `hom`, removal with the destructive-command hook, and the disposable `test-<id>` scenarios.
 
 ---
 
 ## 18. Open items
 
-- [x] **Create the lab platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-lab-shared-resources)). Created on 2026-11-16 by `platform-apply`, in the Windows app.
+- [x] **Create the shared platform, free part (stage 1):** the shared project, its APIs and the budget alert ([section 6.8](#68-shared-platform-resources)). Created on 2026-11-16 by `platform-apply`, in the Windows app.
 - [x] **First real run of stage 1**, by me in the Windows app, on 2026-11-16, following [`plans/2026-11-16-lab-platform-stage-1-run.md`](plans/2026-11-16-lab-platform-stage-1-run.md). It ended with `nothing to do`; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [x] `platform-plan`, run without a project id, finds the existing shared project by its labels: confirmed on 2026-11-16, in a new session.
-- [x] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): created on 2026-11-17 by `platform-apply`, in the Windows app, on the first attempt. The night stop was proven at creation, and the manual workflow ran `status`, `start` and `stop`. What the run showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [x] **Create the shared platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-shared-platform-resources)): created on 2026-11-17 by `platform-apply`, in the Windows app, on the first attempt. The night stop was proven at creation, and the manual workflow ran `status`, `start` and `stop`. What the run showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [ ] Confirm on the first bill that the public address is charged only while the instance is stopped, and the real fixed cost of the stopped instance.
 - [x] The `starting` state works in a real run (2026-11-17): the workflow showed `starting` after a start and `running` minutes later; the switch account may list the instance's operations.
 - [x] Knowledge Catalog integration turned off on the shared instance (2026-11-17); new instances are created with it off.
 - [x] The fields the budget comparison and the jobs' last run read are right (2026-11-17, `platform-plan` in Cloud Shell): the budget showed as compared and equal, the weeknight job's last run as succeeded, the weekend job as never run. Not exercised: `gcloud billing budgets update` (nothing differed) and a job whose last run failed.
 - [ ] Build the destructive-command hook ([section 13.1](#131-hooks)) with the first `*-remove` skill (`database-remove`); until then the shared instance relies on the provider's deletion protection.
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
-- [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
-- [ ] Create the Claude Code `lab` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/lab.md`.
+- [ ] Move the real resources to the new names, by me with guidance: rename the folder `lab` to `dev`, create `tst` and `tst/dev`, create the shared project under its new id with `platform-apply`, replace the GitHub secrets, delete the old project, instance and budget, and remove the DNS records of `lab.aleogr.dev`.
+- [ ] Before proxying any environment (`prd` included), test that the destination (a Cloud Run domain mapping) still issues and renews its certificate behind the Cloudflare proxy ([section 6.2](#62-https-and-certificates)).
+- [ ] Test, on the first service in `dev`: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
+- [ ] Create the Claude Code `base` cloud environment; test whether the setup script can register the marketplace and install plugins; define the allowed domains and network secrets (e.g. Cloudflare API token); version the canonical definition in `docs/cloud-environments/base.md`.
 - [ ] Measure the project SessionStart hook in cloud sessions (it runs on every session start, without the setup script cache) to define the practical limit of a "light" need; above it, the need goes to an environment.
 - [ ] Check how Claude Code cloud environments can be associated with repositories in the current product (section 14.2 says they do not belong to repositories) and whether that changes the naming rule.
 - [ ] Define how FAMILY plugins reach cloud sessions. Options:
-  - (a) the `lab` setup script installs all marketplace plugins (no collision, thanks to the provider in skill names, but more skills in context);
+  - (a) the `base` setup script installs all marketplace plugins (no collision, thanks to the provider in skill names, but more skills in context);
   - (b) a project SessionStart hook, only when `CLAUDE_CODE_REMOTE=true`, installs the declaration's plugins (test whether they load without restarting the session).
 - [ ] Define the test execution details ([section 15](#15-tests)) before implementing them.
-- [ ] Define the lab platform identifiers that cannot be deduced and store them in `aleogr/aleogr`; configure budget alerts. The three values of stage 2 (the shared project's id, the federation provider's name and the switch account's e-mail) are Actions **secrets**, not variables: the repository's logs are public and only secrets are masked.
+- [ ] Define the shared platform identifiers that cannot be deduced and store them in `aleogr/aleogr`; configure budget alerts. The three values of stage 2 (`GCP_SHARED_PROJECT_ID`, `GCP_SHARED_WIF_PROVIDER` and `GCP_SHARED_SWITCH_ACCOUNT`: the shared project's id, the federation provider's name and the switch account's e-mail) are Actions **secrets**, not variables: the repository's logs are public and only secrets are masked.
 - [x] Registration via `extraKnownMarketplaces` with `path`: tested on 2026-11-16 in the Windows app. The marketplace is downloaded, but the app lists no plugin from it. The catalog moved to the standard location ([section 2.2](#22-marketplace-structure-rules)).
 - [x] Plugins install in the Windows app from the catalog at the standard location, with the plugin folders inside `.claude-plugin/`: confirmed on 2026-11-16.
 - [ ] Test referencing a local Feature in a nested path (`./features/src/base`); if it doesn't work, move the Features up one level.
@@ -932,4 +961,4 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [x] Protection of `aleogr/aleogr`'s `main`: a branch ruleset named `main`, created by hand on 2026-11-17 (active, empty bypass list, default branch; restrict deletions, block force pushes, require a pull request with 0 approvals). Made by hand because the repository of the marketplace is not created by the skills; `github_branch-protect` ([`CONTRACTS.md`](CONTRACTS.md)) must find it and change nothing when it exists.
 - [x] The GitHub account has two-factor authentication on (checked on 2026-11-17).
-- [ ] Choose the next real project to guide the MVP.
+- [ ] Start the first real project (an identity provider, [section 17](#17-implementation-strategy)) once the reference project `pilot` has gone through the stages there.

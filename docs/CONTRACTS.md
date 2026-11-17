@@ -42,13 +42,13 @@ These rules apply to every action of every family, in addition to [DESIGN.md sec
 ### 1.2 Modes
 
 - **`plan` / `apply`** (every action except `*-describe`): `plan` reports what would change, without changing anything; `apply` executes. Both share the same logic, so `project-plan` never diverges from `project-apply`.
-- **`shared` / `dedicated`** (families that create runtime resources): `shared` = inside the lab platform; `dedicated` = own resources. Default: `shared` in the `lab` project environment, `dedicated` elsewhere. Each family states below what `shared` means for it, or "n/a".
+- **`shared` / `dedicated`** (families that create runtime resources): `shared` = inside the shared platform; `dedicated` = own resources. Default: `shared` in the `dev` project environment, `dedicated` elsewhere. Each family states below what `shared` means for it, or "n/a".
 - **`test` / `live`** (special-care families: payments, registrar, store, sms, publish): `test` by default; `live` only with explicit confirmation.
 
 ### 1.3 Inputs
 
 - Provider-neutral field names (`owner`, `name`, `environment`, `component`...). Provider-specific options live in the family plugin's sub-schema, under `options`.
-- Every action that creates runtime resources receives `project`, `environment` (`lab` | `hom` | `prd`) and, for component-scoped families, `component`.
+- Every action that creates runtime resources receives `project`, `environment` (`dev` | `hom` | `prd`) and, for component-scoped families, `component`.
 - Names and labels follow [DESIGN.md section 1](DESIGN.md#1-names); the skill derives them, the user never types them.
 - **Secret values never pass through the conversation.** A secret input is a `secretRef` (`{ "store": "<secrets provider>", "name": "<name>" }`). A secret produced by an action (API key, password, signing key) is piped directly from the producing command into the secrets-* store, never printed; the output carries only its `secretRef`. When a human must type a value, the skill shows the command for the user to run with `!` (e.g. `! gh secret set NAME`).
 
@@ -65,7 +65,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
   "mode": "apply",
   "status": "created",
   "resources": [
-    { "type": "database", "id": "lab-instance/project1", "name": "project1",
+    { "type": "database", "id": "aleogr-shared/project1", "name": "project1",
       "labels": { "aleogr-project": "project1" } }
   ],
   "outputs": { "host": "...", "port": 5432, "database": "project1" },
@@ -86,7 +86,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 
 - `status`: `created` | `updated` | `unchanged` | `pending` | `failed` (apply); `would-create` | `would-update` | `unchanged` (plan, with a `changes` list).
 - `requests` is the glue between families: a family never calls another family's skill; it asks, and the orchestrator routes the request in the right apply step ([DESIGN.md section 12.2](DESIGN.md#122-apply-order)):
-  - `dnsRecords` → dns-* (or the lab single access point) in step 8;
+  - `dnsRecords` → dns-* in step 8;
   - `ciSecrets` / `ciVariables` → repo-* `ci-set-secret` / `ci-set-variable` in step 10;
   - `devcontainerFeatures` → orchestrator assembles `devcontainer.json` in step 7;
   - `checks` → repo-* `branch-protect` (required checks) in step 10.
@@ -120,7 +120,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 Notes:
 
 - `branch-protect` runs twice in apply: step 1 (no checks yet) and step 10 (with `checks` from `ci-setup`).
-- Project environments (`lab`/`hom`/`prd`) map to the provider's deployment environments; covered by the `environment` scope.
+- Project environments (`dev`/`hom`/`prd`) map to the provider's deployment environments; covered by the `environment` scope.
 - Repository deletion is not in the contract: only the test cleanup deletes repositories.
 - Bitbucket has no topics; the federated layout and tests depend on topics (recorded limitation).
 - Topic `aleogr-<project>` would collide with `aleogr-test` for a project named `test`: that is why the name `test` is reserved as well as the `test-` prefix ([DESIGN.md section 1](DESIGN.md#tests)).
@@ -145,13 +145,13 @@ Notes: no transfer or deletion in the contract. Renewal price is always shown be
 
 ### dns-* (exclusive per domain, domain) — cloudflare, aws-route53, gcp-cloud-dns
 
-`shared`: records in the `aleogr.dev` zone under `lab.aleogr.dev` (or a route in the single access point — **pending**, DESIGN.md section 18).
+`shared`: records in the `aleogr.dev` zone, directly under it (`<project>-<environment>.aleogr.dev` and its tenants, DESIGN.md section 6.1).
 
 | Action | Input | Output |
 |---|---|---|
 | `zone-describe` | zone | exists, nameservers, records (filterable by name pattern) |
 | `zone-create` | zone | zone id, nameservers (request to registrar-* `nameservers-set`) |
-| `record-add` | name, type, target, TTL, proxied (if supported; off in `lab` and `hom`, on in `prd`) | record id; upsert (idempotent) |
+| `record-add` | name, type, target, TTL, proxied (if supported; off in `dev` and `hom` by choice, always off for tenants there; on in `prd`) | record id; upsert (idempotent) |
 | `record-remove` | name, type | removed |
 
 Notes:
@@ -160,7 +160,7 @@ Notes:
 
 ### cdn-* (exclusive per domain, domain) — cloudflare, akamai, aws-cloudfront
 
-`shared`: n/a. Records in `lab` and `hom` are unproxied (DESIGN.md section 6.2), so there is no CDN in front of them; cdn-* applies to `prd`.
+`shared`: n/a. Records in `dev` and `hom` are unproxied (a choice for the project's address, a limit for tenants: DESIGN.md section 6.2), so there is no CDN in front of them; cdn-* applies to `prd`.
 
 | Action | Input | Output |
 |---|---|---|
@@ -171,7 +171,7 @@ Notes:
 | `cache-purge` | host, paths (or all) | purged |
 | `cdn-remove` | host | removed |
 
-Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project needs its own domain to be covered by the free certificate). In `lab` and `hom` the certificate is issued by the destination (DESIGN.md section 6.2).
+Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project needs its own domain to be covered by the free certificate). In `dev` and `hom` the certificate is issued by the destination (DESIGN.md section 6.2).
 
 ---
 
@@ -179,32 +179,32 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 
 ### cloud-* (combinable with exactly one primary, project) — aws, azure, gcp
 
-`shared`/`dedicated`: n/a. Every project has its own environment per project environment; `environment-create` always creates it (idempotent). The lab's shared environment is part of the lab platform (DESIGN.md section 6.8).
+`shared`/`dedicated`: n/a. Every project has its own environment per project environment; `environment-create` always creates it (idempotent). The shared platform project is part of the shared platform (DESIGN.md section 6.8).
 
 | Action | Input | Output |
 |---|---|---|
-| `environment-describe` | project and environment, or the environment id (`projectId` on GCP) | exists, parent, billing linked, enabled services, labels; identities and budget alerts (planned) |
-| `environment-create` | project, environment, `platform` (`lab`: the lab's shared environment), parent and billing reference (discovered by the skill), region (planned) | environment id (GCP project / AWS account / Azure subscription + resource group); repairs an existing environment whose billing is not linked |
-| `services-enable` | project and environment, or the environment id (`projectId` on GCP); provider API names (neutral capabilities `run`, `sql`, `secrets`, `storage`, `registry`... planned) | enabled and already enabled provider APIs/services |
+| `environment-describe` | project and environment, the shared platform project (`project=shared platform=shared` on GCP), or the environment id (`projectId` on GCP) | exists, parent, billing linked, enabled services, labels; identities and budget alerts (planned) |
+| `environment-create` | project, environment, `platform` (`shared`: the shared platform project, with no environment), `root` (`tst`: a project that tests the tooling, created inside the folder `tst`), parent and billing reference (discovered by the skill), region (planned) | environment id (GCP project / AWS account / Azure subscription + resource group); repairs an existing environment whose billing is not linked |
+| `services-enable` | project and environment, the shared platform project (`project=shared platform=shared` on GCP), or the environment id (`projectId` on GCP); provider API names (neutral capabilities `run`, `sql`, `secrets`, `storage`, `registry`... planned) | enabled and already enabled provider APIs/services |
 | `ci-identity-setup` | repository (owner/name), allowed branches/environments, roles | keyless CI identity (OIDC / workload identity federation); `ciVariables` with its non-secret identifiers |
-| `deploy-setup` | component, image or source, environment, hosts, access (login or public), scaling (min 0 and a maximum of instances in lab), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
+| `deploy-setup` | component, image or source, environment, hosts, access (login or public), scaling (min 0 and a maximum of instances in `dev`), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
 | `access-grant` | component, environment, person (e-mail) | applied binding |
 | `deploy-remove` | component, environment | removed |
 | `budget-alert-setup` | display name, amount, currency, thresholds, quota project (scope: the whole billing account; per project and notification target planned) | display name (the alert id) |
 
 Notes:
 
-- On GCP the parent of an environment is the folder of its environment, except for the lab's shared environment (`platform=lab`), which is created directly under the organization (DESIGN.md section 6.7). The skill discovers the parent and the billing account; the owner never types them.
+- On GCP the parent of an environment is the folder of its environment, under the organization or, with `root=tst`, inside the folder `tst`; the shared platform project (`platform=shared`) is the exception, created directly under the organization (DESIGN.md section 6.7). The skill never creates folders. The skill discovers the parent and the billing account; the owner never types them.
 - Implemented: `environment-describe`, `environment-create`, `services-enable` and `budget-alert-setup` (skills in `.claude-plugin/plugins/aleogr-cloud-gcp/skills/`). The other actions are planned.
 - CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation.
-- `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `lab` and `hom` (DESIGN.md section 6.1).
-- In `lab`, `deploy-setup` must scale to zero, use the smallest size and set a maximum of instances (DESIGN.md section 6.5).
-- In `lab` and `hom`, `deploy-setup` puts the lab login in front of the service unless the component is declared public (DESIGN.md section 6.3); `access-grant` adds a person to the allowed list.
+- `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `dev` and `hom` (DESIGN.md section 6.1).
+- In `dev`, `deploy-setup` must scale to zero, use the smallest size and set a maximum of instances (DESIGN.md section 6.5).
+- In `dev` and `hom`, `deploy-setup` puts the login in front of the service unless the component is declared public (DESIGN.md section 6.3); `access-grant` adds a person to the allowed list.
 - Only the primary cloud receives secrets-* by default.
 
 ### secrets-* (exclusive, project) — aws-secrets-manager, gcp-secret-manager, azure-key-vault
 
-`shared`: the lab platform's vault, names prefixed with the project.
+`shared`: the shared platform's vault, names prefixed with the project.
 
 | Action | Input | Output |
 |---|---|---|
@@ -222,14 +222,14 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### db-* (combinable, project) — aws-rds, gcp-cloud-sql, azure-sql
 
-`shared`: database + user on the lab's single instance.
+`shared`: database + user on the shared platform's single instance.
 
 `instance-describe`, `instance-start`, `instance-stop` and `instance-switch-setup` are actions of providers whose instances do not scale to zero (`gcp-cloud-sql`): the instance stays stopped and is started on demand ([DESIGN.md](DESIGN.md) section 6.8).
 
 | Action | Input | Output |
 |---|---|---|
 | `database-describe` | project, environment | instance, database, users, size tier, backups |
-| `instance-create` | engine, version, tier, region; `platform` (`lab`: the lab's shared instance, passed only by the orchestrator's platform skills); optional `stopJob` (the scheduler job that stops the instance at night: run once to stop the new instance, which proves it works) | instance id, `cost.fixed: true` (`dedicated` only; refused in `lab`, except `platform=lab`) |
+| `instance-create` | engine, version, tier, region; `platform` (`shared`: the shared platform's instance, passed only by the orchestrator's platform skills); optional `stopJob` (the scheduler job that stops the instance at night: run once to stop the new instance, which proves it works) | instance id, `cost.fixed: true` (`dedicated` only; refused in `dev`, except `platform=shared`) |
 | `instance-describe` | project id, instance name | exists, state (`stopped`, `starting`, `running`, `creating`), settings, last backup |
 | `instance-start` | project id, instance name | state seen after the change (`starting`, `running`, or briefly `stopped`) |
 | `instance-stop` | project id, instance name | state (`stopped`) |
@@ -241,7 +241,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### cache-* (exclusive, project) — aws-elasticache, gcp-memorystore, redis-cloud
 
-`shared`: a key namespace (prefix + ACL user) per project. Managed caches usually have fixed cost: in `lab`, use a serverless or free-tier provider (e.g. Upstash, Redis Cloud free); `instance-create` is `dedicated` only.
+`shared`: a key namespace (prefix + ACL user) per project. Managed caches usually have fixed cost: in `dev`, use a serverless or free-tier provider (e.g. Upstash, Redis Cloud free); `instance-create` is `dedicated` only.
 
 | Action | Input | Output |
 |---|---|---|
@@ -252,7 +252,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### storage-* (combinable, project) — aws-s3, gcp-storage, azure-blob
 
-`shared`: a prefix in the lab bucket. `dedicated`: own bucket (names are global: convention + short suffix).
+`shared`: a prefix in the shared bucket. `dedicated`: own bucket (names are global: convention + short suffix).
 
 | Action | Input | Output |
 |---|---|---|
@@ -264,7 +264,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### registry-* (exclusive, project) — docker-hub, ghcr, aws-ecr
 
-`shared`: a repository per project in the lab registry.
+`shared`: a repository per project in the shared registry.
 
 | Action | Input | Output |
 |---|---|---|
@@ -276,7 +276,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### search-* (exclusive, project) — elastic, algolia, aws-opensearch
 
-`shared`: indexes prefixed with the project. Clusters usually have fixed cost: in `lab`, use a serverless or free-tier provider (e.g. Algolia free); `cluster-create` is `dedicated` only.
+`shared`: indexes prefixed with the project. Clusters usually have fixed cost: in `dev`, use a serverless or free-tier provider (e.g. Algolia free); `cluster-create` is `dedicated` only.
 
 | Action | Input | Output |
 |---|---|---|
@@ -292,7 +292,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### auth-* (exclusive, project) — auth0, firebase-auth, aws-cognito
 
-`shared`: one application per project in a lab-wide tenant/pool.
+`shared`: one application per project in a shared tenant/pool.
 
 | Action | Input | Output |
 |---|---|---|
@@ -304,7 +304,7 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 
 ### email-* (exclusive, project) — sendgrid, aws-ses, mailgun
 
-`shared`: lab sending domain with per-project keys; sandbox/test mode (only verified recipients).
+`shared`: a shared sending domain with per-project keys; sandbox/test mode (only verified recipients).
 
 | Action | Input | Output |
 |---|---|---|
@@ -342,7 +342,7 @@ Treated as special care (numbers and messages cost money). `test` mode by defaul
 
 ### payments-* (combinable, project) — stripe, paypal, adyen
 
-Special care. `test` mode by default; `shared`: n/a (one account, test mode in lab).
+Special care. `test` mode by default; `shared`: n/a (one account, test mode in `dev` and `hom`).
 
 | Action | Input | Output |
 |---|---|---|
@@ -356,7 +356,7 @@ Special care. `test` mode by default; `shared`: n/a (one account, test mode in l
 
 ### llm-* (combinable, project) — anthropic, openai, google-gemini
 
-`shared`: one key per project in the lab workspace/organization.
+`shared`: one key per project in the shared workspace/organization.
 
 | Action | Input | Output |
 |---|---|---|
@@ -367,12 +367,12 @@ Special care. `test` mode by default; `shared`: n/a (one account, test mode in l
 
 ### flags-* (exclusive, project) — launchdarkly, unleash, flagsmith
 
-`shared`: one project per lab project in a lab-wide account.
+`shared`: one project per aleogr project in a shared account.
 
 | Action | Input | Output |
 |---|---|---|
 | `flags-describe` | project | project, environments, SDK keys (names) |
-| `project-create` | project, environments (`lab`/`hom`/`prd`) | project id, environments |
+| `project-create` | project, environments (`dev`/`hom`/`prd`) | project id, environments |
 | `sdk-key-create` | environment, type (server/client) | `secretRef` (client keys may go to `ciVariables` — not secret) |
 | `project-remove` | project | removed |
 
@@ -411,7 +411,7 @@ Notes: embedded/wearable platforms may add extras such as `device-flash`.
 
 ### hosting-* (combinable, component) — vercel, netlify, cloudflare-pages
 
-`shared`: one site per component in the lab account; deploys come from CI (thin workflow), not from the provider's Git integration, so CI stays the single path.
+`shared`: one site per component in the shared account; deploys come from CI (thin workflow), not from the provider's Git integration, so CI stays the single path.
 
 | Action | Input | Output |
 |---|---|---|
@@ -427,7 +427,7 @@ Notes: embedded/wearable platforms may add extras such as `device-flash`.
 
 ### monitoring-* (combinable, project) — sentry, datadog, new-relic
 
-`shared`: one project per component in the lab organization.
+`shared`: one project per component in the shared organization.
 
 | Action | Input | Output |
 |---|---|---|
@@ -439,7 +439,7 @@ Notes: embedded/wearable platforms may add extras such as `device-flash`.
 
 ### analytics-* (combinable, component) — google-analytics, mixpanel, amplitude
 
-`shared`: one property/stream per component and environment in the lab account.
+`shared`: one property/stream per component and environment in the shared account.
 
 | Action | Input | Output |
 |---|---|---|
@@ -529,5 +529,5 @@ Decided (reflected in DESIGN.md):
 5. Project name `test` reserved, as well as the `test-` prefix.
 6. sms-* and publish-* are special-care families.
 7. hosting-*: deploys only from CI.
-8. cache-* and search-* in `lab`: serverless or free tier.
-9. dns-* in `lab` is `record-add`: every hostname has its own record; there is no router and no `route-add`.
+8. cache-* and search-* in `dev`: serverless or free tier.
+9. dns-* in `dev` and `hom` is `record-add`: every hostname has its own record; there is no router and no `route-add`.
