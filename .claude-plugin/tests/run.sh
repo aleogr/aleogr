@@ -28,6 +28,7 @@ out="$work/claude.out"
       --model "${TEST_MODEL:-sonnet}" \
       --plugin-dir "$plugins/aleogr" \
       --plugin-dir "$plugins/aleogr-cloud-gcp" \
+      --plugin-dir "$plugins/aleogr-db-gcp-cloud-sql" \
       --allowedTools "Bash" "Skill" "Read" \
       < /dev/null > "$out" 2>&1
 )

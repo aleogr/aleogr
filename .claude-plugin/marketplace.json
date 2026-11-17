@@ -16,6 +16,13 @@
       "description": "Google Cloud family: project environments, services and budget alerts.",
       "category": "cloud",
       "displayName": "Google Cloud (cloud)"
+    },
+    {
+      "name": "aleogr-db-gcp-cloud-sql",
+      "source": "./.claude-plugin/plugins/aleogr-db-gcp-cloud-sql",
+      "description": "Cloud SQL family: the lab's shared PostgreSQL instance and its start and stop.",
+      "category": "db",
+      "displayName": "Cloud SQL (database)"
     }
   ]
 }

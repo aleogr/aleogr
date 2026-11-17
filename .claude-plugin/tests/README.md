@@ -1,7 +1,7 @@
 # Skill tests
 
-A headless harness that runs the real skills of `plugins/aleogr` and
-`plugins/aleogr-cloud-gcp` with `claude -p`, against a fake `gcloud`, and checks
+A headless harness that runs the real skills of `plugins/aleogr`,
+`plugins/aleogr-cloud-gcp` and `plugins/aleogr-db-gcp-cloud-sql` with `claude -p`, against a fake `gcloud`, and checks
 which `gcloud` calls the skill made. Nothing is created outside the repository.
 
 ```
