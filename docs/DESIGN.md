@@ -898,6 +898,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Confirm on the first bill that the public address is charged only while the instance is stopped, and the real fixed cost of the stopped instance.
 - [x] The `starting` state works in a real run (2026-11-17): the workflow showed `starting` after a start and `running` minutes later; the switch account may list the instance's operations.
 - [x] Knowledge Catalog integration turned off on the shared instance (2026-11-17); new instances are created with it off.
+- [ ] Confirm in a real run the fields two checks read: an existing budget's amount and thresholds (`gcloud billing budgets describe`), and a scheduler job's last run (`lastAttemptTime`, `status.code`). When a field is not found, the budget is reported as `exists, not compared` and a job's last run as not failed: neither changes anything.
 - [ ] Build the destructive-command hook ([section 13.1](#131-hooks)) with the first `*-remove` skill (`database-remove`); until then the shared instance relies on the provider's deletion protection.
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.

@@ -59,6 +59,10 @@ The stop body: the describe prints the job's body encoded in base64; decoded, it
 
 A job that exists with another schedule, time zone, URI, account, HTTP method, body or token scope, or without one of the two headers is "different" and is updated with all its values (Cloud Scheduler may add headers of its own, such as `User-Agent`: extra headers do not make a job different); a job whose state is not `ENABLED` (paused) is "different" and is resumed. A job that points at another instance would not stop this one, and a job without the override header would not stop any instance, so neither is ever "equal". A role, pool or provider that exists but differs has no command here to change it: no create command runs for it (creating it again would fail, and would not fix it), it is not touched, it stays in `missing`, and the answer says what to fix by hand.
 
+## The last run of each job
+
+The job describe also prints when the job last ran (`lastAttemptTime`) and the result of that run (`status.code`: absent or `0` when it succeeded, another number when it failed). A job whose last run failed is still "equal" when its settings are right — nothing here changes it — but the night stop may not be working: list it in `outputs.lastRunFailed` (`job-weeknight`, `job-weekend`) and say in the answer, in one sentence, that the last run of that job failed and that the instance may have been left running. A job that never ran has neither value: that is not a failure. `ready` and the status do not change because of it.
+
 ## Steps
 
 Show each command before running it. Run only the commands below, in the order of the parts. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. The project number and the e-mails (the account, the active account) appear in the commands shown and in the `GitHub secrets` section; they never appear in the result block nor elsewhere in the answer. Every value with a comma, a space, a quote or `&` is double-quoted, as below.
@@ -81,7 +85,7 @@ Show each command before running it. Run only the commands below, in the order o
    gcloud iam service-accounts get-iam-policy <account> --project=<projectId> --format=json
    gcloud iam workload-identity-pools describe github --project=<projectId> --location=global --format="value(state)"
    gcloud iam workload-identity-pools providers describe aleogr --project=<projectId> --location=global --workload-identity-pool=github --format="value(attributeCondition)"
-   gcloud scheduler jobs describe <job> --project=<projectId> --location=<region> --format="value(schedule,timeZone,state,httpTarget.uri,httpTarget.oauthToken.serviceAccountEmail,httpTarget.httpMethod,httpTarget.headers,httpTarget.body,httpTarget.oauthToken.scope)"
+   gcloud scheduler jobs describe <job> --project=<projectId> --location=<region> --format="value(schedule,timeZone,state,httpTarget.uri,httpTarget.oauthToken.serviceAccountEmail,httpTarget.httpMethod,httpTarget.headers,httpTarget.body,httpTarget.oauthToken.scope,lastAttemptTime,status.code)"
    ```
 
    The service account policy is read once and answers both `act-as` and `federation-grant`. Run the jobs describe once per job. Its output is one line of tab-separated values in the order of the format; the headers print as `Name=value` pairs separated by `;`.
@@ -143,7 +147,7 @@ End with exactly one fenced block tagged `aleogr-result`:
     { "type": "scheduler-job", "id": "aleogr-lab-stop-weeknight", "name": "aleogr-lab-stop-weeknight", "labels": {} },
     { "type": "scheduler-job", "id": "aleogr-lab-stop-weekend", "name": "aleogr-lab-stop-weekend", "labels": {} }
   ],
-  "outputs": { "ready": true, "missing": [] },
+  "outputs": { "ready": true, "missing": [], "lastRunFailed": [] },
   "cost": { "fixed": false, "notes": "the switch has no cost of its own; the instance costs about R$ 50 per month while stopped" },
   "pending": []
 }
@@ -153,5 +157,5 @@ End with exactly one fenced block tagged `aleogr-result`:
 - `resources` lists only the parts that exist at the end (as of the last check), with the ids above. The identifiers of the account, the project number and any e-mail never appear in it, nor in `outputs`.
 - `outputs.ready` is true only when every part exists and is equal; `outputs.missing` lists the parts still missing or different, by the names `role`, `account`, `role-grant`, `act-as`, `pool`, `provider`, `federation-grant`, `job-weeknight`, `job-weekend`, in that order. In `plan`, `ready` is false whenever `missing` is not empty.
 - `pending` (the status) has one item per part left, whose `how` is this same invocation with `mode=apply` (or the manual fix for a part that differs).
-- `failed` from validation or from the first check: `resources` is empty and `outputs` is `{ "ready": false, "missing": [] }`; a `failed` where nothing exists (after the checks) has all nine parts in `missing`.
+- `failed` from validation or from the first check: `resources` is empty and `outputs` is `{ "ready": false, "missing": [], "lastRunFailed": [] }`; a `failed` where nothing exists (after the checks) has all nine parts in `missing`.
 - `cost` as above.

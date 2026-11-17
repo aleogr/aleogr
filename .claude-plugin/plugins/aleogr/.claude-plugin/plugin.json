@@ -1,6 +1,6 @@
 {
   "name": "aleogr",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Orchestrator: checks tools and plans and creates the lab platform (shared project, budget alert and the shared Cloud SQL database with its night switch).",
   "author": {
     "name": "aleogr"

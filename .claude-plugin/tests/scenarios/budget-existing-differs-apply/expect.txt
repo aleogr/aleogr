@@ -1,0 +1,7 @@
+# The existing budget has another amount: apply updates it and reads it again.
+CALLED ^billing budgets update b1b1b1b1-0000-4000-8000-000000000001 .*--budget-amount=100BRL
+CALLED ^billing budgets update .*--clear-threshold-rules .*--add-threshold-rule=percent=0.5
+NOT_CALLED ^billing budgets create
+COUNT 2 ^billing budgets describe b1b1b1b1-0000-4000-8000-000000000001
+OUTPUT "status": "updated"
+RESULT_NOT 0X0X0X

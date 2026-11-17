@@ -1,0 +1,7 @@
+# The budget exists with the amount and thresholds asked: compared, nothing changes.
+CALLED ^billing budgets describe b1b1b1b1-0000-4000-8000-000000000001 .*--billing-account=0X0X0X-0X0X0X-0X0X0X
+NOT_CALLED ^billing budgets (create|update)
+OUTPUT "status": "unchanged"
+OUTPUT "compared": true
+RESULT_NOT 0X0X0X
+RESULT_NOT b1b1b1b1

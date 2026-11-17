@@ -99,6 +99,7 @@ jobs:
             exit 0
           fi
           # Stop: wait until the operation is done (every 15 seconds, at most about 5 minutes).
+          unreadable=0
           for attempt in $(seq 1 20); do
             sleep 15
             op="$(mktemp)"
@@ -114,6 +115,14 @@ jobs:
                 fi
                 echo "The stop is done."
                 exit 0
+              fi
+              unreadable=0
+            else
+              # Three reads in a row failed: say so now instead of waiting for the timeout.
+              unreadable=$((unreadable + 1))
+              if [ "$unreadable" -ge 3 ]; then
+                echo "::error::The stop was accepted, but its progress could not be read. Run status to see the instance's state."
+                exit 1
               fi
             fi
           done

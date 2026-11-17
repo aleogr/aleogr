@@ -1,0 +1,5 @@
+# The existing budget has another amount: the plan says so and changes nothing.
+CALLED ^billing budgets describe b1b1b1b1-0000-4000-8000-000000000001
+NOT_CALLED ^billing budgets (create|update)
+OUTPUT "status": "would-update"
+OUTPUT 80

@@ -39,7 +39,7 @@ If step 4, 5, 6 or 7 returns `failed`, stop and report it: no later item is gues
 |---|---|
 | `shared project` | Missing: state `missing`, action `create`. Exists with billing linked: `ready`, `none`. Exists without billing: `billing not linked`, `update`. |
 | `services` | Project missing: `not checked, will be checked after the project exists`, `create`. Otherwise from the services result: `unchanged` is `all enabled`, `none`; `would-update` is `missing: <list>`, `update`. |
-| `budget alert` | Project missing: `not checked, will be checked after the project exists`, `create`. Billing not linked or the Budget API not enabled (step 5 not run): `not checked, will be checked after the services are enabled`, `create`. Otherwise `would-create` is `missing`, `create`; `unchanged` is `exists`, `none`. |
+| `budget alert` | Project missing: `not checked, will be checked after the project exists`, `create`. Billing not linked or the Budget API not enabled (step 5 not run): `not checked, will be checked after the services are enabled`, `create`. Otherwise `would-create` is `missing`, `create`; `would-update` is `differs: <outputs.differs>`, `update`; `unchanged` is `exists`, `none` (when its `outputs.compared` is false, the state is `exists, not compared`). |
 | `database switch` | Project missing: `not checked, will be checked after the project exists`, `create`. Services not all enabled (steps 6 and 7 not run): `not checked, will be checked after the services are enabled`, `create`. Otherwise from the switch result: `unchanged` is `ready`, `none`; `would-create` is `missing`, `create`; `would-update` is `incomplete: <outputs.missing>`, `update`; `pending` (a part exists but differs, and only a manual fix changes it) is `incomplete: <outputs.missing>`, `blocked`; `failed` is `unknown`, `blocked`. |
 | `database instance` | Same two "not checked" states as `database switch`. Otherwise from the describe result: `exists` false is `missing`, `create`; otherwise `exists, <state>` (`stopped`, `running`, ...), `none`; describe `failed` is `unknown`, `blocked`. A running instance is never a difference: the night jobs stop it. Not checked (the switch step stopped the plan): `not checked, the database switch is blocked`, `blocked`. |
 
@@ -50,6 +50,7 @@ The items are always listed in this order: `shared project`, `services`, `budget
 Print the table (item, state, action). Under the table, these lines when they apply, worded as here:
 
 - `database instance` has action `create`: `Cost: the database instance has a fixed cost of about R$ 50 per month while stopped, from its creation.`
+- The switch result has entries in `outputs.lastRunFailed`: `The last run of <job names> failed: the night stop may not be working and the instance may have been left running. Check the instance's state and send this output.`
 - `database instance` is `exists, running`, `exists, starting` or `exists, creating`: `The database instance is running and is charged by the hour until it is stopped: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=<projectId> instance=<database.instance>`.
 
 Then one line: `nothing to do` when every action is `none`, otherwise how many items need changes and that `platform-apply` creates them (or, when an item is `blocked`, what blocks it and its fix). Then the result block.
