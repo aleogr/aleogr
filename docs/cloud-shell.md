@@ -53,8 +53,6 @@ Check with `claude plugin list`: the three plugins, enabled.
    cd ~/aleogr && claude
    ```
 
-   If the folder was set up before under the name `~/lab`, rename it once: `mv ~/lab ~/aleogr`.
-
 3. Type the skill, for example `/aleogr:platform-plan`.
 4. When it asks to "allow this read outside the working directories" (the orchestrator reading its own `defaults.json`), choose **"Yes, but ask again next time"**. Do not choose the option that allows every read outside the working directory: the home directory holds the Google credentials.
 5. `/exit` to leave.
