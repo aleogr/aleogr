@@ -1,0 +1,5 @@
+# The first create is refused, the single retry works, then the second job: three creates in all.
+CALLED ^scheduler jobs create http aleogr-lab-stop-weeknight
+CALLED ^scheduler jobs create http aleogr-lab-stop-weekend
+COUNT 3 ^scheduler jobs create http
+OUTPUT "status": "created"

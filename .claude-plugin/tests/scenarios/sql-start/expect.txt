@@ -1,0 +1,4 @@
+CALLED ^sql instances patch aleogr-lab .*--activation-policy=ALWAYS .*--async
+OUTPUT "status": "updated"
+OUTPUT "state": "starting"
+OUTPUT ten minutes

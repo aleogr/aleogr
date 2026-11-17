@@ -1,0 +1,2 @@
+NOT_CALLED ^sql instances patch
+OUTPUT "status": "unchanged"

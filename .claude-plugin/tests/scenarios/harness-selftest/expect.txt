@@ -1,2 +1,9 @@
 CALLED ^projects list
 NOT_CALLED ^projects create
+RESULT_NOT @
+RESULT_NOT selftest-absent
+# State responses: the same describe answers by what was created before it.
+ORDER ^sql instances describe probe >> ^sql instances create probe
+COUNT 2 ^sql instances describe probe
+OUTPUT SELFTEST-BEFORE
+OUTPUT SELFTEST-AFTER

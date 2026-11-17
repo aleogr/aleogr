@@ -9,14 +9,46 @@
 # Numbered responses: files <prefix>.1.txt, <prefix>.2.txt, ... answer the 1st,
 # 2nd, ... call that matches <prefix>; later calls get the last file. The call
 # counter lives in a file next to FAKE_LOG.
-echo "$*" >> "${FAKE_LOG:?FAKE_LOG is not set}"
+# State responses: a file <prefix>+after+<marker>.txt answers calls that match
+# <prefix> once an earlier call matching <marker> (same "_" rule) is in the log.
+# When several apply, the one whose marker call is the most recent wins; when none
+# applies, the files without "+after+" answer as above. They let a read answer by
+# what was changed before it, not by how many reads came before.
+log="${FAKE_LOG:?FAKE_LOG is not set}"
 dir="${FAKE_RESPONSES:-}"
-[ -d "$dir" ] || exit 0
 key="$*"
 key="${key// /_}"
+if [ -d "$dir" ]; then
+  best="" ; best_line=0
+  for f in "$dir"/*+after+*; do
+    [ -f "$f" ] || continue
+    base="$(basename "$f")"
+    name="${base%.exit1}"
+    name="${name%.*}"
+    prefix="${name%%+after+*}"
+    marker="${name#*+after+}"
+    case "$key" in "$prefix"*) ;; *) continue ;; esac
+    line=0 ; i=0
+    while IFS= read -r logged || [ -n "$logged" ]; do
+      i=$(( i + 1 ))
+      logged="${logged// /_}"
+      case "$logged" in "$marker"*) line=$i ;; esac
+    done < <(cat "$log" 2>/dev/null)
+    if [ "$line" -gt "$best_line" ]; then best="$f"; best_line=$line; fi
+  done
+  if [ -n "$best" ]; then
+    echo "$*" >> "$log"
+    cat "$best"
+    case "$best" in *.exit1) exit 1 ;; esac
+    exit 0
+  fi
+fi
+echo "$*" >> "$log"
+[ -d "$dir" ] || exit 0
 for f in "$dir"/*; do
   [ -f "$f" ] || continue
   base="$(basename "$f")"
+  case "$base" in *+after+*) continue ;; esac
   name="${base%.exit1}"
   name="${name%.*}"
   num=""

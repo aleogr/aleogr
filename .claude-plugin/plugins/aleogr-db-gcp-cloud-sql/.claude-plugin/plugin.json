@@ -1,0 +1,6 @@
+{
+  "name": "aleogr-db-gcp-cloud-sql",
+  "version": "0.1.0",
+  "description": "Cloud SQL family: the lab's shared PostgreSQL instance and its start and stop.",
+  "author": { "name": "aleogr" }
+}

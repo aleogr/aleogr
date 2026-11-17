@@ -12,8 +12,9 @@ ORDER ^billing projects link >> ^services enable
 ORDER ^services enable >> ^billing budgets create
 # The label search never shows the new project (it can lag behind the create on real
 # Google Cloud): the services step and the closing re-plan must use the project id instead,
-# through projects describe (the first describe answers the create's lifecycleState check).
-COUNT 2 ^projects describe aleogr-lab-shared-zz99 --format=json
+# through projects describe (the format is not pinned: json, value(lifecycleState), value(projectNumber)). At least 3
+# calls: the create's own verification, the services step and the closing re-plan.
+COUNT 3 ^projects describe aleogr-lab-shared-zz99 --format=(json|value\((lifecycleState|projectNumber)\))
 # Only the closing re-plan reaches these counts. Without it: budgets list is called 2 times
 # (budget step and its verification), services list 2 (services step's describe and its
 # verification). The re-plan adds one each.

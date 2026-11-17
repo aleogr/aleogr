@@ -5,7 +5,7 @@
 ## GCP — Cloud SQL
 
 - **It does not scale to zero.** An instance is charged by the hour while it runs, whether or not anybody uses it. In the previous lab it was 96% of the bill (billing report of 21 August – 19 September 2026): about R$ 0.06 per instance-hour for `db-f1-micro` and about R$ 1 per GiB-month of disk; one instance running all month with 10 GiB cost about R$ 55.
-- **A stopped instance costs only its disk**, but it runs no automated backup and keeps no transaction log for the stopped hours. A backup window that falls inside the stopped hours means no backups at all, with no error; point-in-time recovery can only target a moment the instance was running.
+- **A stopped instance costs its disk AND its public IPv4 address:** US$ 0.01 per hour "while idle" (pricing page read on 2026-11-17). That "idle" means "stopped" is a reading of the page, to confirm on the first bill. It runs no automated backup and keeps no transaction log for the stopped hours. A backup window that falls inside the stopped hours means no backups at all, with no error; point-in-time recovery can only target a moment the instance was running.
 - **Starting a stopped instance is slow:** 686 seconds (about 11.5 minutes) from the start command to accepting connections, measured on 2026-09-21 on `db-f1-micro`.
 - **Shared-core tiers (`db-f1-micro`) only exist in the `ENTERPRISE` edition.** When the edition is not stated, the API picks `ENTERPRISE_PLUS` and refuses the tier.
 - **`db-f1-micro` allows 25 connections**, three of them reserved for superusers: 22 for applications, to be divided among everything that shares the instance.
@@ -16,6 +16,13 @@
 - **No predefined role fits "may create its own database and users, but cannot change the instance".** `roles/cloudsql.editor` cannot create users; `roles/cloudsql.admin` can also delete and reconfigure the instance. A custom role is needed for that boundary.
 - **Starting and stopping an instance requires `cloudsql.instances.update`**, the same permission that resizes the disk and turns deletion protection off. There is nothing narrower.
 - **A public IP with no authorized networks accepts no direct connection.** Access then goes through the Cloud SQL connector, authenticated by IAM (`roles/cloudsql.client`; IAM database users also need `roles/cloudsql.instanceUser` and the flag `cloudsql.iam_authentication`).
+- **`gcloud sql instances create` and `patch` have no flag for the storage growth limit nor for labels** (SDK 570, checked on 2026-11-17). The disk size is the only bound, and the instance is found by its name.
+- **The newest PostgreSQL major version of Cloud SQL is 18** (the documentation page lists it as the default, read on 2026-11-17). The API value `POSTGRES_18` is inferred from the naming pattern of the earlier versions (`POSTGRES_17`, ...): to confirm at the first creation.
+
+## GCP — Cloud Scheduler
+
+- **Three jobs are free per billing account**, counted on the account and not on the project; each extra job costs US$ 0.10 per month (pricing page read on 2026-11-17).
+- **A job can call a Google API with an OAuth token of a service account**, with no function in between, but only with the methods `DELETE`, `GET`, `HEAD`, `POST` and `PUT`: `gcloud scheduler jobs create http` and `update http` have no `PATCH` (SDK 570, checked on 2026-11-17). An API method that needs `PATCH` (such as the Cloud SQL Admin API's `instances.patch`, which starts and stops an instance) is called with `POST` and the header `X-HTTP-Method-Override: PATCH`; `PUT` would replace the whole resource. Not verified against the Cloud SQL Admin API until the first real run: `instance-create` proves it by stopping the new instance with the job.
 
 ## GCP — IAM and identities
 

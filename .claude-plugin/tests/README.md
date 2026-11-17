@@ -1,7 +1,7 @@
 # Skill tests
 
-A headless harness that runs the real skills of `plugins/aleogr` and
-`plugins/aleogr-cloud-gcp` with `claude -p`, against a fake `gcloud`, and checks
+A headless harness that runs the real skills of `plugins/aleogr`,
+`plugins/aleogr-cloud-gcp` and `plugins/aleogr-db-gcp-cloud-sql` with `claude -p`, against a fake `gcloud`, and checks
 which `gcloud` calls the skill made. Nothing is created outside the repository.
 
 ```
@@ -34,8 +34,19 @@ Create `scenarios/<name>/` with:
   (`projects_create.txt.exit1`) prints its content and makes the call fail.
   Numbered files (`billing_projects_describe_x.1.txt`, `...2.txt`) answer the
   first, second, ... call that matches the prefix, and later calls get the
-  last file (`.exit1` may follow any number). Use them when a call must
-  answer differently before and after a change, such as a billing link.
+  last file (`.exit1` may follow any number). They count every matching call,
+  so they break when a model reads one more or one less time than the fixture
+  assumes: prefer state responses below for "before and after a change".
+  State responses (`<prefix>+after+<marker>.txt`, `.exit1` allowed) answer a
+  call that matches `<prefix>` once an earlier call matching `<marker>` (same
+  `_` rule) is in the log; when several apply, the one whose marker call is the
+  most recent wins, and when none applies the other files answer as above. For
+  example `sql_instances_describe.txt.exit1` (missing),
+  `sql_instances_describe+after+sql_instances_create.txt` (running) and
+  `sql_instances_describe+after+sql_instances_patch.txt` (stopped) answer by
+  what was done before each read, however many reads there are. A marker call
+  counts even when it failed: for a change that fails first and works on a
+  retry, use numbered files.
 - `expect.txt`, one check per line (blank lines and `#` comments are ignored):
 
 | Line | Holds when |
@@ -44,6 +55,7 @@ Create `scenarios/<name>/` with:
 | `NOT_CALLED <regex>` | no logged call matches |
 | `COUNT <n> <regex>` | at least `<n>` logged calls match (pins a repeated call, such as a check before and after a change) |
 | `OUTPUT <regex>` | Claude's final answer matches |
+| `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |
 | `ORDER <regex1> >> <regex2>` | the first call matching regex1 comes before the first matching regex2 |
 
 Regexes are `grep -E`. Use fictitious values only: the repository is public.

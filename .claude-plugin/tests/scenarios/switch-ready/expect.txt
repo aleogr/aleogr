@@ -1,0 +1,7 @@
+NOT_CALLED (create|update http|resume)
+NOT_CALLED add-iam-policy-binding
+OUTPUT "status": "unchanged"
+OUTPUT "ready": true
+OUTPUT LAB_GCP_SWITCH_ACCOUNT
+RESULT_NOT 123456789012
+RESULT_NOT @

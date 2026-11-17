@@ -1,0 +1,8 @@
+# Everything exists and the instance is running: a running instance is never a difference.
+NOT_CALLED ^sql instances (create|patch)
+NOT_CALLED ^scheduler jobs run
+OUTPUT [Nn]othing to do
+OUTPUT "status": "unchanged"
+OUTPUT "fixed": true
+OUTPUT gcp-cloud-sql_instance-stop
+OUTPUT GitHub secrets

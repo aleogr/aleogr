@@ -1,0 +1,14 @@
+# The switch and the instance are missing at the start and present afterwards. The switch
+# (jobs included) comes before the instance, and the instance is stopped by running the
+# weeknight job (stopJob), which proves the night stop. The reads answer by state (the
+# "+after+" fixtures): each part exists once its create has run, the instance runs after
+# its create and is stopped after the job run, however many times a skill reads them.
+ORDER ^scheduler jobs create http >> ^sql instances create
+CALLED ^sql instances create aleogr-lab
+CALLED ^scheduler jobs run aleogr-lab-stop-weeknight .*--location=us-central1
+ORDER ^sql instances create >> ^scheduler jobs run
+NOT_CALLED ^sql instances patch
+OUTPUT about R\$ 50 per month while stopped
+OUTPUT GitHub secrets
+OUTPUT [Nn]othing to do
+OUTPUT "status": "created"

@@ -1,2 +1,0 @@
-billingbudgets.googleapis.com
-cloudresourcemanager.googleapis.com

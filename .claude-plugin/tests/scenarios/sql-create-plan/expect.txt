@@ -1,0 +1,3 @@
+NOT_CALLED ^sql instances (create|patch)
+OUTPUT "status": "would-create"
+OUTPUT about R\$ 50 per month while stopped

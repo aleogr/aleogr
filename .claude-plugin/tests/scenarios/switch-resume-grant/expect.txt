@@ -1,0 +1,13 @@
+# Only the federation grant is missing: it is added, nothing else is created.
+CALLED ^iam service-accounts add-iam-policy-binding .*roles/iam.workloadIdentityUser
+CALLED ^iam service-accounts add-iam-policy-binding .*principalSet://.*/attribute.repository/aleogr/aleogr
+NOT_CALLED ^iam roles create
+NOT_CALLED ^iam service-accounts create
+NOT_CALLED ^iam workload-identity-pools (create|providers create)
+NOT_CALLED ^projects add-iam-policy-binding
+NOT_CALLED roles/iam.serviceAccountUser
+NOT_CALLED ^scheduler jobs (create|update)
+OUTPUT "status": "created"
+OUTPUT "ready": true
+RESULT_NOT 123456789012
+RESULT_NOT @

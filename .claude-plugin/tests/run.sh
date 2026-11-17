@@ -28,6 +28,7 @@ out="$work/claude.out"
       --model "${TEST_MODEL:-sonnet}" \
       --plugin-dir "$plugins/aleogr" \
       --plugin-dir "$plugins/aleogr-cloud-gcp" \
+      --plugin-dir "$plugins/aleogr-db-gcp-cloud-sql" \
       --allowedTools "Bash" "Skill" "Read" \
       < /dev/null > "$out" 2>&1
 )
@@ -50,6 +51,14 @@ while IFS= read -r line || [ -n "$line" ]; do
       esac
       ;;
     OUTPUT)     grep -Eq -- "$arg" "$out" || ok=0 ;;
+    RESULT_NOT)
+      # Lines inside the fenced aleogr-result block(s) of the answer; fails when there is none.
+      blk="$(awk '/^[[:space:]]*```aleogr-result/ {inb=1; found=1; next}
+                  inb && /^[[:space:]]*```[[:space:]]*$/ {inb=0; next}
+                  inb {print}
+                  END {exit found ? 0 : 1}' "$out")" || ok=0
+      if [ "$ok" = 1 ]; then ! printf '%s\n' "$blk" | grep -Eq -- "$arg" || ok=0; fi
+      ;;
     ORDER)
       first="${arg%% >> *}"; second="${arg#* >> }"
       a="$(grep -En -- "$first" "$log" | head -n1 | cut -d: -f1)"

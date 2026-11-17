@@ -1,0 +1,3 @@
+CALLED ^sql instances patch aleogr-lab .*--activation-policy=NEVER
+OUTPUT "status": "updated"
+OUTPUT "state": "stopped"

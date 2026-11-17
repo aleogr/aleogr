@@ -1,0 +1,8 @@
+# Everything of stage 1 exists; the switch's provider exists with another repository in its
+# condition, which no command of the switch changes: the switch item is blocked with its
+# manual fix, the plan fails, and nothing is created or changed.
+CALLED ^iam workload-identity-pools providers describe aleogr
+NOT_CALLED (create|add-iam-policy-binding|^scheduler jobs (update|resume|run)|patch|^services enable)
+OUTPUT incomplete: .*provider
+OUTPUT "action": "blocked"
+OUTPUT "status": "failed"

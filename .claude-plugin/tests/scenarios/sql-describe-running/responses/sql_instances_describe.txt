@@ -1,0 +1,20 @@
+{
+  "name": "aleogr-lab",
+  "project": "aleogr-lab-shared-zz99",
+  "databaseVersion": "POSTGRES_17",
+  "region": "southamerica-east1",
+  "state": "RUNNABLE",
+  "settings": {
+    "tier": "db-f1-micro",
+    "edition": "ENTERPRISE",
+    "activationPolicy": "ALWAYS",
+    "dataDiskSizeGb": "10",
+    "storageAutoResize": true,
+    "deletionProtectionEnabled": false,
+    "backupConfiguration": { "enabled": true, "startTime": "06:00" },
+    "ipConfiguration": {
+      "ipv4Enabled": true,
+      "authorizedNetworks": [ { "name": "example", "value": "203.0.113.7/32" } ]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Everything missing, plan: nothing is changed and the answer says what would be created.
+NOT_CALLED (create|add-iam-policy-binding)
+OUTPUT "status": "would-create"
+OUTPUT "ready": false
