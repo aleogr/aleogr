@@ -774,27 +774,13 @@ The configuration in which each cloud session runs.
 
 For running the skills against real Google Cloud from a browser. Tested on 2026-11-17 ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)).
 
-Set-up, once (everything is stored in the Cloud Shell home directory, which Google keeps between sessions):
-
-```bash
-curl -fsSL https://claude.ai/install.sh | bash
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
-mkdir -p ~/lab && cd ~/lab
-claude            # log in with the Claude account, then /exit
-claude plugin marketplace add aleogr/aleogr
-claude plugin install aleogr@aleogr
-claude plugin install aleogr-cloud-gcp@aleogr
-claude plugin install aleogr-db-gcp-cloud-sql@aleogr
-```
-
-Use: open Cloud Shell, `cd ~/lab && claude`, then the skill (for example `/aleogr:platform-plan`).
-
-- The orchestrator reads its `defaults.json` from the plugin's folder, outside the working directory: Claude Code asks to allow that read. Answer "yes, but ask again next time"; never allow every read outside the working directory, because the home directory holds the Google credentials.
-- After a change is merged: `claude plugin marketplace update aleogr`, then `claude plugin update <plugin>@aleogr` for each plugin.
+- Claude Code, the marketplace and the plugins are installed once in the Cloud Shell home directory, which Google keeps between sessions. The step-by-step instructions (set-up, daily use, updating) are in [`cloud-shell.md`](cloud-shell.md).
+- The orchestrator reads its `defaults.json` from the plugin's folder, outside the working directory, and Claude Code asks to allow that read: allow that one read each time, never every read outside the working directory, because the home directory holds the Google credentials.
 - It is slower than the Windows app (a small shared machine), and Cloud Shell disconnects after a while idle.
 - Other families' CLIs (`gh`, the Cloudflare one) are not signed in there: this path is for the Google Cloud skills.
 
 ---
+
 ## 15. Tests
 
 > This section records the **DIRECTION** of the tests. Execution details are still open and will be defined before implementation; **do not implement anything from this section without confirmation**.
