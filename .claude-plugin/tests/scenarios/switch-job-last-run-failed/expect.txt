@@ -1,0 +1,8 @@
+# Every part is right, but the weekend job's last run failed: nothing is changed, the switch
+# stays ready, and the failure is reported.
+NOT_CALLED (create|update http|resume)
+NOT_CALLED add-iam-policy-binding
+OUTPUT "status": "unchanged"
+OUTPUT "ready": true
+OUTPUT "lastRunFailed": \[ ?"job-weekend" ?\]
+OUTPUT [Ll]ast run
