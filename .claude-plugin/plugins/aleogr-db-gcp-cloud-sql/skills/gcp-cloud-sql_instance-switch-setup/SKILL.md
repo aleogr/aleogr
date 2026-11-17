@@ -50,12 +50,14 @@ Nine parts, in this order. A part is checked only when the part it depends on ex
 | 5 | `pool` | the pool exists and its state is `ACTIVE` | - |
 | 6 | `provider` | the provider exists and its attribute condition is exactly the one of the create command below for `repository` | `pool` |
 | 7 | `federation-grant` | the service account has `roles/iam.workloadIdentityUser` for the `principalSet` of the pool and `repository` | `account`, `pool` |
-| 8 | `job-weeknight` | the job exists with the schedule, time zone, URI (`https://sqladmin.googleapis.com/v1/projects/<projectId>/instances/<instance>`) and service account (`<account>`) asked, its HTTP method is `POST`, its headers include `X-HTTP-Method-Override=PATCH` and `Content-Type=application/json`, and its state is `ENABLED` | `account` |
+| 8 | `job-weeknight` | the job exists with the schedule, time zone, URI (`https://sqladmin.googleapis.com/v1/projects/<projectId>/instances/<instance>`) and service account (`<account>`) asked, its HTTP method is `POST`, its headers include `X-HTTP-Method-Override=PATCH` and `Content-Type=application/json`, its body is the stop body, its token scope is `https://www.googleapis.com/auth/cloud-platform`, and its state is `ENABLED` | `account` |
 | 9 | `job-weekend` | same, for the weekend job | `account` |
 
 Why `POST` with a header: the Cloud SQL Admin API changes an instance with an HTTP `PATCH`, and Cloud Scheduler cannot send a `PATCH` (its methods are `DELETE`, `GET`, `HEAD`, `POST` and `PUT`). The job sends a `POST` with the header `X-HTTP-Method-Override: PATCH`, which Google APIs read as a `PATCH`. Never `PUT`: it would replace the whole instance resource with the one-line body.
 
-A job that exists with another schedule, time zone, URI, account, HTTP method, or without one of the two headers is "different" and is updated with all its values (Cloud Scheduler may add headers of its own, such as `User-Agent`: extra headers do not make a job different); a job whose state is not `ENABLED` (paused) is "different" and is resumed. A job that points at another instance would not stop this one, and a job without the override header would not stop any instance, so neither is ever "equal". A role, pool or provider that exists but differs has no command here to change it: no create command runs for it (creating it again would fail, and would not fix it), it is not touched, it stays in `missing`, and the answer says what to fix by hand.
+The stop body: the describe prints the job's body encoded in base64; decoded, it must be the JSON object `{"settings":{"activationPolicy":"NEVER"}}` and nothing else (spaces and line breaks do not matter). The body of `${CLAUDE_PLUGIN_ROOT}/files/stop-body.json` encodes to `eyJzZXR0aW5ncyI6eyJhY3RpdmF0aW9uUG9saWN5IjoiTkVWRVIifX0=`. An empty body, or any other body, would not stop the instance.
+
+A job that exists with another schedule, time zone, URI, account, HTTP method, body or token scope, or without one of the two headers is "different" and is updated with all its values (Cloud Scheduler may add headers of its own, such as `User-Agent`: extra headers do not make a job different); a job whose state is not `ENABLED` (paused) is "different" and is resumed. A job that points at another instance would not stop this one, and a job without the override header would not stop any instance, so neither is ever "equal". A role, pool or provider that exists but differs has no command here to change it: no create command runs for it (creating it again would fail, and would not fix it), it is not touched, it stays in `missing`, and the answer says what to fix by hand.
 
 ## Steps
 
@@ -79,7 +81,7 @@ Show each command before running it. Run only the commands below, in the order o
    gcloud iam service-accounts get-iam-policy <account> --project=<projectId> --format=json
    gcloud iam workload-identity-pools describe github --project=<projectId> --location=global --format="value(state)"
    gcloud iam workload-identity-pools providers describe aleogr --project=<projectId> --location=global --workload-identity-pool=github --format="value(attributeCondition)"
-   gcloud scheduler jobs describe <job> --project=<projectId> --location=<region> --format="value(schedule,timeZone,state,httpTarget.uri,httpTarget.oauthToken.serviceAccountEmail,httpTarget.httpMethod,httpTarget.headers)"
+   gcloud scheduler jobs describe <job> --project=<projectId> --location=<region> --format="value(schedule,timeZone,state,httpTarget.uri,httpTarget.oauthToken.serviceAccountEmail,httpTarget.httpMethod,httpTarget.headers,httpTarget.body,httpTarget.oauthToken.scope)"
    ```
 
    The service account policy is read once and answers both `act-as` and `federation-grant`. Run the jobs describe once per job. Its output is one line of tab-separated values in the order of the format; the headers print as `Name=value` pairs separated by `;`.

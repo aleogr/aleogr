@@ -56,7 +56,7 @@ Show each command before running it. Run only the commands below, in this order.
 4. `apply` with `confirm=yes`. Say first that creation takes several minutes, then create the instance (asynchronous, so the command returns at once). The instance gets a public address with no authorized networks, and IAM database authentication is on.
 
    ```
-   gcloud sql instances create <instance> --project=<projectId> --database-version=<version> --edition=<edition> --tier=<tier> --region=<region> --availability-type=zonal --storage-type=SSD --storage-size=<storageGb> --no-storage-auto-increase --assign-ip --backup --backup-start-time=<backupStartUtc> --retained-backups-count=<retainedBackups> --no-enable-point-in-time-recovery --database-flags="cloudsql.iam_authentication=on" --deletion-protection --async --quiet
+   gcloud sql instances create <instance> --project=<projectId> --database-version=<version> --edition=<edition> --tier=<tier> --region=<region> --availability-type=zonal --storage-type=SSD --storage-size=<storageGb> --no-storage-auto-increase --assign-ip --backup --backup-start-time=<backupStartUtc> --retained-backups-count=<retainedBackups> --no-enable-point-in-time-recovery --database-flags="cloudsql.iam_authentication=on" --no-enable-dataplex-integration --deletion-protection --async --quiet
    ```
 
    A non-zero exit stops with `failed` (nothing was created) and one sentence of cause, without raw error text. Do not run the patch. From here on the instance exists: any later failure ends with `pending`, never `failed`.

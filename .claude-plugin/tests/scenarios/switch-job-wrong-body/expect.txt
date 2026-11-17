@@ -1,0 +1,8 @@
+# Right schedule, target and method, but the body is an empty object: the job would not
+# stop the instance. It is updated with the stop body, and ready only after the re-read.
+CALLED ^scheduler jobs update http aleogr-lab-stop-weeknight .*stop-body.json
+NOT_CALLED ^scheduler jobs create
+NOT_CALLED ^scheduler jobs update http aleogr-lab-stop-weekend
+COUNT 2 ^scheduler jobs describe aleogr-lab-stop-weeknight
+OUTPUT "status": "updated"
+OUTPUT "ready": true

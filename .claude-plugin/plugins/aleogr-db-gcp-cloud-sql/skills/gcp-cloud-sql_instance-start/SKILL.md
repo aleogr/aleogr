@@ -42,7 +42,7 @@ Show each command before running it. Run only the commands below, in this order.
    gcloud sql instances describe <instance> --project=<projectId> --format=json
    ```
 
-   Read the state with the table below. The patch was accepted, so the status is `updated`, with `outputs.state` the state seen: usually `starting` (or `running`), but a describe right after an asynchronous patch may still show `stopped` for a moment, which is not a failure; then the answer says it may show `stopped` for a moment before `starting`. If the describe itself fails, the status is still `updated` (the patch was accepted) with `outputs.state` `null`, and the answer says the state could not be read.
+   Read the state with the table below. The patch was accepted, so the status is `updated`, with `outputs.state` `starting`: Cloud SQL shows the instance as running as soon as the start is accepted, minutes before it accepts connections, so a `running` or `starting` reading right after the patch is reported as `starting`. A describe right after an asynchronous patch may still show `stopped` for a moment, which is not a failure; then `outputs.state` is `stopped` and the answer says it may show `stopped` for a moment before `starting`. If the describe itself fails, the status is still `updated` (the patch was accepted) with `outputs.state` `null`, and the answer says the state could not be read.
 
 Then answer in a few lines: the instance and its state, that it takes about ten minutes to accept connections, that `/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe projectId=<projectId> instance=<instance>` shows when it is `running`, that it is charged by the hour until it is stopped (`/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop`), and the result block. This skill does not check the night stop (the scheduler jobs of `gcp-cloud-sql_instance-switch-setup`): when the caller knows the night stop is not set up, the instance runs until someone stops it by hand, and the answer says so.
 
@@ -80,6 +80,6 @@ End with exactly one fenced block tagged `aleogr-result`:
 
 - `status` is one of `updated` (the start was requested), `unchanged` (already `running`, `starting` or `creating`), `failed`.
 - `mode` is always `apply`: the skill acts.
-- `updated`: `outputs.state` is the state seen after the patch (`starting`, `running`, or briefly `stopped`; `null` when that describe failed). `unchanged`: `outputs.state` is the state seen.
+- `updated`: `outputs.state` is `starting` (or briefly `stopped`; `null` when that describe failed). `unchanged`: `outputs.state` is the state seen.
 - `failed` because an argument is invalid or the check failed: `resources` is empty and `outputs` is `{ "exists": null, "state": null }`. Instance missing: `resources` is empty and `outputs` is `{ "exists": false, "state": null }`. The patch failed: `resources` lists the instance and `outputs` is `{ "exists": true, "state": "stopped" }`. State `unknown`: `resources` lists the instance and `outputs` is `{ "exists": true, "state": "unknown" }`.
 - Always `cost` as above.

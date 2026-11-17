@@ -27,11 +27,19 @@ Show each command before running it. Run only the commands below, in this order.
    gcloud sql instances describe <instance> --project=<projectId> --format=json
    ```
 
-   - Exit non-zero and the text contains `does not exist` or `404`: the instance does not exist. Skip step 2 and report `exists` false.
+   - Exit non-zero and the text contains `does not exist` or `404`: the instance does not exist. Skip steps 2 and 3 and report `exists` false.
    - Any other non-zero exit (permission denied, API disabled, `gcloud` missing or not authenticated) is a failure of the check, never "missing": say the cause in one sentence, with no raw error text, run nothing else and end with the result block with `status` `failed`.
    - Success: take the values listed under "Reading the JSON" below.
 
-2. Last backup, only when the instance exists:
+2. Pending operations, only when the instance exists and step 1 gave activation policy `ALWAYS` with state `RUNNABLE`:
+
+   ```
+   gcloud sql operations list --instance=<instance> --project=<projectId> --filter="status!=DONE" --limit=10 --format="value(operationType,status)"
+   ```
+
+   Cloud SQL shows an instance as `RUNNABLE` as soon as a start is accepted, minutes before it accepts connections; the unfinished operation is what tells the two apart. If any printed line has the operation type `UPDATE`, the state is `starting`; otherwise it is `running`. If this command alone fails, keep `running`, say in one sentence that pending operations could not be checked, and keep `status` `unchanged`.
+
+3. Last backup, only when the instance exists:
 
    ```
    gcloud sql backups list --instance=<instance> --project=<projectId> --filter="status=SUCCESSFUL" --sort-by="~windowStartTime" --limit=1 --format="value(windowStartTime)"
@@ -39,7 +47,7 @@ Show each command before running it. Run only the commands below, in this order.
 
    `lastBackup` is the printed timestamp, or `null` when the output is empty. If this command alone fails, use `null`, say so in one sentence and keep `status` `unchanged`: it is not a failure of the check.
 
-Then answer in a few lines: the instance, its state, tier and version, whether it has a public address, the last backup, and the result block.
+Then answer in a few lines: the instance, its state, tier and version, whether it has a public address, the last backup, and the result block. When the state is `starting`, say that it takes about ten minutes from the start to accept connections.
 
 ## Reading the JSON
 
@@ -57,13 +65,14 @@ Then answer in a few lines: the instance, its state, tier and version, whether i
 | `backupEnabled` | `settings.backupConfiguration.enabled` |
 | `backupStartUtc` | `settings.backupConfiguration.startTime` (`null` when absent) |
 | `deletionProtection` | `settings.deletionProtectionEnabled` |
+| `knowledgeCatalog` | `settings.enableDataplexIntegration` (the Knowledge Catalog integration, formerly Dataplex) |
 
 A boolean that is absent from the JSON is `false`.
 
 | `settings.activationPolicy` | `state` | Skill's `state` |
 |---|---|---|
 | `NEVER` | any | `stopped` |
-| `ALWAYS` | `RUNNABLE` | `running` |
+| `ALWAYS` | `RUNNABLE` | `running`, or `starting` while an `UPDATE` operation is unfinished (step 2) |
 | `ALWAYS` | `PENDING_CREATE` | `creating` |
 | `ALWAYS` | anything else | `starting` |
 | any other value, or absent | any | `unknown` |
@@ -99,6 +108,7 @@ End with exactly one fenced block tagged `aleogr-result`:
     "backupEnabled": true,
     "backupStartUtc": "23:00",
     "deletionProtection": true,
+    "knowledgeCatalog": false,
     "lastBackup": "2026-11-16T23:12:03.123Z"
   },
   "cost": { "fixed": false, "notes": "read-only" },

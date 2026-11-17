@@ -1,3 +1,4 @@
 CALLED ^sql backups list .*--instance=aleogr-lab
 OUTPUT "state": "running"
 OUTPUT "lastBackup": null
+CALLED ^sql operations list .*--instance=aleogr-lab

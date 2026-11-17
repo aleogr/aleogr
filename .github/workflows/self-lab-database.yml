@@ -142,7 +142,19 @@ jobs:
           if [ "$policy" = "NEVER" ]; then
             line=stopped
           elif [ "$policy" = "ALWAYS" ] && [ "$state" = "RUNNABLE" ]; then
+            # Cloud SQL shows RUNNABLE as soon as a start is accepted, minutes before the
+            # instance accepts connections: an unfinished UPDATE operation means "starting".
             line=running
+            ops="$(mktemp)"
+            if curl --silent --fail-with-body --output "$ops" \
+              --header "Authorization: Bearer ${TOKEN}" \
+              "https://sqladmin.googleapis.com/v1/projects/${PROJECT}/operations?instance=${INSTANCE}&maxResults=10" \
+              2>/dev/null; then
+              pending="$(jq -r '[.items[]? | select(.operationType == "UPDATE" and .status != "DONE")] | length' "$ops" 2>/dev/null || echo 0)"
+              if [ "${pending:-0}" != "0" ]; then line=starting; fi
+            else
+              note=" (pending operations could not be checked)"
+            fi
           elif [ "$policy" = "ALWAYS" ] && [ "$state" = "PENDING_CREATE" ]; then
             line=creating
           elif [ "$policy" = "ALWAYS" ]; then
@@ -151,9 +163,9 @@ jobs:
             echo "::error::Unexpected instance data."
             exit 1
           fi
-          message="${INSTANCE}: ${line}"
+          message="${INSTANCE}: ${line}${note:-}"
           if [ "$ACTION" = "start" ] && [ "$CHANGE" = "success" ]; then
-            message="${message} (right after a start it may show stopped for a moment; it takes about ten minutes to accept connections)"
+            message="${message} (it takes about ten minutes to accept connections; run status to see when it is running)"
           fi
           echo "$message"
           echo "$message" >> "$GITHUB_STEP_SUMMARY"
