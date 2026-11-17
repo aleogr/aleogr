@@ -7,3 +7,4 @@ NOT_CALLED --authorized-networks
 ORDER ^sql instances create >> ^sql instances patch aleogr-lab .*--activation-policy=NEVER
 OUTPUT "status": "created"
 OUTPUT "state": "stopped"
+CALLED ^sql instances create .*--no-enable-dataplex-integration

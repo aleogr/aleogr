@@ -3,3 +3,4 @@ CALLED ^sql backups list .*--instance=aleogr-lab
 OUTPUT "state": "stopped"
 OUTPUT "exists": true
 OUTPUT "lastBackup": "20
+NOT_CALLED ^sql operations list

@@ -896,8 +896,8 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [x] `platform-plan`, run without a project id, finds the existing shared project by its labels: confirmed on 2026-11-16, in a new session.
 - [x] **Create the lab platform, database part (stage 2)** ([sections 6.1, 6.3 and 6.8](#68-lab-shared-resources)): created on 2026-11-17 by `platform-apply`, in the Windows app, on the first attempt. The night stop was proven at creation, and the manual workflow ran `status`, `start` and `stop`. What the run showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [ ] Confirm on the first bill that the public address is charged only while the instance is stopped, and the real fixed cost of the stopped instance.
-- [ ] The workflow and the skills report `running` as soon as a start is accepted, minutes before the instance accepts connections ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); decide whether something better than the ten-minute warning is needed when the first project connects.
-- [ ] Decide whether to turn off the Knowledge Catalog integration of the shared instance (on by default, no charge for the metadata).
+- [ ] Confirm in a real run that the `starting` state works: the describe skill and the workflow now read the instance's unfinished operations to tell `starting` from `running`; whether the switch account may list operations is not verified.
+- [ ] Turn off the Knowledge Catalog integration on the existing shared instance (decided: off; new instances are created with it off; the existing one needs one `gcloud sql instances patch`).
 - [ ] Build the destructive-command hook ([section 13.1](#131-hooks)) with the first `*-remove` skill (`database-remove`); until then the shared instance relies on the provider's deletion protection.
 - [ ] Decide how a multi-tenant project is served in `prd` (own domain, proxied records), when the first one exists.
 - [ ] Test, on the first lab service: that IAP enabled directly on Cloud Run also protects the address that arrives through a domain mapping (the documentation says "all ingress paths" but does not name domain mappings), and that it has no cost in this use.
