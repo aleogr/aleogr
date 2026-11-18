@@ -33,7 +33,8 @@ aleogr-<family>-<provider>/
 
 ## What exists
 
-- `aleogr` (orchestrator): skills `tools-check`, `platform-plan`, `platform-apply`; `defaults.json`.
+- `aleogr` (orchestrator): skills `tools-check` (`gcloud` by default, `gh` with `command=gh`), `platform-plan`, `platform-apply`; `defaults.json`.
 - `aleogr-cloud-gcp`: skills `gcp_environment-describe`, `gcp_environment-create`, `gcp_services-enable`, `gcp_budget-alert-setup`.
-- `aleogr-db-gcp-cloud-sql`: skill `gcp-cloud-sql_instance-describe`.
+- `aleogr-db-gcp-cloud-sql`: skills `gcp-cloud-sql_instance-describe`, `gcp-cloud-sql_instance-create`, `gcp-cloud-sql_instance-start`, `gcp-cloud-sql_instance-stop`, `gcp-cloud-sql_instance-switch-setup`.
+- `aleogr-repo-github`: skills `github_repo-describe`, `github_repo-create`, `github_repo-configure`, `github_branch-protect`, with the `gh` CLI; `files/ruleset-main.json`, the ruleset `main` that `github_branch-protect` sends.
 - Everything else in the design (other families, project skills, hooks) is planned; the tests are in `../tests/`.
