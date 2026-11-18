@@ -1,0 +1,6 @@
+{
+"version":1,"name":"demo",
+"repo":{"settings":{"projects":false,"wiki":false,"issues":true,"deleteBranchOnMerge":true,"rebase":false,"squash":true,"mergeCommit":true},
+"topics":["sample"],"description":"Demo project","visibility":"private","name":"example-repo","owner":"example-org","provider":"github"},
+"$schema":"https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json"
+}

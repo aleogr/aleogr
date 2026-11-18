@@ -1,0 +1,7 @@
+CALLED ^gh api repos/example-org/example-repo/contents/\.aleogr/project\.json
+NOT_CALLED commits
+OUTPUT "state": "equal"
+OUTPUT "status": "unchanged"
+NOT_CALLED ^git (init|commit|push|pull|config|remote|add)
+NOT_CALLED ^git -c credential
+NOT_CALLED ^gh api user

@@ -1,0 +1,4 @@
+CALLED ^git .*credential\.helper=!gh auth git-credential.* push -u origin main
+OUTPUT "status": "failed"
+OUTPUT "pushed": false
+RESULT_NOT "status": "pending"

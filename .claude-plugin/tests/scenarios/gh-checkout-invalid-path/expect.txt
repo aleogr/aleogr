@@ -1,0 +1,3 @@
+NOT_CALLED ^gh
+NOT_CALLED ^git (init|commit|push|pull|config|remote|add)
+OUTPUT "status": "failed"
