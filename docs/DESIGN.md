@@ -421,7 +421,7 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.6 Personal defaults
 
-- In `.claude-plugin/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: the domain (`aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the shared platform shares.
+- In `.claude-plugin/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: the domain (`aleogr.dev`), preferred cloud and region, DNS provider, which services the shared platform shares.
 
 ### 6.7 GCP: organization, folders and billing
 
@@ -739,7 +739,7 @@ Deterministic guarantees; general ones live in `aleogr`, specific ones in each f
 
 ### 13.6 Projects' CLAUDE.md
 
-- Short; points to `.aleogr/project.json`, says not to edit `state.json` by hand, keeps conventions.
+- Short; points to `.aleogr/project.json`, keeps conventions.
 - Per-directory CLAUDE.md with each stack's conventions.
 
 ### 13.7 Future
@@ -872,9 +872,9 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
 
 The scheduled workflow `self-cleanup-tests.yml` deletes tests older than a few days, in this order:
 
-1. Read the `state.json` of the `test-<id>` repository.
+1. Find the test's resources by its `<id>`, by the names and labels of the discovery rules ([section 7](#7-where-data-lives)).
 2. Delete the external resources (cloud, also checking the label `aleogr-test=<id>`; on GCP, projects only inside the folder `tst`; DNS records/routes matching the pattern; databases `test_<id>`; codespaces).
-3. Delete the repository LAST (the state is in it).
+3. Delete the repository LAST (it holds the test's declaration).
 
 The destructive command guard has exceptions ONLY for these cases ([section 13.1](#131-hooks)).
 
@@ -983,7 +983,7 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
 - [x] Can an installed plugin read files of the marketplace outside its own folder? No. `defaults.json` lives in the orchestrator plugin (`.claude-plugin/plugins/aleogr/`) and `contracts.json` (section 10.1) will live there too.
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
-- [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
+- [x] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery: answered in stage 3b. A project's state is discovered from the provider; there is no state file ([section 7](#7-where-data-lives)).
 - [x] Protection of `aleogr/aleogr`'s `main`: a branch ruleset named `main`, created by hand on 2026-11-17 (active, empty bypass list, default branch; restrict deletions, block force pushes, require a pull request with 0 approvals). Made by hand because the repository of the marketplace is not created by the skills; `github_branch-protect` ([`CONTRACTS.md`](CONTRACTS.md)) must find it and change nothing when it exists.
 - [x] The GitHub account has two-factor authentication on (checked on 2026-11-17).
 - [x] **First real run of stage 3a**, by me in Cloud Shell on 2026-11-18, following [`plans/2026-11-18-pilot-stage-3a-run.md`](plans/2026-11-18-pilot-stage-3a-run.md): `aleogr-sandbox/pilot` created private and configured, its protection `pending`, then made public and protected, and every skill `unchanged` at the end. Every step answered as expected on the first attempt; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).

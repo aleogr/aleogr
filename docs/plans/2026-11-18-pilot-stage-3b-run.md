@@ -152,7 +152,7 @@ Then it plans again. Expected: `status` `created`, `pending` `[]`, the line `not
 | `declaration` | `in the repository` | `none` |
 | `protection` | `protected` | `none` |
 
-**The first real `git push` from Cloud Shell happens here**, in `github_checkout-setup`: it is one of the things this run proves. If it is refused (`github_checkout-setup` ends `failed`, the run ends `created` with items in `pending`, and the last plan shows `declaration` `not sent yet` / `send` and `protection` `unprotected` / `create`), stop and send the whole answer: do not run anything again until the cause is known.
+**The first real `git push` from Cloud Shell happens here**, in `github_checkout-setup`: it is one of the things this run proves. If it is refused (`github_checkout-setup` ends `failed`, the run ends `created` with items in `pending`, and the last plan shows `declaration` `not sent yet` / `send` and `protection` `unprotected` / `create`), stop and send the whole answer: do not run anything again until the cause is known. For any other stop, see the half-born repository rule in [If something goes wrong](#3-if-something-goes-wrong).
 
 ### Step 6. Everything is as declared
 
@@ -201,10 +201,12 @@ with one `pending` item, `declaration differs from the repository`: "merge the c
 Ask Claude Code, in your own words, for example:
 
 ```
-abra um pull request com a mudança da declaração
+abra um pull request com a mudança da declaração: branch novo, sem commit em main, sem mudar configuração nem identidade do git; faça o push com git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin <branch>
 ```
 
 Expected: Claude Code makes a new branch, commits `.aleogr/project.json`, pushes the branch and opens the pull request, and shows its link. Allow the `git` and `gh` commands it shows.
+
+If Claude Code proposes `gh auth setup-git`, any `git config`, a commit on `main`, or an address with a token in it: answer **No** and send the answer.
 
 Merge it on GitHub: open the link, **Merge pull request** (or **Squash and merge**), then **Confirm**. The branch is deleted by GitHub.
 
@@ -217,6 +219,8 @@ Update the folder. In Claude Code, a line that starts with `!` runs in the termi
 ```
 !git pull
 ```
+
+This pull needs no credentials because the repository is public; a private project would need the `-c` form of the push above.
 
 Expected: the pull says `Fast-forward` and names `.aleogr/project.json`. If it says the branches have diverged, or anything else fails, send the answer.
 
