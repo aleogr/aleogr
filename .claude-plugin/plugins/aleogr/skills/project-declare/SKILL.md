@@ -94,7 +94,7 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
    - It does not exist: this is a new declaration. Go to step 3.
    - It exists: check it against every rule of "The declaration's rules" (the canonical form is not a rule: a valid file in another layout is accepted). If it is not valid JSON or breaks a rule: `failed`, one sentence saying which rule the file breaks (for example, that it is not valid JSON), and the file untouched. Otherwise go to step 3.
 3. Check the arguments. Each failure is `failed`, with one sentence per problem, and nothing written:
-   - Every argument is one of the table. An unknown argument fails.
+   - Every argument is one of the table. An unknown argument fails, and so does an argument given twice.
    - New declaration: `name`, `owner` and `description` are all given; the sentence names every one that is missing.
    - Each given value follows the rule of its key in "The declaration's rules": `name` (including the reserved names), `owner`, `repoName`, `visibility`, `description`. Each of the seven settings is exactly `true` or `false`.
    - `topics` (when not empty) is split on `,`; each item follows the topic rule (no empty item, no capitals, no spaces); a topic repeated counts once. A topic equal to `aleogr-<name>`, where `<name>` is the project name (the argument for a new declaration, the file's `name` otherwise), fails: that topic is derived and never written.
@@ -102,10 +102,12 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
 4. Build the result.
    - New declaration: `name`, `repo.owner` and `repo.description` from the arguments; `repo.provider` from the defaults; `repo.name` from `repoName`, or the project name; `repo.visibility` from `visibility`, or the defaults; `repo.topics` from `topics`, or `[]`; each of the seven settings from its argument, or the defaults' `repo.settings`; `notes` from `notes`, or no key.
    - Existing declaration: start from the file and set only the keys whose argument was given.
+   - `topics=` replaces the whole list of extra topics (it does not add to the file's list); `topics=` with an empty value makes it `[]`.
+   - The argument text `true` or `false` of a setting is written as the JSON boolean `true` or `false`, never as a string.
    - Check the result: at least one of `mergeCommit`, `squash` and `rebase` is `true`, otherwise `failed`, nothing written.
 5. Compare and write.
    - New declaration: `created`. `outputs.changes` lists every key path written, in the canonical order: `$schema`, `version`, `name`, `repo.provider`, `repo.owner`, `repo.name`, `repo.visibility`, `repo.description`, `repo.topics`, `repo.settings.mergeCommit`, `repo.settings.squash`, `repo.settings.rebase`, `repo.settings.deleteBranchOnMerge`, `repo.settings.issues`, `repo.settings.wiki`, `repo.settings.projects`, and `notes` when written.
-   - Existing declaration: `outputs.changes` lists, in the canonical order, the key paths whose value in the result differs from the file's (equality as in "The declaration's rules": `repo.topics` compared as a set). An empty list is `unchanged`: do not write, the file stays byte for byte as it was. Otherwise `updated`.
+   - Existing declaration: `outputs.changes` lists, in the canonical order, the key paths whose value in the result differs from the file's (equality as in "The declaration's rules": `repo.topics` compared as a set). An empty list is `unchanged`: do not write, the file stays byte for byte as it was. Otherwise `updated`. Only values count: a valid file without `$schema`, without `repo.topics`, or in a non-canonical layout (other indentation, other key order) does not differ for that alone, so with no argument that changes a value the result is `unchanged` and the file is left as it is.
    - `created` or `updated`: write `.aleogr/project.json` with the Write tool, the whole file in the canonical form.
 
 ## Answer

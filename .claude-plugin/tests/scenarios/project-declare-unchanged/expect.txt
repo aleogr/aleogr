@@ -1,1 +1,2 @@
+FILE .aleogr/project.json ^    "version": 1
 OUTPUT "status": "unchanged"

@@ -2,3 +2,4 @@ FILE .aleogr/project.json "visibility": "public"
 FILE .aleogr/project.json "name": "demo-app"
 FILE .aleogr/project.json "docs"
 OUTPUT "status": "created"
+FILE .aleogr/project.json "topics": \["docs", "sample"\]

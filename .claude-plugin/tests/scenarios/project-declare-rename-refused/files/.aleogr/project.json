@@ -5,7 +5,7 @@
   "repo": {
     "provider": "github",
     "owner": "example-org",
-    "name": "demo",
+    "name": "demo-app",
     "visibility": "private",
     "description": "Demo project",
     "topics": ["sample"],

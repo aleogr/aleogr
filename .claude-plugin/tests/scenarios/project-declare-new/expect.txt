@@ -5,3 +5,7 @@ FILE .aleogr/project.json "rebase": false
 FILE .aleogr/project.json "version": 1
 NOT_CALLED ^gh
 OUTPUT "status": "created"
+FILE .aleogr/project.json "topics": \[\]
+FILE .aleogr/project.json "description": "Demo project"
+FILE .aleogr/project.json "\$schema"
+NOT_CALLED ^git (init|commit|push|pull|config|remote|add)
