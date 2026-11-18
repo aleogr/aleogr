@@ -201,7 +201,7 @@ with one `pending` item, `declaration differs from the repository`: "merge the c
 Ask Claude Code, in your own words, for example:
 
 ```
-abra um pull request com a mudança da declaração: branch novo, sem commit em main, sem mudar configuração nem identidade do git; faça o push com git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin <branch>
+abra um pull request com a mudança da declaração: branch novo, sem commit em main, sem mudar configuração nem identidade do git; faça o push com git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin HEAD
 ```
 
 Expected: Claude Code makes a new branch, commits `.aleogr/project.json`, pushes the branch and opens the pull request, and shows its link. Allow the `git` and `gh` commands it shows.
