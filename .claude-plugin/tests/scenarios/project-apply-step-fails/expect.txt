@@ -4,3 +4,4 @@ NOT_CALLED ^gh repo edit|^git (init|commit|push)
 NOT_CALLED --method
 OUTPUT "status": "failed"
 OUTPUT_NOT nothing to do
+NOT_CALLED repos/example-org/demo/(contents|commits|rulesets)

@@ -6,3 +6,4 @@ NOT_CALLED ^gh repo create|--method|^git (commit|push)
 NOT_CALLED --visibility
 OUTPUT nothing to do
 OUTPUT "status": "updated"
+COUNT 2 ^gh api repos/example-org/demo/contents/\.aleogr/project\.json

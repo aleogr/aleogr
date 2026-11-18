@@ -16,3 +16,4 @@ OUTPUT nothing to do
 OUTPUT "action": "project-apply"
 OUTPUT "status": "created"
 RESULT_NOT example-user
+COUNT 2 ^gh api repos/example-org/demo/rulesets$

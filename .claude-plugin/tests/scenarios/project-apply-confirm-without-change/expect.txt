@@ -4,3 +4,4 @@ CALLED ^gh api repos/example-org/demo$
 NOT_CALLED ^gh repo|--method|^git (commit|push)
 OUTPUT "status": "failed"
 OUTPUT_NOT nothing to do
+OUTPUT names a change this plan does not have
