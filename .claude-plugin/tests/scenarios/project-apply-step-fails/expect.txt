@@ -1,0 +1,6 @@
+# Private birth, confirmed, but gh repo create is refused: the run stops there.
+CALLED ^gh repo create example-org/demo .*--private
+NOT_CALLED ^gh repo edit|^git (init|commit|push)
+NOT_CALLED --method
+OUTPUT "status": "failed"
+OUTPUT_NOT nothing to do

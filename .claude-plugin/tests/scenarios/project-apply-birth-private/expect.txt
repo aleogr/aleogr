@@ -1,0 +1,18 @@
+# Declared private, the repository does not exist: created, configured, the declaration
+# sent as its first content; the protection is refused by the plan (403 Upgrade), which is
+# the expected end on a private repository. The last plan says nothing to do.
+# Repository reads are numbered files (404, 404, created with GitHub's defaults and the
+# topics, the same, configured): a +after+ state file on the repository read would also
+# answer the contents, commits and rulesets reads, whose names it is a prefix of.
+ORDER ^gh repo create example-org/demo .*--private >> ^gh repo edit example-org/demo
+ORDER ^gh repo edit example-org/demo .*--enable-rebase-merge=false >> ^git .*push -u origin main
+CALLED ^gh repo edit .*--add-topic aleogr-demo
+CALLED ^gh repo create .*--description "?Demo project"?
+CALLED ^gh api repos/example-org/demo/rulesets$
+NOT_CALLED --method POST
+NOT_CALLED --visibility
+NOT_CALLED ^git config --global
+OUTPUT nothing to do
+OUTPUT "action": "project-apply"
+OUTPUT "status": "created"
+RESULT_NOT example-user

@@ -1,0 +1,4 @@
+# No .aleogr/project.json: the plan fails before any command, and so does the apply.
+NOT_CALLED ^gh
+OUTPUT project-declare
+OUTPUT "status": "failed"

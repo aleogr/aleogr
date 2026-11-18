@@ -1,0 +1,12 @@
+# Declared public, the repository does not exist, confirmed with confirmVisibility=public:
+# created public, configured, the declaration sent, then main protected. The rulesets list
+# is numbered ([] before the POST, the ruleset main after it): a +after+ file on the list
+# would also answer the read of the ruleset itself.
+CALLED ^gh repo create example-org/demo .*--public
+NOT_CALLED ^gh repo create .*--private
+ORDER ^gh repo create >> ^gh repo edit example-org/demo .*--enable-rebase-merge=false
+ORDER ^git .*push -u origin main >> ^gh api --method POST repos/example-org/demo/rulesets
+CALLED ^gh api repos/example-org/demo/rulesets/123$
+NOT_CALLED --visibility
+OUTPUT nothing to do
+OUTPUT "status": "created"
