@@ -37,7 +37,10 @@ Create `scenarios/<name>/` with:
   written as `_` (`projects_list.txt` answers `projects list ...`). For `gh`
   the name starts with `gh_` and `/` is also written as `_`
   (`gh_api_repos_example-org_example-repo.txt` answers
-  `gh api repos/example-org/example-repo ...`). Otherwise
+  `gh api repos/example-org/example-repo ...`). When several names are a
+  prefix, the longest wins (`gh_api_repos_example-org_example-repo_rulesets.txt`
+  answers `gh api repos/example-org/example-repo/rulesets` even next to the
+  shorter file). Otherwise
   `default.txt` answers, or nothing is printed. A name ending in `.exit1`
   (`projects_create.txt.exit1`) prints its content and makes the call fail.
   Numbered files (`billing_projects_describe_x.1.txt`, `...2.txt`) answer the

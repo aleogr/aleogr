@@ -1,0 +1,3 @@
+NOT_CALLED rulesets
+OUTPUT "status": "failed"
+OUTPUT gh auth login

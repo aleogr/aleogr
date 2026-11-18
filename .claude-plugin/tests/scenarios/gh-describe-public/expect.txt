@@ -1,0 +1,6 @@
+CALLED ^gh api repos/example-org/example-repo$
+CALLED ^gh api repos/example-org/example-repo/rulesets$
+NOT_CALLED rulesets/[0-9]
+OUTPUT "visibility": "public"
+OUTPUT "state": "unprotected"
+OUTPUT "status": "unchanged"

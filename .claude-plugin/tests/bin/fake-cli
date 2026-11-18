@@ -65,6 +65,10 @@ if [ -d "$dir" ]; then
 fi
 echo "$line" >> "$log"
 [ -d "$dir" ] || exit 0
+# The file with the longest matching name wins (so gh_..._example-repo.txt does not
+# answer "gh api repos/.../example-repo/rulesets" when a _rulesets file exists);
+# on a tie, the first in glob order.
+pick="" ; pick_name="" ; pick_num=""
 for f in "$dir"/*; do
   [ -f "$f" ] || continue
   base="$(basename "$f")"
@@ -78,27 +82,31 @@ for f in "$dir"/*; do
   [ "$name" = default ] && continue
   case "$key" in
     "$name"*)
-      if [ -n "$num" ]; then
-        # Numbered set: pick the file for this call's ordinal (or the last one).
-        counter="$(dirname "$FAKE_LOG")/.count_${name//[^A-Za-z0-9_-]/#}"
-        n=$(( $(cat "$counter" 2>/dev/null || echo 0) + 1 ))
-        echo "$n" > "$counter"
-        chosen="" ; chosen_n=0
-        for g in "$dir"/"$name".[0-9]*; do
-          [ -f "$g" ] || continue
-          gb="$(basename "$g")"
-          gn="${gb%.exit1}"; gn="${gn%.txt}"; gn="${gn##*.}"
-          if [ "$gn" -le "$n" ] && [ "$gn" -gt "$chosen_n" ]; then chosen="$g"; chosen_n="$gn"; fi
-        done
-        [ -n "$chosen" ] || chosen="$f"
-        f="$chosen"; base="$(basename "$f")"
-      fi
-      cat "$f"
-      case "$base" in *.exit1) exit 1 ;; esac
-      exit 0
+      if [ "${#name}" -gt "${#pick_name}" ]; then pick="$f"; pick_name="$name"; pick_num="$num"; fi
       ;;
   esac
 done
+if [ -n "$pick" ]; then
+  f="$pick"; base="$(basename "$f")"; name="$pick_name"; num="$pick_num"
+  if [ -n "$num" ]; then
+    # Numbered set: pick the file for this call's ordinal (or the last one).
+    counter="$(dirname "$FAKE_LOG")/.count_${name//[^A-Za-z0-9_-]/#}"
+    n=$(( $(cat "$counter" 2>/dev/null || echo 0) + 1 ))
+    echo "$n" > "$counter"
+    chosen="" ; chosen_n=0
+    for g in "$dir"/"$name".[0-9]*; do
+      [ -f "$g" ] || continue
+      gb="$(basename "$g")"
+      gn="${gb%.exit1}"; gn="${gn%.txt}"; gn="${gn##*.}"
+      if [ "$gn" -le "$n" ] && [ "$gn" -gt "$chosen_n" ]; then chosen="$g"; chosen_n="$gn"; fi
+    done
+    [ -n "$chosen" ] || chosen="$f"
+    f="$chosen"; base="$(basename "$f")"
+  fi
+  cat "$f"
+  case "$base" in *.exit1) exit 1 ;; esac
+  exit 0
+fi
 if [ -f "$dir/default.txt" ]; then cat "$dir/default.txt"; fi
 if [ -f "$dir/default.txt.exit1" ]; then cat "$dir/default.txt.exit1"; exit 1; fi
 exit 0
