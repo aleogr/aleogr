@@ -51,10 +51,10 @@ Check with `claude plugin list`: the four plugins, enabled.
 `gh` (the GitHub command-line tool) is preinstalled but not signed in. Sign it in once, for the GitHub repository skills:
 
 ```bash
-gh auth login
+gh auth login --hostname github.com --git-protocol https --web
 ```
 
-Choose `GitHub.com`, then `HTTPS`, then "Login with a web browser". It shows a one-time code and an address: open the address, sign in to GitHub and **type the code in the browser**. The code is never pasted in the conversation with Claude. `gh auth status` then says an account is logged in.
+If it asks whether to authenticate Git with your GitHub credentials, answer yes. It shows a one-time code and an address: open the address, sign in to GitHub and **type the code in the browser**. The code is never pasted in the conversation with Claude. `gh auth status` then says an account is logged in.
 
 ## Daily use
 
