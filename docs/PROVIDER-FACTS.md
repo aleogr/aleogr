@@ -85,6 +85,12 @@ A recent organization comes with a set of security policies already enforced. Se
 - **A ruleset made by hand in the web page and one sent through the API from a file compare as equal** on target, enforcement, bypass actors, the `~DEFAULT_BRANCH` condition and the three rules; the web page adds parameters the file does not have (`required_reviewers`, `require_extra_approval_for_unattributed_changes`), which the comparison ignores (2026-11-18, `aleogr/aleogr`).
 - **`gh auth login --web` in Cloud Shell cannot open the browser or copy the code**: it prints the one-time code and the address `https://github.com/login/device`, which is opened by hand; the terminal waits and finishes by itself once the code is typed in the browser (2026-11-18).
 - **Each GitHub skill took 5 to 20 seconds in Cloud Shell** (2026-11-18), against about two minutes for a full `platform-plan`.
+- **`git` authenticates through `gh` for one command in Cloud Shell**: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' pull` and `push` worked from a folder made with `git init`, with no global git configuration (2026-11-18, the birth of `aleogr-sandbox/pilot`). The same form pushed the branch of a pull request.
+- **A repository created with `gh repo create --add-readme` in an organization has exactly one commit**, so the declaration could be sent as its second commit before the ruleset existed (2026-11-18).
+- **A commit made with GitHub's no-reply address is attributed to the account** (the page shows the account's name and picture) and is marked "Unverified", which only means it is not signed. Adding `.patch` to a commit's address shows the address the commit carries.
+- **A repository that is born public has its wiki on**; one born private in a free organization has it off (the note above). `github_repo-configure` turned it off after the creation (2026-11-18).
+- **A birth through `project-apply` took about two minutes in Cloud Shell** (create, configure, send the declaration, protect, and two plans); applying one changed topic took 48 seconds and a plan about 17 (2026-11-18).
+- **Cloud Shell restarted in the middle of the run and nothing was lost**: the project folder, its git checkout and the installed plugins were there when it came back (2026-11-18).
 
 ## Claude Code
 
