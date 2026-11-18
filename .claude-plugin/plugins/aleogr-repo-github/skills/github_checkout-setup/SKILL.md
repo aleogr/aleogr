@@ -30,7 +30,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 3 runs again as the verification of step 13): no `gh auth status`, no `gh repo view`, no `gh repo clone`, no `git clone`, no `git fetch`, no `git config --global`, no `git config` without `--local`, no other `gh` or `git` command, no retry. Never print the account name, the account id or the token: when a command of step 10 is shown, or named in the answer, it is written with `<login>` and `<id>` in place of the values. Read the local file with the Read tool, never a shell command.
+Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 3 runs again as the verification of step 16): no `gh auth status`, no `gh repo view`, no `gh repo clone`, no `git clone`, no `git fetch`, no `git config --global`, no `git config` without `--local`, no other `gh` or `git` command, no retry. Never print the account name, the account id or the token, and never repeat the login in the answer or the result block (the `owner` argument, as the caller gave it, is the only exception): when a command of step 11 is shown, or named in the answer, it is written with `<login>` and `<id>` in place of the values. Never repeat the output of `git remote get-url` in the answer or the result block. Read the local file with the Read tool, never a shell command.
 
 The state of the file in the repository is one of `equal`, `not-sent`, `differs` or `missing` (steps 1 to 5).
 
@@ -80,11 +80,11 @@ The state of the file in the repository is one of `equal`, `not-sent`, `differs`
    - `equal`: `status` `unchanged`, in `plan` and in `apply`. Run nothing else.
    - `differs`: `status` `pending`, in `plan` and in `apply`, with the item `declaration differs from the repository`. Run nothing else: the repository's copy is the one that holds; the local change goes to the repository through a pull request.
    - `missing`: `status` `pending`, in `plan` and in `apply`, with the item `declaration is not in the repository`. Run nothing else: a repository with history is never pushed to.
-   - `not-sent`, `plan`: `status` `would-create`. Show the commands of steps 7 to 12 that `apply` would run (with `<login>` and `<id>`), without running them. Run nothing else.
+   - `not-sent`, `plan`: `status` `would-create`. Show the commands of steps 7 to 15 that `apply` would run (with `<login>` and `<id>`), without running them. Run nothing else.
    - `not-sent`, `apply`, the repository does not exist (step 1 answered `HTTP 404`): `failed`. Say in one sentence that the repository must be created first, with `/aleogr-repo-github:github_repo-create`. Run nothing else.
    - `not-sent`, `apply`, the repository exists: continue with step 7 below. `<branch>` is the `default_branch` of step 1.
 
-   From here on (`apply` at a birth), any `failed` before the push of step 12 changed nothing on GitHub; the answer says which local changes were already made (a new git checkout, the remote `origin`, this checkout's identity, a local commit), if any.
+   From here on (`apply` at a birth), any `failed` before the push of step 15 changed nothing on GitHub; the answer says which local changes were already made (a new git checkout, the remote `origin`, this checkout's identity, the pulled README, a local commit), if any.
 
 7. Read the account, for the commit identity only, with the command exactly as written (no `--jq`, no other flag):
 
@@ -92,7 +92,7 @@ The state of the file in the repository is one of `equal`, `not-sent`, `differs`
    gh api user
    ```
 
-   Exit 0 and the JSON has `login` and `id`: keep them for step 10, without printing them. Anything else: `failed` (one sentence, no raw error text); run nothing else.
+   Exit 0 and the JSON has `login` and `id`: keep them for step 11, without printing them. Anything else: `failed` (one sentence, no raw error text); run nothing else.
 
 8. Is the folder a git checkout?
 
@@ -107,7 +107,7 @@ The state of the file in the repository is one of `equal`, `not-sent`, `differs`
      git init -b <branch>
      ```
 
-     A non-zero exit: `failed`; run nothing else.
+     A non-zero exit: `failed`. Say in one sentence that `git init -b` needs git 2.28 or later. Run nothing else.
    - `git` is not installed (`command not found`, or the command cannot start): `failed`. Say in one sentence that `git` must be installed. Run nothing else.
    - Any other answer: `failed` (one sentence, no raw error text); run nothing else.
 
@@ -117,8 +117,10 @@ The state of the file in the repository is one of `equal`, `not-sent`, `differs`
    git remote get-url origin
    ```
 
-   - Exit 0 and the output is `https://github.com/<owner>/<name>.git` or `https://github.com/<owner>/<name>`: it is. Go to step 10.
-   - Exit 0 and any other address: `failed`. Say in one sentence that this folder's `origin` points to another address and that nothing was changed. Run nothing else: never change or remove an existing remote.
+   Run it as written, with no redirection, and read its output; never repeat that output in the answer or the result block (an address can carry a token): say only whether it matches.
+
+   - Exit 0 and the output is `https://github.com/<owner>/<name>`, compared ignoring letter case and ignoring a trailing `.git` or `/`: it is. Go to step 10.
+   - Exit 0 and any other address: `failed`. Say in one sentence that this folder's `origin` is not this repository and that nothing was changed. Run nothing else: never change or remove an existing remote.
    - Non-zero exit and the output contains `No such remote`: add it:
 
      ```
@@ -128,7 +130,15 @@ The state of the file in the repository is one of `equal`, `not-sent`, `differs`
      A non-zero exit: `failed`; run nothing else.
    - Any other non-zero exit: `failed` (one sentence, no raw error text); run nothing else.
 
-10. Set this checkout's commit identity, always, whatever the machine's global identity is (never read it, never use it, never change it): the account's login as the name and GitHub's no-reply address as the e-mail. Run the two commands, each alone:
+10. Is the folder on the default branch?
+
+    ```
+    git branch --show-current
+    ```
+
+    Exit 0 and the output is exactly `<branch>` (a fresh `git init -b <branch>` prints it): go to step 11. Anything else: `failed`. Say in one sentence which branch the folder is on (or that it is on none) and that it must be on `<branch>`. Run nothing else.
+
+11. Set this checkout's commit identity, always, whatever the machine's global identity is (never read it, never use it, never change it): the account's login as the name and GitHub's no-reply address as the e-mail. Run the two commands, each alone:
 
     ```
     git config --local user.name <login>
@@ -137,31 +147,52 @@ The state of the file in the repository is one of `equal`, `not-sent`, `differs`
 
     Shown as `git config --local user.name <login>` and `git config --local user.email <id>+<login>@users.noreply.github.com`, with the placeholders. A non-zero exit on either: `failed`; run nothing else (never commit with another identity).
 
-11. Bring the repository's first commit (its README) into the folder. Git authenticates through `gh` for this command only: the first `-c` empties the credential helpers of the machine's configuration, the second uses `gh`; nothing is written to any git configuration. The same single-quoted form is used in bash and in PowerShell:
+12. Bring the repository's first commit (its README) into the folder. Git authenticates through `gh` for this command only: the first `-c` empties the credential helpers of the machine's configuration, the second uses `gh`; nothing is written to any git configuration. The same single-quoted form is used in bash and in PowerShell:
 
     ```
     git -c credential.helper= -c 'credential.helper=!gh auth git-credential' pull origin <branch>
     ```
 
-    A non-zero exit: `failed` (one sentence, no raw error text); run nothing else.
+    A non-zero exit: `failed` (one sentence, no raw error text); run nothing else. The answer lists what was changed locally; when the folder was already a checkout before this run (step 8 printed `true`), it also says that an interrupted merge may be left in this folder.
 
-12. Commit the file, then push it to the default branch:
+13. Only this run's commit may be pushed. Count the local commits that are not in the repository:
+
+    ```
+    git rev-list --count origin/<branch>..HEAD
+    ```
+
+    - Exit 0 and the output is `0`: go to step 14.
+    - Exit 0 and the output is `1`: see whether it is the commit an earlier, interrupted run left:
+
+      ```
+      git diff --name-only origin/<branch> HEAD
+      ```
+
+      Exit 0 and the output is exactly one line, `<path>`: it is; skip step 14 and go to step 15. Anything else: `failed`, as below.
+    - Anything else (another number, a non-zero exit): `failed`. Say in one sentence that this folder has local commits that are not in the repository, and that nothing was pushed. Run nothing else.
+
+14. Commit the file, and only the file (anything else staged stays uncommitted):
 
     ```
     git add -- <path>
-    git commit -m "<message>"
+    git commit -m "<message>" -- <path>
+    ```
+
+    A non-zero exit on either: `failed` (one sentence, no raw error text); run nothing else.
+
+15. Push to the default branch:
+
+    ```
     git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin <branch>
     ```
 
-    - `git add` non-zero: `failed`; run nothing else.
-    - `git commit` non-zero and the output contains `nothing to commit`: the file is already committed in this folder by an earlier run; go on to the push. Any other non-zero exit: `failed`; run nothing else.
-    - The push exits 0: the file is in the repository; the status is `created` whatever happens in step 13. Go to step 13.
-    - The push exits non-zero and the output contains `GH013`, `protected branch` or `rule violations`: the repository's rules refused it. This is not a failure of the tooling: `status` `pending`, with the item `declaration is not in the repository`. Nothing was changed on GitHub; the local commit is kept (do not undo it). Run nothing else.
+    - Exit 0: the file is in the repository; the status is `created` whatever happens in step 16. Go to step 16.
+    - Non-zero exit and the output contains `GH013`, `GH006`, `protected branch` (in any letter case) or `rule violations`: the repository's rules refused it. This is not a failure of the tooling: `status` `pending`, with the item `declaration is not in the repository`. Nothing was changed on GitHub; the local commit is kept (do not undo it). Run nothing else.
     - Any other non-zero exit: `failed`. Nothing was changed on GitHub; the local commit is kept. Say the cause in one sentence, with no raw error text. Run nothing else.
 
-13. Verify, once: run the read of step 3 again and compare by the rule of step 4. The status stays `created`. Exit 0 and `equal`: nothing is left. The read fails, or the copy is not equal: say so in one sentence and add the item `verify`.
+16. Verify, once: run the read of step 3 again and compare by the rule of step 4. The status stays `created`. Exit 0 and `equal`: nothing is left. The read fails, or the copy is not equal: say so in one sentence and add the item `verify`.
 
-Then answer in a few lines: the state of the file in the repository, what was done (or would be done), the local changes made in this folder, anything left in `pending`, and the result block. The answer never contains the account's login, id or no-reply address.
+Then answer in a few lines: the state of the file in the repository, what was done (or would be done), the local changes made in this folder, anything left in `pending`, and the result block. The answer never contains the account's login, id or no-reply address (except the `owner` argument as given), nor the output of `git remote get-url`.
 
 ## Result block
 
@@ -191,20 +222,20 @@ End with exactly one fenced block tagged `aleogr-result`:
 
 - `mode` echoes the mode used (`plan` when not given). `status` is one of:
   - `would-create`: `plan`, state `not-sent` (the repository exists at its birth, or does not exist yet).
-  - `created`: `apply`, the push of step 12 succeeded in this run, whatever happened after it.
+  - `created`: `apply`, the push of step 15 succeeded in this run, whatever happened after it.
   - `unchanged`: state `equal` (`plan` or `apply`); nothing was done.
   - `pending`: nothing was changed on GitHub and the rest is the owner's to do: state `differs` or `missing` (`plan` or `apply`), or the push refused by the repository's rules (`apply`).
-  - `failed`: an argument missing or broke a rule, `gh` or `git` missing, `gh` not logged in, the repository read refused, `apply` on a repository that does not exist, the local file missing or not valid JSON, a read of steps 3 or 5 refused, a repository with no commit, `gh api user` refused, the folder's `origin` pointing to another address, or a `git` command of steps 8 to 12 refused (the push for any reason other than the repository's rules). Nothing was changed on GitHub.
+  - `failed`: an argument missing or broke a rule, `gh` or `git` missing, `gh` not logged in, the repository read refused, `apply` on a repository that does not exist, the local file missing or not valid JSON, a read of steps 3 or 5 refused, a repository with no commit, `gh api user` refused, `git init -b` refused (git older than 2.28), the folder's `origin` pointing to another address, the folder on another branch, local commits that are not in the repository, or a `git` command of steps 8 to 15 refused (the push for any reason other than the repository's rules). Nothing was changed on GitHub.
 - `pending` items are `{ "item": "<what>", "reason": "manual", "how": "<text>" }`:
   - State `differs`: exactly one item `{ "item": "declaration differs from the repository", "reason": "manual", "how": "merge the change (a pull request), then update this folder" }`.
   - State `missing`, or the push refused by the repository's rules: exactly one item `{ "item": "declaration is not in the repository", "reason": "manual", "how": "open a pull request that adds <path>" }`.
   - `created` with a verification that failed or differs: one item `{ "item": "verify", "reason": "manual", "how": "/aleogr-repo-github:github_checkout-setup owner=<owner> name=<name> mode=plan" }` (plus `path=<path>` when it is not the default). `created` with a non-empty `pending` is allowed.
   - Every other ending: `[]`.
 - `outputs` has the same four keys in every ending:
-  - `state`: `equal`, `not-sent`, `differs` or `missing`, as found by steps 1 to 5. After a push (`created`), it is the verification of step 13: `equal`, `differs` when the copy is not equal, and `null` when the read failed. `null` when the run failed before the state was known (an argument, `gh`, the repository read, the local file, the reads of steps 3 and 5). On a `failed` ending after step 6 (`apply`), it is the state found, `not-sent`.
+  - `state`: `equal`, `not-sent`, `differs` or `missing`, as found by steps 1 to 5. After a push (`created`), it is the verification of step 16: `equal`, `differs` when the copy is not equal, and `null` when the read failed. `null` when the run failed before the state was known (an argument, `gh`, the repository read, the reads of steps 3 and 5), and `null` whenever the local file is missing or not valid JSON, whatever step 1 found. On a `failed` ending after step 6 (`apply`), it is the state found, `not-sent`.
   - `defaultBranch`: the `default_branch` of step 1; `null` when the repository does not exist or step 1 did not succeed.
   - `path`: the file, `.aleogr/project.json` when not given (as given, even when it broke a rule).
-  - `pushed`: `true` only when the push of step 12 exited 0 in this run; `false` otherwise.
+  - `pushed`: `true` only when the push of step 15 exited 0 in this run; `false` otherwise.
 - `resources` is `[{ "type": "repository", "id": "<owner>/<name>", "name": "<name>" }]` when step 1 proved the repository exists, `[]` otherwise.
-- The result block never contains the account's login, id or no-reply address.
+- The result block never contains the account's login, id or no-reply address (except the `owner` argument as given).
 - `cost` is always `{ "fixed": false, "notes": "no cost" }`.

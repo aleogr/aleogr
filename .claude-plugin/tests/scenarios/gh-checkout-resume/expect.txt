@@ -1,0 +1,3 @@
+NOT_CALLED ^git commit
+CALLED ^git -c credential.* push -u origin main
+OUTPUT "status": "created"

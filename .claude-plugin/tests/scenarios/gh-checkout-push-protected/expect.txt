@@ -1,5 +1,5 @@
 CALLED ^git .*credential\.helper=!gh auth git-credential.* push -u origin main
 OUTPUT "status": "pending"
-OUTPUT pull request
+OUTPUT "item": "declaration is not in the repository"
 OUTPUT "pushed": false
 RESULT_NOT example-user

@@ -4,6 +4,7 @@ CALLED ^git config --local user\.email 1234567\+example-user@users\.noreply\.git
 ORDER ^git config --local user\.email >> ^git commit
 ORDER ^git .*pull origin main >> ^git add -- \.aleogr/project\.json
 CALLED ^git commit -m "?Add the project declaration"?
+CALLED ^git commit -m .* -- \.aleogr/project\.json
 CALLED ^git .*credential\.helper=!gh auth git-credential.* push -u origin main
 COUNT 2 ^gh api repos/example-org/example-repo/contents/\.aleogr/project\.json
 NOT_CALLED ^git config --global
