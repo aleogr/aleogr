@@ -1,0 +1,10 @@
+# One commit and no declaration, but the ruleset main already exists (and matches): the push
+# would be refused, so the declaration goes through a pull request, never a send.
+CALLED ^gh api repos/example-org/demo/rulesets/123$
+CALLED ^gh api "?repos/example-org/demo/commits\?per_page=2
+OUTPUT "action": "open a pull request"
+OUTPUT open a pull request that adds \.aleogr/project\.json
+OUTPUT "status": "pending"
+OUTPUT_NOT "action": "send"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^git (commit|push)

@@ -1,0 +1,14 @@
+ORDER ^git init -b main >> ^git remote add origin https://github.com/example-org/example-repo\.git
+CALLED ^git config --local user\.name example-user$
+CALLED ^git config --local user\.email 1234567\+example-user@users\.noreply\.github\.com$
+ORDER ^git config --local user\.email >> ^git commit
+ORDER ^git .*pull origin main >> ^git add -- \.aleogr/project\.json
+CALLED ^git commit -m "?Add the project declaration"?
+CALLED ^git commit -m .* -- \.aleogr/project\.json
+CALLED ^git .*credential\.helper=!gh auth git-credential.* push -u origin main
+COUNT 2 ^gh api repos/example-org/example-repo/contents/\.aleogr/project\.json
+NOT_CALLED ^git config --global
+OUTPUT "status": "created"
+OUTPUT "pushed": true
+RESULT_NOT example-user
+OUTPUT_NOT example-user

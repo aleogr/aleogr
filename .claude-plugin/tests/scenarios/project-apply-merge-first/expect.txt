@@ -1,0 +1,7 @@
+# The repository's declaration differs from the local one: merge first, nothing changes,
+# even with confirm=yes.
+CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+NOT_CALLED ^gh repo|--method|^git (commit|push)
+OUTPUT merge first
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do

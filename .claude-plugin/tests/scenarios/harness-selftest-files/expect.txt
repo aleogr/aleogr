@@ -1,0 +1,4 @@
+CALLED ^git status --short$
+OUTPUT seed\.txt
+FILE out/result.json "copied": ?"seed-content"
+NO_FILE out/other.json

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs one scenario headless against the fake gcloud and gh and checks expect.txt.
+# Runs one scenario headless against the fake gcloud, gh and git and checks expect.txt.
 # Usage: .claude-plugin/tests/run.sh <scenario>
 # Env:   TEST_MODEL (default: sonnet)
 set -u
@@ -17,6 +17,8 @@ fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir "$work/cwd"
+# Files the scenario starts with (dotfiles included) go into the working folder.
+if [ -d "$scenario/files" ]; then cp -a "$scenario/files/." "$work/cwd/"; fi
 log="$work/calls.log"
 out="$work/claude.out"
 : > "$log"
@@ -30,7 +32,7 @@ out="$work/claude.out"
       --plugin-dir "$plugins/aleogr-cloud-gcp" \
       --plugin-dir "$plugins/aleogr-db-gcp-cloud-sql" \
       --plugin-dir "$plugins/aleogr-repo-github" \
-      --allowedTools "Bash" "Skill" "Read" \
+      --allowedTools "Bash" "Skill" "Read" "Write" "Edit" \
       < /dev/null > "$out" 2>&1
 )
 claude_status=$?
@@ -61,6 +63,18 @@ while IFS= read -r line || [ -n "$line" ]; do
                   END {exit found ? 0 : 1}' "$out")" || ok=0
       if [ "$ok" = 1 ]; then ! printf '%s\n' "$blk" | grep -Eq -- "$arg" || ok=0; fi
       ;;
+    FILE)
+      # FILE <relative path> <regex>: the file exists and some line matches.
+      f="${arg%% *}"; re="${arg#* }"
+      if [ "$kind" = "$line" ] || [ "$re" = "$arg" ] || [ -z "$re" ]; then
+        echo "bad expect line (FILE needs a path and a regex): $line" >&2; ok=0
+      else
+        { [ -f "$work/cwd/$f" ] && grep -Eq -- "$re" "$work/cwd/$f"; } || ok=0
+      fi
+      ;;
+    NO_FILE)
+      [ ! -e "$work/cwd/$arg" ] || ok=0
+      ;;
     ORDER)
       first="${arg%% >> *}"; second="${arg#* >> }"
       a="$(grep -En -- "$first" "$log" | head -n1 | cut -d: -f1)"
@@ -81,7 +95,7 @@ echo "FAIL $1"
 echo "Failed expect lines:"
 printf '  %s\n' "${failed[@]}"
 echo "call log:"
-if [ -s "$log" ]; then sed -e '/^gh /!s/^/gcloud /' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
+if [ -s "$log" ]; then sed -e '/^gh /!{/^git /!s/^/gcloud /}' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
 echo "claude exit status: $claude_status"
 echo "claude output:"
 sed 's/^/  /' "$out"

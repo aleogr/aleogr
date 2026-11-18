@@ -1,0 +1,8 @@
+# The repository exists private, declared public, everything else as declared (protection
+# unavailable while private): confirm=yes does not confirm making it public.
+CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+NOT_CALLED ^gh repo edit|--method
+NOT_CALLED ^gh repo create|^git (init|commit|push)
+OUTPUT /aleogr:project-apply confirmVisibility=public
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do

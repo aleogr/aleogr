@@ -1,0 +1,5 @@
+# gh is not logged in: tools-check fails and no repository is read.
+CALLED ^gh auth status
+NOT_CALLED ^gh api
+OUTPUT gh auth login
+OUTPUT "status": "failed"

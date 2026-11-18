@@ -1,0 +1,8 @@
+# The repository exists with two commits and no declaration: it is never pushed to; the
+# declaration goes through a pull request, and nothing changes.
+CALLED ^gh api "?repos/example-org/demo/commits\?per_page=2
+NOT_CALLED ^git (init|commit|push)|^gh repo
+NOT_CALLED --method
+OUTPUT pull request
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do

@@ -1,0 +1,3 @@
+CALLED ^git rev-list --count origin/main\.\.HEAD
+NOT_CALLED ^git (-c credential.* push|commit)
+OUTPUT "status": "failed"

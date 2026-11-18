@@ -1,0 +1,2 @@
+FILE .aleogr/project.json "name": "demo",
+OUTPUT "status": "failed"

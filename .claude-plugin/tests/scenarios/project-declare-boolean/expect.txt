@@ -1,0 +1,3 @@
+FILE .aleogr/project.json "rebase": true
+FILE .aleogr/project.json "wiki": true
+OUTPUT "status": "created"

@@ -1,0 +1,7 @@
+CALLED ^git config --local user\.email 1234567\+example-user@users\.noreply\.github\.com$
+ORDER ^git config --local user\.email >> ^git commit
+NOT_CALLED ^git config --global
+OUTPUT_NOT owner@example\.com
+OUTPUT "status": "created"
+NOT_CALLED ^git config (--get|--list|--global|user\.)
+NOT_CALLED ^git (-c user\.|commit .*--author)

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Fake CLI for the skill tests: logs its arguments, prints a canned response.
-# Usage: fake-cli <tool> [arguments...]   (<tool> is gcloud or gh; bin/gcloud and
-# bin/gh are wrappers). gcloud: log line "$*", response key "$*" with spaces as "_".
-# gh: log line "gh $*" (plus " <<< <content of the --input file, whitespace removed>"
-# when the arguments contain --input <file>), response key "gh_" + "$*" with spaces
-# and "/" written as "_".
+# Usage: fake-cli <tool> [arguments...]   (<tool> is gcloud, gh or git; bin/gcloud,
+# bin/gh and bin/git are wrappers). gcloud: log line "$*", response key "$*" with
+# spaces as "_". Any other tool: log line "<tool> $*" (plus " <<< <content of the
+# --input file, whitespace removed>" when the arguments contain --input <file>),
+# response key "<tool>_" + "$*" with spaces and "/" written as "_".
 # FAKE_LOG        file that receives one line per call ("$*")
 # FAKE_RESPONSES  directory with the scenario's response files
 # Response files are matched by name: the arguments with spaces turned into "_"
@@ -29,9 +29,9 @@ tool="${1:?tool is not set}"; shift
 line="$*"
 key="$*"
 key="${key// /_}"
-if [ "$tool" = gh ]; then
-  key="gh_${key//\//_}"
-  line="gh $*"
+if [ "$tool" != gcloud ]; then
+  key="${tool}_${key//\//_}"
+  line="$tool $*"
   prev=""
   for a in "$@"; do
     if [ "$prev" = "--input" ] && [ -f "$a" ]; then
@@ -55,7 +55,7 @@ if [ -d "$dir" ]; then
     while IFS= read -r logged || [ -n "$logged" ]; do
       i=$(( i + 1 ))
       logged="${logged// /_}"
-      case "$logged" in gh_*) logged="${logged//\//_}" ;; esac
+      case "$logged" in gh_*|git_*) logged="${logged//\//_}" ;; esac
       case "$logged" in "$marker"*) mline=$i ;; esac
     done < <(cat "$log" 2>/dev/null)
     if [ "$mline" -gt "$best_line" ]; then best="$f"; best_line=$mline; fi

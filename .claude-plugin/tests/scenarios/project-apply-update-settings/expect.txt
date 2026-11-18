@@ -1,0 +1,9 @@
+# The repository exists, protected and with its declaration; only rebase differs. The
+# repository reads are numbered: rebase on for the plan's two reads and the configure's
+# first read, then off.
+CALLED ^gh repo edit example-org/demo .*--enable-rebase-merge=false
+NOT_CALLED ^gh repo create|--method|^git (commit|push)
+NOT_CALLED --visibility
+OUTPUT nothing to do
+OUTPUT "status": "updated"
+COUNT 2 ^gh api repos/example-org/demo/contents/\.aleogr/project\.json

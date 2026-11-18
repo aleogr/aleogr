@@ -2,6 +2,7 @@
   "version": 1,
   "cloud": { "provider": "gcp", "region": "us-central1" },
   "domain": "aleogr.dev",
+  "repo": { "provider": "github", "visibility": "private", "settings": { "mergeCommit": true, "squash": true, "rebase": false, "deleteBranchOnMerge": true, "issues": true, "wiki": false, "projects": false } },
   "platform": {
     "shared": { "project": "shared", "services": ["cloudresourcemanager.googleapis.com", "billingbudgets.googleapis.com", "sqladmin.googleapis.com", "cloudscheduler.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com"] },
     "budget": { "displayName": "aleogr", "amount": 100, "currency": "BRL", "thresholds": [0.5, 0.9, 1.0] },

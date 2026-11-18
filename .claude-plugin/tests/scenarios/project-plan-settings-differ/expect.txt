@@ -1,0 +1,7 @@
+# Rebase allowed on GitHub and an extra topic there: the settings item lists both.
+CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+OUTPUT "item": "settings".*rebase
+OUTPUT "item": "settings".*topics
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^git (commit|push)

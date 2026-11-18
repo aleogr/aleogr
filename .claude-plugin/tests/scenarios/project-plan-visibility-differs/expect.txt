@@ -1,0 +1,6 @@
+# Declared public, private on GitHub (so rulesets are not available there): making it public needs its confirmation.
+OUTPUT "item": "visibility"
+OUTPUT confirmVisibility=public
+OUTPUT "status": "would-update"
+OUTPUT "exposes": true
+NOT_CALLED --method|^gh repo|^git (commit|push)

@@ -1,0 +1,5 @@
+CALLED ^git remote get-url origin
+NOT_CALLED ^git (config|commit|push|pull)
+NOT_CALLED ^git -c credential
+OUTPUT "status": "failed"
+NOT_CALLED ^git (init|remote (add|set-url|remove))

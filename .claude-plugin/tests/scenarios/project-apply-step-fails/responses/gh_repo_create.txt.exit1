@@ -1,0 +1,1 @@
+HTTP 403: You need admin access to the organization before adding a repository to it. (https://api.github.com/orgs/example-org/repos)

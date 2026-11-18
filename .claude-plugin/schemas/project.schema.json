@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json",
+  "title": "aleogr project declaration, version 1",
+  "description": "The file .aleogr/project.json. The topic aleogr-<name> is derived, not typed: the list sent to GitHub is that topic plus repo.topics, sorted, without duplicates, so repo.topics must not contain aleogr-<name> (this rule is not expressed in the schema).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "repo"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": 1 },
+    "name": {
+      "description": "Project name: 1 to 14 characters of a-z, 0-9 and -, starting with a letter, not ending with -; not test, not shared, not starting with test-.",
+      "type": "string",
+      "pattern": "^[a-z]([a-z0-9-]{0,12}[a-z0-9])?$",
+      "not": { "pattern": "^(test|shared|test-.*)$" }
+    },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "owner", "name", "visibility", "description", "settings"],
+      "properties": {
+        "provider": { "const": "github" },
+        "owner": {
+          "description": "1 to 39 characters of A-Z, a-z, 0-9 and -, not starting or ending with -.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9]([A-Za-z0-9-]{0,37}[A-Za-z0-9])?$"
+        },
+        "name": {
+          "description": "Repository name: 1 to 100 characters of A-Z, a-z, 0-9, ., _ and -; not . or ..",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,100}$",
+          "not": { "enum": [".", ".."] }
+        },
+        "visibility": { "enum": ["public", "private"] },
+        "description": {
+          "description": "1 to 350 characters, without double quote, backtick, $, backslash, curly double quotes (open, close, low) or line break.",
+          "type": "string",
+          "pattern": "^[^\"`$\\\\“”„\\n\\r]{1,350}$"
+        },
+        "topics": {
+          "description": "Extra topics only. The topic aleogr-<name> is derived and must not be listed here.",
+          "type": "array",
+          "uniqueItems": true,
+          "default": [],
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,49}$"
+          }
+        },
+        "settings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mergeCommit", "squash", "rebase", "deleteBranchOnMerge", "issues", "wiki", "projects"],
+          "properties": {
+            "mergeCommit": { "type": "boolean" },
+            "squash": { "type": "boolean" },
+            "rebase": { "type": "boolean" },
+            "deleteBranchOnMerge": { "type": "boolean" },
+            "issues": { "type": "boolean" },
+            "wiki": { "type": "boolean" },
+            "projects": { "type": "boolean" }
+          },
+          "anyOf": [
+            { "properties": { "mergeCommit": { "const": true } } },
+            { "properties": { "squash": { "const": true } } },
+            { "properties": { "rebase": { "const": true } } }
+          ]
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

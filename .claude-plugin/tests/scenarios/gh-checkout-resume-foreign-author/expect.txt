@@ -1,0 +1,6 @@
+# A single local commit with the file, authored under another address: never pushed, the address never repeated.
+CALLED ^git log -1 --format=%ae HEAD
+NOT_CALLED ^git -c credential.* push
+NOT_CALLED ^git (add|commit)
+OUTPUT "status": "failed"
+OUTPUT_NOT owner@example\.com

@@ -1,0 +1,7 @@
+# Declared private, the repository does not exist, no argument: nothing changes without
+# confirm=yes.
+CALLED ^gh api repos/example-org/demo$
+NOT_CALLED ^gh repo|--method|^git (init|commit|push)
+OUTPUT /aleogr:project-apply confirm=yes
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do

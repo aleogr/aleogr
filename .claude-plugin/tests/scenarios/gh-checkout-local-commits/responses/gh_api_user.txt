@@ -1,0 +1,7 @@
+{
+  "login": "example-user",
+  "id": 1234567,
+  "type": "User",
+  "name": null,
+  "email": null
+}

@@ -26,6 +26,8 @@ Free text after the skill name, as `key=value` pairs.
 
 Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 4 runs again as the verification of step 7): no `gh auth status`, no `gh repo view`, no other `gh` command, no `--method DELETE`, no `--method PATCH`, no retry. Never print the account name or the token. The body of a write is always the file, passed as `--input "${CLAUDE_PLUGIN_ROOT}/files/ruleset-main.json"` (with the quotes), never inline. Write `${CLAUDE_PLUGIN_ROOT}` as the real folder of this plugin, so the file is `<plugin folder>/files/ruleset-main.json`.
 
+A command whose result decides a step is run alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. Each case below names both the exit code and the text that identifies it; when the two disagree (an `exit 0` reported next to an error line such as `gh: Not Found (HTTP 404)`), the text decides and the answer says that the exit code could not be trusted. The text is read to decide and is never quoted: the answer gives the cause in one sentence in its own words, with no raw error text.
+
 1. Read the repository:
 
    ```

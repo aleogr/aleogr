@@ -6,7 +6,7 @@
     {
       "name": "aleogr",
       "source": "./.claude-plugin/plugins/aleogr",
-      "description": "Orchestrator: checks tools and plans and creates the shared platform.",
+      "description": "Orchestrator: checks tools and plans and creates the shared platform, and declares, plans and applies a project's GitHub repository.",
       "category": "orchestrator",
       "displayName": "aleogr (orchestrator)"
     },
@@ -27,7 +27,7 @@
     {
       "name": "aleogr-repo-github",
       "source": "./.claude-plugin/plugins/aleogr-repo-github",
-      "description": "GitHub family: repositories, their settings and branch protection.",
+      "description": "GitHub family: repositories, their settings, branch protection and the checkout that sends the first content.",
       "category": "repo",
       "displayName": "GitHub (repository)"
     }

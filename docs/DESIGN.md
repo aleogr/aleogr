@@ -194,27 +194,28 @@ aleogr/aleogr/
 └── .claude-plugin/                            ← the whole marketplace; the repository root is the marketplace root
     ├── README.md                              ← how to register the marketplace (skeleton)
     ├── marketplace.json                       (built: aleogr, aleogr-cloud-gcp, aleogr-db-gcp-cloud-sql, aleogr-repo-github)
-    ├── tests/                             ← skill tests: run.sh, fake gcloud and fake gh in bin/, scenarios/ (built, section 15.1)
+    ├── tests/                             ← skill tests: run.sh, fake gcloud, gh and git in bin/, scenarios/ (built, section 15.1)
     ├── schemas/
-    │   ├── README.md                          ← purpose, versioning and examples of the schema (skeleton)
-    │   ├── project.schema.json
+    │   ├── README.md                          ← purpose, versioning and examples of the schema (built)
+    │   ├── project.schema.json                ← the declaration, version 1: the project name and its repository (built)
     │   └── examples/                          ← example declarations (JSON only, fictitious values)
+    │       ├── repo-only.json                 ← a version 1 declaration (built)
     │       └── go-gcp-cloudflare.json         (future)
     └── plugins/
         ├── README.md                          ← names, family types, plugin skeleton (skeleton)
-        ├── aleogr/                            ← orchestrator (MVP; built: manifest, defaults.json and the three platform skills)
+        ├── aleogr/                            ← orchestrator (MVP; built: manifest, defaults.json, the three platform skills and the three project skills)
         │   ├── .claude-plugin/plugin.json
         │   ├── defaults.json              ← my personal defaults (choices only, no IDs)
         │   ├── skills/
         │   │   ├── tools-check/SKILL.md           (built)
         │   │   ├── platform-plan/SKILL.md         (built)
         │   │   ├── platform-apply/SKILL.md        (built)
-        │   │   ├── project-declare/SKILL.md
-        │   │   ├── project-plan/SKILL.md
-        │   │   └── project-apply/SKILL.md
+        │   │   ├── project-declare/SKILL.md       (built)
+        │   │   ├── project-plan/SKILL.md          (built)
+        │   │   └── project-apply/SKILL.md         (built)
         │   ├── hooks/hooks.json               ← destructive command guard
         │   └── scripts/guard-destructive.sh
-        ├── aleogr-repo-github/                (MVP; built: manifest, the ruleset file and the four skills marked built)
+        ├── aleogr-repo-github/                (MVP; built: manifest, the ruleset file and the five skills marked built)
         │   ├── .claude-plugin/plugin.json
         │   ├── files/ruleset-main.json        ← the ruleset `main` that github_branch-protect sends (same rules as aleogr/aleogr's)
         │   └── skills/
@@ -222,6 +223,7 @@ aleogr/aleogr/
         │       ├── github_repo-create/SKILL.md        ← contract (built)
         │       ├── github_repo-configure/SKILL.md     ← contract (built)
         │       ├── github_branch-protect/SKILL.md     ← contract (built)
+        │       ├── github_checkout-setup/SKILL.md     ← contract: the folder's checkout and the declaration sent at the birth (built)
         │       ├── github_ci-set-secret/SKILL.md      ← contract
         │       ├── github_ci-setup/SKILL.md           ← contract
         │       └── github_claude-app-install/SKILL.md ← extra (future)
@@ -419,7 +421,7 @@ Declaration (replaces a simple `domains` field):
 
 ### 6.6 Personal defaults
 
-- In `.claude-plugin/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: the domain (`aleogr.dev`), GitHub owner, preferred cloud and region, DNS provider, which services the shared platform shares.
+- In `.claude-plugin/plugins/aleogr/defaults.json` (public, choices only, no IDs), read by `project-declare` to pre-fill declarations: the domain (`aleogr.dev`), preferred cloud and region, DNS provider, which services the shared platform shares.
 
 ### 6.7 GCP: organization, folders and billing
 
@@ -471,7 +473,7 @@ Declaration (replaces a simple `domains` field):
   - name by convention ALWAYS (it is the identifier of resources without labels, such as databases inside the shared instance and DNS records);
   - variables only for what cannot be deduced (ideally only IDs chosen once).
 - The platform's change history comes from the hooks' audit log and the providers' audit logs; decisions are versioned in Git (`.claude-plugin/plugins/aleogr/defaults.json`).
-- PROJECT data (`project.json`, `state.json`) stays in each project's repository. **Open question:** apply the same discovery principle to projects, making `state.json` lighter or just a cache (see in practice, with the MVP).
+- PROJECT data: the declaration (`.aleogr/project.json`) stays in each project's repository. A project's state follows the same discovery principle as the shared platform's: it is read from the providers, and `project-plan` learns what exists from GitHub itself (the repository, its settings and topics, its protection and its copy of the declaration). **There is no `.aleogr/state.json`**; a state file is added only for something that cannot be discovered.
 
 ---
 
@@ -599,7 +601,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 - **Personal preference:** the SMALLEST possible number of repositories. Monorepo whenever it makes sense; in multi-repo projects, prefer the federated layout (creates no extra repository).
 - A project is a list of components (stack, platform, deploy/distribution, location = directory or repository), the project environments ([section 6](#6-project-environments-the-shared-platform-and-minimum-cost)) and the project's shared services.
-- **Declaration** in `.aleogr/project.json` in the project repository (what I WANT; edited by me or by the `project-declare` skill). **State** in `.aleogr/state.json` (what EXISTS; only the orchestrator writes it). Neither stores secrets, only references.
+- **Declaration** in `.aleogr/project.json` in the project repository (what I WANT; written by the `project-declare` skill or by hand). **State** is what EXISTS, discovered from the providers ([section 7](#7-where-data-lives)); there is no state file. The declaration stores no secret, only references.
 - The **shared platform** is managed by the same orchestrator, with the same declaration format (marked as `"kind": "platform"`), but without its own repository: choices in `defaults.json`, identifiers by convention and variables, state discovered in the cloud ([section 7](#7-where-data-lives)). Projects point to it in the `dev` and `hom` project environments.
 
 ### 11.1 JSON Schema
@@ -617,6 +619,8 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - A repository's visibility is declared, `public` or `private`, with the default `private`: making a repository public later is easy, the opposite does not undo what was seen.
 - Nothing becomes public without its own confirmation, whether at creation or by a change (`confirmVisibility=public`); a change to private needs `confirmVisibility=private`. A skill does not wait for the answer: without the confirmation it changes nothing of the visibility, ends with the question and the exact command that confirms it.
 - In a free organization, a private repository has no branch protection (the plan forbids rulesets there): `branch-protect` reports `pending`, and `main` is held by the working rule (Claude Code opens the pull request, the owner merges), not by GitHub.
+- **Version 1** of the declaration holds only what has been proven: `version` (`1`), `name`, `repo` and the optional `notes`. `repo` has `provider` (`github`, the only one implemented), `owner`, `name`, `visibility`, `description`, `topics` (extra topics only) and `settings`, which is complete in the file (the seven keys `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`), so the file says everything about the repository without the defaults. The schema is strict (no unknown key at any level); the skills check a declaration by the same rules written in their own text, so no validator is needed where they run. The declaration grows by stage: components, environments, cloud, database and DNS enter with the stage that proves them ([section 17](#17-implementation-strategy)). Example: `examples/repo-only.json`.
+- **The topic `aleogr-<name>` is derived, not typed:** `repo.topics` never holds it; the topics sent to the provider are `aleogr-<name>` plus `repo.topics`, sorted, without duplicates.
 
 ### 11.2 Supported layouts (same format)
 
@@ -631,6 +635,14 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - **Claude Code cloud sessions:** the repository's `.claude/settings.json` does NOT install plugins in them. Plugins arrive through the cloud environment's setup script ([section 14](#14-where-i-run-claude-code)). How family plugins get there is **PENDING** ([section 18](#18-open-items)).
 - **What the repository brings to cloud sessions** (single-repository session): `CLAUDE.md`, `.claude/skills/`, `.claude/agents/`, `.claude/commands/`, `.claude/rules/`, hooks and permissions from `.claude/settings.json`, `.mcp.json`.
 
+### 11.4 The declaration in its repository
+
+- The declaration is written in the project's folder, before the repository exists, and travels with the code.
+- **The birth.** A repository that does not exist is born in one `project-apply` run: created with its README, configured, the declaration sent as its first content after the README, then `main` protected. That push is the only direct push to `main` in the repository's life. It is made only to a repository whose default branch has exactly one commit (the README) and no declaration, and before the protection exists; on a repository already protected it is never made.
+- **Commit identity.** The folder becomes a checkout of the repository, and its commit identity is set in that checkout only (local git configuration): the account's login as the name and GitHub's no-reply address as the e-mail. A real e-mail address is never used and no global configuration is changed; later commits from that folder carry the same identity.
+- **After the birth, only the merged declaration is applied.** A change goes: edit the declaration, pull request, merge, update the folder, `project-apply`. While the local declaration differs from the repository's copy (compared as JSON values, not byte by byte), `project-plan` compares nothing else and shows `merge first`, and `project-apply` stops before any change.
+- **Adoption.** A repository with any other history and no declaration is never pushed to: the plan shows `open a pull request`, the declaration enters by pull request, and from its merge the repository is applied like any other.
+
 ---
 
 ## 12. Skills of the `aleogr` orchestrator
@@ -638,9 +650,12 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - **Core:**
   - `platform-plan`: compares the shared platform choices in `defaults.json` with the cloud; changes nothing (implemented for the free part: shared project, APIs, budget alert);
   - `platform-apply`: creates and changes the shared platform ([section 6.8](#68-shared-platform-resources)) as `platform-plan` lists (implemented for the free part; asks for one confirmation unless called with `confirm=yes`);
-  - `project-declare`: edits project.json through questions, pre-filling from `defaults.json`, without executing;
-  - `project-plan`: compares declaration, state and reality; changes nothing;
-  - `project-apply`: executes the plan in order.
+  - `project-declare` (implemented for version 1 of the declaration): writes or edits `.aleogr/project.json` in the current folder from `key=value` arguments. A new declaration needs `name`, `owner` and `description` and takes the rest from `defaults.json`; an existing one keeps everything the arguments do not change, and its `name`, owner and repository name are never changed (that is another project). It writes the file in its canonical form, runs no command and changes nothing on GitHub; `created`, `updated`, `unchanged` or `failed`;
+  - `project-plan` (implemented for the repository): validates the declaration, runs `tools-check command=gh`, `github_repo-describe` and `github_checkout-setup mode=plan`, and prints five items with their state and action: `repository`, `settings` (description, topics and the seven settings), `visibility`, `declaration` and `protection`. It changes nothing and ends with `nothing to do` only when every action is `none`. `merge first` and `open a pull request` are actions only the owner can take;
+  - `project-apply` (implemented for the repository): runs `project-plan`, takes the plan's confirmation, invokes the `aleogr-repo-github` skills in the order of [section 12.2](#122-apply-order) and runs `project-plan` again; `nothing to do` comes only from that last plan. It stops, changing nothing, on `merge first` or `open a pull request`, and stops at the first step that ends `failed` or `pending` (except the protection's plan limit on a private repository, the expected end there).
+  - **Confirmation:** one per run, for the whole plan, and a run is all or nothing. A plan that changes no visibility is confirmed by `confirm=yes`; a plan that creates a public repository or makes one public only by `confirmVisibility=public`, and one that makes a repository private only by `confirmVisibility=private`, which then confirm the whole plan. Without the confirmation its plan needs, the run ends `pending`, changes nothing and shows the text that confirms; a `confirmVisibility` the plan does not need is `failed`, so a confirmation never applies to another plan.
+  - Status rule: `pending` as a status means nothing was changed. Once something was done the status says what (`created`, `updated`) and what is left is an item of the `pending` list.
+  - The `project-*` skills run no `gh` or `git` command themselves and never wait for an answer.
   - `platform-*` act on the shared platform (they address its project as `project=shared platform=shared`); `project-*` remain for projects.
 - **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
@@ -666,7 +681,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 ### 12.2 Apply order
 
-1. Repositories.
+1. Repositories: create → configure (settings, then visibility) → send the declaration (only at the birth, [section 11.4](#114-the-declaration-in-its-repository)) → protect.
 2. Domain registration.
 3. Cloud base (or verification of the shared platform).
 4. Secrets.
@@ -724,7 +739,7 @@ Deterministic guarantees; general ones live in `aleogr`, specific ones in each f
 
 ### 13.6 Projects' CLAUDE.md
 
-- Short; points to `.aleogr/project.json`, says not to edit `state.json` by hand, keeps conventions.
+- Short; points to `.aleogr/project.json`, keeps conventions.
 - Per-directory CLAUDE.md with each stack's conventions.
 
 ### 13.7 Future
@@ -857,9 +872,9 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
 
 The scheduled workflow `self-cleanup-tests.yml` deletes tests older than a few days, in this order:
 
-1. Read the `state.json` of the `test-<id>` repository.
+1. Find the test's resources by its `<id>`, by the names and labels of the discovery rules ([section 7](#7-where-data-lives)).
 2. Delete the external resources (cloud, also checking the label `aleogr-test=<id>`; on GCP, projects only inside the folder `tst`; DNS records/routes matching the pattern; databases `test_<id>`; codespaces).
-3. Delete the repository LAST (the state is in it).
+3. Delete the repository LAST (it holds the test's declaration).
 
 The destructive command guard has exceptions ONLY for these cases ([section 13.1](#131-hooks)).
 
@@ -927,10 +942,10 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - The next real project's declaration, with fictitious values, becomes the first example in `.claude-plugin/schemas/examples/` and the first end-to-end test, before being applied to the real project.
 - New families, providers, actions, workflows, Features and cloud environments come in when a real project needs them.
 - **Until the first real project starts, the reference project `pilot` drives the tooling** ([section 15.4](#154-reference-project)). The first real project is an identity provider (Go, monorepo, not multi-tenant); later products may be multi-tenant, which is why `pilot` is multi-tenant from the start.
-- **Stages after the shared platform** (stages 1 and 2 created it, [section 18](#18-open-items)); stage 3a is built, the rest is not:
+- **Stages after the shared platform** (stages 1 and 2 created it, [section 18](#18-open-items)); stages 3a and 3b are built, the rest is not:
   3. repository, in three parts, each with its own real run and pull request ([design of 3a](plans/2026-11-18-pilot-stage-3a-design.md)):
      - 3a: the GitHub plugin `aleogr-repo-github`, which creates, configures and protects the repository of `pilot`;
-     - 3b: the declaration and `project-declare`, `project-plan` and `project-apply`, which drive the plugin from a file;
+     - 3b: the declaration and `project-declare`, `project-plan` and `project-apply`, which drive the plugin from a file, and `github_checkout-setup`, which sends the declaration at the birth ([design of 3b](plans/2026-11-18-pilot-stage-3b-design.md));
      - 3c: a Go skeleton and CI;
   4. running in `dev`: the GCP project, a database on the shared instance, both services behind the login, CD;
   5. addresses and tenants: the Cloudflare plugin, certificates, `tenant-add`, and the test that opens `status` to the public and closes it again;
@@ -968,11 +983,12 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Configure the Codespaces spending limit and idle timeout; create the Codespaces secret for Claude Code authentication.
 - [x] Can an installed plugin read files of the marketplace outside its own folder? No. `defaults.json` lives in the orchestrator plugin (`.claude-plugin/plugins/aleogr/`) and `contracts.json` (section 10.1) will live there too.
 - [ ] Decide whether plugin-create/marketplace-validate live in `aleogr` or in `aleogr-dev`.
-- [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
+- [x] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery: answered in stage 3b. A project's state is discovered from the provider; there is no state file ([section 7](#7-where-data-lives)).
 - [x] Protection of `aleogr/aleogr`'s `main`: a branch ruleset named `main`, created by hand on 2026-11-17 (active, empty bypass list, default branch; restrict deletions, block force pushes, require a pull request with 0 approvals). Made by hand because the repository of the marketplace is not created by the skills; `github_branch-protect` ([`CONTRACTS.md`](CONTRACTS.md)) must find it and change nothing when it exists.
 - [x] The GitHub account has two-factor authentication on (checked on 2026-11-17).
 - [x] **First real run of stage 3a**, by me in Cloud Shell on 2026-11-18, following [`plans/2026-11-18-pilot-stage-3a-run.md`](plans/2026-11-18-pilot-stage-3a-run.md): `aleogr-sandbox/pilot` created private and configured, its protection `pending`, then made public and protected, and every skill `unchanged` at the end. Every step answered as expected on the first attempt; what it showed is in [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
 - [x] How GitHub answers a ruleset request on a private repository of a free organization: it refuses the read of the rulesets, so `plan` and `apply` both end `pending` without writing ([section 10.3](#103-extending-contracts)). Confirmed on 2026-11-18.
 - [ ] The GitHub skills have not run in the Windows app (PowerShell): the quoting of the description and the path of the ruleset file are proven in bash only.
-- [ ] Make the skills that decide by a command's exit code also name the text that identifies each case ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)); do it with the next change to the GitHub skills.
+- [x] Make the skills that decide by a command's exit code also name the text that identifies each case ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)): done in stage 3b for the GitHub skills, `github_checkout-setup` included; when the two disagree, the text decides.
+- [ ] **First real run of stage 3b**, in Cloud Shell, following [`plans/2026-11-18-pilot-stage-3b-run.md`](plans/2026-11-18-pilot-stage-3b-run.md): `aleogr-sandbox/pilot` deleted by hand and born again from its declaration, then a change to the declaration applied after its pull request is merged.
 - [ ] Start the first real project (an identity provider, [section 17](#17-implementation-strategy)) once the reference project `pilot` has gone through the stages there.

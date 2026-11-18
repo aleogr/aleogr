@@ -1,0 +1,3 @@
+CALLED ^git branch --show-current
+NOT_CALLED ^git (-c credential.* (pull|push)|commit)
+OUTPUT "status": "failed"

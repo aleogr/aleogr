@@ -1,0 +1,6 @@
+# The ruleset main asks for one approval, the file for none; everything else as declared.
+CALLED ^gh api repos/example-org/demo/rulesets/123$
+OUTPUT "item": "protection", "state": "differs", "action": "update"
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^git (commit|push)

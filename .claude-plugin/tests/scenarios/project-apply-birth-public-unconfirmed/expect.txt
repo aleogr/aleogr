@@ -1,0 +1,7 @@
+# Declared public, the repository does not exist: confirm=yes does not confirm an exposure.
+# Nothing is created, nothing is sent.
+CALLED ^gh api repos/example-org/demo$
+NOT_CALLED ^gh repo|--method|^git (init|commit|push)
+OUTPUT /aleogr:project-apply confirmVisibility=public
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do

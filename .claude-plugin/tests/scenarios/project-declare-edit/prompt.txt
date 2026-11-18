@@ -1,0 +1,1 @@
+/aleogr:project-declare topics=sample,status-page

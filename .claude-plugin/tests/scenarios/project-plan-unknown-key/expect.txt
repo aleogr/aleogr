@@ -1,0 +1,7 @@
+# The declaration has a key the rules do not list: nothing is run and no skill is invoked.
+NOT_CALLED ^gh
+OUTPUT_NOT "action": "tools-check"
+OUTPUT_NOT "action": "repo-describe"
+OUTPUT "action": "project-plan"
+OUTPUT "status": "failed"
+OUTPUT "items": \[\]

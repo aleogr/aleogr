@@ -1,0 +1,5 @@
+# Everything as declared: no confirmation is needed and nothing changes.
+CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+NOT_CALLED ^gh repo|--method|^git (commit|push)
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"

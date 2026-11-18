@@ -1,0 +1,7 @@
+CALLED ^gh api "?repos/example-org/example-repo/commits\?per_page=2
+OUTPUT "state": "missing"
+OUTPUT "status": "pending"
+OUTPUT pull request
+NOT_CALLED ^git (init|commit|push|pull|config|remote|add)
+NOT_CALLED ^git -c credential
+NOT_CALLED ^gh api user
