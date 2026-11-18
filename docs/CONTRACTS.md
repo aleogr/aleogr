@@ -37,7 +37,7 @@ These rules apply to every action of every family, in addition to [DESIGN.md sec
 | `*-grant` | Gives an identity access to a resource | yes |
 | `*-remove` / `*-archive` | Removes or archives; always guarded (destructive hook + confirmation) | yes |
 
-- Every family has a `*-describe` action. It is the basis of `project-plan` (comparing declaration × state × reality) and of the final verification of every action.
+- Every family has a `*-describe` action. It is the basis of `project-plan` (comparing the declaration with reality, which is discovered, not stored) and of the final verification of every action.
 
 ### 1.2 Modes
 
@@ -55,7 +55,7 @@ These rules apply to every action of every family, in addition to [DESIGN.md sec
 
 ### 1.4 Output: the `aleogr-result` block
 
-Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-apply` parses it, writes `state.json` and routes **requests** to other families.
+Every skill ends with one fenced JSON block tagged `aleogr-result`. The orchestrator's skills read it as input (they never repeat it) and route **requests** to other families.
 
 ```json
 {
@@ -85,7 +85,8 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 }
 ```
 
-- `status`: `created` | `updated` | `unchanged` | `pending` | `failed` (apply); `would-create` | `would-update` | `unchanged` (plan, with a `changes` list), and `pending` (plan, only for a feature the provider's plan forbids, [section 1.2](#12-modes)) or `failed`.
+- `status`: `created` | `updated` | `unchanged` | `pending` | `failed` (apply); `would-create` | `would-update` | `unchanged` (plan, with a `changes` list), and `pending` or `failed`. A `plan` is `pending` for a feature the provider's plan forbids ([section 1.2](#12-modes)), or for a step only the owner can take: it changes nothing and lists that step as an item with the reason `manual` (for example, a change to the declaration that must be merged first).
+- `pending` as a status means nothing was changed. Once something was done the status says what (`created`, `updated`) and what is left is an item of the `pending` list.
 - `requests` is the glue between families: a family never calls another family's skill; it asks, and the orchestrator routes the request in the right apply step ([DESIGN.md section 12.2](DESIGN.md#122-apply-order)):
   - `dnsRecords` → dns-* in step 8;
   - `ciSecrets` / `ciVariables` → repo-* `ci-set-secret` / `ci-set-variable` in step 10;
@@ -110,8 +111,9 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 | Action | Input | Output |
 |---|---|---|
 | `repo-describe` | owner, name | exists, visibility, description, default branch, merge settings, features (issues, wiki, projects), protection, topics, secret/variable **names** (from stage 4) |
-| `repo-create` | owner, name, visibility (default `private`; `public` needs its own confirmation), description, topics, local directory (from stage 3c) | creates the repository with a README; HTTPS/SSH URLs, default branch, remote configured (from stage 3c) |
+| `repo-create` | owner, name, visibility (default `private`; `public` needs its own confirmation), description, topics | creates the repository with a README; HTTPS/SSH URLs, default branch |
 | `repo-configure` | owner, name, and only the settings to change: description, topics, merge methods, delete branch on merge, features (issues, wiki, projects), visibility (a change needs its own confirmation) | applied settings |
+| `checkout-setup` | owner, name, path (default `.aleogr/project.json`), commit message | ties the current folder to the repository (a git checkout with the remote `origin`) and sends the file as the first content after the README; output: the file's state in the repository (`equal`, `not-sent`, `differs`, `missing`), default branch, path, whether it pushed. `plan` reads the repository's copy through the provider's API and changes nothing |
 | `branch-protect` | 3a: owner, name (default branch, fixed rules); the other inputs from stage 3c: branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit, in `plan` and in `apply`) |
 | `ci-set-secret` | name, scope (`repo` \| `org` \| `environment`), value source | name and scope (never the value) |
 | `ci-set-variable` | name, value, scope (`repo` \| `org` \| `environment`) | name, scope, value |
@@ -123,6 +125,8 @@ Notes:
 - `branch-protect` runs twice in apply: step 1 (no checks yet) and step 10 (with `checks` from `ci-setup`).
 - `repo-create` creates the repository with a README, so that the default branch exists from the start (a protection that requires pull requests could block the first commit of an empty repository). On an existing repository it changes nothing (`unchanged`) and lists what differs from its inputs; `repo-configure` is the only action that corrects an existing repository.
 - `repo-configure` compares and changes only the settings it is given: a setting left out is left as it is.
+- `checkout-setup` sends only at a birth: the file is pushed to the default branch only when that branch has exactly one commit (the README of `repo-create`) and does not have the file. A repository with any other history is never pushed to. Its states: `equal` (`unchanged`); `not-sent`, a birth (`would-create` in `plan`, `created` in `apply`); `differs` and `missing` are `pending` in `plan` and in `apply`, with one item of reason `manual`: merge the change first, or open a pull request that adds the file. A push the repository's rules refuse is the same `pending`, not a failure. The two files are compared as JSON values, not byte by byte.
+- `checkout-setup` commit identity: always set in that checkout only (local configuration), whatever the machine's global identity is: on GitHub, the account's login and its no-reply address (`<id>+<login>@users.noreply.github.com`). A real e-mail address is never used, the login is not repeated in the answer or the result block, and no global configuration is changed (the push authenticates through `gh` for that command only).
 - Visibility: nothing becomes public, at creation or by a change, without the confirmation `confirmVisibility=public`; a change to private needs `confirmVisibility=private`. Without it the action does not wait for an answer: it changes nothing of the visibility, asks the question and gives the exact command that confirms it.
 - `pending` as a status means nothing was changed: the run waits for the visibility confirmation, or the provider's plan forbids the protection. Once something was done the status says what (`created`, `updated`) and anything left is an item in the `pending` list.
 - `branch-protect` on a plan without branch protection (on GitHub, a private repository of a free organization): `pending` in `plan` and in `apply`, nothing changed, one `plan-limit` item; the default branch is then held by the working rule (the owner merges).
