@@ -1,0 +1,5 @@
+CALLED ^gh api --method POST
+NOT_CALLED --method (PUT|DELETE|PATCH)
+NOT_CALLED rulesets/456
+OUTPUT "status": "created"
+OUTPUT release-tags
