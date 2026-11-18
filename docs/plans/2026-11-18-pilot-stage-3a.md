@@ -48,7 +48,7 @@
 | `.claude-plugin/marketplace.json` | new entry |
 | `.claude-plugin/tests/bin/fake-cli`, `bin/gcloud`, `bin/gh` | shared fake and two wrappers |
 | `.claude-plugin/tests/run.sh`, `tests/README.md` | load the new plugin; document `gh` |
-| `.claude-plugin/tests/scenarios/gh-*`, `tools-check-gh-*` | scenarios |
+| `.claude-plugin/tests/scenarios/gh-*`, `tools-gh-*` | scenarios |
 | `.claude-plugin/plugins/aleogr/skills/tools-check/SKILL.md`, `aleogr/.claude-plugin/plugin.json` | `command=gh`; version `0.5.0` |
 | `docs/DESIGN.md`, `docs/CONTRACTS.md`, `docs/cloud-shell.md`, `.claude-plugin/plugins/README.md`, `docs/plans/2026-11-18-pilot-stage-3a-run.md` | documents |
 
@@ -100,7 +100,7 @@ OUTPUT example-repo
 
 - [ ] **Step 4: Create `plugin.json`** (`"name": "aleogr-repo-github"`, `"version": "0.1.0"`, `"description": "GitHub family: repositories, their settings and branch protection."`, `"author": { "name": "aleogr" }`), `ruleset-main.json`, and the `marketplace.json` entry (same description, `"category": "repo"`, `"displayName": "GitHub (repository)"`, `"source": "./.claude-plugin/plugins/aleogr-repo-github"`). The plugin needs one skill folder to load: create `skills/github_repo-describe/SKILL.md` in Task 2, and until then keep `--plugin-dir` for it out of `run.sh` if `claude` refuses an empty plugin (check by running the self-test).
 
-- [ ] **Step 5: Run `harness-selftest-gh` and `harness-selftest`; expected PASS both.** Then run four existing scenarios as a regression of the refactor: `create-apply`, `budget-existing-equal`, `describe-normal`, and one that uses `+after+` responses (pick with `ls scenarios/*/responses | grep -m1 after`). Expected PASS.
+- [ ] **Step 5: Run `harness-selftest-gh` and `harness-selftest`; expected PASS both.** Then run four existing scenarios as a regression of the refactor: `create-apply`, `budget-existing-equal`, `describe-existing`, and one that uses `+after+` responses (pick with `ls scenarios/*/responses | grep -m1 after`). Expected PASS.
 
 - [ ] **Step 6: Update `tests/README.md`** (the fake `gh`, the `gh_` prefix, the `--input` rule, the fourth plugin) and commit: `Add the GitHub plugin skeleton and a fake gh to the tests`.
 
@@ -360,7 +360,7 @@ OUTPUT "status": "failed"
 
 **Files:**
 - Modify: `.claude-plugin/plugins/aleogr/skills/tools-check/SKILL.md`, `.claude-plugin/plugins/aleogr/.claude-plugin/plugin.json` (version `0.5.0`)
-- Create: scenarios `tools-check-gh-ok`, `tools-check-gh-missing`, `tools-check-gh-not-authenticated`
+- Create: scenarios `tools-gh-ok`, `tools-gh-missing`, `tools-gh-not-authenticated`
 
 **Interfaces:**
 - Argument: `command=gcloud|gh`, default `gcloud`. Any other value: `failed`, no command. Without the argument the skill does exactly what it does today, and the frontmatter description says the `gh` check is opt-in.
@@ -369,27 +369,27 @@ OUTPUT "status": "failed"
 - [ ] **Step 1: Write the three scenarios.** For `missing`, the scenario needs the fake to behave as an absent command: add to `fake-cli` the rule that a response file named `<prefix>.exit127` prints its content and exits 127, and use `gh_--version.txt.exit127` containing `bash: gh: command not found`. Expectations:
 
 ```
-# tools-check-gh-ok
+# tools-gh-ok
 CALLED ^gh --version
 CALLED ^gh auth status
 NOT_CALLED ^(auth|projects|--version)
 OUTPUT "name": "gh"
 OUTPUT "state": "ok"
 RESULT_NOT example-user
-# tools-check-gh-missing
+# tools-gh-missing
 NOT_CALLED ^gh auth
 OUTPUT "state": "missing"
 OUTPUT "status": "failed"
-# tools-check-gh-not-authenticated
+# tools-gh-not-authenticated
 OUTPUT "state": "not-authenticated"
 OUTPUT gh auth login
 ```
 
-  (`tools-check-gh-ok`'s `gh auth status` response contains `Logged in to github.com account example-user`.)
+  (`tools-gh-ok`'s `gh auth status` response contains `Logged in to github.com account example-user`.)
 
 - [ ] **Step 2: Run them; expected FAIL.**
 - [ ] **Step 3: Change `SKILL.md` and bump the version.**
-- [ ] **Step 4: Run the three, plus every existing `tools-check*` scenario and `plan-nothing-to-do` (or the nearest existing platform-plan scenario); expected PASS.**
+- [ ] **Step 4: Run the three, plus the four existing `tools-*` scenarios and `platform-plan-empty`; expected PASS.**
 - [ ] **Step 5: Commit:** `Let tools-check check gh`.
 
 ### Task 7: Documents and the run checklist
@@ -411,4 +411,4 @@ OUTPUT gh auth login
 - [ ] **Step 4: `.claude-plugin/plugins/README.md`** "What exists": the new plugin; also correct the `aleogr-db-gcp-cloud-sql` line, which lists one skill of its five.
 - [ ] **Step 5: Write the run checklist** `2026-11-18-pilot-stage-3a-run.md`, in the form of `2026-11-17-shared-platform-stage-2-run.md`: preparation (update the marketplace, install the plugin, on Windows install `gh` with `winget install GitHub.cli`, `gh auth login`, confirm the organization `aleogr-sandbox` exists and the account owns it), then the eight steps of the design's "The real run" with the exact command of each and what is expected, including for `pilot`: `owner=aleogr-sandbox name=pilot description="Reference project of aleogr: status pages per tenant" topics=aleogr-pilot` and the settings `mergeCommit=true squash=true rebase=false deleteBranchOnMerge=true issues=true wiki=false projects=false`. Step 5 is run in `plan` and then in `apply`, and says what to send back if the answer is not `pending`.
 - [ ] **Step 6: Check links and leftovers:** `grep -rn "aleogr-sandbox" .claude-plugin` prints nothing; every relative link in the changed documents points to an existing file or heading.
-- [ ] **Step 7: Run the whole `gh-*` and `tools-check*` set once more, four at a time; expected PASS all.** Commit: `Document stage 3a and add its run checklist`.
+- [ ] **Step 7: Run the whole `gh-*` and `tools-*` set once more, four at a time; expected PASS all.** Commit: `Document stage 3a and add its run checklist`.
