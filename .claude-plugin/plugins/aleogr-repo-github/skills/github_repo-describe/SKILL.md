@@ -60,9 +60,10 @@ Show each command before running it. Run only the commands below, in this order,
    A non-zero exit is `failed` (one sentence, no raw error text). On exit 0, `protection.state` is `protected` and `protection.rulesetId` is the `id`. Read `${CLAUDE_PLUGIN_ROOT}/files/ruleset-main.json` with the Read tool (not a shell command); if it cannot be read or is not valid JSON, `failed`. Then set `protection.matches` by this rule, the same one the other aleogr-repo-github skills use:
 
    - Compare only the keys the file has: `target`, `enforcement`, `bypass_actors`, `conditions` and `rules`, and inside them only the keys the file has. Keys the read ruleset has and the file does not (`id`, `source`, `source_type`, `created_at`, `updated_at`, `_links`, `current_user_can_bypass`, `node_id`, extra rule parameters such as `required_reviewers` or `require_extra_approval_for_unattributed_changes`, and any other) are ignored.
-   - Every compared key is deep-equal to the file's: same value, and for lists the same items in the same order, except `allowed_merge_methods`, which is compared as a set (same items, any order).
+   - Scalars and objects are compared by deep equality.
+   - These lists are compared as sets, order ignored: `rules`, `allowed_merge_methods`, `conditions.ref_name.include`, `conditions.ref_name.exclude` and `bypass_actors`. There is no other list in the file.
+   - `rules` is matched by `type`: it must have exactly the file's rule types (`deletion`, `non_fast_forward`, `pull_request`), each once, no more and no fewer; each rule is then compared on the keys the file gives it (for `pull_request`, every key of its `parameters` in the file).
    - `bypass_actors` absent, `null` and `[]` all count as "none", and are equal to each other.
-   - `rules` must have exactly the file's rule types (`deletion`, `non_fast_forward`, `pull_request`), each once, no more and no fewer (in any order); each rule is then compared on the keys the file gives it (for `pull_request`, every key of its `parameters` in the file).
 
    `matches` is true when every compared key is equal, false otherwise.
 
@@ -100,7 +101,7 @@ End with exactly one fenced block tagged `aleogr-result`:
 
 - Values come only from the commands' output: `url` from `html_url`, `visibility` from `visibility` (`public`, `private` or `internal`), `defaultBranch` from `default_branch`, `description` from `description` (`null` when it has none), `topics` from `topics` (sorted), and `settings` from `allow_merge_commit`, `allow_squash_merge`, `allow_rebase_merge`, `delete_branch_on_merge`, `has_issues`, `has_wiki`, `has_projects`, in that order.
 - `protection.state` is `protected` (a ruleset named `main` exists), `unprotected` (none is named `main`) or `unavailable` (the plan does not allow rulesets). `rulesetId` and `matches` are `null` unless `protected`.
-- `status` is `unchanged` whenever the state was read: the repository exists, or step 1 answered `HTTP 404`, or step 2 answered `unavailable`.
+- `status` is `unchanged` whenever every step that ran succeeded, whether or not the repository exists (`HTTP 404` in step 1 and `unavailable` in step 2 are successful answers); it is `failed` otherwise.
 - Repository does not exist (HTTP 404 in step 1): `resources` is empty and `outputs` is `{ "exists": false, "url": null, "visibility": null, "defaultBranch": null, "description": null, "topics": [], "settings": null, "protection": null }`.
 - `status` is `failed` when an argument is missing or broke a rule, `gh` is missing or not logged in, a command exited non-zero in a way the steps do not name as a known answer, step 2 did not give a JSON list, two rulesets are named `main`, or `ruleset-main.json` could not be read. A failed read never says the repository does not exist. The shape depends on where it failed:
   - Before or at step 1 (arguments, `gh`, the repository read): `resources` is empty and `outputs` is `{ "exists": null, "url": null, "visibility": null, "defaultBranch": null, "description": null, "topics": [], "settings": null, "protection": null }`.
