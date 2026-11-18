@@ -2,8 +2,8 @@
 
 A headless harness that runs the real skills of `plugins/aleogr`,
 `plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql` and
-`plugins/aleogr-repo-github` with `claude -p`, against a fake `gcloud` and a fake
-`gh`, and checks which `gcloud` and `gh` calls the skill made. Nothing is created outside the repository.
+`plugins/aleogr-repo-github` with `claude -p`, against a fake `gcloud`, a fake
+`gh` and a fake `git`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
 
 ```
 bash .claude-plugin/tests/run.sh <scenario>
@@ -19,12 +19,12 @@ Tests are run by hand; no workflow runs them.
 ## How it works
 
 `run.sh` runs Claude from an empty temporary directory with `tests/bin` first on
-`PATH`, so the skill's `gcloud` and `gh` calls reach `bin/gcloud` and `bin/gh`, two
+`PATH`, so the skill's `gcloud`, `gh` and `git` calls reach `bin/gcloud`, `bin/gh` and `bin/git`, three
 wrappers of `bin/fake-cli`. The fake appends one line per call to a log and
-prints a canned response. The `gcloud` line is its arguments; the `gh` line is
-`gh <arguments>`, and when the arguments contain `--input <file>` it ends with
+prints a canned response. The `gcloud` line is its arguments; the `gh` and `git` lines are
+`gh <arguments>` and `git <arguments>`, and when the arguments contain `--input <file>` it ends with
 ` <<< ` and the file's content with all whitespace removed (so a body file can be
-checked: `CALLED ... --input .* <<< \{"name":"main"\}$`). The
+checked: `CALLED ... --input .* <<< \{"name":"main"\}$`). The working folder starts with the content of the scenario's `files/` folder, if it has one. The
 temporary directory, the log and Claude's output are removed afterwards.
 
 ## Adding a scenario
@@ -32,10 +32,11 @@ temporary directory, the log and Claude's output are removed afterwards.
 Create `scenarios/<name>/` with:
 
 - `prompt.txt`: what the user types, for example `/aleogr-cloud-gcp:gcp_environment-describe project=demo environment=dev`.
-- `responses/`: the canned output of the fake `gcloud` and `gh`. A file answers a call
+- `files/` (optional): copied, dotfiles included, into the working folder before Claude starts (`files/.aleogr/project.json` becomes `<cwd>/.aleogr/project.json`).
+- `responses/`: the canned output of the fake `gcloud`, `gh` and `git`. A file answers a call
   when its name, without extension, is a prefix of the arguments with spaces
-  written as `_` (`projects_list.txt` answers `projects list ...`). For `gh`
-  the name starts with `gh_` and `/` is also written as `_`
+  written as `_` (`projects_list.txt` answers `projects list ...`). For `gh` and `git`
+  the name starts with `gh_` or `git_` and `/` is also written as `_`
   (`gh_api_repos_example-org_example-repo.txt` answers
   `gh api repos/example-org/example-repo ...`). When several names are a
   prefix, the longest wins (`gh_api_repos_example-org_example-repo_rulesets.txt`
@@ -64,14 +65,18 @@ Create `scenarios/<name>/` with:
 
 | Line | Holds when |
 |---|---|
-| `CALLED <regex>` | some logged call matches (a `gcloud` line has the arguments only, without `gcloud`; a `gh` line starts with `gh `) |
+| `CALLED <regex>` | some logged call matches (a `gcloud` line has the arguments only, without `gcloud`; a `gh` line starts with `gh `, a `git` line with `git `) |
 | `NOT_CALLED <regex>` | no logged call matches |
 | `COUNT <n> <regex>` | at least `<n>` logged calls match (pins a repeated call, such as a check before and after a change) |
 | `OUTPUT <regex>` | Claude's final answer matches |
 | `OUTPUT_NOT <regex>` | Claude's final answer does not match (keeps raw error text out of the answer) |
 | `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |
+| `FILE <relative path> <regex>` | the file exists in the working folder after the run and some line of it matches |
+| `NO_FILE <relative path>` | the file does not exist in the working folder after the run |
 | `ORDER <regex1> >> <regex2>` | the first call matching regex1 comes before the first matching regex2 |
 
 Regexes are `grep -E`. Use fictitious values only: the repository is public.
 
-`scenarios/harness-selftest` and `scenarios/harness-selftest-gh` check the harness itself.
+Claude Code itself runs `git ls-files --error-unmatch ... .claude/settings.local.json` through `PATH` during a run, so the call log has `git` lines the prompt did not ask for: never use a bare `NOT_CALLED ^git`; pin the subcommand (`NOT_CALLED ^git (add|commit|push)`).
+
+`scenarios/harness-selftest`, `scenarios/harness-selftest-gh` and `scenarios/harness-selftest-files` check the harness itself.
