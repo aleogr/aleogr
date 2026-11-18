@@ -30,7 +30,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 3 runs again as the verification of step 13): no `gh auth status`, no `gh repo view`, no `gh repo clone`, no `git clone`, no `git fetch`, no `git config --global`, no `git config` without `--local`, no other `gh` or `git` command, no retry. Never print the account name, the account id or the token: when a command of step 9 is shown, or named in the answer, it is written with `<login>` and `<id>` in place of the values. Read the local file with the Read tool, never a shell command.
+Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 3 runs again as the verification of step 13): no `gh auth status`, no `gh repo view`, no `gh repo clone`, no `git clone`, no `git fetch`, no `git config --global`, no `git config` without `--local`, no other `gh` or `git` command, no retry. Never print the account name, the account id or the token: when a command of step 10 is shown, or named in the answer, it is written with `<login>` and `<id>` in place of the values. Read the local file with the Read tool, never a shell command.
 
 The state of the file in the repository is one of `equal`, `not-sent`, `differs` or `missing` (steps 1 to 5).
 
