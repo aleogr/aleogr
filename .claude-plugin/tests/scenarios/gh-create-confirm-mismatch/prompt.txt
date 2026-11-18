@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_repo-create owner=example-org name=example-repo visibility=private confirmVisibility=public mode=apply

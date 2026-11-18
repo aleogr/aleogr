@@ -1,0 +1,9 @@
+ORDER ^gh api repos/example-org/example-repo$ >> ^gh repo create
+CALLED ^gh repo create example-org/example-repo .*--private
+CALLED ^gh repo create .*--add-readme
+CALLED ^gh repo create .*--description "?Status pages, per tenant"?
+NOT_CALLED ^gh repo create .*--public
+CALLED ^gh repo edit example-org/example-repo .*--add-topic aleogr-example
+CALLED ^gh repo edit .*--add-topic demo
+COUNT 2 ^gh api repos/example-org/example-repo$
+OUTPUT "status": "created"
