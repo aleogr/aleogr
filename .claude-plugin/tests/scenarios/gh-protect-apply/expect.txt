@@ -1,0 +1,7 @@
+ORDER ^gh api repos/example-org/example-repo/rulesets$ >> ^gh api --method POST
+CALLED ^gh api --method POST repos/example-org/example-repo/rulesets --input .*ruleset-main\.json
+CALLED <<< .*"name":"main".*"~DEFAULT_BRANCH".*"required_approving_review_count":0
+NOT_CALLED --method (PUT|DELETE|PATCH)
+ORDER ^gh api --method POST >> ^gh api repos/example-org/example-repo/rulesets/123$
+OUTPUT "status": "created"
+OUTPUT "action": "branch-protect"

@@ -1,0 +1,4 @@
+CALLED ^gh api repos/example-org/example-repo/rulesets$
+OUTPUT "visibility": "private"
+OUTPUT "state": "unavailable"
+OUTPUT "status": "unchanged"

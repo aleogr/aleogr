@@ -1,0 +1,2 @@
+{"message":"Validation Failed","errors":["Invalid rule"],"documentation_url":"https://docs.github.com/rest/repos/rules#create-a-repository-ruleset","status":"422"}
+gh: Validation Failed (HTTP 422)

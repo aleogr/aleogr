@@ -1,0 +1,20 @@
+{
+  "id": 100000001,
+  "name": "example-repo",
+  "full_name": "example-org/example-repo",
+  "owner": { "login": "example-org", "type": "Organization" },
+  "private": true,
+  "visibility": "private",
+  "html_url": "https://github.com/example-org/example-repo",
+  "description": "An example repository",
+  "default_branch": "main",
+  "topics": ["example-topic"],
+  "has_issues": true,
+  "has_projects": false,
+  "has_wiki": false,
+  "allow_merge_commit": true,
+  "allow_squash_merge": true,
+  "allow_rebase_merge": false,
+  "delete_branch_on_merge": true,
+  "archived": false
+}

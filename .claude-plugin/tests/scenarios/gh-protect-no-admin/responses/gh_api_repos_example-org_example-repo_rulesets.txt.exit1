@@ -1,0 +1,2 @@
+{"message":"Must have admin rights to Repository.","documentation_url":"https://docs.github.com/rest/repos/rules#get-all-repository-rulesets","status":"403"}
+gh: Must have admin rights to Repository. (HTTP 403)

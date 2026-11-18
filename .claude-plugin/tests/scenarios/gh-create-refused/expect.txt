@@ -1,0 +1,5 @@
+CALLED ^gh repo create example-org/example-repo
+OUTPUT "status": "failed"
+NOT_CALLED ^gh repo edit
+RESULT_NOT 403
+OUTPUT_NOT You need admin access

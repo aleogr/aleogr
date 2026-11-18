@@ -1,0 +1,3 @@
+CALLED ^gh api repos/example-org/example-repo$
+NOT_CALLED ^gh repo
+OUTPUT "status": "would-create"

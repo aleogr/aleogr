@@ -1,0 +1,3 @@
+CALLED ^gh api repos/example-org/example-repo$
+CALLED ^gh api --method POST repos/example-org/example-repo/rulesets --input .* <<< \{"name":"main"\}$
+OUTPUT example-repo

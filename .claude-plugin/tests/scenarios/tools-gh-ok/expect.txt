@@ -1,0 +1,7 @@
+CALLED ^gh --version
+CALLED ^gh auth status
+NOT_CALLED ^(auth|projects|--version)
+OUTPUT "name": "gh"
+OUTPUT "state": "ok"
+RESULT_NOT example-user
+OUTPUT_NOT example-user

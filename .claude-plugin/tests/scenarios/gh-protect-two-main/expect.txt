@@ -1,0 +1,4 @@
+CALLED ^gh api repos/example-org/example-repo/rulesets$
+NOT_CALLED --method
+OUTPUT "status": "failed"
+OUTPUT "action": "branch-protect"

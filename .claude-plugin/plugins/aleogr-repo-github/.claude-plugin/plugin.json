@@ -1,0 +1,6 @@
+{
+  "name": "aleogr-repo-github",
+  "version": "0.1.0",
+  "description": "GitHub family: repositories, their settings and branch protection.",
+  "author": { "name": "aleogr" }
+}

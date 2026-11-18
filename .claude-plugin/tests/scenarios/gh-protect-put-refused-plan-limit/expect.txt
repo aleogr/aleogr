@@ -1,0 +1,6 @@
+CALLED ^gh api --method PUT
+NOT_CALLED --method (POST|DELETE|PATCH)
+OUTPUT "status": "pending"
+OUTPUT paid plan or a public repository
+OUTPUT "rulesetId": 123
+OUTPUT "action": "branch-protect"

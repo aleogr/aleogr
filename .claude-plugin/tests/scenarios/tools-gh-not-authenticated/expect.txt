@@ -1,0 +1,2 @@
+OUTPUT "state": "not-authenticated"
+OUTPUT gh auth login

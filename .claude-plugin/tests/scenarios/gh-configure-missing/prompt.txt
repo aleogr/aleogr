@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_repo-configure owner=example-org name=example-repo wiki=false mode=apply

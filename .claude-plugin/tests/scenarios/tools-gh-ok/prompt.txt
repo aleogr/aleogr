@@ -1,0 +1,1 @@
+/aleogr:tools-check command=gh

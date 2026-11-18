@@ -1,0 +1,6 @@
+CALLED ^gh repo create example-org/example-repo .*--private
+CALLED ^gh repo edit
+OUTPUT "status": "created"
+RESULT_NOT "pending": \[\]
+RESULT_NOT "item": "configure"
+OUTPUT "id": "example-org/example-repo"

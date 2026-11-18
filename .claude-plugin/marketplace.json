@@ -1,7 +1,7 @@
 {
   "name": "aleogr",
   "owner": { "name": "aleogr" },
-  "description": "Personal marketplace: the aleogr orchestrator and its cloud family plugins.",
+  "description": "Personal marketplace: the aleogr orchestrator and its family plugins.",
   "plugins": [
     {
       "name": "aleogr",
@@ -23,6 +23,13 @@
       "description": "Cloud SQL family: the shared platform's PostgreSQL instance and its start and stop.",
       "category": "db",
       "displayName": "Cloud SQL (database)"
+    },
+    {
+      "name": "aleogr-repo-github",
+      "source": "./.claude-plugin/plugins/aleogr-repo-github",
+      "description": "GitHub family: repositories, their settings and branch protection.",
+      "category": "repo",
+      "displayName": "GitHub (repository)"
     }
   ]
 }

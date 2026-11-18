@@ -1,0 +1,4 @@
+NOT_CALLED ^gh auth
+OUTPUT "state": "missing"
+OUTPUT "status": "failed"
+OUTPUT cli\.github\.com

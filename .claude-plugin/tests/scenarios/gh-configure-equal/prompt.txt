@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_repo-configure owner=example-org name=example-repo mergeCommit=true squash=true rebase=false deleteBranchOnMerge=true issues=true wiki=false projects=false mode=apply

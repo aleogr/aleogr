@@ -1,0 +1,11 @@
+ORDER ^gh api repos/example-org/example-repo$ >> ^gh repo edit
+CALLED ^gh repo edit example-org/example-repo .*--enable-rebase-merge=false
+CALLED ^gh repo edit .*--delete-branch-on-merge(=true)?
+CALLED ^gh repo edit .*--enable-wiki=false
+CALLED ^gh repo edit .*--enable-projects=false
+NOT_CALLED --enable-merge-commit
+NOT_CALLED --enable-squash-merge
+NOT_CALLED --enable-issues
+NOT_CALLED --visibility
+COUNT 2 ^gh api repos/example-org/example-repo$
+OUTPUT "status": "updated"

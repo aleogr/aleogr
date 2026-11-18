@@ -1,0 +1,7 @@
+CALLED ^gh api --method PUT repos/example-org/example-repo/rulesets/123 --input
+CALLED ^gh api --method PUT .*--input .*ruleset-main\.json <<< .*"type":"deletion"
+NOT_CALLED --method POST
+COUNT 2 ^gh api repos/example-org/example-repo/rulesets/123$
+OUTPUT "status": "updated"
+OUTPUT "action": "branch-protect"
+OUTPUT "requiredApprovals": 0

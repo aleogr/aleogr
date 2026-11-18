@@ -1,0 +1,5 @@
+CALLED ^gh api repos/example-org/example-repo$
+NOT_CALLED ^gh repo
+OUTPUT "status": "unchanged"
+OUTPUT "differences": \[[^]]*"visibility"
+OUTPUT github_repo-configure

@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_branch-protect owner=example-org name=example-repo mode=plan

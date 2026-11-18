@@ -42,6 +42,7 @@ These rules apply to every action of every family, in addition to [DESIGN.md sec
 ### 1.2 Modes
 
 - **`plan` / `apply`** (every action except `*-describe`): `plan` reports what would change, without changing anything; `apply` executes. Both share the same logic, so `project-plan` never diverges from `project-apply`.
+- **`pending` may be a `plan` result** for a feature the provider's plan forbids (e.g. branch protection on a private repository of a free GitHub organization): `plan` and `apply` both answer `pending`, change nothing and list one `plan-limit` item, so that they do not diverge ([DESIGN.md section 10.3](DESIGN.md#103-extending-contracts)). Only an answer of the provider that names the plan is `pending`; any other refusal is `failed`.
 - **`shared` / `dedicated`** (families that create runtime resources): `shared` = inside the shared platform; `dedicated` = own resources. Default: `shared` in the `dev` project environment, `dedicated` elsewhere. Each family states below what `shared` means for it, or "n/a".
 - **`test` / `live`** (special-care families: payments, registrar, store, sms, publish): `test` by default; `live` only with explicit confirmation.
 
@@ -84,7 +85,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 }
 ```
 
-- `status`: `created` | `updated` | `unchanged` | `pending` | `failed` (apply); `would-create` | `would-update` | `unchanged` (plan, with a `changes` list).
+- `status`: `created` | `updated` | `unchanged` | `pending` | `failed` (apply); `would-create` | `would-update` | `unchanged` (plan, with a `changes` list), and `pending` (plan, only for a feature the provider's plan forbids, [section 1.2](#12-modes)) or `failed`.
 - `requests` is the glue between families: a family never calls another family's skill; it asks, and the orchestrator routes the request in the right apply step ([DESIGN.md section 12.2](DESIGN.md#122-apply-order)):
   - `dnsRecords` → dns-* in step 8;
   - `ciSecrets` / `ciVariables` → repo-* `ci-set-secret` / `ci-set-variable` in step 10;
@@ -108,10 +109,10 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 
 | Action | Input | Output |
 |---|---|---|
-| `repo-describe` | owner, name | exists, visibility, default branch, merge settings, protection, topics, secret/variable **names** |
-| `repo-create` | owner, name, visibility, description, topics, local directory | HTTPS/SSH URLs, default branch, remote configured |
-| `repo-configure` | merge methods, delete branch on merge, features (issues, wiki, projects) | applied settings |
-| `branch-protect` | branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit) |
+| `repo-describe` | owner, name | exists, visibility, description, default branch, merge settings, features (issues, wiki, projects), protection, topics, secret/variable **names** (from stage 4) |
+| `repo-create` | owner, name, visibility (default `private`; `public` needs its own confirmation), description, topics, local directory (from stage 3c) | creates the repository with a README; HTTPS/SSH URLs, default branch, remote configured (from stage 3c) |
+| `repo-configure` | owner, name, and only the settings to change: description, topics, merge methods, delete branch on merge, features (issues, wiki, projects), visibility (a change needs its own confirmation) | applied settings |
+| `branch-protect` | 3a: owner, name (default branch, fixed rules); the other inputs from stage 3c: branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit, in `plan` and in `apply`) |
 | `ci-set-secret` | name, scope (`repo` \| `org` \| `environment`), value source | name and scope (never the value) |
 | `ci-set-variable` | name, value, scope (`repo` \| `org` \| `environment`) | name, scope, value |
 | `ci-setup` | components (directory, stack/platform CI parameters), project environments | generated files (`ci.yml`, `cd.yml`), `checks` (required check names) |
@@ -120,6 +121,12 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 Notes:
 
 - `branch-protect` runs twice in apply: step 1 (no checks yet) and step 10 (with `checks` from `ci-setup`).
+- `repo-create` creates the repository with a README, so that the default branch exists from the start (a protection that requires pull requests could block the first commit of an empty repository). On an existing repository it changes nothing (`unchanged`) and lists what differs from its inputs; `repo-configure` is the only action that corrects an existing repository.
+- `repo-configure` compares and changes only the settings it is given: a setting left out is left as it is.
+- Visibility: nothing becomes public, at creation or by a change, without the confirmation `confirmVisibility=public`; a change to private needs `confirmVisibility=private`. Without it the action does not wait for an answer: it changes nothing of the visibility, asks the question and gives the exact command that confirms it.
+- `pending` as a status means nothing was changed: the run waits for the visibility confirmation, or the provider's plan forbids the protection. Once something was done the status says what (`created`, `updated`) and anything left is an item in the `pending` list.
+- `branch-protect` on a plan without branch protection (on GitHub, a private repository of a free organization): `pending` in `plan` and in `apply`, nothing changed, one `plan-limit` item; the default branch is then held by the working rule (the owner merges).
+- On GitHub, a description may not contain `"`, `“`, `”`, `„`, a backtick, `$`, `\` or a line break: it is passed in double quotes on a command line.
 - Project environments (`dev`/`hom`/`prd`) map to the provider's deployment environments; covered by the `environment` scope.
 - Repository deletion is not in the contract: only the test cleanup deletes repositories.
 - Bitbucket has no topics; the federated layout and tests depend on topics (recorded limitation).
