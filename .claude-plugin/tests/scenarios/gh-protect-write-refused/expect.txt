@@ -1,0 +1,6 @@
+CALLED ^gh api --method POST repos/example-org/example-repo/rulesets --input
+NOT_CALLED --method (PUT|DELETE|PATCH)
+OUTPUT "status": "failed"
+RESULT_NOT "status": "pending"
+RESULT_NOT 422
+OUTPUT "action": "branch-protect"
