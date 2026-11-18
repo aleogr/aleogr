@@ -16,7 +16,7 @@ The skills never wait for an answer: when one needs a confirmation, it ends, say
 
 ## 1. Update the plugins
 
-- **Cloud Shell:** follow "After a change is merged" in [`cloud-shell.md`](../cloud-shell.md), then install the new plugin:
+- **Cloud Shell:** follow "After a change is merged" in [`cloud-shell.md`](../cloud-shell.md), but skip its line `claude plugin update aleogr-repo-github@aleogr` this first time (the plugin is not installed yet), then install the new plugin:
 
   ```bash
   claude plugin install aleogr-repo-github@aleogr
@@ -43,7 +43,7 @@ Plugins are loaded when a session starts: **open a new session** after installin
 
   Then close and open the Claude Code app, so that it finds `gh` too.
 
-`gh auth login` shows a one-time code and opens (or shows) a GitHub address. If it asks whether to authenticate Git with your GitHub credentials, answer yes. Sign in to GitHub in the browser and **type the code there**. Never paste that code, or anything `gh auth status` prints, in the conversation with Claude.
+`gh auth login` shows a one-time code and opens (or shows) a GitHub address. If it asks whether to authenticate Git with your GitHub credentials, answer yes. Sign in to GitHub in the browser and **type the code there**. On GitHub's authorization page, if `aleogr-sandbox` is shown, press **Grant** next to it: a new organization restricts OAuth apps by default, and without that grant the repository reads as not found and the create is refused. Never paste that code, or anything `gh auth status` prints, in the conversation with Claude.
 
 ## 3. The run
 
@@ -115,7 +115,7 @@ Run both, even if the first one surprises you: together they show how GitHub ans
 
 Expected, both times: `status` `pending`, with one `pending` item "branch protection needs a paid plan or a public repository". Nothing is changed. On a private repository of a free organization, `main` is held by the working rule (Claude Code opens the pull request, you merge).
 
-If either answer is **not** `pending` (for example `would-create` in plan, or `created` or `failed` in apply), send **both** answers: the skill is corrected from them. Then go on with step 6.
+If either answer is **not** `pending` (for example `would-create` in plan, or `created` or `failed` in apply), send **both** answers: the skill is corrected from them. If the `apply` answered `created`, stop here and send it; otherwise go on with step 6.
 
 ### Step 6. Make `pilot` public
 
@@ -143,7 +143,7 @@ Plan:
 /aleogr-repo-github:github_branch-protect owner=aleogr-sandbox name=pilot mode=plan
 ```
 
-Expected: `status` `would-create`, with the rules `deletion`, `non_fast_forward` and `pull_request`, and 0 required approvals.
+Expected: `status` `would-create`, with the rules `deletion`, `non_fast_forward` and `pull_request`, and 0 required approvals. (If the `apply` of step 5 answered `created`, this step would show `unchanged`.)
 
 Apply:
 
@@ -180,7 +180,7 @@ Run each one. Expected for all four: `status` `unchanged`.
 ## 4. If something goes wrong
 
 - Nothing in this run costs money: repositories and rulesets are free, and no workflow runs.
-- Every skill can be run again: it reads what exists first and does only what is missing. A step that stopped in the middle is resumed by running the same text again.
+- Every skill can be run again: it reads what exists first and does only what is missing. A step that stopped in the middle is resumed by running the same text again. The exception is `github_repo-create`: after `created` with items in `pending`, run the command shown in each item (running the create again changes nothing).
 - No skill deletes a repository. A repository created by mistake (a wrong name, for example) is deleted by hand: open it on GitHub, **Settings**, **General**, at the bottom **Delete this repository**.
 - If a skill says `gh` is not logged in, redo section 2 and run the step again.
 

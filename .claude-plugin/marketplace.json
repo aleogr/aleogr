@@ -1,7 +1,7 @@
 {
   "name": "aleogr",
   "owner": { "name": "aleogr" },
-  "description": "Personal marketplace: the aleogr orchestrator and its cloud family plugins.",
+  "description": "Personal marketplace: the aleogr orchestrator and its family plugins.",
   "plugins": [
     {
       "name": "aleogr",

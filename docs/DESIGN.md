@@ -794,7 +794,7 @@ For running the skills against real Google Cloud from a browser. Tested on 2026-
 - Claude Code, the marketplace and the plugins are installed once in the Cloud Shell home directory, which Google keeps between sessions. The step-by-step instructions (set-up, daily use, updating) are in [`cloud-shell.md`](cloud-shell.md).
 - The orchestrator reads its `defaults.json` from the plugin's folder, outside the working directory, and Claude Code asks to allow that read: allow that one read each time, never every read outside the working directory, because the home directory holds the Google credentials.
 - It is slower than the Windows app (a small shared machine), and Cloud Shell disconnects after a while idle.
-- Cloud Shell has `gh` preinstalled ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). The other families' CLIs can be signed in there when their skills exist, with the least permissions each skill needs (GitHub: only the scopes the skills use; Cloudflare: an API token limited to editing the DNS of the zone `aleogr.dev`). Until then this path is for the Google Cloud skills.
+- Cloud Shell has `gh` preinstalled ([`PROVIDER-FACTS.md`](PROVIDER-FACTS.md)). The Google Cloud skills and the GitHub skills run here: `gh` is signed in once with `gh auth login`, with the scopes it asks for. The other families' CLIs are signed in here when their skills exist, with the least permissions each skill needs (Cloudflare: an API token limited to editing the DNS of the zone `aleogr.dev`).
 
 ---
 
@@ -809,7 +809,7 @@ Tests test the **TOOLING** (`aleogr/aleogr`), not my products: "if I run `/aleog
 - `self-validate-marketplace.yml`: validation of the marketplace and naming rules, and of the example declarations against the schema.
 - `self-lint.yml`: static checks of workflows and hook scripts.
 - `self-test-features.yml`: Feature tests with the dev containers CLI, using `.devcontainer/features/test/`.
-- Skill tests (`.claude-plugin/tests/`): `run.sh <scenario>` runs the real skills headless (`claude -p`) against fake CLIs (a fake `gcloud` in `.claude-plugin/tests/bin/`, with numbered responses for calls that must answer differently before and after a change) and checks the logged calls and the final answer against the scenario's `expect.txt` (line types in `.claude-plugin/tests/README.md`). They create nothing outside the repository, are run by hand for now (no workflow), and each run costs model usage.
+- Skill tests (`.claude-plugin/tests/`): `run.sh <scenario>` runs the real skills headless (`claude -p`) against fake CLIs (a fake `gcloud` and a fake `gh` in `.claude-plugin/tests/bin/`, with numbered responses for calls that must answer differently before and after a change) and checks the logged calls and the final answer against the scenario's `expect.txt` (line types in `.claude-plugin/tests/README.md`). They create nothing outside the repository, are run by hand for now (no workflow), and each run costs model usage.
 - Apart from `.claude-plugin/tests/`, the only "tests folder" in the repository is `.claude-plugin/schemas/examples/`, with the test INPUTS (declarations with fictitious values), never projects with code.
 
 ### 15.2 Layer 2 — local development

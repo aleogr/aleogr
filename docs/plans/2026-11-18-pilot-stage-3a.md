@@ -107,7 +107,7 @@ OUTPUT example-repo
 ### Task 2: `github_repo-describe`
 
 **Files:**
-- Create: `.claude-plugin/plugins/aleogr-repo-github/skills/github_repo-describe/SKILL.md`, scenarios `gh-describe-public`, `gh-describe-private`, `gh-describe-missing`, `gh-describe-read-refused`, `gh-describe-invalid`, `gh-describe-no-gh`
+- Create: `.claude-plugin/plugins/aleogr-repo-github/skills/github_repo-describe/SKILL.md`, scenarios `gh-describe-public`, `gh-describe-private`, `gh-describe-missing`, `gh-describe-read-refused`, `gh-describe-invalid`, `gh-describe-not-logged-in`
 
 **Interfaces:**
 - Arguments: `owner=<owner> name=<name>`.
@@ -133,7 +133,7 @@ OUTPUT example-repo
   `protection.state` is `protected` (a ruleset named `main` exists), `unprotected` or `unavailable`; `matches` says whether it equals `ruleset-main.json` on target, enforcement, bypass actors, the `ref_name` condition and the three rules (parameters compared only on the keys the file has; `allowed_merge_methods` as a set); `rulesetId` and `matches` are `null` unless `protected`. Missing repository: `{ "exists": false }` with every other key `null` or empty. Mapping from the API: `allow_merge_commit`, `allow_squash_merge`, `allow_rebase_merge`, `delete_branch_on_merge`, `has_issues`, `has_wiki`, `has_projects`, `default_branch`, `visibility`, `html_url`.
 - `resources`: one `{ "type": "repository", "id": "<owner>/<name>", "name": "<name>" }` when it exists, else empty.
 
-- [ ] **Step 1: Write the six scenarios.** Fixtures: a full repository JSON for public and private; rulesets list `[]` (public, unprotected) for `gh-describe-public`; for `gh-describe-private`, `gh_api_repos_example-org_example-repo_rulesets.txt.exit1` with `{"message":"Upgrade to GitHub Team or make this repository public to enable this feature.","status":"403"}` and a line `gh: Upgrade to GitHub Team or make this repository public to enable this feature. (HTTP 403)`; for missing, the repository read is `.exit1` with `gh: Not Found (HTTP 404)`; for read-refused, `.exit1` with `gh: Server Error (HTTP 502)`; for `gh-describe-no-gh`, a `default.txt.exit1` printing `To get started with GitHub CLI, please run:  gh auth login`. Key expectations:
+- [ ] **Step 1: Write the six scenarios.** Fixtures: a full repository JSON for public and private; rulesets list `[]` (public, unprotected) for `gh-describe-public`; for `gh-describe-private`, `gh_api_repos_example-org_example-repo_rulesets.txt.exit1` with `{"message":"Upgrade to GitHub Team or make this repository public to enable this feature.","status":"403"}` and a line `gh: Upgrade to GitHub Team or make this repository public to enable this feature. (HTTP 403)`; for missing, the repository read is `.exit1` with `gh: Not Found (HTTP 404)`; for read-refused, `.exit1` with `gh: Server Error (HTTP 502)`; for `gh-describe-not-logged-in`, a `default.txt.exit1` printing `To get started with GitHub CLI, please run:  gh auth login`. Key expectations:
 
 ```
 # gh-describe-public
@@ -156,7 +156,7 @@ RESULT_NOT "exists": false
 # gh-describe-invalid   (prompt: owner=-bad name=example-repo)
 NOT_CALLED ^gh
 OUTPUT "status": "failed"
-# gh-describe-no-gh
+# gh-describe-not-logged-in
 OUTPUT "status": "failed"
 OUTPUT gh auth login
 ```

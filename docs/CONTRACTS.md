@@ -109,10 +109,10 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. `project-app
 
 | Action | Input | Output |
 |---|---|---|
-| `repo-describe` | owner, name | exists, visibility, default branch, merge settings, protection, topics, secret/variable **names** |
+| `repo-describe` | owner, name | exists, visibility, description, default branch, merge settings, features (issues, wiki, projects), protection, topics, secret/variable **names** (from stage 4) |
 | `repo-create` | owner, name, visibility (default `private`; `public` needs its own confirmation), description, topics, local directory (from stage 3c) | creates the repository with a README; HTTPS/SSH URLs, default branch, remote configured (from stage 3c) |
 | `repo-configure` | owner, name, and only the settings to change: description, topics, merge methods, delete branch on merge, features (issues, wiki, projects), visibility (a change needs its own confirmation) | applied settings |
-| `branch-protect` | branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit, in `plan` and in `apply`) |
+| `branch-protect` | 3a: owner, name (default branch, fixed rules); the other inputs from stage 3c: branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit, in `plan` and in `apply`) |
 | `ci-set-secret` | name, scope (`repo` \| `org` \| `environment`), value source | name and scope (never the value) |
 | `ci-set-variable` | name, value, scope (`repo` \| `org` \| `environment`) | name, scope, value |
 | `ci-setup` | components (directory, stack/platform CI parameters), project environments | generated files (`ci.yml`, `cd.yml`), `checks` (required check names) |
@@ -126,7 +126,7 @@ Notes:
 - Visibility: nothing becomes public, at creation or by a change, without the confirmation `confirmVisibility=public`; a change to private needs `confirmVisibility=private`. Without it the action does not wait for an answer: it changes nothing of the visibility, asks the question and gives the exact command that confirms it.
 - `pending` as a status means nothing was changed: the run waits for the visibility confirmation, or the provider's plan forbids the protection. Once something was done the status says what (`created`, `updated`) and anything left is an item in the `pending` list.
 - `branch-protect` on a plan without branch protection (on GitHub, a private repository of a free organization): `pending` in `plan` and in `apply`, nothing changed, one `plan-limit` item; the default branch is then held by the working rule (the owner merges).
-- On GitHub, a description may not contain `"`, a backtick, `$`, `\` or a line break: it is passed in double quotes on a command line.
+- On GitHub, a description may not contain `"`, `“`, `”`, `„`, a backtick, `$`, `\` or a line break: it is passed in double quotes on a command line.
 - Project environments (`dev`/`hom`/`prd`) map to the provider's deployment environments; covered by the `environment` scope.
 - Repository deletion is not in the contract: only the test cleanup deletes repositories.
 - Bitbucket has no topics; the federated layout and tests depend on topics (recorded limitation).
