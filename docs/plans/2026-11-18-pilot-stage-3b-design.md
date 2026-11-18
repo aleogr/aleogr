@@ -118,7 +118,7 @@ The birth needs the local folder tied to the repository and the declaration sent
 ### `project-declare`
 
 - Arguments: `name`, `owner`, and any of `repoName`, `visibility`, `description`, `topics`, the seven settings, `notes`.
-- No file yet: `name` and `owner` are required (missing: `failed`, saying which); everything else comes from the defaults. File exists: only the given arguments change, the rest is kept.
+- No file yet: `name`, `owner` and `description` are required (missing: `failed`, saying which); everything else comes from the defaults. File exists: only the given arguments change, the rest is kept.
 - It shows the resulting file, writes it, and runs no command. Changing `name` or `repo.owner`/`repo.name` of an existing declaration is refused: that is another project.
 - Status: `created`, `updated`, `unchanged`, `failed`.
 
