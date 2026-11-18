@@ -193,8 +193,8 @@ aleogr/aleogr/
 │       └── cd-cloud-run.yml                   (future, reusable)
 └── .claude-plugin/                            ← the whole marketplace; the repository root is the marketplace root
     ├── README.md                              ← how to register the marketplace (skeleton)
-    ├── marketplace.json                       (built: aleogr, aleogr-cloud-gcp)
-    ├── tests/                             ← skill tests: run.sh, fake gcloud in bin/, scenarios/ (built, section 15.1)
+    ├── marketplace.json                       (built: aleogr, aleogr-cloud-gcp, aleogr-db-gcp-cloud-sql, aleogr-repo-github)
+    ├── tests/                             ← skill tests: run.sh, fake gcloud and fake gh in bin/, scenarios/ (built, section 15.1)
     ├── schemas/
     │   ├── README.md                          ← purpose, versioning and examples of the schema (skeleton)
     │   ├── project.schema.json
@@ -214,12 +214,14 @@ aleogr/aleogr/
         │   │   └── project-apply/SKILL.md
         │   ├── hooks/hooks.json               ← destructive command guard
         │   └── scripts/guard-destructive.sh
-        ├── aleogr-repo-github/                (MVP)
+        ├── aleogr-repo-github/                (MVP; built: manifest, the ruleset file and the four skills marked built)
         │   ├── .claude-plugin/plugin.json
+        │   ├── files/ruleset-main.json        ← the ruleset `main` that github_branch-protect sends (same rules as aleogr/aleogr's)
         │   └── skills/
-        │       ├── github_repo-create/SKILL.md        ← contract
-        │       ├── github_repo-configure/SKILL.md     ← contract
-        │       ├── github_branch-protect/SKILL.md     ← contract
+        │       ├── github_repo-describe/SKILL.md      ← contract (built)
+        │       ├── github_repo-create/SKILL.md        ← contract (built)
+        │       ├── github_repo-configure/SKILL.md     ← contract (built)
+        │       ├── github_branch-protect/SKILL.md     ← contract (built)
         │       ├── github_ci-set-secret/SKILL.md      ← contract
         │       ├── github_ci-setup/SKILL.md           ← contract
         │       └── github_claude-app-install/SKILL.md ← extra (future)
@@ -551,6 +553,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - The contract is the common MINIMUM; plugins may have extra skills, following the same naming convention (e.g. `github_claude-app-install`, `github_codespaces-configure`, `cloudflare_cache-purge`).
 - Contracts are only extracted when a second real provider exists; do not invent them in the abstract.
 - When a feature depends on the provider's plan and is not available, the skill warns and records it as an open item in the checklist, instead of failing or pretending it was applied.
+- Such a feature is `pending`, in `plan` and in `apply` alike: nothing is changed and the `pending` list has one `plan-limit` item saying what the plan forbids ([`CONTRACTS.md`](CONTRACTS.md) section 1.2), so that `plan` never promises what `apply` cannot do. Only an answer of the provider that names the plan counts; any other refusal is `failed`.
 
 ### 10.4 Behavior of every skill
 
@@ -611,6 +614,9 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 - Plugin name derived from family + provider.
 - Each family plugin may publish a sub-schema for its options.
 - Optional `notes` field (JSON does not accept comments).
+- A repository's visibility is declared, `public` or `private`, with the default `private`: making a repository public later is easy, the opposite does not undo what was seen.
+- Nothing becomes public without its own confirmation, whether at creation or by a change (`confirmVisibility=public`); a change to private needs `confirmVisibility=private`. A skill does not wait for the answer: without the confirmation it changes nothing of the visibility, ends with the question and the exact command that confirms it.
+- In a free organization, a private repository has no branch protection (the plan forbids rulesets there): `branch-protect` reports `pending`, and `main` is held by the working rule (Claude Code opens the pull request, the owner merges), not by GitHub.
 
 ### 11.2 Supported layouts (same format)
 
@@ -638,7 +644,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
   - `platform-*` act on the shared platform (they address its project as `project=shared platform=shared`); `project-*` remain for projects.
 - **Shortcuts:** `project-create`, `component-add`, `service-add`, `tenant-add` (declares a tenant in an environment and applies it).
 - **Maintenance:**
-  - `tools-check` (implemented for `gcloud` and where Claude runs): CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
+  - `tools-check` (implemented for `gcloud` and where Claude runs, and for `gh` when called with `command=gh`; with no argument it checks only `gcloud`, so the platform skills do not depend on `gh`): CLIs, authentication, MCPs, devices; identifies whether it runs locally, in a codespace or in a cloud session and warns about what is not possible there;
   - `plugins-sync`: writes `extraKnownMarketplaces` and installs/disables family plugins in project scope;
   - `component-remove`, `service-remove`: stop before deleting, asking for confirmation.
 - **Marketplace** (perhaps in a separate `aleogr-dev` plugin, open decision):
@@ -839,6 +845,7 @@ The test OUTPUTS (the created projects) live **OUTSIDE** `aleogr/aleogr`, becaus
 
 - **The tooling is driven by a reference project, `pilot`**, in the GitHub organization `aleogr-sandbox` and, on GCP, in the folder `tst` ([section 6.7](#67-gcp-organization-folders-and-billing)): a status page per tenant, multi-tenant from the start, with two components at first, `status` (public by nature) and `admin`.
 - Everything is behind the login by default ([section 6.3](#63-protection-and-single-access-point)); `status` is opened to the public only during the test of that path, because a public address is found by bots and each visit wakes the service.
+- Its repository, `aleogr-sandbox/pilot`, is born private and then made public, and stays public: one repository proves both behaviours of the free plan, a private repository whose protection is `pending` and a public one protected by the ruleset `main`.
 - It stands in for the first real project (an identity provider: Go, monorepo, not multi-tenant; later products may be multi-tenant), so that the tooling is proven before a real project depends on it ([section 17](#17-implementation-strategy)).
 - Small disposable `test-<id>` projects, one per scenario of [section 15.3](#153-layer-3--end-to-end), come after both creation AND removal work on `pilot`.
 
@@ -920,8 +927,11 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - The next real project's declaration, with fictitious values, becomes the first example in `.claude-plugin/schemas/examples/` and the first end-to-end test, before being applied to the real project.
 - New families, providers, actions, workflows, Features and cloud environments come in when a real project needs them.
 - **Until the first real project starts, the reference project `pilot` drives the tooling** ([section 15.4](#154-reference-project)). The first real project is an identity provider (Go, monorepo, not multi-tenant); later products may be multi-tenant, which is why `pilot` is multi-tenant from the start.
-- **Stages after the shared platform** (stages 1 and 2 created it, [section 18](#18-open-items)); none is implemented yet:
-  3. repository: the GitHub plugin, the declaration, `project-declare`, `project-plan` and `project-apply`, a Go skeleton and CI;
+- **Stages after the shared platform** (stages 1 and 2 created it, [section 18](#18-open-items)); stage 3a is built, the rest is not:
+  3. repository, in three parts, each with its own real run and pull request ([design of 3a](plans/2026-11-18-pilot-stage-3a-design.md)):
+     - 3a: the GitHub plugin `aleogr-repo-github`, which creates, configures and protects the repository of `pilot`;
+     - 3b: the declaration and `project-declare`, `project-plan` and `project-apply`, which drive the plugin from a file;
+     - 3c: a Go skeleton and CI;
   4. running in `dev`: the GCP project, a database on the shared instance, both services behind the login, CD;
   5. addresses and tenants: the Cloudflare plugin, certificates, `tenant-add`, and the test that opens `status` to the public and closes it again;
   6. the rest: a third component with scheduled checks, `hom`, removal with the destructive-command hook, and the disposable `test-<id>` scenarios.
@@ -961,4 +971,6 @@ The destructive command guard has exceptions ONLY for these cases ([section 13.1
 - [ ] Evaluate, with the MVP, making projects' `state.json` lighter or just a cache of discovery.
 - [x] Protection of `aleogr/aleogr`'s `main`: a branch ruleset named `main`, created by hand on 2026-11-17 (active, empty bypass list, default branch; restrict deletions, block force pushes, require a pull request with 0 approvals). Made by hand because the repository of the marketplace is not created by the skills; `github_branch-protect` ([`CONTRACTS.md`](CONTRACTS.md)) must find it and change nothing when it exists.
 - [x] The GitHub account has two-factor authentication on (checked on 2026-11-17).
+- [ ] **First real run of stage 3a**, by me in Cloud Shell or the Windows app, following [`plans/2026-11-18-pilot-stage-3a-run.md`](plans/2026-11-18-pilot-stage-3a-run.md): `aleogr-sandbox/pilot` created private and configured, its protection `pending`, then made public and protected, and every skill `unchanged` at the end. What it shows goes to [`PROVIDER-FACTS.md`](PROVIDER-FACTS.md).
+- [ ] Confirm how GitHub answers a ruleset request on a private repository of a free organization. The skills expect the read of the rulesets to be refused with HTTP 403 and a message containing "Upgrade", and report `pending` without writing ([section 10.3](#103-extending-contracts)); if the read is allowed and only the write is refused (then `apply` ends `pending` but `plan` says `would-create`), or the answer is different, the skills are corrected so that `plan` and `apply` agree.
 - [ ] Start the first real project (an identity provider, [section 17](#17-implementation-strategy)) once the reference project `pilot` has gone through the stages there.
