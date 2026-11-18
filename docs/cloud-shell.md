@@ -42,7 +42,19 @@ claude plugin install aleogr-cloud-gcp@aleogr
 claude plugin install aleogr-db-gcp-cloud-sql@aleogr
 ```
 
-Check with `claude plugin list`: the three plugins, enabled.
+```bash
+claude plugin install aleogr-repo-github@aleogr
+```
+
+Check with `claude plugin list`: the four plugins, enabled.
+
+`gh` (the GitHub command-line tool) is preinstalled but not signed in. Sign it in once, for the GitHub repository skills:
+
+```bash
+gh auth login
+```
+
+Choose `GitHub.com`, then `HTTPS`, then "Login with a web browser". It shows a one-time code and an address: open the address, sign in to GitHub and **type the code in the browser**. The code is never pasted in the conversation with Claude. `gh auth status` then says an account is logged in.
 
 ## Daily use
 
@@ -61,9 +73,15 @@ The skills:
 
 | Skill | What it does |
 |---|---|
-| `/aleogr:tools-check` | Checks that `gcloud` is installed and signed in. Read-only. |
+| `/aleogr:tools-check` | Checks that `gcloud` is installed and signed in. With `command=gh`, checks `gh` instead. Read-only. |
 | `/aleogr:platform-plan` | Shows what the shared platform is missing. Read-only. |
 | `/aleogr:platform-apply` | Creates what the plan lists. Asks once, stating any fixed cost. |
+| `/aleogr-repo-github:github_repo-describe` | Shows a GitHub repository: visibility, settings, topics and whether `main` is protected. Read-only. |
+| `/aleogr-repo-github:github_repo-create` | Creates a GitHub repository with a README, private unless told otherwise. Plan by default; `mode=apply` creates. An existing repository is never changed. |
+| `/aleogr-repo-github:github_repo-configure` | Corrects the given settings of an existing repository, its visibility included. Plan by default; `mode=apply` changes. |
+| `/aleogr-repo-github:github_branch-protect` | Protects `main` with the ruleset `main`. Plan by default; `mode=apply` writes. Says `pending` when the GitHub plan does not allow it (a private repository of a free organization). |
+
+The GitHub skills take `key=value` arguments after the name, for example `/aleogr-repo-github:github_repo-describe owner=aleogr-sandbox name=pilot`. A value with spaces or commas goes in double quotes. Nothing becomes public without `confirmVisibility=public`: without it the skill changes nothing, says so and shows the command that confirms.
 
 To start, stop or check the database, the workflow is quicker and needs no terminal: repository `aleogr/aleogr`, `Actions`, `self-shared-database`, `Run workflow`, then `start`, `stop` or `status`.
 
@@ -87,10 +105,14 @@ claude plugin update aleogr-cloud-gcp@aleogr
 claude plugin update aleogr-db-gcp-cloud-sql@aleogr
 ```
 
-Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
+```bash
+claude plugin update aleogr-repo-github@aleogr
+```
+
+A plugin that is new in the catalog is installed instead (`claude plugin install <plugin>@aleogr`, as in "Set-up, once"). Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
 
 ## What to expect
 
 - It is slower than the Windows app: a full `platform-plan` took about two minutes.
 - Cloud Shell disconnects after a while idle; open it again and repeat "Daily use". Nothing installed is lost.
-- Only the Google Cloud skills work here for now. `gh` is preinstalled (2.104.0, seen on 2026-11-17) but not signed in; when the skills of another family exist, its command-line tool can be signed in here with only the permissions those skills need (GitHub: only the scopes they use; Cloudflare: an API token limited to editing the DNS of the zone `aleogr.dev`).
+- The Google Cloud skills and the GitHub repository skills work here. `gh` is preinstalled (2.104.0, seen on 2026-11-17) and signed in once with `gh auth login` (above). When the skills of another family exist, its command-line tool is signed in here with only the permissions those skills need (Cloudflare: an API token limited to editing the DNS of the zone `aleogr.dev`).
