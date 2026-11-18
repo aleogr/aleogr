@@ -10,7 +10,7 @@ bash .claude-plugin/tests/run.sh <scenario>
 ```
 
 It exits 0 when every line of the scenario's `expect.txt` holds. On failure it
-prints each failed line, the `gcloud` call log and Claude's output.
+prints each failed line, the call log and Claude's output.
 
 Requirements: an authenticated `claude` CLI, bash and coreutils. **Every run
 costs model usage.** The model is `sonnet`; override it with `TEST_MODEL`.
@@ -61,6 +61,12 @@ Create `scenarios/<name>/` with:
   what was done before each read, however many reads there are. A marker call
   counts even when it failed: for a change that fails first and works on a
   retry, use numbered files.
+  The `project-apply-*` scenarios use numbered files for the repository read
+  (`gh_api_repos_example-org_demo.1.txt`, ...): a `+after+` file on it would
+  also answer the `contents`, `commits` and `rulesets` reads, whose names it is
+  a prefix of. So a model that reads the repository once more or once less
+  than the fixture assumes fails the scenario (it never passes it wrongly):
+  rerun such a failure before debugging it.
 - `expect.txt`, one check per line (blank lines and `#` comments are ignored):
 
 | Line | Holds when |
@@ -71,7 +77,7 @@ Create `scenarios/<name>/` with:
 | `OUTPUT <regex>` | Claude's final answer matches |
 | `OUTPUT_NOT <regex>` | Claude's final answer does not match (keeps raw error text out of the answer) |
 | `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |
-| `FILE <relative path> <regex>` | the file exists in the working folder after the run and some line of it matches |
+| `FILE <relative path> <regex>` | the file exists in the working folder after the run and some line of it matches (the regex is required: a `FILE` line with a path only is a bad expect line and fails) |
 | `NO_FILE <relative path>` | the file does not exist in the working folder after the run |
 | `ORDER <regex1> >> <regex2>` | the first call matching regex1 comes before the first matching regex2 |
 

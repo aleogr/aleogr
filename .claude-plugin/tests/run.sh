@@ -66,7 +66,11 @@ while IFS= read -r line || [ -n "$line" ]; do
     FILE)
       # FILE <relative path> <regex>: the file exists and some line matches.
       f="${arg%% *}"; re="${arg#* }"
-      { [ -f "$work/cwd/$f" ] && grep -Eq -- "$re" "$work/cwd/$f"; } || ok=0
+      if [ "$kind" = "$line" ] || [ "$re" = "$arg" ] || [ -z "$re" ]; then
+        echo "bad expect line (FILE needs a path and a regex): $line" >&2; ok=0
+      else
+        { [ -f "$work/cwd/$f" ] && grep -Eq -- "$re" "$work/cwd/$f"; } || ok=0
+      fi
       ;;
     NO_FILE)
       [ ! -e "$work/cwd/$arg" ] || ok=0

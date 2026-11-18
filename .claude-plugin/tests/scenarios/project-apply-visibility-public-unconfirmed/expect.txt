@@ -3,6 +3,6 @@
 CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
 NOT_CALLED ^gh repo edit|--method
 NOT_CALLED ^gh repo create|^git (init|commit|push)
-OUTPUT confirmVisibility=public
+OUTPUT /aleogr:project-apply confirmVisibility=public
 OUTPUT "status": "pending"
 OUTPUT_NOT nothing to do

@@ -1,2 +1,3 @@
 NO_FILE .aleogr/project.json
 OUTPUT "status": "failed"
+OUTPUT derived

@@ -1,0 +1,9 @@
+# Declared private, the repository does not exist: created and configured, then the push of
+# the declaration fails (503). The run stops before the protection, keeps the status of what
+# was done, and the last plan still lists the declaration (its contents read stays a 404).
+# Repository reads are numbered files, as in project-apply-birth-private.
+CALLED ^git -c credential.* push -u origin main
+OUTPUT "status": "created"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method POST
+COUNT 2 ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
