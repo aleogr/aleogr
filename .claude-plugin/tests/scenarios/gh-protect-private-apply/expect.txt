@@ -2,3 +2,4 @@ CALLED ^gh api repos/example-org/example-repo/rulesets$
 NOT_CALLED --method
 OUTPUT "status": "pending"
 OUTPUT paid plan or a public repository
+OUTPUT "action": "branch-protect"

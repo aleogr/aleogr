@@ -4,3 +4,4 @@ CALLED <<< .*"name":"main".*"~DEFAULT_BRANCH".*"required_approving_review_count"
 NOT_CALLED --method (PUT|DELETE|PATCH)
 ORDER ^gh api --method POST >> ^gh api repos/example-org/example-repo/rulesets/123$
 OUTPUT "status": "created"
+OUTPUT "action": "branch-protect"

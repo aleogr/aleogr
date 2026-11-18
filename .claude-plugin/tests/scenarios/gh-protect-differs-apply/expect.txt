@@ -4,3 +4,4 @@ NOT_CALLED --method POST
 ORDER ^gh api --method PUT >> ^gh api repos/example-org/example-repo/rulesets/123$
 COUNT 2 ^gh api repos/example-org/example-repo/rulesets/123$
 OUTPUT "status": "updated"
+OUTPUT "action": "branch-protect"
