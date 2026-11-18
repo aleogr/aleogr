@@ -4,6 +4,7 @@
 # Repository reads are numbered files, as in project-apply-birth-private.
 CALLED ^git -c credential.* push -u origin main
 OUTPUT "status": "created"
-OUTPUT_NOT nothing to do
+# The line the skill writes only when every action of the last plan is none.
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
 NOT_CALLED --method POST
 COUNT 2 ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
