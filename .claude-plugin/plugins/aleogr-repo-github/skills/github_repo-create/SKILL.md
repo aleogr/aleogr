@@ -26,7 +26,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
 - `visibility`, when given, is `public` or `private`.
 - `confirmVisibility`, when given, is equal to `visibility` (after the default), and `visibility` is `public`. `confirmVisibility=public` with `visibility=private` (or with no `visibility`) fails; so does `confirmVisibility=private`.
-- `description`, when given, is not empty and has no line break.
+- `description`, when given, is not empty and has no line break, no `"`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `topics`, when given, is split on `,`; each topic has 1 to 50 characters of `a-z`, `0-9` and `-`, and starts with a letter or a digit (no capitals, no `_`, no spaces, no empty item). Repeated topics count once.
 - `mode`, when given, is `plan` or `apply`.
 
@@ -50,7 +50,7 @@ Show each command before running it. Run only the commands below, in this order,
 
 2. The repository exists: change nothing, in `plan` and in `apply`, whatever the arguments ask. `status` is `unchanged`. From the JSON take `html_url`, `ssh_url`, `visibility`, `default_branch`, `description` and `topics`, and build `differences`, in this order, from the names whose value differs:
 
-   - `visibility`: always compared, with the requested `visibility` (`private` when not given).
+   - `visibility`: only when `visibility` was given (the default `private` is not compared).
    - `description`: only when `description` was given; differs when it is not exactly the repository's `description`.
    - `topics`: only when `topics` was given; differs when the set of given topics is not the repository's set of `topics` (order does not matter).
 
@@ -68,7 +68,7 @@ Show each command before running it. Run only the commands below, in this order,
    gh repo create <owner>/<name> --private --add-readme --description "<description>"
    ```
 
-   (`--public` instead of `--private` when `visibility=public`.) A non-zero exit stops with `failed`: nothing was created. Say the cause in one sentence (for example, that the account has no permission to create repositories in `<owner>`), with no raw error text. Run nothing else. From here on the repository exists: any later failure ends with `pending`, never `failed`.
+   (`--public` instead of `--private` when `visibility=public`.) A non-zero exit stops with `failed`: nothing was created. Say the cause in one sentence (for example, that the account has no permission to create repositories in `<owner>`), with no raw error text. Run nothing else. From here on the repository exists: the status is `created` whatever happens in steps 5 and 6, and any problem there becomes an item in `pending`.
 
 5. Only when `topics` was given, add them in one command, one `--add-topic` flag per topic:
 
@@ -76,7 +76,7 @@ Show each command before running it. Run only the commands below, in this order,
    gh repo edit <owner>/<name> --add-topic <t1> --add-topic <t2>
    ```
 
-   A non-zero exit: go on to step 6, and the status is then `pending`, with one item `topics` whose `how` is `/aleogr-repo-github:github_repo-configure owner=<owner> name=<name> topics=<topics> mode=apply`.
+   A non-zero exit: say so in one sentence, with no raw error text, add one `pending` item `topics` whose `how` is `/aleogr-repo-github:github_repo-configure owner=<owner> name=<name> topics="<t1>,<t2>" mode=apply`, and go on to step 6.
 
 6. Verify, once:
 
@@ -84,7 +84,10 @@ Show each command before running it. Run only the commands below, in this order,
    gh api repos/<owner>/<name>
    ```
 
-   `created` when the exit is 0, `visibility` is the requested one, the description is the given one (when given), every given topic is in `topics`, and step 5 did not fail. Otherwise `pending`: say in one sentence what was seen; a read that fails, or a wrong visibility, adds one item `verify` whose `how` is `/aleogr-repo-github:github_repo-describe owner=<owner> name=<name>`; a wrong description or missing topics add one item `configure` whose `how` is `/aleogr-repo-github:github_repo-configure owner=<owner> name=<name>` plus the arguments that differ, plus `mode=apply`.
+   The status stays `created`. Check that the exit is 0, `visibility` is the requested one, the description is the given one (when given) and every given topic is in `topics`. Anything else is said in one sentence and becomes items in `pending`, each problem once:
+
+   - The read fails: one item `verify` whose `how` is `/aleogr-repo-github:github_repo-describe owner=<owner> name=<name>`.
+   - A wrong visibility, a wrong description, or missing topics: one item `configure` whose `how` is `/aleogr-repo-github:github_repo-configure owner=<owner> name=<name>` plus the arguments that differ (`description="<description>"`, `topics="<t1>,<t2>"`, `visibility=<visibility>`), plus `mode=apply`. Topics already covered by the `topics` item of step 5 are not repeated here; when nothing else differs, there is no `configure` item.
 
 Then answer in a few lines: what was done (or would be done), the repository URL, visibility and default branch when known, the differences (with the pointer to `github_repo-configure`) when it already existed, and the result block.
 
@@ -116,14 +119,18 @@ End with exactly one fenced block tagged `aleogr-result`:
 }
 ```
 
-- `mode` echoes the mode used (`plan` when not given). `status` is one of `would-create` (`plan`, the repository does not exist), `created`, `unchanged` (the repository already existed; in `plan` or `apply`), `pending` (public without confirmation, or a step after the create did not end as asked), `failed`.
+- `mode` echoes the mode used (`plan` when not given). `status` is one of:
+  - `would-create`: `plan`, the repository does not exist.
+  - `created`: `gh repo create` succeeded in this run, whatever happened after it. A failed topics command, or a verification that failed or differs, is reported as items in `pending`: `created` with a non-empty `pending` is allowed.
+  - `unchanged`: the repository already existed (in `plan` or `apply`); nothing was done.
+  - `pending`: only when nothing was done and the run waits for the visibility confirmation (`apply`, `visibility=public`, no `confirmVisibility=public`).
+  - `failed`: an argument missing or broke a rule, `gh` missing or not logged in, the read of step 1 refused, or the create refused. Nothing was created.
 - Values read from GitHub come only from the commands' output: `url` from `html_url`, `sshUrl` from `ssh_url`, `visibility` from `visibility` (`public`, `private` or `internal`), `defaultBranch` from `default_branch`, `topics` from `topics` (sorted). `differences` holds only the names `visibility`, `description`, `topics`, in that order.
-- Each `pending` item is `{ "item": "<what>", "reason": "manual", "how": "<text>" }`. `pending` is `[]` for every other status.
+- Each `pending` item is `{ "item": "<what>", "reason": "manual", "how": "<text>" }`. `pending` has items only with `created` (the items of steps 5 and 6) and with the status `pending` (the one item `confirm visibility public`); it is `[]` otherwise. In a suggested command, a value with a comma or a space is in double quotes (`topics="a,b"`).
 - The shape for each ending:
-  - `created`: `resources` has the repository; `outputs` comes from the read of step 6; `differences` is `[]`.
+  - `created`: `resources` has the repository; `outputs` comes from the read of step 6 when it exited 0, otherwise `{ "url": "https://github.com/<owner>/<name>", "sshUrl": "git@github.com:<owner>/<name>.git", "visibility": "<requested visibility>", "defaultBranch": null, "topics": [], "differences": [] }` (built from the arguments); `differences` is always `[]`; `pending` has the items of steps 5 and 6, if any.
   - `unchanged`: `resources` has the repository; `outputs` comes from the read of step 1, with `differences` as in step 2 (`[]` when nothing differs).
   - `would-create`: `resources` is empty; `outputs` is `{ "url": null, "sshUrl": null, "visibility": "<requested visibility>", "defaultBranch": null, "topics": [<given topics, sorted>], "differences": [] }`.
   - `pending` because public was not confirmed: `resources` is empty; `outputs` as for `would-create`; `pending` has the one item `confirm visibility public`.
-  - `pending` after the create: `resources` has the repository; `outputs` comes from the read of step 6 when it exited 0, otherwise `{ "url": null, "sshUrl": null, "visibility": "<requested visibility>", "defaultBranch": null, "topics": [], "differences": [] }`; `pending` has the items of steps 5 and 6.
   - `failed` (an argument missing or broke a rule, `gh` missing or not logged in, the read of step 1 refused, or the create refused): `resources` is empty and `outputs` is `{ "url": null, "sshUrl": null, "visibility": null, "defaultBranch": null, "topics": [], "differences": [] }`. A failed read never says the repository does not exist.
-- `cost` is always `"fixed": false`. `notes` is `"no cost"` when `outputs.visibility` is `public`, and `"private repositories of a free organization use the 2,000 Actions minutes a month"` otherwise (`private`, `internal` or `null`).
+- `cost` is always `"fixed": false`. For `would-create`, `pending` and `failed` (nothing was created) `notes` is `"no cost: nothing was created"`. For `created` and `unchanged`, `notes` is `"no cost"` when `outputs.visibility` is `public`, and `"private repositories of a free organization use the 2,000 Actions minutes a month"` otherwise (`private` or `internal`).

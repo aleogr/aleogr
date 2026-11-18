@@ -7,3 +7,5 @@ CALLED ^gh repo edit example-org/example-repo .*--add-topic aleogr-example
 CALLED ^gh repo edit .*--add-topic demo
 COUNT 2 ^gh api repos/example-org/example-repo$
 OUTPUT "status": "created"
+CALLED ^gh repo edit example-org/example-repo .*(--add-topic aleogr-example .*--add-topic demo|--add-topic demo .*--add-topic aleogr-example)
+ORDER ^gh repo create >> ^gh repo edit
