@@ -1,0 +1,8 @@
+# The repository exists with its README only: no declaration, no ruleset, GitHub's default settings.
+CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+CALLED ^gh api "?repos/example-org/demo/commits\?per_page=2
+OUTPUT "item": "repository", "state": "exists", "action": "none"
+OUTPUT "item": "declaration".*"action": "send"
+OUTPUT "item": "protection".*"action": "create"
+OUTPUT "status": "would-update"
+NOT_CALLED --method|^gh repo|^git (commit|push)

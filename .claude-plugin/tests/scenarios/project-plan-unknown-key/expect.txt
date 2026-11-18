@@ -1,0 +1,4 @@
+# The declaration has a key the rules do not list: nothing is run.
+NOT_CALLED ^gh
+OUTPUT color
+OUTPUT "status": "failed"

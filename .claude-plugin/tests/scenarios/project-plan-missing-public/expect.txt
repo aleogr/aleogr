@@ -1,0 +1,6 @@
+# Declared public and the repository does not exist: the plan would create a public repository.
+CALLED ^gh api repos/example-org/demo$
+NOT_CALLED contents
+OUTPUT "item": "repository", "state": "missing", "action": "create"
+OUTPUT "status": "would-create"
+OUTPUT "exposes": true

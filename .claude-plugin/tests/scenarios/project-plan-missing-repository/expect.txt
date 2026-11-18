@@ -1,0 +1,10 @@
+# The repository does not exist: everything follows its creation, and no other skill runs.
+ORDER ^gh --version >> ^gh api repos/example-org/demo$
+NOT_CALLED contents
+NOT_CALLED rulesets|commits
+OUTPUT "action": "project-plan"
+OUTPUT "item": "repository", "state": "missing", "action": "create"
+OUTPUT follows the creation
+OUTPUT "status": "would-create"
+OUTPUT "exposes": false
+OUTPUT_NOT nothing to do

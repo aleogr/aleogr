@@ -1,0 +1,4 @@
+# No declaration in the folder: nothing is run.
+NOT_CALLED ^gh
+OUTPUT project-declare
+OUTPUT "status": "failed"

@@ -1,0 +1,6 @@
+# Private, rulesets refused by the plan (403 Upgrade), everything else as declared.
+CALLED ^gh api repos/example-org/demo/rulesets$
+OUTPUT not available on this plan
+OUTPUT main is held by the working rule, not by GitHub
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"
