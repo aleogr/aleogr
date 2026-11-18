@@ -69,6 +69,16 @@ If it asks whether to authenticate Git with your GitHub credentials, answer yes.
 4. When it asks to "allow this read outside the working directories" (the orchestrator reading its own `defaults.json`), choose **"Yes, but ask again next time"**. Do not choose the option that allows every read outside the working directory: the home directory holds the Google credentials.
 5. `/exit` to leave.
 
+## Working in a project folder
+
+The `project-*` skills work on the declaration `.aleogr/project.json` of the folder Claude Code was started in. Each project has its own folder, created once, new and empty:
+
+```bash
+mkdir ~/<project> && cd ~/<project> && claude
+```
+
+On later days: `cd ~/<project> && claude`. Claude Code asks once whether to trust the folder: yes. Writing `.aleogr/project.json` and the `gh` and `git` commands the skills show are allowed when asked; the read of the orchestrator's `defaults.json` is answered **"Yes, but ask again next time"**, as above. The folder becomes a git checkout of the project's repository when `project-apply` sends the declaration; it never changes the machine's git configuration.
+
 The skills:
 
 | Skill | What it does |
@@ -76,10 +86,14 @@ The skills:
 | `/aleogr:tools-check` | Checks that `gcloud` is installed and signed in. With `command=gh`, checks `gh` instead. Read-only. |
 | `/aleogr:platform-plan` | Shows what the shared platform is missing. Read-only. |
 | `/aleogr:platform-apply` | Creates what the plan lists. Asks once, stating any fixed cost. |
+| `/aleogr:project-declare` | Writes or edits the project's declaration, `.aleogr/project.json` in the current folder. A new one needs `name`, `owner` and `description`, for example `/aleogr:project-declare name=pilot owner=aleogr-sandbox visibility=public description="Reference project of aleogr: status pages per tenant"`. Changes nothing on GitHub. |
+| `/aleogr:project-plan` | Compares the declaration with GitHub: a table of `repository`, `settings`, `visibility`, `declaration` and `protection`, each with its state and action. Read-only. |
+| `/aleogr:project-apply` | Does what the plan lists, then plans again and says `nothing to do`. One confirmation for the whole run: `confirm=yes`, or `confirmVisibility=public` when the plan makes the repository public. Without it, it changes nothing and shows the text that confirms. |
 | `/aleogr-repo-github:github_repo-describe` | Shows a GitHub repository: visibility, settings, topics and whether `main` is protected. Read-only. |
 | `/aleogr-repo-github:github_repo-create` | Creates a GitHub repository with a README, private unless told otherwise. Plan by default; `mode=apply` creates. An existing repository is never changed. |
 | `/aleogr-repo-github:github_repo-configure` | Corrects the given settings of an existing repository, its visibility included. Plan by default; `mode=apply` changes. |
 | `/aleogr-repo-github:github_branch-protect` | Protects `main` with the ruleset `main`. Plan by default; `mode=apply` writes. Says `pending` when the GitHub plan does not allow it (a private repository of a free organization). |
+| `/aleogr-repo-github:github_checkout-setup` | Makes the current folder a checkout of the repository and sends the declaration as its first content after the README, only while the repository has that one commit. Plan by default; `project-apply` calls it. |
 
 The GitHub skills take `key=value` arguments after the name, for example `/aleogr-repo-github:github_repo-describe owner=aleogr-sandbox name=pilot`. A value with spaces or commas goes in double quotes. Nothing becomes public without `confirmVisibility=public`: without it the skill changes nothing, says so and shows the command that confirms.
 
@@ -109,7 +123,7 @@ claude plugin update aleogr-db-gcp-cloud-sql@aleogr
 claude plugin update aleogr-repo-github@aleogr
 ```
 
-A plugin that is new in the catalog is installed instead (`claude plugin install <plugin>@aleogr`, as in "Set-up, once"). Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
+A change to the project skills needs only the first command and the updates of `aleogr@aleogr` and `aleogr-repo-github@aleogr`; updating the others as well does no harm. A plugin that is new in the catalog is installed instead (`claude plugin install <plugin>@aleogr`, as in "Set-up, once"). Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
 
 ## What to expect
 
