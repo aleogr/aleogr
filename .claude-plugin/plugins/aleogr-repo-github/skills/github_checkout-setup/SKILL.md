@@ -34,7 +34,7 @@ Show each command before running it. Run only the commands below, in this order,
 
 The state of the file in the repository is one of `equal`, `not-sent`, `differs` or `missing` (steps 1 to 5).
 
-A command whose result decides a step is run alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. Each case below names both the exit code and the text that identifies it; when the two disagree (an `exit 0` reported next to an error line such as `gh: Not Found (HTTP 404)`), the text decides and the answer says that the exit code could not be trusted.
+A command whose result decides a step is run alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. Each case below names both the exit code and the text that identifies it; when the two disagree (an `exit 0` reported next to an error line such as `gh: Not Found (HTTP 404)`), the text decides and the answer says that the exit code could not be trusted. The text is read to decide and is never quoted: the answer gives the cause in one sentence in its own words, with no raw error text.
 
 1. Read the repository:
 
@@ -170,7 +170,13 @@ A command whose result decides a step is run alone: not piped into another comma
       git diff --name-only origin/<branch> HEAD
       ```
 
-      Exit 0 and the output is exactly one line, `<path>`: it is; skip step 14 and go to step 15. Anything else: `failed`, as below.
+      Exit 0 and the output is exactly one line, `<path>`: see who authored it:
+
+      ```
+      git log -1 --format=%ae HEAD
+      ```
+
+      Exit 0 and the output is exactly `<id>+<login>@users.noreply.github.com` (the values of step 7): it is; skip step 14 and go to step 15. The address is read only to compare it and is never repeated in the answer or the result block. Anything else, from either command: `failed`, as below.
     - Anything else (another number, a non-zero exit): `failed`. Say in one sentence that this folder has local commits that are not in the repository, and that nothing was pushed. Run nothing else.
 
 14. Commit the file, and only the file (anything else staged stays uncommitted):
@@ -227,7 +233,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   - `created`: `apply`, the push of step 15 succeeded in this run, whatever happened after it.
   - `unchanged`: state `equal` (`plan` or `apply`); nothing was done.
   - `pending`: nothing was changed on GitHub and the rest is the owner's to do: state `differs` or `missing` (`plan` or `apply`), or the push refused by the repository's rules (`apply`).
-  - `failed`: an argument missing or broke a rule, `gh` or `git` missing, `gh` not logged in, the repository read refused, `apply` on a repository that does not exist, the local file missing or not valid JSON, a read of steps 3 or 5 refused, a repository with no commit, `gh api user` refused, `git init -b` refused (git older than 2.28), the folder's `origin` pointing to another address, the folder on another branch, local commits that are not in the repository, or a `git` command of steps 8 to 15 refused (the push for any reason other than the repository's rules). Nothing was changed on GitHub.
+  - `failed`: an argument missing or broke a rule, `gh` or `git` missing, `gh` not logged in, the repository read refused, `apply` on a repository that does not exist, the local file missing or not valid JSON, a read of steps 3 or 5 refused, a repository with no commit, `gh api user` refused, `git init -b` refused (git older than 2.28), the folder's `origin` pointing to another address, the folder on another branch, local commits that are not in the repository (including a single commit with `<path>` whose author is not the account's no-reply address), or a `git` command of steps 8 to 15 refused (the push for any reason other than the repository's rules). Nothing was changed on GitHub.
 - `pending` items are `{ "item": "<what>", "reason": "manual", "how": "<text>" }`:
   - State `differs`: exactly one item `{ "item": "declaration differs from the repository", "reason": "manual", "how": "merge the change (a pull request), then update this folder" }`.
   - State `missing`, or the push refused by the repository's rules: exactly one item `{ "item": "declaration is not in the repository", "reason": "manual", "how": "open a pull request that adds <path>" }`.

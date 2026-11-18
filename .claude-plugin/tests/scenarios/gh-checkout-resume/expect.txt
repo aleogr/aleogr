@@ -1,3 +1,5 @@
 NOT_CALLED ^git commit
 CALLED ^git -c credential.* push -u origin main
 OUTPUT "status": "created"
+CALLED ^git log -1 --format=%ae HEAD
+NOT_CALLED ^git add
