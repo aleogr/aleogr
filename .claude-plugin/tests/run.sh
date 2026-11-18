@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs one scenario headless against the fake gcloud and checks expect.txt.
+# Runs one scenario headless against the fake gcloud and gh and checks expect.txt.
 # Usage: .claude-plugin/tests/run.sh <scenario>
 # Env:   TEST_MODEL (default: sonnet)
 set -u
@@ -29,6 +29,7 @@ out="$work/claude.out"
       --plugin-dir "$plugins/aleogr" \
       --plugin-dir "$plugins/aleogr-cloud-gcp" \
       --plugin-dir "$plugins/aleogr-db-gcp-cloud-sql" \
+      --plugin-dir "$plugins/aleogr-repo-github" \
       --allowedTools "Bash" "Skill" "Read" \
       < /dev/null > "$out" 2>&1
 )
@@ -78,8 +79,8 @@ fi
 echo "FAIL $1"
 echo "Failed expect lines:"
 printf '  %s\n' "${failed[@]}"
-echo "gcloud call log:"
-if [ -s "$log" ]; then sed 's/^/  gcloud /' "$log"; else echo "  (no calls)"; fi
+echo "call log:"
+if [ -s "$log" ]; then sed -e '/^gh /!s/^/gcloud /' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
 echo "claude exit status: $claude_status"
 echo "claude output:"
 sed 's/^/  /' "$out"
