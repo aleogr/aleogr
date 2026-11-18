@@ -6,7 +6,7 @@
     {
       "name": "aleogr",
       "source": "./.claude-plugin/plugins/aleogr",
-      "description": "Orchestrator: checks tools and plans and creates the shared platform.",
+      "description": "Orchestrator: checks tools and plans and creates the shared platform, and declares, plans and applies a project's GitHub repository.",
       "category": "orchestrator",
       "displayName": "aleogr (orchestrator)"
     },
