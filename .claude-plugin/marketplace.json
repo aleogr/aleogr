@@ -27,7 +27,7 @@
     {
       "name": "aleogr-repo-github",
       "source": "./.claude-plugin/plugins/aleogr-repo-github",
-      "description": "GitHub family: repositories, their settings and branch protection.",
+      "description": "GitHub family: repositories, their settings, branch protection and the checkout that sends the first content.",
       "category": "repo",
       "displayName": "GitHub (repository)"
     }
