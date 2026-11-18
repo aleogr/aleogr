@@ -1,0 +1,5 @@
+CALLED ^gh repo edit example-org/example-repo .*--add-topic new
+CALLED ^gh repo edit .*--remove-topic old
+NOT_CALLED topic keep
+NOT_CALLED --description
+OUTPUT "status": "updated"

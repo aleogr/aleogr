@@ -1,0 +1,4 @@
+CALLED ^gh api repos/example-org/example-repo$
+NOT_CALLED ^gh repo edit
+OUTPUT "status": "pending"
+OUTPUT confirm visibility public

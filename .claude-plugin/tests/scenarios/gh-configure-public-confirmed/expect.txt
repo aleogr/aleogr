@@ -1,0 +1,5 @@
+CALLED ^gh repo edit example-org/example-repo .*--enable-wiki=false
+CALLED ^gh repo edit example-org/example-repo --visibility public --accept-visibility-change-consequences
+NOT_CALLED --enable-wiki.*--visibility|--visibility.*--enable-wiki
+ORDER --enable-wiki=false >> --visibility public
+OUTPUT "status": "updated"
