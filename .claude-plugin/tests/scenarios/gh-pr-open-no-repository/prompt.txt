@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_pull-request-open owner=example-org name=example-repo paths=.aleogr/project.json title="Change the project declaration" mode=apply

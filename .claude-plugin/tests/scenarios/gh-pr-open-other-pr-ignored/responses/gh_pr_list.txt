@@ -1,0 +1,7 @@
+[
+  {
+    "headRefName": "feature/x",
+    "number": 3,
+    "url": "https://github.com/example-org/example-repo/pull/3"
+  }
+]

@@ -1,0 +1,3 @@
+CALLED ^git switch main$
+OUTPUT "status": "updated"
+OUTPUT gh pr create

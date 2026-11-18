@@ -1,0 +1,2 @@
+OUTPUT "folder": "local-commits"
+OUTPUT "status": "pending"

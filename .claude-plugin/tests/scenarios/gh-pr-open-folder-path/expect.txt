@@ -1,0 +1,2 @@
+NOT_CALLED ^git (switch|add|commit)
+OUTPUT "status": "failed"
