@@ -11,7 +11,9 @@
 # must start with the file name minus its extension (projects_list.txt answers
 # "projects list ..."); when several names match, the longest wins (ties: first in
 # glob order). Fallback: default.txt, else nothing. A file whose name
-# ends in .exit1 (projects_list.txt.exit1) prints its content, then exits 1.
+# ends in .exit1 (projects_list.txt.exit1) prints its content, then exits 1; one
+# ending in .exit127 (gh_--version.txt.exit127) prints its content, then exits 127
+# (a command that is not installed).
 # Numbered responses: files <prefix>.1.txt, <prefix>.2.txt, ... answer the 1st,
 # 2nd, ... call that matches <prefix>; later calls get the last file. The call
 # counter lives in a file next to FAKE_LOG.
@@ -75,6 +77,7 @@ for f in "$dir"/*; do
   base="$(basename "$f")"
   case "$base" in *+after+*) continue ;; esac
   name="${base%.exit1}"
+  name="${name%.exit127}"
   name="${name%.*}"
   num=""
   case "$name" in
@@ -105,7 +108,7 @@ if [ -n "$pick" ]; then
     f="$chosen"; base="$(basename "$f")"
   fi
   cat "$f"
-  case "$base" in *.exit1) exit 1 ;; esac
+  case "$base" in *.exit1) exit 1 ;; *.exit127) exit 127 ;; esac
   exit 0
 fi
 if [ -f "$dir/default.txt" ]; then cat "$dir/default.txt"; fi

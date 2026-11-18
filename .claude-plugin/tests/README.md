@@ -42,7 +42,9 @@ Create `scenarios/<name>/` with:
   answers `gh api repos/example-org/example-repo/rulesets` even next to the
   shorter file). Otherwise
   `default.txt` answers, or nothing is printed. A name ending in `.exit1`
-  (`projects_create.txt.exit1`) prints its content and makes the call fail.
+  (`projects_create.txt.exit1`) prints its content and makes the call fail; a name ending in `.exit127`
+  (`gh_--version.txt.exit127`) prints its content and exits 127, as an absent
+  command does.
   Numbered files (`billing_projects_describe_x.1.txt`, `...2.txt`) answer the
   first, second, ... call that matches the prefix, and later calls get the
   last file (`.exit1` may follow any number). They count every matching call,

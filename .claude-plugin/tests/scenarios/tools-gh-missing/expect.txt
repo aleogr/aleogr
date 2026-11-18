@@ -1,0 +1,3 @@
+NOT_CALLED ^gh auth
+OUTPUT "state": "missing"
+OUTPUT "status": "failed"
