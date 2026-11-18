@@ -1,0 +1,7 @@
+FILE .aleogr/project.json "name": "demo"
+FILE .aleogr/project.json "owner": "example-org"
+FILE .aleogr/project.json "visibility": "private"
+FILE .aleogr/project.json "rebase": false
+FILE .aleogr/project.json "version": 1
+NOT_CALLED ^gh
+OUTPUT "status": "created"

@@ -1,0 +1,2 @@
+FILE .aleogr/project.json not json
+OUTPUT "status": "failed"

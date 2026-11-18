@@ -1,0 +1,1 @@
+/aleogr:project-declare name=test-demo owner=example-org description="Demo project"

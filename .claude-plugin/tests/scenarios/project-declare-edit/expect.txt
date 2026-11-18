@@ -1,0 +1,3 @@
+FILE .aleogr/project.json "status-page"
+FILE .aleogr/project.json "description": "Demo project"
+OUTPUT "status": "updated"
