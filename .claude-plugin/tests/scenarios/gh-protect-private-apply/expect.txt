@@ -3,3 +3,4 @@ NOT_CALLED --method
 OUTPUT "status": "pending"
 OUTPUT paid plan or a public repository
 OUTPUT "action": "branch-protect"
+RESULT_NOT confirmVisibility

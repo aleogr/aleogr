@@ -2,4 +2,4 @@ CALLED ^gh repo edit example-org/example-repo .*--enable-wiki=false
 NOT_CALLED --visibility
 OUTPUT "status": "updated"
 RESULT_NOT "pending": \[\]
-OUTPUT confirm visibility public
+OUTPUT "item": "confirm visibility public"

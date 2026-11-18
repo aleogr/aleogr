@@ -4,3 +4,4 @@ OUTPUT "status": "failed"
 RESULT_NOT "status": "pending"
 RESULT_NOT 422
 OUTPUT "action": "branch-protect"
+OUTPUT_NOT Validation Failed

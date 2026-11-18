@@ -64,6 +64,9 @@ After step 1:
 
    - Exit 0: go on.
    - Command not found (`command not found` or exit code 127 in bash, `not recognized` in PowerShell): state `missing`, `fix` is `https://cli.github.com`. Skip the next check and end with `failed`.
+   - Any other non-zero exit: state `missing`, the same `fix`. Skip the next check and end with `failed`.
+
+   In no case show the raw error text.
 
 2. Is `gh` logged in:
 
@@ -82,9 +85,9 @@ After step 1:
 
 ## Answer
 
-One line per tool: its name and `ok`, `missing` or `not authenticated`, and the fix when it is not ok. If the command name is `gcloud.cmd`, say that every `gcloud` command must be run as `gcloud.cmd`. Then one line with where it runs.
+One line per tool: its name and `ok`, `missing` or `not authenticated`, and the fix when it is not ok. In the default check, if the command name is `gcloud.cmd`, say that every `gcloud` command must be run as `gcloud.cmd`. Then one line with where it runs.
 
-- If any tool is not `ok`, say what cannot be done until it is fixed (every platform skill needs `gcloud`).
+- If any tool is not `ok`, say what cannot be done until it is fixed: in the default check, every platform skill needs `gcloud`; with `command=gh`, the GitHub skills.
 - If `where` is `cloud-session`, add one sentence: infrastructure setup is done from the local app, where the CLIs are authenticated. Still report what was found.
 
 Then the result block.
@@ -115,5 +118,5 @@ End with exactly one fenced block tagged `aleogr-result`:
 
 - `mode` is always `plan`. `status` is `unchanged` when every tool is `ok`, otherwise `failed`.
 - `state` is `ok`, `missing` or `not-authenticated`. `fix` is a command or a URL, or `null` when `ok`.
-- `command` is the command name to run the tool with: `gcloud.cmd` when only `gcloud.cmd --version` worked, otherwise `gcloud`.
+- `command` is the command name to run the tool with. In the default check: `gcloud.cmd` when only `gcloud.cmd --version` worked, otherwise `gcloud`. With `command=gh`: `gh`.
 - `resources` is empty. The block never contains an account e-mail.

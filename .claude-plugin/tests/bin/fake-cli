@@ -13,7 +13,8 @@
 # glob order). Fallback: default.txt, else nothing. A file whose name
 # ends in .exit1 (projects_list.txt.exit1) prints its content, then exits 1; one
 # ending in .exit127 (gh_--version.txt.exit127) prints its content, then exits 127
-# (a command that is not installed).
+# (a command that is not installed). .exit127 is not supported on numbered or
+# +after+ files.
 # Numbered responses: files <prefix>.1.txt, <prefix>.2.txt, ... answer the 1st,
 # 2nd, ... call that matches <prefix>; later calls get the last file. The call
 # counter lives in a file next to FAKE_LOG.

@@ -52,6 +52,7 @@ while IFS= read -r line || [ -n "$line" ]; do
       esac
       ;;
     OUTPUT)     grep -Eq -- "$arg" "$out" || ok=0 ;;
+    OUTPUT_NOT) ! grep -Eq -- "$arg" "$out" || ok=0 ;;
     RESULT_NOT)
       # Lines inside the fenced aleogr-result block(s) of the answer; fails when there is none.
       blk="$(awk '/^[[:space:]]*```aleogr-result/ {inb=1; found=1; next}

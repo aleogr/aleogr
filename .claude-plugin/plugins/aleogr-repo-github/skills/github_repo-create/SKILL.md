@@ -26,7 +26,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
 - `visibility`, when given, is `public` or `private`.
 - `confirmVisibility`, when given, is equal to `visibility` (after the default), and `visibility` is `public`. `confirmVisibility=public` with `visibility=private` (or with no `visibility`) fails; so does `confirmVisibility=private`.
-- `description`, when given, is not empty and has no line break, no `"`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
+- `description`, when given, is not empty and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `topics`, when given, is split on `,`; each topic has 1 to 50 characters of `a-z`, `0-9` and `-`, and starts with a letter or a digit (no capitals, no `_`, no spaces, no empty item). Repeated topics count once.
 - `mode`, when given, is `plan` or `apply`.
 

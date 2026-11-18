@@ -1,0 +1,4 @@
+CALLED ^gh repo edit .*--enable-wiki=false
+NOT_CALLED --visibility
+OUTPUT "status": "failed"
+OUTPUT_NOT Must have admin rights

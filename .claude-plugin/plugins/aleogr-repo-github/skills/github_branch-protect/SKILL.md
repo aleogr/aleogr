@@ -24,7 +24,7 @@ Free text after the skill name, as `key=value` pairs.
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 4 runs again as the verification of step 7): no `gh auth status`, no `gh repo view`, no other `gh` command, no `--method DELETE`, no `--method PATCH`, no retry. Never print the account name or the token. The body of a write is always the file, passed as `--input "${CLAUDE_PLUGIN_ROOT}/files/ruleset-main.json"` (with the quotes), never inline.
+Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 4 runs again as the verification of step 7): no `gh auth status`, no `gh repo view`, no other `gh` command, no `--method DELETE`, no `--method PATCH`, no retry. Never print the account name or the token. The body of a write is always the file, passed as `--input "${CLAUDE_PLUGIN_ROOT}/files/ruleset-main.json"` (with the quotes), never inline. Write `${CLAUDE_PLUGIN_ROOT}` as the real folder of this plugin, so the file is `<plugin folder>/files/ruleset-main.json`.
 
 1. Read the repository:
 
@@ -143,7 +143,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   - `pending`: the plan does not allow rulesets on this repository (the read of step 2, or the write of step 6, refused with `HTTP 403` and `Upgrade`), in `plan` or `apply`. Nothing was changed.
   - `failed`: an argument missing or broke a rule, `gh` missing or not logged in, the repository does not exist or its read refused, the rulesets read refused for any other reason or not a JSON list, two rulesets named `main`, `ruleset-main.json` unreadable, the read of step 4 refused, or the write refused for any other reason. Nothing was changed.
 - `pending` items are `{ "item": "<what>", "reason": "<reason>", "how": "<text>" }`:
-  - With the status `pending`: exactly one item `{ "item": "branch protection needs a paid plan or a public repository", "reason": "plan-limit", "how": "make <owner>/<name> public (/aleogr-repo-github:github_repo-configure owner=<owner> name=<name> visibility=public confirmVisibility=public mode=apply) or move the owner to a paid plan, then run /aleogr-repo-github:github_branch-protect owner=<owner> name=<name> mode=apply" }`.
+  - With the status `pending`: exactly one item `{ "item": "branch protection needs a paid plan or a public repository", "reason": "plan-limit", "how": "make <owner>/<name> public (/aleogr-repo-github:github_repo-configure owner=<owner> name=<name> visibility=public mode=apply) or move the owner to a paid plan, then run /aleogr-repo-github:github_branch-protect owner=<owner> name=<name> mode=apply" }`.
   - With `created` or `updated`: the item of step 7 (`verify` or `branch protection differs`), with `"reason": "manual"`, when there is one; `[]` otherwise. `created` or `updated` with a non-empty `pending` is allowed.
   - With every other status: `[]`.
 - `outputs` and `resources` describe the ruleset `main` as it is at the end of the run. One rule for every ending: when a ruleset `main` exists and its `id` is known, `outputs.rulesetId` is that `id` (a number) and `resources` is `[{ "type": "ruleset", "id": "<id>", "name": "main" }]` (the `id` as a string); otherwise `rulesetId` is `null` and `resources` is `[]`. `outputs.rules` is the sorted list of the ruleset's rule types and `outputs.requiredApprovals` its `pull_request` rule's `required_approving_review_count` (`null` when there is no `pull_request` rule). Their source, per ending:

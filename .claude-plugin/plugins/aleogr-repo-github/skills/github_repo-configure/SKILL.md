@@ -30,10 +30,10 @@ Free text after the skill name, as `key=value` pairs. A value with spaces or com
 The settings are `description`, `topics`, `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects` and `visibility`. Validate before any command, in this order; the first rule broken ends with the result block with `status` `failed`, one sentence saying which rule failed, and no command (do not ask for anything):
 
 - `owner` and `name` are given (a missing one is named in the sentence).
-- At least one setting is given; otherwise the sentence is "nothing to configure was given".
+- At least one setting is given (`topics=` with an empty value counts as a given setting); otherwise the sentence is "nothing to configure was given".
 - `owner` has 1 to 39 characters of `A-Z`, `a-z`, `0-9` and `-`, and does not start or end with `-`.
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
-- `description`, when given, is not empty and has no line break, no `"`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
+- `description`, when given, is not empty and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `topics`, when given and not empty, is split on `,`; each topic has 1 to 50 characters of `a-z`, `0-9` and `-`, and starts with a letter or a digit (no capitals, no `_`, no spaces, no empty item). Repeated topics count once.
 - `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki` and `projects`, when given, are `true` or `false`.
 - `visibility`, when given, is `public` or `private`.
@@ -154,7 +154,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   - `failed`: an argument missing or broke a rule, no setting given, `gh` missing or not logged in, the repository does not exist, the read of step 1 refused, the merge methods would all be off, or the first `gh repo edit` of this run refused. Nothing was changed.
 - `outputs.changes` holds `{ "setting", "from", "to" }` items with the setting names of the table in step 2, in that order:
   - `would-update`: every difference.
-  - `updated`: the differences a `gh repo edit` of this run changed (an unconfirmed or refused visibility is not in it).
+  - `updated`: the differences a `gh repo edit` of this run changed (an unconfirmed or refused visibility is not in it). A setting that was sent but still differs after the verification of step 6 is not in it either: it is a `pending` item.
   - `unchanged`, `pending`, `failed`: `[]`.
 - `outputs.settings` uses the keys of `github_repo-describe`, in this order: `mergeCommit` (`allow_merge_commit`), `squash` (`allow_squash_merge`), `rebase` (`allow_rebase_merge`), `deleteBranchOnMerge` (`delete_branch_on_merge`), `issues` (`has_issues`), `wiki` (`has_wiki`), `projects` (`has_projects`). `outputs.visibility` (`public`, `private` or `internal`), `outputs.description` (`null` when it has none) and `outputs.topics` (sorted) are read the same way. Values come only from the commands' output.
 - Each `pending` item is `{ "item": "<what>", "reason": "manual", "how": "<text>" }`. `pending` has items only with `updated` (the items of steps 5 and 6) and with the status `pending` (the one item `confirm visibility <value>`); it is `[]` otherwise.
