@@ -34,6 +34,8 @@ Show each command before running it. Run only the commands below, in this order,
 
 The state of the file in the repository is one of `equal`, `not-sent`, `differs` or `missing` (steps 1 to 5).
 
+A command whose result decides a step is run alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. Each case below names both the exit code and the text that identifies it; when the two disagree (an `exit 0` reported next to an error line such as `gh: Not Found (HTTP 404)`), the text decides and the answer says that the exit code could not be trusted.
+
 1. Read the repository:
 
    ```
