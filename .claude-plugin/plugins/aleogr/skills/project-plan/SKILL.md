@@ -92,8 +92,8 @@ Always these five items, in this order: `repository`, `settings`, `visibility`, 
 | `repository` | `exists` false: `missing` → `create`. `exists` true: `exists` → `none`. |
 | `settings` | Compare `repo.description` with `outputs.description`, the declared topics with `outputs.topics` as sets (order ignored), and each of the seven `repo.settings` with the same key of `outputs.settings`. All equal: `as declared` → `none`. Otherwise `differs: <names>` → `update`, where `<names>` are the names that differ, comma-separated, in this order: `description`, `topics`, `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects` (for example `differs: topics, rebase`). |
 | `visibility` | `outputs.visibility` equals `repo.visibility`: `as declared` → `none`. Otherwise (including `internal`): `differs` → `update`, and the note `visibility: needs confirmVisibility=<repo.visibility>` under the table. |
-| `declaration` | From the checkout's `outputs.state`: `equal` → `in the repository` / `none`; `not-sent` → `not sent yet` / `send`; `differs` → `differs from the repository` / `merge first`; `missing` → `not in the repository` / `open a pull request`. |
-| `protection` | From `protection.state`: `protected` with `matches` true → `protected` / `none`; `protected` with `matches` false → `differs` / `update`; `unprotected` → `unprotected` / `create`; `unavailable` → `not available on this plan` / `none`, and the notice `main is held by the working rule, not by GitHub` under the table. |
+| `declaration` | From the checkout's `outputs.state`: `equal` → `in the repository` / `none`; `not-sent` → `not sent yet` / `send`, except when `protection.state` is `protected` (matching or not): then `not sent yet` / `open a pull request`, never `send`, because the protection refuses the push; `differs` → `differs from the repository` / `merge first`; `missing` → `not in the repository` / `open a pull request`. |
+| `protection` | From `protection.state`: `protected` with `matches` true → `protected` / `none`; `protected` with `matches` false → `differs` / `update`; `unprotected` → `unprotected` / `create`; `unavailable` → `not available on this plan` / `none`, and the notice `main is held by the working rule, not by GitHub` under the table (when `visibility` is `differs` and `repo.visibility` is `public`, the notice adds `protection is checked again once the repository is public`). |
 
 Two cases replace the rows above:
 
@@ -108,8 +108,8 @@ Print the table (item, state, action). Under the table, these lines when they ap
 
 - `visibility` has action `update`: `visibility: needs confirmVisibility=<repo.visibility>`.
 - `exposes` is true: `This plan makes the repository public: project-apply runs it only with confirmVisibility=public.`
-- `protection` is `not available on this plan`: `main is held by the working rule, not by GitHub.`
-- `declaration` has action `merge first` or `open a pull request`: the `how` of the checkout's `pending` item, and that `project-apply` stops until it is done.
+- `protection` is `not available on this plan`: `main is held by the working rule, not by GitHub.` When `visibility` is `differs` and `repo.visibility` is `public`, the line is `main is held by the working rule, not by GitHub; protection is checked again once the repository is public.`
+- `declaration` has action `merge first` or `open a pull request`: the `how` of the `pending` item (below), and that `project-apply` stops until it is done.
 
 Then one line: `nothing to do` when every action is `none`. Otherwise how many items have an action other than `none` and that `project-apply` makes them (for `merge first` or `open a pull request`, that it is the owner's to do first). Never write the words `nothing to do` when an action is not `none`. On `failed`: the sentence of the failed step instead of the table. Then the result block.
 
@@ -156,8 +156,8 @@ Write each item of `outputs.items` on one line, as in the example.
   - `exposes`: `true` when the plan would create a public repository (repository missing and `repo.visibility` `public`) or make one public (`visibility` `differs` and `repo.visibility` `public`); `false` otherwise, and always `false` on `failed`.
   - `items`: the five items in order; `[]` on `failed`.
 - `pending`:
-  - `declaration` action `merge first` or `open a pull request`: the checkout's `pending` item, as it gave it (`item`, `reason` `manual`, `how`), whatever the status.
+  - `declaration` action `merge first` or `open a pull request`: the checkout's `pending` item, as it gave it (`item`, `reason` `manual`, `how`), whatever the status. When the checkout state is `not-sent` and the repository is protected, the checkout gives no item: add `{ "item": "declaration is not in the repository", "reason": "manual", "how": "open a pull request that adds .aleogr/project.json" }`.
   - `failed`: one item `{ "item": "<what failed>", "reason": "manual", "how": "<fix>" }`: for a missing declaration `{ "item": "declaration", "reason": "manual", "how": "declare the project first with /aleogr:project-declare" }`; for an invalid one, `item` `declaration` and `how` the problem to fix in `.aleogr/project.json`; for tools-check, `item` `gh` and its `fix`; for the describe or the checkout, `item` `repository` or `declaration` and the cause it gave.
   - Otherwise `[]`.
-- `resources` is `[{ "type": "repository", "id": "<repo.owner>/<repo.name>", "name": "<repo.name>" }]` when the describe found the repository, `[]` otherwise.
+- `resources` is `[{ "type": "repository", "id": "<repo.owner>/<repo.name>", "name": "<repo.name>" }]` when `outputs.exists` of the describe is true, `[]` otherwise.
 - `cost` is always `{ "fixed": false, "notes": "read-only plan" }`. The block never holds the account name.
