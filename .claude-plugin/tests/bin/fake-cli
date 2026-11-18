@@ -9,7 +9,8 @@
 # FAKE_RESPONSES  directory with the scenario's response files
 # Response files are matched by name: the arguments with spaces turned into "_"
 # must start with the file name minus its extension (projects_list.txt answers
-# "projects list ..."). Fallback: default.txt, else nothing. A file whose name
+# "projects list ..."); when several names match, the longest wins (ties: first in
+# glob order). Fallback: default.txt, else nothing. A file whose name
 # ends in .exit1 (projects_list.txt.exit1) prints its content, then exits 1.
 # Numbered responses: files <prefix>.1.txt, <prefix>.2.txt, ... answer the 1st,
 # 2nd, ... call that matches <prefix>; later calls get the last file. The call

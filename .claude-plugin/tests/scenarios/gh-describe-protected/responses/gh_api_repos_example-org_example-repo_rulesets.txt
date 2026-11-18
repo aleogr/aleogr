@@ -1,0 +1,4 @@
+[
+  {"id":123,"name":"main","target":"branch","source_type":"Repository","source":"example-org/example-repo","enforcement":"active","node_id":"RRS_example1","_links":{"self":{"href":"https://api.github.com/repos/example-org/example-repo/rulesets/123"},"html":{"href":"https://github.com/example-org/example-repo/rules/123"}},"created_at":"2026-01-01T00:00:00.000Z","updated_at":"2026-01-01T00:00:00.000Z"},
+  {"id":456,"name":"release-tags","target":"tag","source_type":"Repository","source":"example-org/example-repo","enforcement":"active","node_id":"RRS_example2","_links":{"self":{"href":"https://api.github.com/repos/example-org/example-repo/rulesets/456"},"html":{"href":"https://github.com/example-org/example-repo/rules/456"}},"created_at":"2026-01-01T00:00:00.000Z","updated_at":"2026-01-01T00:00:00.000Z"}
+]

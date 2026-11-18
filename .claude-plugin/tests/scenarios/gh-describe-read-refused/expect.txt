@@ -2,3 +2,4 @@ CALLED ^gh api repos/example-org/example-repo$
 NOT_CALLED rulesets
 OUTPUT "status": "failed"
 RESULT_NOT "exists": false
+RESULT_NOT 502
