@@ -91,7 +91,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. The orchestr
   - `dnsRecords` → dns-* in step 8;
   - `ciSecrets` / `ciVariables` → repo-* `ci-set-secret` / `ci-set-variable` in step 10;
   - `devcontainerFeatures` → orchestrator assembles `devcontainer.json` in step 7;
-  - `checks` → repo-* `branch-protect` (required checks) in step 10.
+  - `checks` → repo-* `branch-protect` (required checks) in step 10, once the file that reports them is on the default branch. On GitHub, `ci-setup` gives its check names in `outputs.checks`, and the orchestrator passes `checks=ci` to `branch-protect` exactly when `ci.yml` is on the default branch.
 - `cost.fixed: true` means the action needed (and got) explicit confirmation.
 - `pending` items end up in the project checklist.
 
@@ -110,20 +110,21 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. The orchestr
 
 | Action | Input | Output |
 |---|---|---|
-| `repo-describe` | owner, name | exists, visibility, description, default branch, merge settings, features (issues, wiki, projects), protection, topics, secret/variable **names** (from stage 4) |
+| `repo-describe` | owner, name, checks (the required checks the protection is compared with: `ci` or `none`, default `none`) | exists, visibility, description, default branch, merge settings, features (issues, wiki, projects), protection (state, whether it matches, the required checks it has), topics, secret/variable **names** (from stage 4) |
 | `repo-create` | owner, name, visibility (default `private`; `public` needs its own confirmation), description, topics | creates the repository with a README; HTTPS/SSH URLs, default branch |
 | `repo-configure` | owner, name, and only the settings to change: description, topics, merge methods, delete branch on merge, features (issues, wiki, projects), visibility (a change needs its own confirmation) | applied settings |
 | `checkout-setup` | owner, name, path (default `.aleogr/project.json`), commit message | ties the current folder to the repository (a git checkout with the remote `origin`) and sends the file as the first content after the README, or brings a folder that is behind the repository up to date (a fast-forward); output: the file's state in the repository (`equal`, `not-sent`, `differs`, `behind`, `needs-attention`, `missing`), default branch, path, whether it pushed, whether it updated the folder, the reason of `needs-attention`. `plan` reads the repository's copy through the provider's API and, when it differs, the folder with read-only commands; it changes nothing |
 | `pull-request-open` | owner, name, paths (the files to propose, never a folder), title, body | commits only those files on a new branch, pushes it, opens a pull request into the default branch and returns the folder to the default branch; output: the folder's state (`ready`, `not-a-checkout`, `other-remote`, `other-branch`, `local-commits`), the changed files, the open tooling pull request (number, address, branch), the pull request opened (number, address, branch), default branch. `plan` reports the open tooling pull request and which files changed, and changes nothing |
-| `branch-protect` | 3a: owner, name (default branch, fixed rules); the other inputs from stage 3c: branch, require PR, approvals, required checks, block force push/deletion | applied rules, or `pending` (plan limit, in `plan` and in `apply`) |
+| `branch-protect` | owner, name, checks (`ci` or `none`, default `none`); the default branch and the rules are fixed (no deletion, no force push, a pull request with 0 approvals, and with `checks=ci` the required status check `ci`) | applied rules and required checks, or `pending` (plan limit, in `plan` and in `apply`) |
 | `ci-set-secret` | name, scope (`repo` \| `org` \| `environment`), value source | name and scope (never the value) |
 | `ci-set-variable` | name, value, scope (`repo` \| `org` \| `environment`) | name, scope, value |
-| `ci-setup` | components (directory, stack/platform CI parameters), project environments | generated files (`ci.yml`, `cd.yml`), `checks` (required check names) |
+| `ci-setup` | owner, name, components (name, path, stack, version of each), the repository of the reusable workflows, ref (`keep` the pinned commit, default, or `latest`), default branch; project environments and `cd.yml` from stage 4 | writes `ci.yml` in the folder; output: its state here (`as-declared`, `missing`, `differs`, `not-needed`), whether the repository's default branch has it and whether that copy is as declared, the marker, the commit pinned, whether it wrote, `checks` (required check names: `["ci"]` with components) |
 | `repo-archive` | owner, name | archived |
 
 Notes:
 
-- `branch-protect` runs twice in apply: step 1 (no checks yet) and step 10 (with `checks` from `ci-setup`).
+- `branch-protect` requires a check only once the workflow that reports it is on the default branch: a required check that nothing reports would block every pull request, including the one that adds the workflow. On GitHub, `checks=ci` compares and sends a second ruleset file, `ruleset-main-ci.json`, equal to `ruleset-main.json` plus the rule that requires the status check `ci`; the required checks are compared as a set of names, so a ruleset with the check differs from `checks=none` and one without it differs from `checks=ci`. No JSON is built at run time.
+- `ci-setup` writes the project's single CI file and never commits or pushes it: the pull request that proposes the change carries it. On GitHub the file is `.github/workflows/ci.yml`; its first line is a marker built from the components sorted by name (`# aleogr-ci 1 <name>:<path>:<stack>:<version>,…`), and "as declared" is decided by comparing that line, never the YAML; a file whose marker differs is rewritten whole. It has a job `changes` that detects the changed folders, one job per component that calls the stack's reusable workflow (pinned by commit, kept when the file is regenerated unless `ref=latest`), and a last job `ci`, the required check, which passes only when the detection succeeded and every component job passed or was skipped ([DESIGN.md section 4](DESIGN.md#4-cicd)). With no component and no file it is `unchanged` (`not-needed`); with no component and a file it is `pending`, to remove by hand.
 - `repo-create` creates the repository with a README, so that the default branch exists from the start (a protection that requires pull requests could block the first commit of an empty repository). On an existing repository it changes nothing (`unchanged`) and lists what differs from its inputs; `repo-configure` is the only action that corrects an existing repository.
 - `repo-configure` compares and changes only the settings it is given: a setting left out is left as it is.
 - `checkout-setup` sends only at a birth: the file is pushed to the default branch only when that branch has exactly one commit (the README of `repo-create`) and does not have the file. A repository with any other history is never pushed to. Its states: `equal` (`unchanged`); `not-sent`, a birth (`would-create` in `plan`, `created` in `apply`); `differs`, a local change the repository does not have, and `missing`, a repository with history and no file, are `pending` in `plan` and in `apply`, with one item of reason `manual` (propose the change with a pull request; open a pull request that adds the file). A push the repository's rules refuse is the same `pending` as `missing`, not a failure. The two files are compared as JSON values, not byte by byte.
@@ -404,11 +405,12 @@ Notes: flags themselves are defined by the application code, not by the contract
 | Action | Input | Output |
 |---|---|---|
 | `component-describe` | component directory | detected version; build/test/lint/format commands; CI parameters (reusable workflow + inputs); `devcontainerFeatures` (official + preferences layer); LSP server |
-| `setup` | component directory, language version | contributions to shared files (marked sections), tool config (linter/formatter), `devcontainerFeatures`, CI parameters |
+| `setup` | component name, component directory, language version, the module or package name the stack needs (Go: `github.com/<owner>/<repository>/<path>`) | the starting point's files (`files`: the paths expected, whether this run wrote them), CI parameters (`ci`: the reusable workflow and its inputs); planned: contributions to shared files (marked sections), tool config (linter/formatter), `devcontainerFeatures` |
 
 Notes:
 
-- `setup` never creates application code; it prepares tooling around the component.
+- `setup` creates at most a minimal starting point, once, and never changes existing code. It writes its files only when the component has none (Go: when `<path>/go.mod` is missing), never overwrites one, and leaves a folder that holds code without the stack's manifest (Go: `.go` files and no `go.mod`) as it is, with `pending` and one `manual` item. `plan` reports `would-create` or `unchanged` and writes nothing.
+- Go (`go_setup`): the files are exactly `<path>/go.mod`, `<path>/main.go` and `<path>/main_test.go`, filled from templates the plugin ships (an HTTP server with `GET /` and `GET /healthz` and one test per handler, standard library only). The version is `major.minor`, 1.22 or later. It needs no Go toolchain, writes with Claude Code's file tools and runs one read-only listing of the folder. `ci` is `{ "workflow": "ci-go.yml", "inputs": { "working-directory": "<path>", "go-version": "<version>" } }`.
 - The language version comes from the declaration and feeds both CI and devcontainer ([DESIGN.md section 10.6](DESIGN.md#106-whathow-split)).
 
 ### platform-* (combinable, component) — mobile, desktop, embedded, wearable
@@ -546,3 +548,5 @@ Decided (reflected in DESIGN.md):
 7. hosting-*: deploys only from CI.
 8. cache-* and search-* in `dev`: serverless or free tier.
 9. dns-* in `dev` and `hom` is `record-add`: every hostname has its own record; there is no router and no `route-add`.
+10. stack-* `setup` creates at most a minimal starting point, once, and never changes existing code.
+11. repo-* `branch-protect` requires the check `ci` exactly when the project's `ci.yml` is on the default branch.
