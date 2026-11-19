@@ -8,5 +8,3 @@ OUTPUT "item": "environment dev", "state": "missing", "action": "create"
 OUTPUT "item": "confirm", "reason": "manual", "how": "/aleogr:project-apply confirm=yes"
 OUTPUT "status": "pending"
 OUTPUT_NOT nothing to do
-# The nested skills' blocks are input only: the answer holds this skill's block alone.
-OUTPUT_NOT "action": "(project-plan|tools-check|environment-describe|environment-create)"
