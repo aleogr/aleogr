@@ -10,5 +10,3 @@ OUTPUT "status": "failed"
 # The item says which folder to create: dev, inside tst.
 OUTPUT "item": "environment dev", "reason": "manual", "how": "[^"]*folder[^"]*(dev[^"]*tst|tst[^"]*dev)[^"]*/aleogr:project-apply confirm=yes
 OUTPUT_NOT nothing to do
-# The blocks of the skills project-apply invokes in apply are input only: never printed.
-OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"

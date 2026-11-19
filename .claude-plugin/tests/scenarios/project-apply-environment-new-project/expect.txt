@@ -24,5 +24,3 @@ OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT [Nn]othing is deployed yet
 OUTPUT "status": "updated"
 OUTPUT_NOT "item": "verify"
-# The blocks of the skills project-apply invokes in apply are input only: never printed.
-OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"

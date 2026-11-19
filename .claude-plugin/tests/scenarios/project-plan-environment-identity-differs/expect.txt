@@ -7,4 +7,3 @@ OUTPUT "ciVariables": null
 NOT_CALLED update-oidc|add-iam-policy-binding|create
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

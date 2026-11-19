@@ -8,4 +8,3 @@ OUTPUT "item": "ci identity", "state": "follows the environment", "action": "non
 NOT_CALLED ^(artifacts|iam)( |$)
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

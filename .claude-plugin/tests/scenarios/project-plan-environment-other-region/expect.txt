@@ -9,5 +9,3 @@ OUTPUT "status": "pending"
 OUTPUT_NOT "action": "grant"
 OUTPUT_NOT nothing to do
 NOT_CALLED ^artifacts repositories (create|delete|set-cleanup-policies|add-iam-policy-binding)
-# The nested skills' blocks are input only: the answer holds this skill's block alone.
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

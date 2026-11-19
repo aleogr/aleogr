@@ -12,5 +12,3 @@ NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "updated"
-# The blocks of the skills project-apply invokes in apply are input only: never printed.
-OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"

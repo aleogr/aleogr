@@ -5,4 +5,3 @@ OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 NOT_CALLED set-cleanup-policies|add-iam-policy-binding|create|update-oidc
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

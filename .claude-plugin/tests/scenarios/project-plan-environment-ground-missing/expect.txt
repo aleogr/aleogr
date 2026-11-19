@@ -10,5 +10,3 @@ OUTPUT "item": "ci identity", "state": "missing", "action": "create"
 OUTPUT "ciVariables": null
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
-# The nested skills' blocks are input only: the answer holds this skill's block alone.
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

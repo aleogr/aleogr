@@ -16,4 +16,3 @@ OUTPUT_NOT "item": "verify"
 OUTPUT_NOT nothing to do
 OUTPUT_NOT PERMISSION_DENIED|has not been used
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
-OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"

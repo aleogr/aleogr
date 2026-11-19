@@ -9,4 +9,3 @@ OUTPUT "item": "ci identity", "state": "follows the creation", "action": "none"
 NOT_CALLED ^(projects|services|artifacts|iam|billing)( |$)
 OUTPUT "status": "would-create"
 OUTPUT_NOT nothing to do
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

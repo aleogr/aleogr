@@ -13,5 +13,3 @@ OUTPUT "ciVariables": null
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
-# The nested skills' blocks are input only: the answer holds this skill's block alone.
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

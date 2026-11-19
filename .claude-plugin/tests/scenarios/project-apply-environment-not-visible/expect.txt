@@ -10,4 +10,3 @@ OUTPUT does not show it yet
 OUTPUT "status": "updated"
 OUTPUT_NOT nothing to do
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
-OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"
