@@ -1,3 +1,0 @@
-NO_FILE web/go.mod
-NO_FILE web/main.go
-OUTPUT "status": "pending"

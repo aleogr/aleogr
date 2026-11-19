@@ -1,2 +1,0 @@
-NO_FILE web/go.mod
-OUTPUT "status": "failed"
