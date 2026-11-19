@@ -1,0 +1,6 @@
+# A Go version of the right form but earlier than 1.22 is refused, with the
+# prescribed sentence, and the file is left as it was.
+OUTPUT "status": "failed"
+OUTPUT version=1\.21. is too old: a Go component needs Go 1\.22 or later
+FILE .aleogr/project.json "name": "web", "stack": "go", "path": "web", "version": "1\.27"
+NOT_CALLED .
