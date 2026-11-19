@@ -1,0 +1,7 @@
+?? .github/workflows/ci.yml
+?? services/api/go.mod
+?? services/api/main.go
+?? services/api/main_test.go
+?? web/go.mod
+?? web/main.go
+?? web/main_test.go

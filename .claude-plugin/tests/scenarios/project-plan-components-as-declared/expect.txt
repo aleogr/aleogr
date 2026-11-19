@@ -1,0 +1,12 @@
+# Both modules and a matching ci.yml are in this folder and in the repository, and the ruleset
+# main requires the check ci: nothing to do.
+CALLED ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+CALLED ^gh api repos/example-org/demo/rulesets/123$
+OUTPUT "item": "components", "state": "as declared", "action": "none"
+OUTPUT "item": "ci", "state": "as declared", "action": "none"
+OUTPUT "item": "protection", "state": "protected, requires ci", "action": "none"
+OUTPUT requires ci
+OUTPUT nothing to do
+OUTPUT "generate": false
+OUTPUT "status": "unchanged"
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)

@@ -1,0 +1,15 @@
+# The repository is as declared but for the code: no component has a go.mod in this folder and
+# there is no ci.yml, here or in the repository. Both rows are to generate; nothing is written.
+CALLED ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+CALLED ^git status --porcelain -- .*\.github/workflows/ci\.yml.*web/go\.mod
+OUTPUT to generate: api, web
+OUTPUT "item": "components", "state": "to generate: api, web", "action": "generate"
+OUTPUT "item": "ci", "state": "missing", "action": "generate"
+OUTPUT "item": "declaration", "state": "in the repository", "action": "none"
+OUTPUT "generate": true
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NO_FILE web/go.mod
+NO_FILE .github/workflows/ci.yml
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)

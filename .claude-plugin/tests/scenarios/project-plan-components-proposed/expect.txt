@@ -1,0 +1,13 @@
+# A tooling pull request (#4) is open: the owner merges it; the components and ci are not checked
+# and nothing is generated or proposed.
+CALLED ^gh pr list --repo example-org/demo
+OUTPUT proposed in pull request #4
+OUTPUT "action": "merge it"
+OUTPUT "item": "components", "state": "not checked until the change is merged"
+OUTPUT "item": "ci", "state": "not checked until the change is merged"
+OUTPUT "generate": false
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do
+NO_FILE web/go.mod
+NO_FILE .github/workflows/ci.yml
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
