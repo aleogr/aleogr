@@ -29,7 +29,7 @@ Before running any command, check the arguments. Any failure ends the skill with
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. In `plan` mode the discovery commands (steps 1 to 4) are allowed because they only read; never run `projects create` or `billing projects link` in `plan`.
+Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. In `plan` mode the discovery commands (steps 1 to 4, the search by parent of step 3 included) are allowed because they only read; never run `projects create` or `billing projects link` in `plan`.
 
 1. Check whether the project exists: invoke `aleogr-cloud-gcp:gcp_environment-describe` with `project=shared platform=shared` when `platform=shared` was given, otherwise with `project=<project> environment=<environment>`. The describe skill ends with its own `aleogr-result` block: use it only as input and do not repeat it; this skill's answer ends with exactly one `aleogr-result` block, its own. If the describe result has `status` `failed`, stop with `failed`. If `exists` is true:
    - `billingLinked` true: run nothing else and end with `status` `unchanged`, reporting its `projectId`.
@@ -59,6 +59,29 @@ Show each command before running it. Run only the commands below, in this order.
 
      No output from the first: stop with `failed`, saying that the folder `tst` must be created first, and run no other command. No output from the second: stop with `failed`, saying that the folder `<environment>` inside `tst` must be created first. The parent is the folder found by the second command.
 
+   Then, in either mode, search the parent once more, alone, before step 4. The search by labels of step 1 is eventually consistent and may not show a project created a minute ago; a search that names the parent reads a more consistent index. With `platform=shared` (the parent is the organization):
+
+   ```
+   gcloud projects list --filter="parent.type=organization AND parent.id=<organizationId> AND labels.aleogr-project=shared AND labels.aleogr-platform=shared" --format="value(projectId)"
+   ```
+
+   Otherwise (the parent is the environment's folder; with `root=tst`, the folder inside `tst`):
+
+   ```
+   gcloud projects list --filter="parent.type=folder AND parent.id=<folderId> AND labels.aleogr-project=<project> AND labels.aleogr-environment=<environment>" --format="value(projectId)"
+   ```
+
+   - Non-zero exit (not `0`): stop with `failed` and one sentence of cause, without raw error text. Create nothing.
+   - No output: the project does not exist. Continue with step 4.
+   - One line: that is the project's ID, and the project exists. Never create a project then. Say so in this one sentence: `The first search had not seen project <projectId> yet; the search by parent found it.` Then check its billing, alone:
+
+     ```
+     gcloud billing projects describe <projectId> --format="value(billingEnabled)"
+     ```
+
+     A non-zero exit stops with `failed` and one sentence of cause. `True`: run nothing else and end with `status` `unchanged`, reporting this `projectId`. Empty output or `False`: billing is not linked; run step 4, then in `plan` end with `status` `would-update`, and in `apply` go to the repair in step 7 with this `projectId` and end with `updated` instead of `created`, exactly as for an existing project found in step 1.
+   - More than one line: stop with `failed`, saying in one sentence that `<n>` projects with these labels were found in the parent and none was picked. Create nothing.
+
 4. Billing account:
 
    ```
@@ -67,11 +90,11 @@ Show each command before running it. Run only the commands below, in this order.
 
 `gcloud` returns names as `organizations/<id>`, `folders/<id>` and `billingAccounts/<id>`. The flags below take the bare id, the part after the slash: `--organization=<id>`, `--folder=<id>`, `--billing-account=<id>`.
 
-For steps 2 to 4: a non-zero exit, or empty output, stops the skill with `failed` and one sentence of cause, without raw error text. More than one line means more than one organization, folder (`tst` or the environment's) or billing account: stop with `failed`, say how many were found and ask which one to use (organization, folder or billing account), without printing any identifier in the answer or in the result block. Do not pick one; nobody may answer in an automated run, so run no create command.
+For steps 2 to 4 (except the search by parent at the end of step 3, whose outcomes are listed there): a non-zero exit, or empty output, stops the skill with `failed` and one sentence of cause, without raw error text. More than one line means more than one organization, folder (`tst` or the environment's) or billing account: stop with `failed`, say how many were found and ask which one to use (organization, folder or billing account), without printing any identifier in the answer or in the result block. Do not pick one; nobody may answer in an automated run, so run no create command.
 
 5. `plan` mode ends here: report what would be created (project ID with a placeholder suffix such as `aleogr-<environment>-<project>-xxxx`, or `aleogr-shared-xxxx` for the shared project, parent type, billing link) and end with `status` `would-create`.
 
-6. `apply` mode (a repair of an existing project skips to step 7). Build the project ID: `aleogr-shared-<random>` with `platform=shared`, otherwise `aleogr-<environment>-<project>-<random>`, where `<random>` is 4 random characters of `a-z0-9` (pick the means that works in the current shell). Create the project with one of these two commands:
+6. `apply` mode (a repair of an existing project, found in step 1 or by the search by parent of step 3, skips to step 7). Build the project ID: `aleogr-shared-<random>` with `platform=shared`, otherwise `aleogr-<environment>-<project>-<random>`, where `<random>` is 4 random characters of `a-z0-9` (pick the means that works in the current shell). Create the project with one of these two commands:
    - With `platform=shared` (the shared project, under the organization, with the platform label and no environment):
 
      ```
