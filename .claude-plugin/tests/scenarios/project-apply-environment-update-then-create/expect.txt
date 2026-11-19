@@ -29,4 +29,7 @@ OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "updated"
 OUTPUT "pending": \[\]
 OUTPUT_NOT "item": "confirm"
+# The creation is announced in the run that makes it (the merged declaration may not have come
+# through a proposal of this tooling).
+OUTPUT This run creates the GCP project of dev, whose id is permanent
 OUTPUT_NOT "item": "verify"

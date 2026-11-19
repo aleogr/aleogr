@@ -5,7 +5,9 @@
 # fixture, which would add the item verify). The project was created in this run and a search by
 # labels may not show it yet: the item apis names its id and says to wait a minute and run
 # project-plan, and to apply again only when that plan shows environment dev as exists; never a
-# bare "apply again".
+# bare "apply again". The fake's 11th read of the repository answers "not found" (numbered responses:
+# calls 1 to 10 get the refusal, the 11th the answer): a run that tried an 11th time would go on to
+# create the repository, which the NOT_CALLED below forbids. So the limit is pinned both ways.
 CALLED ^services enable .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
 COUNT 10 ^artifacts repositories describe demo .*--format=json$
 COUNT 9 ^sleep 30$
