@@ -330,19 +330,21 @@ What the run shows goes into [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md), and wh
 
 ## 6. Results
 
+First real run: 2026-11-19, in Cloud Shell, by the owner. Every step answered as expected on the first attempt.
+
 | Step | What you should see | Result |
 |---|---|---|
-| Before you start | `self-test-ci-go` green on the stage's pull request; Actions allowed in `aleogr-sandbox`; `~/pilot` on `main`, clean | |
-| 1. Update the plugins | `aleogr` 0.8.0, `aleogr-repo-github` 0.4.0, `aleogr-stack-go` 0.1.0 | |
-| 2. Plan | `unchanged`, `nothing to do`, five items | |
-| 3. Declare `status` | `updated`, `components.status` | |
-| 4. Declare `admin` | `updated`, `components.admin`, sorted | |
-| 5. Plan | `would-update`; `to generate: admin, status`; `ci` `missing` | |
-| 6. Apply, no confirmation | `pending`, item `confirm`, nothing written | |
-| 7. Apply, confirmed | two `go_setup` `created`, `github_ci-setup` `created`, one pull request, `updated`, folder on `main` | |
-| 8. Look at the proposal | `proposed in pull request #N`; eight files; one commit with the no-reply address | |
-| 9. CI on the pull request | `changes`, `admin / go`, `status / go`, `ci` green | |
-| 10. Merge | merged; `ci` green on `main` | |
-| 11. Apply after the merge | folder updated, ruleset updated with `checks=ci`, `nothing to do`, `updated` | |
-| 12. Plan | `unchanged`; `protected, requires ci`; the ruleset has the check `ci` | |
-| 13. A broken test | `status / go` and `ci` red, merge blocked; pull request closed and branch deleted | |
+| Before you start | `self-test-ci-go` green on the stage's pull request; Actions allowed in `aleogr-sandbox`; `~/pilot` on `main`, clean | as expected; the token of `gh` had the scope `workflow`; **Allow all actions and reusable workflows** was selected |
+| 1. Update the plugins | `aleogr` 0.8.0, `aleogr-repo-github` 0.4.0, `aleogr-stack-go` 0.1.0 | as expected |
+| 2. Plan | `unchanged`, `nothing to do`, five items | as expected |
+| 3. Declare `status` | `updated`, `components.status` | as expected |
+| 4. Declare `admin` | `updated`, `components.admin`, sorted | as expected (a plan run before it showed `to generate: status` alone, which was right for the file at that moment) |
+| 5. Plan | `would-update`; `to generate: admin, status`; `ci` `missing` | as expected; `checks` `none` |
+| 6. Apply, no confirmation | `pending`, item `confirm`, nothing written | as expected; the answer named the seven files |
+| 7. Apply, confirmed | two `go_setup` `created`, `github_ci-setup` `created`, one pull request, `updated`, folder on `main` | as expected; pull request #3, branch `aleogr/change-ad5x6p`, about 2 minutes 30 seconds |
+| 8. Look at the proposal | `proposed in pull request #N`; eight files; one commit with the no-reply address | not run: the plan and the `.patch` reading were skipped; the pull request page showed one commit and eight files |
+| 9. CI on the pull request | `changes`, `admin / go`, `status / go`, `ci` green | as expected: four checks green in under a minute |
+| 10. Merge | merged; `ci` green on `main` | as expected; `ci` green on `main` in 52 seconds, `changes` included |
+| 11. Apply after the merge | folder updated, ruleset updated with `checks=ci`, `nothing to do`, `updated` | as expected, about 3 minutes; `go_setup` answered `unchanged` for both components after the update |
+| 12. Plan | `unchanged`; `protected, requires ci`; the ruleset has the check `ci` | as expected; the page of the ruleset was not opened |
+| 13. A broken test | `status / go` and `ci` red, merge blocked; pull request closed and branch deleted | as expected: `ci` (marked **Required**) and `status / go` red, `admin` skipped, `changes` green, **Merge pull request** disabled (pull request #4); then closed by the owner |
