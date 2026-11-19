@@ -9,3 +9,4 @@ COUNT 2 ^gh api repos/example-org/example-repo/contents/\.aleogr/project\.json
 OUTPUT "updated": true
 OUTPUT "status": "updated"
 RESULT_NOT "pending": \[\]
+OUTPUT "item": "verify"

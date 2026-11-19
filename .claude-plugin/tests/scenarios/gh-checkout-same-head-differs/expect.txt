@@ -1,0 +1,8 @@
+# plan; git status prints nothing and the folder's last commit IS the head of the default branch,
+# yet the file differs (an ignored file, for example): not behind, a pull would change nothing
+CALLED ^gh api repos/example-org/example-repo/commits/main
+NOT_CALLED ^git -c credential
+NOT_CALLED ^git (init|commit|push|pull|fetch|config|add)
+OUTPUT "state": "needs-attention"
+OUTPUT "reason": "untracked-difference"
+OUTPUT "status": "pending"
