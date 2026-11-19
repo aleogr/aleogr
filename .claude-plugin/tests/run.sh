@@ -31,6 +31,7 @@ out="$work/claude.out"
       --plugin-dir "$plugins/aleogr" \
       --plugin-dir "$plugins/aleogr-cloud-gcp" \
       --plugin-dir "$plugins/aleogr-db-gcp-cloud-sql" \
+      --plugin-dir "$plugins/aleogr-registry-gcp-artifact-registry" \
       --plugin-dir "$plugins/aleogr-repo-github" \
       --plugin-dir "$plugins/aleogr-stack-go" \
       --allowedTools "Bash" "Skill" "Read" "Write" "Edit" \
