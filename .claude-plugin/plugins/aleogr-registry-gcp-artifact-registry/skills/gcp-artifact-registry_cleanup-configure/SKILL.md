@@ -25,7 +25,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 
 ## Validate first
 
-Before any command, check the arguments. A missing required argument is a validation failure: do not ask for it. Any failure ends the skill with the result block, `status` `failed`, the one sentence given below for the rule that failed, and no `gcloud` call.
+Before any command, check the arguments, and never ask for anything. A missing required argument ends the skill with the result block, `status` `failed`, the one sentence `<argument> is missing.` and no `gcloud` call. Any invalid value ends it the same way, with the one sentence given below for the rule that failed.
 
 - `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. Otherwise: `projectId is not a GCP project id.`
 - `project` has 1 to 14 characters, only lowercase letters, digits and `-`, starts with a letter and does not end with `-`. Otherwise: `project must have 1 to 14 lowercase letters, digits and hyphens, starting with a letter.`
@@ -55,7 +55,14 @@ Before any command, check the arguments. A missing required argument is a valida
 Write `${CLAUDE_PLUGIN_ROOT}` as the real folder of this plugin, so the file is `<plugin folder>/files/cleanup-policy.json`. `<policy file>` below is:
 
 - `keep` is 5: that file, as it is. Never copy or change it.
-- any other `keep`: a file written for this run in the system's temporary folder, never in the working folder. Its name is `aleogr-cleanup-policy-keep-<keep>.json`. The folder is `/tmp` on Linux and macOS; on Windows it is the folder that `$env:TEMP` names (read it with `echo $env:TEMP` in PowerShell, or `echo %TEMP%` in `cmd`). Write it with the Write tool (no shell command, so it works the same in bash and in PowerShell), with exactly the content above, the number `5` replaced by `<keep>` and nothing else changed. When the file is already there from an earlier run, read it first with the Read tool, then write it: its whole content is replaced. Write it only in `apply`, right before step 3; it is left in the temporary folder afterwards, and nothing else is removed.
+- any other `keep`: a file written for this run in the system's temporary folder, never in the working folder. Its name is `aleogr-cleanup-policy-keep-<keep>.json`, and its content is exactly the content above, with the number `5` replaced by `<keep>` and nothing else changed. Write it with the Write tool, not with a shell command, so it works the same in bash and in PowerShell. If the Write tool refuses because the file already exists and was not read, read it with the Read tool, then write it again: its whole content is replaced. Write it only in `apply`, right before step 3; it is left in the temporary folder afterwards, and nothing else is removed.
+  - The temporary folder: on Linux and macOS it is `/tmp`, and no command is needed. On Windows it is the folder that the `TEMP` environment variable names; read it with this command, the only command besides those of the steps that this skill may run, and only on Windows, only when `keep` is not 5, in `apply`:
+
+    ```
+    $env:TEMP
+    ```
+
+    (in PowerShell; in `cmd`, `echo %TEMP%`).
 
 The answer shows the content of `<policy file>` (in `plan`, the content it would have).
 

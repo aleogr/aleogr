@@ -15,18 +15,19 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 | `projectId=<id>` | The GCP project that holds the repository. |
 | `project=<name>` | The aleogr project name, which is also the repository's id. |
 | `region=<region>` | The region the repository is declared in, for example `us-central1`. |
-| `identity=<e-mail>` | The service account that may push, as its e-mail (`<id>@<projectId>.iam.gserviceaccount.com`), for example the CI account `<project>-ci@<projectId>.iam.gserviceaccount.com`. |
+| `identity=<e-mail>` | The service account that may push, as its e-mail: an account of the project's own GCP project (`<id>@<projectId>.iam.gserviceaccount.com`), for example the CI account `<project>-ci@<projectId>.iam.gserviceaccount.com`. |
 | `role=push` | The access granted. `push` is the only one. |
 | `mode=plan\|apply` | `plan` (default) reports and changes nothing; `apply` executes. |
 
 ## Validate first
 
-Before any command, check the arguments. A missing required argument is a validation failure: do not ask for it. Any failure ends the skill with the result block, `status` `failed`, the one sentence given below for the rule that failed, and no `gcloud` call.
+Before any command, check the arguments, and never ask for anything. A missing required argument ends the skill with the result block, `status` `failed`, the one sentence `<argument> is missing.` and no `gcloud` call. Any invalid value ends it the same way, with the one sentence given below for the rule that failed.
 
 - `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. Otherwise: `projectId is not a GCP project id.`
 - `project` has 1 to 14 characters, only lowercase letters, digits and `-`, starts with a letter and does not end with `-`. Otherwise: `project must have 1 to 14 lowercase letters, digits and hyphens, starting with a letter.`
 - `region` is a Google Cloud region name: lowercase letters, then one or more `-<letters>` parts, then digits (`us-central1`, `southamerica-east1`). A multi-region (`us`, `europe`) or anything with an uppercase letter is invalid. Otherwise: `region is not a Google Cloud region name (such as us-central1).`
 - `identity` is a service account e-mail: `<id>@<project id>.iam.gserviceaccount.com`, where `<id>` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`, and `<project id>` follows the rule of `projectId`. All lowercase, with no prefix such as `serviceAccount:`. A user's or a group's e-mail, or any other text, is invalid. Otherwise: `identity must be a service account e-mail (<id>@<project id>.iam.gserviceaccount.com).`
+- `identity` belongs to the project: its `<project id>` is exactly `projectId`. An account of another GCP project, well formed or not, is refused. Otherwise: `identity must be a service account of the project <projectId>.`
 - `role` is `push`. `role=pull`: `role=pull is not needed: Cloud Run's own agent pulls from a repository of its own project, so only push is granted.` Any other value: `role must be push.`
 - `mode` is `plan` or `apply`. Otherwise: `mode must be plan or apply.`
 
