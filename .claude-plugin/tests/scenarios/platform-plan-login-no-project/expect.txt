@@ -1,0 +1,8 @@
+# The shared project is missing: the login is not read yet; its row says when it will be
+# and that platform-apply prepares it.
+CALLED ^projects list .*aleogr-project=shared
+NOT_CALLED ^iap settings
+NOT_CALLED ^organizations (get-iam-policy|add-iam-policy-binding)
+OUTPUT "item": "login"
+OUTPUT "action": "prepare"
+OUTPUT "status": "would-create"

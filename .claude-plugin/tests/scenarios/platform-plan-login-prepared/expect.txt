@@ -1,0 +1,11 @@
+# Everything of the platform exists and the organization's IAP setting names a client:
+# the row login is prepared and the plan has nothing to do.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+NOT_CALLED (create|^services enable|patch|add-iam-policy-binding|^iap settings set)
+OUTPUT "item": "login"
+OUTPUT "state": "prepared"
+OUTPUT "status": "unchanged"
+OUTPUT [Nn]othing to do
+# Neither the client id nor the organization id reaches the answer's block.
+OUTPUT_NOT apps\.googleusercontent\.com
+RESULT_NOT 111111111111

@@ -1,0 +1,11 @@
+# A fresh organization: the setting cannot be read before the role is granted. That is
+# not prepared / prepare, never a failure of the plan, and no word of gcloud's answer.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+NOT_CALLED (create|^services enable|patch|add-iam-policy-binding|^iap settings set)
+OUTPUT "item": "login"
+OUTPUT "state": "not prepared"
+OUTPUT "action": "prepare"
+OUTPUT "status": "would-update"
+OUTPUT_NOT "status": "failed"
+OUTPUT_NOT PERMISSION_DENIED
+OUTPUT_NOT getSettings

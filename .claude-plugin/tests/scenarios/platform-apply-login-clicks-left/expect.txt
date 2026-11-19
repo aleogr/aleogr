@@ -1,0 +1,15 @@
+# Everything of the platform exists, the role and the IAP API are already right, and only
+# the clicks are left: the run changes nothing, ends pending with the one item login, and
+# prints the list.
+CALLED ^services list .*--project=aleogr-shared-zz99 .*iap\.googleapis\.com
+NOT_CALLED add-iam-policy-binding|services enable
+NOT_CALLED ^iap settings set
+NOT_CALLED (create|patch)
+OUTPUT "action": "platform-apply"
+OUTPUT "status": "pending"
+OUTPUT "item": "login"
+OUTPUT_NOT "how": "(/aleogr:)?platform-apply confirm=yes"
+OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-zz99
+OUTPUT read -s -p
+OUTPUT_NOT clientSecret: [^<$%]
+OUTPUT_NOT [Nn]othing to do
