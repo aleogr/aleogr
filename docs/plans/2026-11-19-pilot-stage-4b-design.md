@@ -51,7 +51,8 @@ The first real run of 4a also showed that the tooling is safe but not fluid: six
 - The login needs, per service: the IAP service agent as invoker of the service, and each person as `roles/iap.httpsResourceAccessor` on it.
 - With Google's managed OAuth client, the owner's personal account is refused although it is on the allowed list. With a custom OAuth client it gets in.
 - A custom client set **once on the organization** (`gcloud iap settings set <file> --organization=<id>`) is inherited by a service created afterwards in a project of that organization, with nothing configured on the service. Setting it needs the role `roles/iap.settingsAdmin` on the organization, which the organization's administrator does not have by default.
-- The consent screen of audience "External" let the owner in without a warning. Whether another person meets a limit of an application "in testing" is not known yet.
+- The consent screen of audience "External" let the owner in without a warning. Whether another person meets a limit of an application "in testing" is not known yet: an application in testing lets in only the test users listed in the console, and no command adds one. The preparation therefore ends by publishing the application ("in production"); the login asks only for the basic scopes, for which Google is expected to ask no verification. To be confirmed in the real run of 4b-1, with a second account.
+- `gcloud run deploy … --iap` created the IAP service agent of the project by itself ("Setting IAP service agent"), and the binding that makes it invoker of the service was accepted right after.
 
 ## Approaches
 
@@ -88,7 +89,7 @@ The work is done in **two parts, each with its own plan, pull request and real r
 ### `project-apply`
 
 - **One run after a merge.** The stop added in 4a after the folder update is removed. Its purpose moves earlier: when the proposal a run opens carries a declaration that adds an environment, the answer of that run (and the pull request's body) says that applying it after the merge creates a Google Cloud project, whose id is permanent. The owner merges knowing it; the next `project-apply confirm=yes` updates the folder and makes everything.
-- **Waits instead of stopping.** After `gcp_services-enable` enabled something, the run waits about 90 seconds (a background wait) before the first skill that needs those APIs, and if that skill is still refused, waits once more and tries again. Only a second refusal stops the run, with today's item.
+- **Waits instead of stopping.** After `gcp_services-enable` enabled something, the first skill that needs those APIs is tried, and while it is refused the run waits and tries again: every 30 seconds, for 5 minutes at most (background waits; how long an API takes was never measured, only that "some minutes later it works"). The same bounded wait covers a binding refused right after its account was created. Only when the limit passes does the run stop, with today's item.
 - **After a project it created, the run still never says "apply again" on a guess** (4a's rule stands): the wait above makes that stop rare, not different.
 - **The plan is not repeated without need.** A run prints the first plan and the last one; a plan in the middle is made only when the rows could not be known (an existing project repaired).
 - **The form of the answer.** The nested skills' result blocks are not part of the answer. The known defect (a nested block printed before the table, or the run ending at it: about one plan in five that read the cloud) is treated as a defect of fluidity: 4b-1 measures it on the scenarios and changes the skills until it is under one run in twenty, or says why it cannot.
@@ -99,7 +100,8 @@ The work is done in **two parts, each with its own plan, pull request and real r
 - **It is prepared by hand, once**, because Google has no command that creates the client: `docs/cloud-shell.md` gains the steps (the two console pages, then one command typed in the terminal that asks for the client's id and, without showing it, its secret, writes a temporary file, applies it to the organization and deletes the file). The role `roles/iap.settingsAdmin` on the organization is part of those steps.
 - **`platform-plan` gains the row `login`**: `prepared` / `none` when the organization's IAP setting names a client; `not prepared` / `prepare by hand` otherwise, with the pointer to the steps. `platform-apply` never acts on it: the secret may not pass through a skill. It is read with `gcloud iap settings get --organization=<id>`, which shows the client's id and a hash of the secret, never the secret.
 - A new skill of `aleogr-cloud-gcp`, `gcp_login-describe`, makes that read (output `prepared`, never the client id in the result block's text beyond what the orchestrator needs: none).
-- On this organization the preparation was made during the spike: the real proof of 4b-1 is the row reading `prepared`.
+- `project-plan` reads the same thing when the declaration has environments (the organization's id comes from the discovery the GCP skills already make): while the login is `not prepared`, the row `services` of 4b-2 is `waits for the login` / `prepare by hand`, and `project-apply` creates no service. A service with the login on and no client would be unreachable for a personal account.
+- On this organization the preparation was made during the spike: the real proof of 4b-1 is the row reading `prepared`, and a second Google account getting in after one command.
 
 ### Clean-up
 
@@ -116,11 +118,11 @@ Every component of a declaration that has environments is a service, deployed to
 | Thing | Name | Notes |
 |---|---|---|
 | APIs | `run.googleapis.com`, `iap.googleapis.com` added to `project.services` | |
-| Service account of a service | `<project>-<component>` | no role in 4b-2; the declaration refuses a pair whose id passes 30 characters |
+| Service account of a service | `<project>-<component>` | no role in 4b-2. The id has 6 to 30 characters and does not end with `-`: with environments, the declaration's rules refuse a component whose name ends with `-` or makes `<project>-<component>` longer than 30 characters (`project-declare` fails; "The declaration's rules" in both skills) |
 | Cloud Run service | `<project>-<component>`, in `cloud.region`, labels as the project's | created with a placeholder image; minimum 0 and maximum 2 instances, the smallest CPU and memory, no unauthenticated access, the login on |
 | Login of a service | IAP service agent as invoker; the allowed list on the service | inherits the organization's client |
 | What CI may do | on each service, deploy a new revision; act as that service's account | granted on the service and on the account, never on the project |
-| Image | `<image path>/<component>:<commit>` | the repository of 4a |
+| Image | `<image path>/<component>`, pushed with the commit as its tag, **deployed by digest** | the repository of 4a. The CI account can re-point a tag, so a service never runs "a tag" |
 | `Dockerfile` | `<path>/Dockerfile` | written once, never overwritten |
 | Actions variables | `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, `GCP_CI_ACCOUNT`, `GCP_REGION`, `GCP_IMAGE_PATH` | variables of the repository, not secrets; no workflow prints them |
 
@@ -129,15 +131,15 @@ Every component of a declaration that has environments is a service, deployed to
 - `aleogr-cloud-gcp`: `gcp_deploy-setup` (contract `deploy-setup`: the account, the service with the placeholder image, the login, the agent's binding, what CI may do; it changes an existing service only where it differs from the declaration, and never its image), `gcp_deploy-describe`, and `gcp_access-grant person=<e-mail>` (contract `access-grant`: adds the person to the allowed list of every service of the project and environment; `list=yes` shows it). `gcp_deploy-setup` puts the account that runs it on the allowed list, so the owner gets in without one more command.
 - `aleogr-stack-go`: `go_setup` also writes `<path>/Dockerfile` when it is missing, for a component that already exists too: two stages, a static binary built with the component's Go version, on a minimal base image, running as a non-root user, listening on `PORT`.
 - `aleogr-repo-github`: `github_variables-set` (sets the repository's Actions variables from the values the orchestrator passes; reads them first and changes only what differs); `github_ci-setup` writes the deploy jobs.
-- `.github/workflows/deploy-cloud-run.yml` in `aleogr/aleogr`: reusable, `workflow_call` only; inputs for the folder, the service, the region, the image and the three identity values; `permissions: contents: read, id-token: write`; it authenticates through workload identity federation, builds the image from the component's `Dockerfile`, pushes it, and deploys it to the existing service. It receives no secret.
+- `.github/workflows/deploy-cloud-run.yml` in `aleogr/aleogr`: reusable, `workflow_call` only; inputs for the folder, the service, the region, the image and the three identity values; `permissions: contents: read, id-token: write`; it authenticates through workload identity federation, builds the image from the component's `Dockerfile`, pushes it, and updates the existing service to that image's digest (it never creates a service: a missing one is a failure). It receives no secret. The repository is public and so are its logs: the workflow masks the project's id and number and the account's e-mail before any step can print them. One deploy at a time per service (a `concurrency` group).
 
 ### The project's `ci.yml`
 
-The marker becomes version 2 and carries the environments. For each component there is, after its check job, a job `deploy-<component>-dev` with `needs: [<component>]` that runs only when the event is a push to the default branch and the component's check passed, and calls the reusable deploy workflow pinned by commit. The job `ci`, the required check, is as today: deploy jobs are not part of it, so a pull request never waits for a deploy. Triggers stay `pull_request` and `push` to the default branch.
+The marker becomes version 2 and carries the environments. For each component there is, after its check job, a job `deploy-<component>-dev` with `needs: [<component>]` that runs only when the event is a push to the default branch and the component's check passed, and calls the reusable deploy workflow pinned by commit. The job `ci`, the required check, is as today: deploy jobs are not part of it, so a pull request never waits for a deploy. Triggers stay `pull_request` and `push` to the default branch. Each deploy job declares its own `permissions: contents: read, id-token: write` (a called workflow cannot raise its caller's). A component whose check was skipped (the push did not touch it) is not deployed. The change of the marker to version 2 pins the reusable workflows to the head of `aleogr/aleogr` again (`ref=latest`): the commit pinned by a version 1 file is older than the deploy workflow.
 
 ### The orchestrator
 
-- `project-plan` gains, after `ci identity`: `services` (`as declared` / `missing: <names>` / `differs: <names>`), `ci variables` (`as declared` / `missing` / `differs`); `components` also reports a missing `Dockerfile` as `to generate`; `ci` differs when the marker is of version 1.
+- `project-plan` gains, after `ci identity`: `services` (`as declared` / `missing: <names>` / `differs: <names>` / `waiting for the first deploy: <names>` while a service still runs the placeholder, with action `none` and the line that says to merge the pull request or run the workflow again), `ci variables` (`as declared` / `missing` / `differs`). "As declared" for a service is: it exists in the region with its account, its scaling and size, no unauthenticated access, the login on, and the agent's binding; the allowed list is not compared (it is not declared); `components` also reports a missing `Dockerfile` as `to generate`; `ci` differs when the marker is of version 1.
 - `project-apply`, in one confirmed run, in this order: the cloud first (APIs, then `gcp_deploy-setup` for each component, then `github_variables-set`), then the files (`Dockerfile`s, `ci.yml`) proposed in one pull request. So when the owner merges, everything the deploy job needs already exists. The answer ends with the pull request and each service's address.
 - After the merge: CI checks, builds, pushes and deploys. The next `project-apply` only updates the folder and says `nothing to do`.
 
@@ -158,10 +160,15 @@ The CI identity from GitHub Actions: the first deploy pushes an image and deploy
 - A service is created by a skill with a placeholder image and the login already on; CI only replaces the image.
 - Whoever runs `project-apply` is put on the allowed list of the services it creates.
 - Two instances at most per service, and the smallest size.
+- A service is deployed by digest; the logs of the deploy mask the project's identifiers.
+- The CI identity's condition also requires that the job runs the reusable deploy workflow of `aleogr/aleogr` (the token's `job_workflow_ref`), so that no other workflow on the default branch can act as the CI account; `gcp_ci-identity-setup` gains it and updates the provider of 4a. To be proven by the first deploy.
+- The login's application is published ("in production"), so that a person is let in by a command and not by a click.
+- Waits are bounded polls (30 seconds, 5 minutes at most), not fixed sleeps.
 
 ## Left to the builder
 
 - The exact commands, flags and roles, checked against the current reference and, where they surprise, recorded in `PROVIDER-FACTS.md`; in particular the smallest role that lets CI deploy a revision to one service.
 - The placeholder image and the `Dockerfile`'s base images, and how their versions are pinned.
-- How the wait in the background is worded so that a run always goes on after it.
+- How the wait in the background is worded so that a run always goes on after it, and the permission rule that lets it run without a prompt in Cloud Shell.
+- The smallest CPU and memory Cloud Run accepts for the Go binary, and the smallest role that lets CI update one service's image (expected: a role on the service plus acting as its account), both recorded in `PROVIDER-FACTS.md`.
 - The scenario lists and fixtures.
