@@ -23,7 +23,7 @@ Free text after the skill name, as `key=value` pairs.
 
 Before running any command, check the arguments. Any failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
 
-- `services` is required, and the project is named in one of three ways: `projectId`, `project=<name> environment=<environment>`, or `project=shared platform=shared` (if `project` or `environment` is missing, ask for it instead); `environment` is one of `dev`, `hom`, `prd`; `platform` is absent or `shared`; `mode` is `plan` or `apply`.
+- `services` is required, and the project is named in one of three ways: `projectId`, `project=<name> environment=<environment>`, or `project=shared platform=shared` (if `services`, `project` or `environment` is missing, the sentence names it: `<argument> is missing.`; never ask for it, nobody may answer in an automated run); `environment` is one of `dev`, `hom`, `prd`; `platform` is absent or `shared`; `mode` is `plan` or `apply`.
 - `platform=shared` needs `project=shared` and no `environment`; `project=shared` needs `platform=shared`.
 - `projectId`, when given, has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`.
 - Every entry of `services` ends with `.googleapis.com` and has only `a-z`, `0-9`, `-` and `.` before that suffix. Remove duplicates.

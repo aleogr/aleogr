@@ -23,7 +23,7 @@ The project is named in one of three ways: `project=<name> environment=<environm
 - `platform=shared` needs `project=shared` and no `environment`; `project=shared` needs `platform=shared` (the shared project is never addressed with an environment).
 - `projectId`, when given, has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`.
 
-Without `projectId` and without `platform=shared`, if `project` or `environment` is missing, ask for it before running any command.
+Without `projectId` and without `platform=shared`, `project` and `environment` are both required: if one is missing, end with the result block with `status` `failed`, one sentence naming it (`<argument> is missing.`) and no command. Never ask for a missing argument: nobody may answer in an automated run.
 
 ## Steps
 

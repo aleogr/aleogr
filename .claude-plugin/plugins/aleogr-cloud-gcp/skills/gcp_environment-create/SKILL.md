@@ -24,7 +24,7 @@ Before running any command, check the arguments. Any failure ends the skill with
 
 - `mode` is `plan` or `apply`; `platform` is absent or `shared`; `root` is absent or `tst` (any other value of `root` fails).
 - With `platform=shared`: `project` must be `shared`, `environment` must be absent, and `root` is not allowed.
-- Without `platform`: `project` and `environment` are required (if one is missing, ask for it instead); `environment` is one of `dev`, `hom`, `prd`; `test` and `shared` are refused as project names.
+- Without `platform`: `project` and `environment` are required (if one is missing, the sentence names it: `<argument> is missing.`; never ask for it, nobody may answer in an automated run); `environment` is one of `dev`, `hom`, `prd`; `test` and `shared` are refused as project names.
 - `project` has 1 to 14 characters (the project ID is limited to 30 characters), only `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`.
 
 ## Steps
