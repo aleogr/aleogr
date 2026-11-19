@@ -37,7 +37,7 @@ jobs:
     if: needs.changes.outputs.api == 'true'
     uses: example-org/tooling/.github/workflows/ci-go.yml@1111111111111111111111111111111111111111
     with:
-      working-directory: services/api
+      working-directory: "services/api"
       go-version: "1.27"
 
   web:
@@ -45,7 +45,7 @@ jobs:
     if: needs.changes.outputs.web == 'true'
     uses: example-org/tooling/.github/workflows/ci-go.yml@1111111111111111111111111111111111111111
     with:
-      working-directory: web
+      working-directory: "web"
       go-version: "1.27"
 
   ci:
