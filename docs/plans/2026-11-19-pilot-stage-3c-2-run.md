@@ -151,7 +151,7 @@ Under the table: that `project-apply` writes the files in this folder and propos
 /aleogr:project-apply
 ```
 
-Expected: `status` `pending`, nothing changed, the table of step 5, and one `pending` item, `confirm`, whose text is `/aleogr:project-apply confirm=yes`. No file is written and no pull request exists: <https://github.com/aleogr-sandbox/pilot/pulls> shows no open pull request. If a file was written or a pull request opened, stop and send the answer.
+Expected: `status` `pending`, nothing changed, the table of step 5, and one `pending` item, `confirm`, whose text is `/aleogr:project-apply confirm=yes`. The answer names the files the confirmed run would write: `go.mod`, `main.go` and `main_test.go` under `admin/` and `status/`, and `.github/workflows/ci.yml`. No file is written and no pull request exists: <https://github.com/aleogr-sandbox/pilot/pulls> shows no open pull request. If a file was written or a pull request opened, stop and send the answer.
 
 ### Step 7. Apply, confirmed: generate and propose
 
