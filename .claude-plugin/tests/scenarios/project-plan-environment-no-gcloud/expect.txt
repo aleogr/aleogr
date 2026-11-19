@@ -1,0 +1,9 @@
+# gh is logged in, gcloud is not: the plan fails before any row is read.
+CALLED ^auth list --filter=status:ACTIVE
+OUTPUT gcloud auth login
+OUTPUT "item": "gcloud", "reason": "manual"
+OUTPUT "status": "failed"
+OUTPUT "items": \[\]
+NOT_CALLED ^gh api
+NOT_CALLED ^(projects|services|artifacts|iam|billing)( |$)
+OUTPUT_NOT demo-user

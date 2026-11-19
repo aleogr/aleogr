@@ -1,0 +1,9 @@
+# Everything exists and the CI identity is as declared, but the account is not a writer of the
+# image repository: it cannot push.
+CALLED ^artifacts repositories get-iam-policy demo --location=us-central1 --project=aleogr-dev-demo-ab12
+CALLED ^iam workload-identity-pools providers describe github
+OUTPUT "item": "registry", "state": "as declared", "action": "none"
+OUTPUT "item": "ci identity", "state": "cannot push", "action": "grant"
+NOT_CALLED add-iam-policy-binding|create|update-oidc
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do

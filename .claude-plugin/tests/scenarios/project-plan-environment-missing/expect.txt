@@ -1,0 +1,15 @@
+# The declaration (with components and the environment dev) is merged and everything on GitHub is as
+# declared, but the GCP project of dev does not exist: it is to create, and nothing inside it is read.
+CALLED ^auth list --filter=status:ACTIVE
+CALLED ^projects list .*labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
+NOT_CALLED ^(projects describe|billing|services|artifacts|iam)( |$)
+OUTPUT "item": "environment dev", "state": "missing", "action": "create"
+OUTPUT "item": "apis", "state": "follows the environment", "action": "none"
+OUTPUT "item": "registry", "state": "follows the environment", "action": "none"
+OUTPUT "item": "ci identity", "state": "follows the environment", "action": "none"
+OUTPUT "item": "protection", "state": "protected, requires ci", "action": "none"
+OUTPUT "projectId": null
+OUTPUT "ciVariables": null
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)

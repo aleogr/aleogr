@@ -1,0 +1,13 @@
+# The environment was declared here and is not merged yet: the declaration is to propose, and the
+# four rows of the environment wait for the merge. gcloud is checked, nothing in the cloud is read.
+CALLED ^auth list --filter=status:ACTIVE
+OUTPUT "state": "changed here"
+OUTPUT "action": "propose"
+OUTPUT "item": "environment dev", "state": "not checked until the change is merged", "action": "none"
+OUTPUT "item": "apis", "state": "not checked until the change is merged", "action": "none"
+OUTPUT "item": "registry", "state": "not checked until the change is merged", "action": "none"
+OUTPUT "item": "ci identity", "state": "not checked until the change is merged", "action": "none"
+NOT_CALLED ^(projects|services|artifacts|iam|billing)( |$)
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^gh pr create|^git (switch|add|commit|push|-c credential)
