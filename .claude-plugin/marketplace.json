@@ -30,13 +30,6 @@
       "description": "GitHub family: repositories, their settings, branch protection, the checkout that sends the first content, and the pull requests that propose changes.",
       "category": "repo",
       "displayName": "GitHub (repository)"
-    },
-    {
-      "name": "aleogr-stack-go",
-      "source": "./.claude-plugin/plugins/aleogr-stack-go",
-      "description": "Go stack: the starting point of a Go component.",
-      "category": "stack",
-      "displayName": "Go (stack)"
     }
   ]
 }

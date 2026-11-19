@@ -15,7 +15,7 @@ None. Any text after the skill name is ignored. Everything comes from the declar
 The declaration of a project is the file `.aleogr/project.json` in the project's folder. It is a JSON object, version 1, described by the schema `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`. A file is a valid declaration only when it is valid JSON and every rule below holds; a file that breaks any of them is not a valid declaration.
 
 - No object in the file has a key other than the ones listed here (no unknown keys, at any level).
-- The top level has `version`, `name` and `repo` (required), and may have `$schema`, `components` and `notes`.
+- The top level has `version`, `name` and `repo` (required), and may have `$schema` and `notes`.
 - `$schema`, when present, is a string.
 - `version` is the number `1`.
 - `name`, the project name, is a string of 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. It is not `test`, not `shared` and does not start with `test-` (those names are reserved for tests and for the shared platform).
@@ -27,20 +27,14 @@ The declaration of a project is the file `.aleogr/project.json` in the project's
 - `repo.description` is a string of 1 to 350 characters with no line break and none of these characters: `"`, backtick, `$`, `\`, `“`, `”`, `„`.
 - `repo.topics`, when present, is a list of strings without repeated items; when absent it means the empty list. Each topic has 1 to 50 characters of `a-z`, `0-9` and `-`, and starts with a letter or a digit. The list holds only extra topics: it never contains `aleogr-<name>` (with the project's `name`), because that topic is derived, not typed. The topics sent to GitHub are `aleogr-<name>` plus `repo.topics`, sorted, without duplicates.
 - `repo.settings` is an object with exactly these seven keys, all required, each a JSON boolean (`true` or `false`, never a string): `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`. At least one of `mergeCommit`, `squash` and `rebase` is `true`.
-- `components`, when present, is a list (possibly empty) of the project's components; when absent it means the empty list. Each component is an object with exactly these four keys, all required:
-  - `name`: a string of 1 to 20 characters of `a-z`, `0-9` and `-`, starting with a letter. No two components have the same `name`.
-  - `stack`: `go`, the only stack implemented.
-  - `path`: the component's folder, a string relative to the repository's root: it does not contain `..`, does not start or end with `/`, has no empty segment (`//`) and no space or other whitespace, and is not `.aleogr` or `.github` and not under them (`.github/web` breaks this rule). No two components have the same `path`.
-  - `version`: the language version, `major.minor`: digits, a dot, digits (`1.27`; never `1.27.4`).
 - `notes`, when present, is a string of free text.
 
 The canonical form of the file, the form in which it is written:
 
 - Two-space indentation, one key per line, and a final newline.
-- Keys in this order: `$schema`, `version`, `name`, `repo`, `components`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`; inside each component: `name`, `stack`, `path`, `version`.
+- Keys in this order: `$schema`, `version`, `name`, `repo`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`.
 - `$schema` is always present, with the value `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`.
 - `repo.topics` is always present, on one line, sorted: `"topics": []` or `"topics": ["docs", "sample"]`.
-- `components` is present only when it has at least one component. The components are sorted by `name`, each on one line: `{ "name": "web", "stack": "go", "path": "web", "version": "1.27" }`.
 - `notes` is present only when it has a value.
 
 For example, a canonical declaration:
@@ -70,19 +64,7 @@ For example, a canonical declaration:
 }
 ```
 
-The same declaration with two components ends like this:
-
-```json
-    }
-  },
-  "components": [
-    { "name": "api", "stack": "go", "path": "services/api", "version": "1.27" },
-    { "name": "web", "stack": "go", "path": "web", "version": "1.27" }
-  ]
-}
-```
-
-Two declarations are equal when they hold the same values: the order of keys, the spacing, line endings and the order of `repo.topics` and the order of `components` do not matter, an absent `repo.topics` equals `[]` and an absent `components` equals `[]`.
+Two declarations are equal when they hold the same values: the order of keys, the spacing, line endings and the order of `repo.topics` do not matter, and an absent `repo.topics` equals `[]`.
 
 ## Steps
 

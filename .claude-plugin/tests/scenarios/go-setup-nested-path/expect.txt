@@ -1,2 +1,0 @@
-FILE services/api/go.mod ^module github\.com/example-org/example-repo/services/api$
-FILE services/api/main.go api: ok

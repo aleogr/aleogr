@@ -1,1 +1,0 @@
-/aleogr-stack-go:go_setup component=api path=services/api version=1.27 module=github.com/example-org/example-repo/services/api mode=apply

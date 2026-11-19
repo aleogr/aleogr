@@ -1,5 +1,5 @@
 ---
-description: aleogr project declare. Use to write or edit the project's declaration, `.aleogr/project.json` in the current folder (project name, GitHub repository, visibility, description, topics, settings, components), pre-filled from the owner's defaults. It only writes that file: it runs no command and changes nothing on GitHub.
+description: aleogr project declare. Use to write or edit the project's declaration, `.aleogr/project.json` in the current folder (project name, GitHub repository, visibility, description, topics, settings), pre-filled from the owner's defaults. It only writes that file: it runs no command and changes nothing on GitHub.
 ---
 
 # project-declare
@@ -26,12 +26,6 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 | `wiki=<true\|false>` | `repo.settings.wiki` | Same. |
 | `projects=<true\|false>` | `repo.settings.projects` | Same. |
 | `notes=<text>` | `notes` | Optional free text. `notes=` with an empty value removes the key. Default for a new declaration: no `notes` key. |
-| `component=<name>` | `components` | The component this run adds or changes: one per call. A component not in the declaration is added; an existing one is changed. |
-| `stack=<go>` | `stack` of the component | Required when the component is new. For an existing component, when given, it equals the component's `stack`. |
-| `path=<folder>` | `path` of the component | Default for a new component: its name. For an existing component, when given, it equals the component's `path`. |
-| `version=<major.minor>` | `version` of the component | Default for a new component: `stacks.<stack>.version` of the defaults. For an existing component, the new version. |
-
-`stack`, `path` and `version` describe the component named by `component`: given without `component`, the run fails. Removing a component is not done by this skill.
 
 A missing required argument is never asked for: the run ends with `status` `failed`, one sentence naming every missing argument, and nothing written.
 
@@ -40,7 +34,7 @@ A missing required argument is never asked for: the run ends with `status` `fail
 The declaration of a project is the file `.aleogr/project.json` in the project's folder. It is a JSON object, version 1, described by the schema `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`. A file is a valid declaration only when it is valid JSON and every rule below holds; a file that breaks any of them is not a valid declaration.
 
 - No object in the file has a key other than the ones listed here (no unknown keys, at any level).
-- The top level has `version`, `name` and `repo` (required), and may have `$schema`, `components` and `notes`.
+- The top level has `version`, `name` and `repo` (required), and may have `$schema` and `notes`.
 - `$schema`, when present, is a string.
 - `version` is the number `1`.
 - `name`, the project name, is a string of 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. It is not `test`, not `shared` and does not start with `test-` (those names are reserved for tests and for the shared platform).
@@ -52,20 +46,14 @@ The declaration of a project is the file `.aleogr/project.json` in the project's
 - `repo.description` is a string of 1 to 350 characters with no line break and none of these characters: `"`, backtick, `$`, `\`, `“`, `”`, `„`.
 - `repo.topics`, when present, is a list of strings without repeated items; when absent it means the empty list. Each topic has 1 to 50 characters of `a-z`, `0-9` and `-`, and starts with a letter or a digit. The list holds only extra topics: it never contains `aleogr-<name>` (with the project's `name`), because that topic is derived, not typed. The topics sent to GitHub are `aleogr-<name>` plus `repo.topics`, sorted, without duplicates.
 - `repo.settings` is an object with exactly these seven keys, all required, each a JSON boolean (`true` or `false`, never a string): `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`. At least one of `mergeCommit`, `squash` and `rebase` is `true`.
-- `components`, when present, is a list (possibly empty) of the project's components; when absent it means the empty list. Each component is an object with exactly these four keys, all required:
-  - `name`: a string of 1 to 20 characters of `a-z`, `0-9` and `-`, starting with a letter. No two components have the same `name`.
-  - `stack`: `go`, the only stack implemented.
-  - `path`: the component's folder, a string relative to the repository's root: it does not contain `..`, does not start or end with `/`, has no empty segment (`//`) and no space or other whitespace, and is not `.aleogr` or `.github` and not under them (`.github/web` breaks this rule). No two components have the same `path`.
-  - `version`: the language version, `major.minor`: digits, a dot, digits (`1.27`; never `1.27.4`).
 - `notes`, when present, is a string of free text.
 
 The canonical form of the file, the form in which it is written:
 
 - Two-space indentation, one key per line, and a final newline.
-- Keys in this order: `$schema`, `version`, `name`, `repo`, `components`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`; inside each component: `name`, `stack`, `path`, `version`.
+- Keys in this order: `$schema`, `version`, `name`, `repo`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`.
 - `$schema` is always present, with the value `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`.
 - `repo.topics` is always present, on one line, sorted: `"topics": []` or `"topics": ["docs", "sample"]`.
-- `components` is present only when it has at least one component. The components are sorted by `name`, each on one line: `{ "name": "web", "stack": "go", "path": "web", "version": "1.27" }`.
 - `notes` is present only when it has a value.
 
 For example, a canonical declaration:
@@ -95,25 +83,13 @@ For example, a canonical declaration:
 }
 ```
 
-The same declaration with two components ends like this:
-
-```json
-    }
-  },
-  "components": [
-    { "name": "api", "stack": "go", "path": "services/api", "version": "1.27" },
-    { "name": "web", "stack": "go", "path": "web", "version": "1.27" }
-  ]
-}
-```
-
-Two declarations are equal when they hold the same values: the order of keys, the spacing, line endings and the order of `repo.topics` and the order of `components` do not matter, an absent `repo.topics` equals `[]` and an absent `components` equals `[]`.
+Two declarations are equal when they hold the same values: the order of keys, the spacing, line endings and the order of `repo.topics` do not matter, and an absent `repo.topics` equals `[]`.
 
 ## Steps
 
 Use only the Read tool and the Write tool. Run no shell command at all (no `ls`, `cat`, `mkdir`, `gh`, `git`: the Write tool creates the `.aleogr` folder) and invoke no skill. On `failed`, write nothing: the file stays as it was, or absent.
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json` and take its block `repo` (`provider`, `visibility`, `settings`) and its block `stacks` (the default `version` of each stack). If `repo.provider` is not `github`: `failed`, only GitHub is implemented.
+1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json` and take its block `repo` (`provider`, `visibility`, `settings`). If `repo.provider` is not `github`: `failed`, only GitHub is implemented.
 2. Read `.aleogr/project.json` in the current folder.
    - It does not exist: this is a new declaration. Go to step 3.
    - It exists: check it against every rule of "The declaration's rules" (the canonical form is not a rule: a valid file in another layout is accepted). If it is not valid JSON or breaks a rule: `failed`, one sentence saying which rule the file breaks (for example, that it is not valid JSON), and the file untouched. Otherwise go to step 3.
@@ -122,21 +98,16 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
    - New declaration: `name`, `owner` and `description` are all given; the sentence names every one that is missing.
    - Each given value follows the rule of its key in "The declaration's rules": `name` (including the reserved names), `owner`, `repoName`, `visibility`, `description`. Each of the seven settings is exactly `true` or `false`.
    - `topics` (when not empty) is split on `,`; each item follows the topic rule (no empty item, no capitals, no spaces); a topic repeated counts once. A topic equal to `aleogr-<name>`, where `<name>` is the project name (the argument for a new declaration, the file's `name` otherwise), fails: that topic is derived and never written.
-   - `stack`, `path` or `version` given without `component`: `failed`, one sentence naming them, "they describe a component: give `component=<name>`".
-   - `component`, `stack`, `path` and `version`, when given, follow the rules of a component's `name`, `stack`, `path` and `version` in "The declaration's rules" (`path=.github/web` fails, and so does `version=1.27.4`).
-   - The component is new (the declaration has no component with that `name`, or the declaration is new): `stack` is given, otherwise `failed`, and the sentence naming missing arguments names `stack` too. Its `path` (the argument, or the name) is not the `path` of another component of the declaration, otherwise `failed`: no two components share a folder.
-   - The component exists: `stack`, when given, equals its `stack`, and `path`, when given, equals its `path`. Any of them different: `failed`, "that is another component": a component never changes folder or stack; only its `version` changes. Write nothing.
    - Existing declaration: `name`, when given, equals the file's `name`; `owner`, when given, equals the file's `repo.owner`; `repoName`, when given, equals the file's `repo.name`. Any of them different: `failed`, "that is another project": a declaration is never renamed and never moved to another repository. Run nothing, write nothing.
 4. Build the result.
    - New declaration: `name`, `repo.owner` and `repo.description` from the arguments; `repo.provider` from the defaults; `repo.name` from `repoName`, or the project name; `repo.visibility` from `visibility`, or the defaults; `repo.topics` from `topics`, or `[]`; each of the seven settings from its argument, or the defaults' `repo.settings`; `notes` from `notes`, or no key.
    - Existing declaration: start from the file and set only the keys whose argument was given.
-   - `component`: a new component is `{ "name": <component>, "stack": <stack>, "path": <path, or the name>, "version": <version, or stacks.<stack>.version of the defaults> }`, added to `components`; for an existing component only `version` is set, when given. `components` is kept sorted by `name`. A run without `component` leaves `components` as the file has it, and a declaration without `components` gets none.
    - `topics=` replaces the whole list of extra topics (it does not add to the file's list); `topics=` with an empty value makes it `[]`.
    - The argument text `true` or `false` of a setting is written as the JSON boolean `true` or `false`, never as a string.
    - Check the result: at least one of `mergeCommit`, `squash` and `rebase` is `true`, otherwise `failed`, nothing written.
 5. Compare and write.
-   - New declaration: `created`. `outputs.changes` lists every key path written, in the canonical order: `$schema`, `version`, `name`, `repo.provider`, `repo.owner`, `repo.name`, `repo.visibility`, `repo.description`, `repo.topics`, `repo.settings.mergeCommit`, `repo.settings.squash`, `repo.settings.rebase`, `repo.settings.deleteBranchOnMerge`, `repo.settings.issues`, `repo.settings.wiki`, `repo.settings.projects`, `components.<name>` when a component is written, and `notes` when written.
-   - Existing declaration: `outputs.changes` lists, in the canonical order, the key paths whose value in the result differs from the file's (equality as in "The declaration's rules": `repo.topics` compared as a set). A component added, or whose `version` changes, is `components.<name>`, between `repo.settings.projects` and `notes`. An empty list is `unchanged`: do not write, the file stays byte for byte as it was. Otherwise `updated`. Only values count: a valid file without `$schema`, without `repo.topics`, with `"components": []`, or in a non-canonical layout (other indentation, other key order) does not differ for that alone, so with no argument that changes a value the result is `unchanged` and the file is left as it is.
+   - New declaration: `created`. `outputs.changes` lists every key path written, in the canonical order: `$schema`, `version`, `name`, `repo.provider`, `repo.owner`, `repo.name`, `repo.visibility`, `repo.description`, `repo.topics`, `repo.settings.mergeCommit`, `repo.settings.squash`, `repo.settings.rebase`, `repo.settings.deleteBranchOnMerge`, `repo.settings.issues`, `repo.settings.wiki`, `repo.settings.projects`, and `notes` when written.
+   - Existing declaration: `outputs.changes` lists, in the canonical order, the key paths whose value in the result differs from the file's (equality as in "The declaration's rules": `repo.topics` compared as a set). An empty list is `unchanged`: do not write, the file stays byte for byte as it was. Otherwise `updated`. Only values count: a valid file without `$schema`, without `repo.topics`, or in a non-canonical layout (other indentation, other key order) does not differ for that alone, so with no argument that changes a value the result is `unchanged` and the file is left as it is.
    - `created` or `updated`: write `.aleogr/project.json` with the Write tool, the whole file in the canonical form.
 
 ## Answer

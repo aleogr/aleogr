@@ -1,1 +1,0 @@
-/aleogr-stack-go:go_setup component=web path=web version=1.27 module=github.com/example-org/example-repo/web mode=plan

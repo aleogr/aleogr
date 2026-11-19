@@ -1,2 +1,0 @@
-NO_FILE .github/web/go.mod
-OUTPUT "status": "failed"
