@@ -211,7 +211,7 @@ The `declaration` row of the plan says where a change to the declaration is:
 
 - **`in the repository`** / `none`: the folder and GitHub hold the same declaration.
 - **`changed here`** / `propose`: the declaration in this folder has a change GitHub does not have. `project-apply confirm=yes` proposes it as a pull request.
-- **`proposed in pull request #N`** / `merge it`: a pull request of the tooling (its branch starts with `aleogr/change-`) is open. A repository has at most one: until you merge or close it, `project-apply` changes nothing and only says to merge it. This is the owner's step, on GitHub.
+- **`proposed in pull request #N`** / `merge it`: a pull request of the tooling (its branch is in the repository itself and starts with `aleogr/change-`; a pull request someone else opens from a copy of the repository is never taken for one) is open. A repository has at most one: until you merge or close it, `project-apply` changes nothing and only says to merge it. This is the owner's step, on GitHub.
 - **`this folder is behind`** / `update`: GitHub has a newer declaration than this folder, which is what you see right after a merge. `project-apply confirm=yes` updates the folder (a fast-forward, nothing pushed) and goes on with the merged declaration.
 - **`this folder needs attention`** / `fix the folder`: the tooling will not touch the folder; you fix it by hand. The line under the table says what is wrong:
   - `git switch main`: the folder is on another branch (an interrupted run, for example). Type `!git switch main` in Claude Code, then run `/aleogr:project-plan` again;
