@@ -1,2 +1,3 @@
 FILE .aleogr/project.json "path": "web"
 OUTPUT "status": "failed"
+OUTPUT another component

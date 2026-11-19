@@ -78,21 +78,16 @@
         "required": ["name", "stack", "path", "version"],
         "properties": {
           "name": {
-            "description": "Component name: 1 to 20 characters of a-z, 0-9 and -, starting with a letter.",
+            "description": "Component name: 1 to 20 characters of a-z, 0-9 and -, starting with a letter; not changes or ci (jobs of the project's CI file).",
             "type": "string",
-            "pattern": "^[a-z][a-z0-9-]{0,19}$"
+            "pattern": "^[a-z][a-z0-9-]{0,19}$",
+            "not": { "enum": ["changes", "ci"] }
           },
           "stack": { "enum": ["go"] },
           "path": {
-            "description": "The component's folder, relative to the repository root: no .., no leading or trailing /, no empty segment, no whitespace; not .aleogr or .github, nor under them.",
+            "description": "The component's folder, relative to the repository root: one or more parts separated by /, with no empty part. Each part uses only a-z, 0-9, -, _ and .; is not . or ..; does not start with - or . (so never .github, .aleogr or under them); does not end with a dot. No two components have the same path, and no component's path is inside another's (web and web/api cannot both be components; these two rules are not expressed in the schema).",
             "type": "string",
-            "pattern": "^[^/\\s]+(/[^/\\s]+)*$",
-            "not": {
-              "anyOf": [
-                { "pattern": "\\.\\." },
-                { "pattern": "^\\.(aleogr|github)(/|$)" }
-              ]
-            }
+            "pattern": "^[a-z0-9_]([a-z0-9._-]*[a-z0-9_-])?(/[a-z0-9_]([a-z0-9._-]*[a-z0-9_-])?)*$"
           },
           "version": {
             "description": "The language version, major.minor.",
