@@ -10,3 +10,4 @@ OUTPUT nothing to do
 OUTPUT "generate": false
 OUTPUT "status": "unchanged"
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "checks": "ci"

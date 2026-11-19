@@ -88,7 +88,7 @@ Two declarations are equal when they hold the same values: the order of keys, th
 
 Show each skill invocation before making it. The skills below end with their own `aleogr-result` block: use those blocks only as input, never repeat them, and after each one go on with the next step: a skill's block is never the end of this answer, which always ends with the table and this skill's own block. Invoke only these skills, in this order, each at most once (`go_setup` once per component), and run no command yourself (no `gh`, no `git`, no `ls`, no `cat`). Your answer ends with exactly one block, its own. Never print the account name: not in the answer and not in the result block.
 
-A declaration without components (`components` absent or `[]`) skips steps 3 and 8, invokes step 4 without `checks` and step 6 with `paths=.aleogr/project.json`, and has the five items of "Items". Only a declaration with at least one component invokes `github_ci-setup` and `go_setup` and has seven items.
+A declaration without components (`components` absent or `[]`) skips steps 3 and 8, invokes step 4 without `checks` and step 6 with `paths=.aleogr/project.json`, and has the five items of "Items"; a `ci.yml` left in the repository after the last component is removed is not reported by this skill (removing a component is not built yet). Only a declaration with at least one component invokes `github_ci-setup` and `go_setup` and has seven items.
 
 1. Read `.aleogr/project.json` in the current folder with the Read tool.
    - It does not exist: `failed`, with the sentence `There is no .aleogr/project.json in this folder: declare the project first with /aleogr:project-declare.` Invoke nothing.
@@ -211,7 +211,7 @@ Write each item of `outputs.items` on one line, as in the example.
   - `exposes`: `true` when the plan would create a public repository (repository missing and `repo.visibility` `public`) or make one public (`visibility` `differs` and `repo.visibility` `public`); `false` otherwise, always `false` while the `declaration` action is `merge it`, `update`, `fix the folder` or `propose`, and always `false` on `failed`.
   - `items`: the five items in order, or the seven with components; `[]` on `failed`.
   - `generate`: `true` when some action is `generate`, `false` otherwise (always `false` without components and on `failed`).
-  - `checks`: `ci` when step 4 was invoked with `checks=ci` (`ci.yml` is on the repository's default branch, and the protection row was computed with the check), `none` otherwise; `project-apply` passes `checks=ci` to `github_branch-protect` exactly when it is `ci`.
+  - `checks`: `ci` when `.github/workflows/ci.yml` is in the repository's default branch (step 4 used `checks=ci`), `none` otherwise; the protection row may still be `not checked`.
 - `pending`:
   - `declaration` action `merge it`: exactly one item `{ "item": "pull request #<n> is open", "reason": "manual", "how": "merge <url>, then run /aleogr:project-apply confirm=yes" }`, with the `number` and `url` of `openPullRequest`.
   - `declaration` action `fix the folder`: exactly one item, the `this folder needs attention` item of the skill that reported it, as it gave it (`item`, `reason` `manual`, `how`): the checkout's when its state is `needs-attention`, otherwise the pull request skill's.

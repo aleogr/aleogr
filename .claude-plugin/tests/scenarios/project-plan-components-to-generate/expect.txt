@@ -13,3 +13,6 @@ OUTPUT_NOT nothing to do
 NO_FILE web/go.mod
 NO_FILE .github/workflows/ci.yml
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+# ci.yml is not in the repository: the protection is compared without the check, and matches.
+OUTPUT "item": "protection", "state": "protected", "action": "none"
+OUTPUT "checks": "none"

@@ -9,3 +9,4 @@ OUTPUT "item": "protection".*"action": "update"
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "checks": "ci"
