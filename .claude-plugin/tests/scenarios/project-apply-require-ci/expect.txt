@@ -1,0 +1,11 @@
+# The owner merged the pull request that added the components and ci.yml; this folder is behind.
+# The seeded files are the merged ones (the fake cannot change them): the repository's declaration
+# differs from them before the pull and equals them after. ci.yml is on the default branch, so the
+# plan run after the update compares the protection with the check ci, finds the ruleset without
+# it and updates it with checks=ci; the last plan finds it requiring ci: nothing to do.
+ORDER ^git -c credential.* pull --ff-only origin main >> ^gh api --method PUT repos/example-org/demo/rulesets/123
+CALLED --input .*ruleset-main-ci\.json
+NOT_CALLED --method (POST|DELETE|PATCH)|^gh pr create|^git (commit|.*push)
+OUTPUT "status": "updated"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT github_branch-protect.*checks=ci

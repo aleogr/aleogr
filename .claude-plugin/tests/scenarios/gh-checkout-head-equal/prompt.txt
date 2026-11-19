@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_checkout-setup owner=example-org name=example-repo head=check mode=plan

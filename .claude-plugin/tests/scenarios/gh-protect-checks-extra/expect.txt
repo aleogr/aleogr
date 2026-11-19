@@ -1,0 +1,4 @@
+CALLED ^gh api repos/example-org/example-repo/rulesets/123$
+NOT_CALLED --method
+OUTPUT "status": "would-update"
+OUTPUT "requiredChecks": \["ci"\]

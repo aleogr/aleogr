@@ -94,6 +94,7 @@ A recent organization comes with a set of security policies already enforced. Se
 - **After a merge on GitHub, the next reads already showed it**: `project-apply`, started within three minutes of the merge, found the folder behind, fast-forwarded it and applied the merged change in the same run (2026-11-19). The local branch of the proposal is kept in the folder; GitHub deleted its own copy at the merge.
 - **A proposal through `project-apply` took about 1 minute 40 seconds in Cloud Shell, and the run after the merge (update the folder, plan again, apply one topic, final plan) about 3 minutes 15 seconds** (2026-11-19): the second is three plans in one run.
 - **A Cloud Shell session closed between two steps of the run was resumed with `claude --continue`** in the project folder, and the plan showed where the run had stopped (2026-11-19).
+- **A push that adds or changes a file under `.github/workflows/` may be refused when the token of `gh` lacks the scope `workflow`.** Not yet confirmed by a real run: kept here as a precaution, to confirm at the first push of `.github/workflows/ci.yml` (stage 3c-2). The scopes are the line `Token scopes` of `gh auth status`; `gh auth refresh -h github.com -s workflow` adds the scope.
 - **Cloud Shell restarted in the middle of the run and nothing was lost**: the project folder, its git checkout and the installed plugins were there when it came back (2026-11-18).
 
 ## Claude Code

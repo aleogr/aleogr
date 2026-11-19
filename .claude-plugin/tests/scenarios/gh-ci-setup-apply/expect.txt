@@ -1,0 +1,15 @@
+CALLED ^gh api repos/example-org/example-repo/contents/\.github/workflows/ci\.yml
+CALLED ^gh api repos/example-org/tooling/commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 api:services/api:go:1\.27,web:web:go:1\.27$
+FILE .github/workflows/ci.yml uses: example-org/tooling/\.github/workflows/ci-go\.yml@2{40}
+FILE .github/workflows/ci.yml ^      working-directory: "services/api"$
+FILE .github/workflows/ci.yml needs: \[changes, api, web\]
+FILE .github/workflows/ci.yml if: always\(\)
+FILE .github/workflows/ci.yml uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4\.0\.3
+FILE .github/workflows/ci.yml branches: \[main\]
+OUTPUT "status": "created"
+OUTPUT "inRepository": false
+OUTPUT "written": true
+OUTPUT "checks": \["ci"\]
+NOT_CALLED ^git (add|commit|push|-c credential)
+NOT_CALLED ^gh (pr|repo)

@@ -32,10 +32,15 @@ out="$work/claude.out"
       --plugin-dir "$plugins/aleogr-cloud-gcp" \
       --plugin-dir "$plugins/aleogr-db-gcp-cloud-sql" \
       --plugin-dir "$plugins/aleogr-repo-github" \
+      --plugin-dir "$plugins/aleogr-stack-go" \
       --allowedTools "Bash" "Skill" "Read" "Write" "Edit" \
       < /dev/null > "$out" 2>&1
 )
 claude_status=$?
+# Claude Code's own call (git ... ls-files --error-unmatch -- :(icase).claude/settings.local.json)
+# reaches the fake git through PATH; it is not the skill's, so it is dropped from the log.
+grep -vF 'ls-files --error-unmatch -- :(icase).claude/settings.local.json' "$log" > "$log.skill" || true
+mv "$log.skill" "$log"
 
 failed=()
 if [ "$claude_status" -ne 0 ]; then failed+=("(claude exited with status $claude_status)"); fi

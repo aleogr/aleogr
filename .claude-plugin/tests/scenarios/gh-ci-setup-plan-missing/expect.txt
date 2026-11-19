@@ -1,0 +1,7 @@
+CALLED ^gh api repos/example-org/example-repo/contents/\.github/workflows/ci\.yml
+NOT_CALLED commits/main
+NO_FILE .github/workflows/ci.yml
+OUTPUT "local": "missing"
+OUTPUT "status": "would-create"
+OUTPUT "written": false
+NOT_CALLED ^git (add|commit|push|-c credential)

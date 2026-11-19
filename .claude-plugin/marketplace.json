@@ -6,7 +6,7 @@
     {
       "name": "aleogr",
       "source": "./.claude-plugin/plugins/aleogr",
-      "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch), and declares, plans and applies a project's GitHub repository, and proposes a change to it by pull request.",
+      "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch), and declares, plans and applies a project's GitHub repository, proposes a change to it by pull request, generates its Go components and CI file, and makes the check ci required once that file is merged.",
       "category": "orchestrator",
       "displayName": "aleogr (orchestrator)"
     },
@@ -30,6 +30,13 @@
       "description": "GitHub family: repositories, their settings, branch protection, the checkout that sends the first content, and the pull requests that propose changes.",
       "category": "repo",
       "displayName": "GitHub (repository)"
+    },
+    {
+      "name": "aleogr-stack-go",
+      "source": "./.claude-plugin/plugins/aleogr-stack-go",
+      "description": "Go stack: the starting point of a Go component.",
+      "category": "stack",
+      "displayName": "Go (stack)"
     }
   ]
 }

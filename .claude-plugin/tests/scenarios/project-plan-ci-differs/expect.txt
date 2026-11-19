@@ -1,0 +1,8 @@
+# The declaration has api and web, but ci.yml (here and in the repository) has the marker of web
+# alone: ci is to generate again.
+OUTPUT "item": "ci", "state": "differs", "action": "generate"
+OUTPUT "item": "components", "state": "as declared", "action": "none"
+OUTPUT "generate": true
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)

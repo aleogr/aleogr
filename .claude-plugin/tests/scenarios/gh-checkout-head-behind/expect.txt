@@ -1,0 +1,10 @@
+# plan with head=check: the repository's declaration equals this folder's, but the repository's
+# head moved on (a merge that left the declaration unchanged) and the folder's last commit is in
+# the repository: the folder is behind.
+CALLED ^gh api repos/example-org/example-repo/contents/\.aleogr/project\.json
+CALLED ^git rev-parse HEAD
+CALLED ^gh api repos/example-org/example-repo/commits/main
+CALLED ^gh api repos/example-org/example-repo/commits/1111111111111111111111111111111111111111
+NOT_CALLED ^git (-c credential|pull|fetch|init|commit|push|config|add|remote (add|set-url|remove))
+OUTPUT "state": "behind"
+OUTPUT "status": "would-update"

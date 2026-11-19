@@ -1,0 +1,4 @@
+NOT_CALLED ^gh
+NO_FILE .github/workflows/ci.yml
+OUTPUT "status": "failed"
+NOT_CALLED ^git (add|commit|push|-c credential)

@@ -1,0 +1,8 @@
+FILE web/go.mod ^module github\.com/example-org/example-repo/web$
+FILE web/go.mod ^go 1\.27$
+FILE web/main.go func newMux\(\)
+FILE web/main.go web: ok
+FILE web/main_test.go httptest
+OUTPUT "status": "created"
+OUTPUT "working-directory": "web"
+NOT_CALLED ^gh

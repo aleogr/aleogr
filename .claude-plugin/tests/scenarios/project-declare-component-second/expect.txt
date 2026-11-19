@@ -1,0 +1,3 @@
+FILE .aleogr/project.json "name": "api", "stack": "go", "path": "services/api"
+FILE .aleogr/project.json "name": "web"
+OUTPUT "status": "updated"

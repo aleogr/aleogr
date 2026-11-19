@@ -1,0 +1,5 @@
+FILE .aleogr/project.json "topics"
+OUTPUT "status": "failed"
+OUTPUT_NOT "name": "web"
+OUTPUT \.github
+OUTPUT cannot hold a component

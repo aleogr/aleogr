@@ -1,0 +1,6 @@
+NOT_CALLED commits/main
+NO_FILE .github/workflows/ci.yml
+OUTPUT "local": "not-needed"
+OUTPUT "checks": \[\]
+OUTPUT "status": "unchanged"
+NOT_CALLED ^git (add|commit|push|-c credential)

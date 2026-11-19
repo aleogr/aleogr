@@ -1,0 +1,5 @@
+CALLED ^gh api repos/example-org/example-repo/rulesets/123$
+OUTPUT "state": "protected"
+OUTPUT "matches": false
+OUTPUT "requiredChecks": \["ci"\]
+OUTPUT "status": "unchanged"

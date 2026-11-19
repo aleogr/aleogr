@@ -1,0 +1,1 @@
+/aleogr:project-declare component=web path=other

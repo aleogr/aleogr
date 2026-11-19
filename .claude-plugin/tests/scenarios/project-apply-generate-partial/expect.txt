@@ -1,0 +1,14 @@
+# As project-apply-generate, but the read of the reusable workflows' head fails (HTTP 502), so
+# github_ci-setup fails after go_setup wrote both starting points. The folder was changed: the run
+# ends "updated" (never pending or failed) with the item ci, whose how says the written files are
+# kept and the next run proposes them. Nothing is committed or proposed.
+FILE web/go.mod ^module github\.com/example-org/demo/web$
+FILE services/api/go.mod ^module github\.com/example-org/demo/services/api$
+NO_FILE .github/workflows/ci.yml
+CALLED ^gh api repos/aleogr/aleogr/commits/main
+NOT_CALLED ^gh pr create|^git (switch|add|commit|-c credential)
+NOT_CALLED --method
+OUTPUT "status": "updated"
+OUTPUT "item": "ci"
+OUTPUT run /aleogr:project-apply confirm=yes again, which proposes them
+OUTPUT_NOT HTTP 502

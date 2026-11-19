@@ -1,8 +1,8 @@
 # Skill tests
 
 A headless harness that runs the real skills of `plugins/aleogr`,
-`plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql` and
-`plugins/aleogr-repo-github` with `claude -p`, against a fake `gcloud`, a fake
+`plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql`,
+`plugins/aleogr-repo-github` and `plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
 `gh` and a fake `git`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
 
 ```
@@ -88,6 +88,6 @@ Create `scenarios/<name>/` with:
 
 Regexes are `grep -E`. Use fictitious values only: the repository is public.
 
-Claude Code itself runs `git ls-files --error-unmatch ... .claude/settings.local.json` through `PATH` during a run, so the call log has `git` lines the prompt did not ask for: never use a bare `NOT_CALLED ^git`; pin the subcommand (`NOT_CALLED ^git (add|commit|push)`).
+Claude Code itself runs `git ... ls-files --error-unmatch -- :(icase).claude/settings.local.json` through `PATH` during a run. `run.sh` drops the lines of that exact call from the call log before the checks, so `NOT_CALLED .` holds when the skill ran nothing. Pinning the subcommand remains good practice (`NOT_CALLED ^git (add|commit|push)` rather than a bare `NOT_CALLED ^git`): Claude Code may run other commands in a later version.
 
 `scenarios/harness-selftest`, `scenarios/harness-selftest-gh`, `scenarios/harness-selftest-files` and `scenarios/harness-selftest-state` check the harness itself.

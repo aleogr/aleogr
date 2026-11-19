@@ -1,0 +1,14 @@
+# The owner merged a pull request that added the code and ci.yml without changing the declaration:
+# the repository's declaration equals this folder's, ci.yml is on the default branch, but this
+# folder is behind (no code here yet). With components the plan compares the folder's head with
+# the repository's: the declaration is to update, and nothing is to generate.
+CALLED ^git rev-parse HEAD
+CALLED ^gh api repos/example-org/demo/commits/main
+OUTPUT "item": "declaration", "state": "this folder is behind", "action": "update"
+OUTPUT "item": "components", "state": "not checked until the change is merged", "action": "none"
+OUTPUT "item": "ci", "state": "not checked until the change is merged", "action": "none"
+OUTPUT "generate": false
+OUTPUT "status": "would-update"
+OUTPUT_NOT to generate
+NO_FILE web/go.mod
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)

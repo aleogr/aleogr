@@ -46,7 +46,11 @@ claude plugin install aleogr-db-gcp-cloud-sql@aleogr
 claude plugin install aleogr-repo-github@aleogr
 ```
 
-Check with `claude plugin list`: the four plugins, enabled.
+```bash
+claude plugin install aleogr-stack-go@aleogr
+```
+
+Check with `claude plugin list`: the five plugins, enabled.
 
 `gh` (the GitHub command-line tool) is preinstalled but not signed in. Sign it in once, for the GitHub repository skills:
 
@@ -55,6 +59,8 @@ gh auth login --hostname github.com --git-protocol https --web
 ```
 
 If it asks whether to authenticate Git with your GitHub credentials, answer yes. It shows a one-time code and an address: open the address, sign in to GitHub and **type the code in the browser**. The code is never pasted in the conversation with Claude. `gh auth status` then says an account is logged in.
+
+A push that adds a GitHub Actions workflow (`.github/workflows/ci.yml`, written when a project declares components) may be refused when the token lacks the scope `workflow` (a precaution, not yet confirmed by a real run): if `gh auth status` does not list `workflow` among the `Token scopes`, run `gh auth refresh -h github.com -s workflow` and type the code in the browser as above.
 
 ## Daily use
 
@@ -85,7 +91,9 @@ Once the repository exists, a change to the project takes three steps:
 2. Merge the pull request on GitHub, with the normal button. Claude Code is never asked to merge, and the skills never merge. Do not declare another change while the pull request is open: after the merge, the folder could not be updated over it.
 3. Run `/aleogr:project-apply confirm=yes` again: it brings the folder up to date and applies the merged change.
 
-Claude Code is not asked to open the pull request or to update the folder by hand: `project-apply` does both. A repository has one open pull request of the tooling at a time; while it is open, `project-apply` only says to merge it. To drop a proposal, close its pull request on GitHub; to make it again, declare the change again.
+Claude Code is not asked to open the pull request or to update the folder by hand: `project-apply` does both.
+
+A component (a folder of the repository with its own program) is declared the same way, one per call, for example `/aleogr:project-declare component=status stack=go` (its folder is `status`, its Go version the default; `path=` and `version=` change them). The next `/aleogr:project-apply confirm=yes` writes its starting point (`status/go.mod`, `status/main.go`, `status/main_test.go`) and the project's CI file `.github/workflows/ci.yml` in the folder, and proposes them with the declaration in one pull request; the project's CI runs on that pull request. The starting point is written once: a folder that already has a `go.mod` is never touched. After the merge, the next `/aleogr:project-apply confirm=yes` updates the folder and makes the protection of `main` require the check `ci`: from then on, a pull request whose CI fails cannot be merged. CI needs the organization to allow actions and reusable workflows from other repositories: on GitHub, the organization's `Settings`, `Actions`, `General`, `Policies`, where the default, `Allow all actions and reusable workflows`, is enough. A repository has one open pull request of the tooling at a time; while it is open, `project-apply` only says to merge it. To drop a proposal, close its pull request on GitHub; to make it again, declare the change again.
 
 The skills:
 
@@ -95,14 +103,16 @@ The skills:
 | `/aleogr:platform-plan` | Shows what the shared platform is missing. Read-only. |
 | `/aleogr:platform-apply` | Creates what the plan lists. Asks once, stating any fixed cost. |
 | `/aleogr:project-declare` | Writes or edits the project's declaration, `.aleogr/project.json` in the current folder. A new one needs `name`, `owner` and `description`, for example `/aleogr:project-declare name=pilot owner=aleogr-sandbox visibility=public description="Reference project of aleogr: status pages per tenant"`. Changes nothing on GitHub. |
-| `/aleogr:project-plan` | Compares the declaration with GitHub: a table of `repository`, `settings`, `visibility`, `declaration` and `protection`, each with its state and action. The `declaration` row also says whether a change is waiting in this folder (`propose`), in a pull request (`merge it`), or on GitHub while this folder is behind (`update`), and whether the folder needs attention (`fix the folder`). Read-only. |
-| `/aleogr:project-apply` | Does what the plan lists, then plans again and says `nothing to do`. A change in this folder is proposed as a pull request instead; after the merge, the next run updates the folder and applies it. One confirmation for the whole run: `confirm=yes`, or `confirmVisibility=public` when the plan makes the repository public. Without it, it changes nothing and shows the text that confirms. |
+| `/aleogr:project-plan` | Compares the declaration with GitHub: a table of `repository`, `settings`, `visibility`, `declaration` and `protection`, each with its state and action, plus `components` and `ci` when components are declared (`generate` when a starting point or `ci.yml` is to be written). The `declaration` row also says whether a change is waiting in this folder (`propose`), in a pull request (`merge it`), or on GitHub while this folder is behind (`update`), and whether the folder needs attention (`fix the folder`). Read-only. |
+| `/aleogr:project-apply` | Does what the plan lists, then plans again and says `nothing to do`. A change in this folder, and the files it generates, are proposed as one pull request instead; after the merge, the next run updates the folder and applies it. One confirmation for the whole run: `confirm=yes`, or `confirmVisibility=public` when the plan makes the repository public. Without it, it changes nothing and shows the text that confirms. |
 | `/aleogr-repo-github:github_repo-describe` | Shows a GitHub repository: visibility, settings, topics and whether `main` is protected. Read-only. |
 | `/aleogr-repo-github:github_repo-create` | Creates a GitHub repository with a README, private unless told otherwise. Plan by default; `mode=apply` creates. An existing repository is never changed. |
 | `/aleogr-repo-github:github_repo-configure` | Corrects the given settings of an existing repository, its visibility included. Plan by default; `mode=apply` changes. |
-| `/aleogr-repo-github:github_branch-protect` | Protects `main` with the ruleset `main`. Plan by default; `mode=apply` writes. Says `pending` when the GitHub plan does not allow it (a private repository of a free organization). |
+| `/aleogr-repo-github:github_branch-protect` | Protects `main` with the ruleset `main`; with `checks=ci` the ruleset also requires the check `ci`. Plan by default; `mode=apply` writes. Says `pending` when the GitHub plan does not allow it (a private repository of a free organization). |
 | `/aleogr-repo-github:github_checkout-setup` | Makes the current folder a checkout of the repository and sends the declaration as its first content after the README, only while the repository has that one commit; after a merge, brings a folder that is behind up to date. Plan by default; `project-apply` calls it. |
 | `/aleogr-repo-github:github_pull-request-open` | Proposes named files by pull request: commits only them on a new branch `aleogr/change-<random>`, pushes it, opens the pull request and returns the folder to `main`. One open at a time per repository; never merges. Plan by default; `project-apply` calls it. |
+| `/aleogr-repo-github:github_ci-setup` | Writes the project's CI file, `.github/workflows/ci.yml`, from the declared components: one job per component and a last job `ci`. Never commits or pushes. Plan by default; `project-apply` calls it. |
+| `/aleogr-stack-go:go_setup` | Writes the starting point of a Go component (`go.mod`, `main.go`, `main_test.go`) in its folder, once, only when the folder has no `go.mod` and no Go file. Plan by default; `project-apply` calls it. |
 
 The GitHub skills take `key=value` arguments after the name, for example `/aleogr-repo-github:github_repo-describe owner=aleogr-sandbox name=pilot`. A value with spaces or commas goes in double quotes. Nothing becomes public without `confirmVisibility=public`: without it the skill changes nothing, says so and shows the command that confirms.
 
@@ -132,7 +142,11 @@ claude plugin update aleogr-db-gcp-cloud-sql@aleogr
 claude plugin update aleogr-repo-github@aleogr
 ```
 
-A change to the project skills needs only the first command and the updates of `aleogr@aleogr` and `aleogr-repo-github@aleogr`; updating the others as well does no harm. A plugin that is new in the catalog is installed instead (`claude plugin install <plugin>@aleogr`, as in "Set-up, once"). Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
+```bash
+claude plugin update aleogr-stack-go@aleogr
+```
+
+A change to the project skills needs only the first command and the updates of `aleogr@aleogr`, `aleogr-repo-github@aleogr` and `aleogr-stack-go@aleogr`; updating the others as well does no harm. A plugin that is new in the catalog is installed instead (`claude plugin install <plugin>@aleogr`, as in "Set-up, once"). Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
 
 ## What to expect
 

@@ -1,0 +1,2 @@
+FILE .aleogr/project.json "name": "web", "stack": "go", "path": "web", "version": "1\.26"
+OUTPUT "status": "updated"

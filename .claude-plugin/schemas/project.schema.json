@@ -69,6 +69,34 @@
         }
       }
     },
+    "components": {
+      "description": "The project's components (written sorted by name). Each name and each path is unique in the list (this rule is not expressed in the schema).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "stack", "path", "version"],
+        "properties": {
+          "name": {
+            "description": "Component name: 1 to 20 characters of a-z, 0-9 and -, starting with a letter; not changes or ci (jobs of the project's CI file), nor true, false, null, yes, no, on or off (YAML does not read them as names).",
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,19}$",
+            "not": { "enum": ["changes", "ci", "true", "false", "null", "yes", "no", "on", "off"] }
+          },
+          "stack": { "enum": ["go"] },
+          "path": {
+            "description": "The component's folder, relative to the repository root: one or more parts separated by /, with no empty part. Each part uses only a-z, 0-9, -, _ and .; is not . or ..; does not start with - or . (so never .github, .aleogr or under them); does not end with a dot. No two components have the same path, and no component's path is inside another's (web and web/api cannot both be components; these two rules are not expressed in the schema).",
+            "type": "string",
+            "pattern": "^[a-z0-9_]([a-z0-9._-]*[a-z0-9_-])?(/[a-z0-9_]([a-z0-9._-]*[a-z0-9_-])?)*$"
+          },
+          "version": {
+            "description": "The language version, major.minor. With the stack go it is 1.22 or later, comparing the major and then the minor as numbers (1.21 and 1.9 are refused): the Go starting point's routes need Go 1.22. The pattern checks the form only; the minimum is stated in prose.",
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+$"
+          }
+        }
+      }
+    },
     "notes": { "type": "string" }
   }
 }

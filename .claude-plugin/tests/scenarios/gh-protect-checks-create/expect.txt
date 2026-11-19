@@ -1,0 +1,6 @@
+CALLED ^gh api --method POST repos/example-org/example-repo/rulesets --input .*ruleset-main-ci\.json
+CALLED <<< .*"required_status_checks".*"context":"ci"
+NOT_CALLED --method (PUT|DELETE|PATCH)
+ORDER ^gh api --method POST >> ^gh api repos/example-org/example-repo/rulesets/123$
+OUTPUT "status": "created"
+OUTPUT "requiredChecks": \["ci"\]
