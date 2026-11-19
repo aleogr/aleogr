@@ -1,0 +1,6 @@
+OUTPUT "status": "failed"
+FILE .aleogr/project.json "name": "web", "stack": "go", "path": "web", "version": "1\.27"
+OUTPUT_NOT "status": "(updated|created)"
+# A word of the prescribed sentence: tst is the only root, for a project that tests the tooling.
+OUTPUT tests the tooling
+NOT_CALLED .

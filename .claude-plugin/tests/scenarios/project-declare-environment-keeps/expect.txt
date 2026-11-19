@@ -1,0 +1,8 @@
+OUTPUT "status": "updated"
+FILE .aleogr/project.json "description": "Demo service"
+# Both keys kept, rewritten in the canonical form and order: components, cloud, environments (last, no comma).
+FILE .aleogr/project.json ^  \],$
+FILE .aleogr/project.json ^  "cloud": \{ "provider": "gcp", "region": "us-central1", "root": "tst" \},$
+FILE .aleogr/project.json ^  "environments": \{ "dev": \{\} \}$
+OUTPUT "changes": \["repo\.description"\]
+NOT_CALLED .

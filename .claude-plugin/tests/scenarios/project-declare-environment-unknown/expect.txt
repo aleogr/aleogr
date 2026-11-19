@@ -1,0 +1,6 @@
+OUTPUT "status": "failed"
+FILE .aleogr/project.json "name": "web", "stack": "go", "path": "web", "version": "1\.27"
+OUTPUT_NOT "status": "(updated|created)"
+# A word of the prescribed sentence: dev is the only environment built yet.
+OUTPUT builds yet
+NOT_CALLED .

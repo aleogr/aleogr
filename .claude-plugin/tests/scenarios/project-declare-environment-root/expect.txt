@@ -1,0 +1,4 @@
+OUTPUT "status": "updated"
+FILE .aleogr/project.json "cloud": \{ "provider": "gcp", "region": "us-central1", "root": "tst" \}
+FILE .aleogr/project.json "environments": \{ "dev": \{\} \}
+NOT_CALLED .
