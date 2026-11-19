@@ -6,8 +6,8 @@
     "login": "example-org",
     "type": "Organization"
   },
-  "private": false,
-  "visibility": "public",
+  "private": true,
+  "visibility": "private",
   "html_url": "https://github.com/example-org/demo",
   "ssh_url": "git@github.com:example-org/demo.git",
   "clone_url": "https://github.com/example-org/demo.git",
