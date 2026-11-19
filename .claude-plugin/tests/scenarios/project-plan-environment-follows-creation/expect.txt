@@ -1,0 +1,12 @@
+# The repository does not exist: the four rows of the environment follow its creation, gcloud is
+# checked, and nothing in the cloud is read.
+CALLED ^auth list --filter=status:ACTIVE
+OUTPUT "item": "repository", "state": "missing", "action": "create"
+OUTPUT "item": "environment dev", "state": "follows the creation", "action": "none"
+OUTPUT "item": "apis", "state": "follows the creation", "action": "none"
+OUTPUT "item": "registry", "state": "follows the creation", "action": "none"
+OUTPUT "item": "ci identity", "state": "follows the creation", "action": "none"
+NOT_CALLED ^(projects|services|artifacts|iam|billing)( |$)
+OUTPUT "status": "would-create"
+OUTPUT_NOT nothing to do
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

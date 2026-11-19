@@ -4,7 +4,9 @@ CALLED ^artifacts repositories list --location=all --project=aleogr-dev-demo-ab1
 OUTPUT "item": "registry", "state": "in another region", "action": "fix by hand"
 OUTPUT southamerica-east1
 OUTPUT "item": "registry", "reason": "manual"
-OUTPUT_NOT "status": "unchanged"
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT "status": "pending"
+OUTPUT_NOT "action": "grant"
 OUTPUT_NOT nothing to do
 NOT_CALLED ^artifacts repositories (create|delete|set-cleanup-policies|add-iam-policy-binding)
 # The nested skills' blocks are input only: the answer holds this skill's block alone.

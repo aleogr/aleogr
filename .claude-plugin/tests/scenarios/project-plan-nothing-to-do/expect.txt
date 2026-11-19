@@ -6,4 +6,4 @@ OUTPUT nothing to do
 OUTPUT "status": "unchanged"
 OUTPUT "exposes": false
 NOT_CALLED --method|^gh repo|^git (commit|push)
-NOT_CALLED ^(--version|auth|projects|services|artifacts|iam|billing|resource-manager|config|organizations)( |$)
+NOT_CALLED ^([a-fi-z-]|g[^hi])
