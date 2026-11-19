@@ -54,7 +54,7 @@ Show each command before running it. Run only the commands below, in this order,
 
    `push` is every member of every binding whose `role` is exactly `roles/artifactregistry.writer` and that has no `condition`, in the order printed, without duplicates (`[]` when there is no such binding, or no `bindings` at all). Members of other roles (reader, administrator) are not listed. A non-zero exit is a failure: say `The repository's access could not be read` and the cause in one sentence, with no raw error text, and end with `status` `failed`.
 
-Then answer in a few lines: whether the repository exists and where (and, when it exists only elsewhere, in which region), its format, the cleanup policy (keep how many, deletes the rest or not, dry-run on or off), who may push, the image path, and the result block.
+Then answer in a few lines: whether the repository exists and where (and, when it exists only elsewhere, in which region), its format, the cleanup policy (keep how many, deletes the rest or not, dry-run on or off, how many rules), who may push, the image path, and the result block.
 
 ## Reading the JSON
 
@@ -68,9 +68,10 @@ From step 1's JSON:
 | `cleanup.keep` | `mostRecentVersions.keepCount`, as a number, of the one entry of `cleanupPolicies` whose `action` is `KEEP` and that has `mostRecentVersions` without `packageNamePrefixes`. `null` when there is no such entry, or more than one. |
 | `cleanup.deletesTheRest` | `true` when an entry of `cleanupPolicies` has `action` `DELETE` and a `condition` whose only field is `tagState` with the value `ANY` (any letter case): it matches every version, and a keep rule takes precedence over it. Otherwise `false`. |
 | `cleanup.dryRun` | `cleanupPolicyDryRun` (`false` when absent). |
+| `cleanup.rules` | The number of entries of `cleanupPolicies`, as a number, whatever they hold (`0` when it is absent). The declared policy has `2`. |
 | `imagePath` | `<region>-docker.pkg.dev/<projectId>/<project>` when `format` is `DOCKER`; `null` for any other format. |
 
-`cleanupPolicies` is an object whose keys are the policies' ids; read its values. When it is absent there is no policy: `keep` `null`, `deletesTheRest` `false`.
+`cleanupPolicies` is an object whose keys are the policies' ids; read its values. When it is absent there is no policy: `keep` `null`, `deletesTheRest` `false`, `rules` `0`.
 
 ## Result block
 
@@ -93,7 +94,7 @@ End with exactly one fenced block tagged `aleogr-result`:
     "otherRegions": [],
     "format": "DOCKER",
     "labels": { "aleogr-project": "<project>", "aleogr-environment": "dev" },
-    "cleanup": { "keep": 5, "deletesTheRest": true, "dryRun": false },
+    "cleanup": { "keep": 5, "deletesTheRest": true, "dryRun": false, "rules": 2 },
     "push": ["serviceAccount:<project>-ci@<projectId>.iam.gserviceaccount.com"],
     "imagePath": "us-central1-docker.pkg.dev/<projectId>/<project>"
   },
@@ -103,6 +104,6 @@ End with exactly one fenced block tagged `aleogr-result`:
 ```
 
 - `status` is `unchanged` whenever the state was read, whether or not the repository exists. It is `failed` when an argument is invalid or any step failed for a reason other than "does not exist"; then `resources` is empty and `outputs` is `{ "exists": null }`.
-- `exists` and `region` speak of the declared region only. Repository does not exist in `region`: `resources` is empty and `outputs` is `{ "exists": false, "region": null, "otherRegions": [<locations from step 2>], "format": null, "labels": {}, "cleanup": { "keep": null, "deletesTheRest": false, "dryRun": false }, "push": [], "imagePath": null }`. `otherRegions` is `[]` when no repository of that id exists anywhere.
+- `exists` and `region` speak of the declared region only. Repository does not exist in `region`: `resources` is empty and `outputs` is `{ "exists": false, "region": null, "otherRegions": [<locations from step 2>], "format": null, "labels": {}, "cleanup": { "keep": null, "deletesTheRest": false, "dryRun": false, "rules": 0 }, "push": [], "imagePath": null }`. `otherRegions` is `[]` when no repository of that id exists anywhere.
 - Repository exists: `otherRegions` is `[]` (other regions are not read), `labels` in `resources` are the repository's labels.
 - `mode` is always `plan`: the skill only reads.

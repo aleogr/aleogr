@@ -44,8 +44,10 @@ Show each command before running it. Run only the commands below (and the one sk
 3. `apply`: create the repository. The command waits until the repository exists (no `--async`):
 
    ```
-   gcloud artifacts repositories create <project> --project=<projectId> --location=<region> --repository-format=docker --labels=aleogr-project=<project>,aleogr-environment=<environment>
+   gcloud artifacts repositories create <project> --project=<projectId> --location=<region> --repository-format=docker --labels="aleogr-project=<project>,aleogr-environment=<environment>"
    ```
+
+   Keep the quotes around the `--labels` value: PowerShell splits an unquoted value at its commas, and `gcloud` then rejects the arguments.
 
    - Exit zero: go to step 4.
    - Exit non-zero and the text contains `ALREADY_EXISTS`: the repository appeared since step 1 (another run made it). Run the read of step 4 once, and only it. It succeeds, `format` is `DOCKER` and `name` has `locations/<region>`: end with `status` `unchanged` and the `imagePath`, with the sentence `The repository was created by another run between the check and the create.` and nothing quoted from `gcloud`'s answer (not even its status word). Anything else (a non-zero exit, another format or region): end with `failed`, one sentence saying the repository exists but could not be confirmed as a Docker repository in `<region>`, without raw error text.
