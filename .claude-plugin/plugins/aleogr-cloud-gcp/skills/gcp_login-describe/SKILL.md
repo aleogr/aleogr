@@ -34,9 +34,10 @@ Show each command before running it. Run only the commands below, in this order,
 
    - Exit 0: read the JSON. `prepared` is true when `accessSettings.oauthSettings.clientId` is a non-empty string, and false otherwise: an object with only `name`, an empty object, an empty output, settings without `accessSettings`, without `oauthSettings` or without `clientId` (for example only `loginHint`, or only `reauthSettings`) are all "not prepared", a normal answer, not a failure.
    - A non-zero exit whose text contains `NOT_FOUND`: the organization has no setting stored. `prepared` is false, a normal answer, not a failure.
-   - Any other non-zero exit (permission denied, an API not enabled, `gcloud` not signed in, a network error, anything else) is a failure of the read, never "not prepared". Say exactly `The organization's login setting could not be read. Check that the active gcloud account is signed in and may read the organization's IAP settings.` Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only the sentence above about the failure. End with `status` `failed`, `organization` true, `prepared` `null`.
+   - A non-zero exit whose text contains `PERMISSION_DENIED` (which `IAM_PERMISSION_DENIED` also contains) and does not contain `SERVICE_DISABLED`: the active account may not read the setting yet. On an organization whose login was never prepared that is the expected answer, because the role that reads it, `roles/iap.settingsAdmin`, is granted by `gcp_login-setup`. It is not a failure: `prepared` is false and `readable` is false. Say exactly `The login of the organization could not be read yet; /aleogr:platform-apply prepares it.` Never explain which text decided this, and repeat no word of `gcloud`'s answer. End with `status` `unchanged`.
+   - Any other non-zero exit (an API not enabled, `gcloud` not signed in, a network error, anything else) is a failure of the read, never "not prepared". Say exactly `The organization's login setting could not be read. Check that the active gcloud account is signed in and may read the organization's IAP settings.` Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only the sentence above about the failure. End with `status` `failed`, `organization` true, `prepared` `null`.
 
-Then answer in a few lines: whether the login of the organization is prepared (when it is not, that `gcp_login-setup` prepares it), and the result block. The answer prints no organization id, no client id and no hash of a secret: not in the prose and not in the result block.
+Then answer in a few lines: whether the login of the organization is prepared, or could not be read yet (when it is not prepared, that `/aleogr:platform-apply` prepares it), and the result block. The answer prints no organization id, no client id and no hash of a secret: not in the prose and not in the result block.
 
 ## Result block
 
@@ -53,6 +54,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   "resources": [],
   "outputs": {
     "prepared": true,
+    "readable": true,
     "organization": true
   },
   "cost": { "fixed": false, "notes": "read-only" },
@@ -61,5 +63,6 @@ End with exactly one fenced block tagged `aleogr-result`:
 ```
 
 - `mode` is always `plan`: the skill only reads. `resources` is always empty.
-- `status` is `unchanged` whenever the setting was read, prepared or not (`NOT_FOUND` included). It is `failed` when no single organization was found (`prepared` `null`, `organization` false) or the read failed (`prepared` `null`, `organization` true).
+- `status` is `unchanged` whenever the setting was read, prepared or not (`NOT_FOUND` included), and when the read was refused for lack of permission (`prepared` false, `readable` false). It is `failed` when no single organization was found (`prepared` `null`, `readable` `null`, `organization` false) or the read failed for any other reason (`prepared` `null`, `readable` `null`, `organization` true).
+- `readable` is false only when the read was refused for lack of permission, `null` on `failed`, and true in every other case.
 - `pending` is always empty.

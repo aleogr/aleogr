@@ -28,6 +28,8 @@ Before any command, check the arguments. A missing `projectId` ends the skill wi
 
 Show each command before running it. Run only the commands below, in this order, each one alone (its exit code and its text decide the next step). On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. Every sentence of failure below is said exactly as written: never explain which text decided it, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons).
 
+The role comes before the setting: on an organization whose login was never prepared, even its administrator may not read the organization's IAP setting until the account has `roles/iap.settingsAdmin`. So the skill reads and, in `apply`, grants the role (and enables the API) first, and reads the setting last.
+
 1. Organization (both modes):
 
    ```
@@ -40,17 +42,7 @@ Show each command before running it. Run only the commands below, in this order,
    - A non-zero exit, or empty output: say `No organization was found. Check that the active gcloud account is signed in and belongs to an organization.` and end with `failed`.
    - More than one line: say `<n> organizations were found and none was picked.`, with no identifier, and end with `failed`. Do not pick one.
 
-2. Is the login prepared (both modes):
-
-   ```
-   gcloud iap settings get --organization=<organizationId> --format=json
-   ```
-
-   - Exit 0 and `accessSettings.oauthSettings.clientId` is a non-empty string: the login is prepared. Run nothing else, print no list, and end with `unchanged`.
-   - Exit 0 with anything else (an object with only `name`, an empty object or output, settings without a client), or a non-zero exit whose text contains `NOT_FOUND`: not prepared. Go on.
-   - Any other non-zero exit: say `The organization's login setting could not be read. Check that the active gcloud account is signed in and may read the organization's IAP settings.` and end with `failed`.
-
-3. The active account (both modes):
+2. The active account (both modes):
 
    ```
    gcloud config get-value account
@@ -58,7 +50,7 @@ Show each command before running it. Run only the commands below, in this order,
 
    A non-zero exit, or empty output: say `The active gcloud account could not be read. Run gcloud auth login.` and end with `failed`. Otherwise `<member>` is `serviceAccount:<account>` when the account ends with `.gserviceaccount.com`, and `user:<account>` otherwise.
 
-4. Does the account have the role (both modes):
+3. Does the account have the role (both modes). An administrator of the organization may read its policy:
 
    ```
    gcloud organizations get-iam-policy <organizationId> --flatten="bindings[].members" --filter="bindings.role=roles/iap.settingsAdmin AND bindings.members=<member>" --format="value(bindings.members)"
@@ -68,7 +60,7 @@ Show each command before running it. Run only the commands below, in this order,
    - Exit 0 and no such line: the role is missing.
    - A non-zero exit: say `The organization's access could not be read. Check that the active gcloud account may read the organization's access.` and end with `failed`.
 
-5. Is the IAP API on (both modes):
+4. Is the IAP API on (both modes):
 
    ```
    gcloud services list --enabled --project=<projectId> --filter="config.name=iap.googleapis.com" --format="value(config.name)"
@@ -78,9 +70,9 @@ Show each command before running it. Run only the commands below, in this order,
    - Exit 0 and no such line: the API is off.
    - A non-zero exit: say `The APIs of the GCP project <projectId> could not be read. Check that the project exists and that the active gcloud account may read it.` and end with `failed`.
 
-6. `plan` ends here, changing nothing: say whether the role and the API are present, print the list of what is left (below), and end with `would-update` when the role or the API is missing, or `pending` when both are present (only the clicks are left).
+5. `plan`, when the role is missing: do not read the setting (it would be refused). Run nothing else, change nothing, print no list, and end with `would-update`: say that `apply` would grant the role (and enable the API when it is off) and then check the login and give what is left.
 
-7. `apply`: run the command of each part that is missing, in this order; a part that is present is skipped.
+6. `apply`: run the command of each part that is missing, in this order; a part that is present is skipped.
 
    ```
    gcloud organizations add-iam-policy-binding <organizationId> --member="<member>" --role="roles/iap.settingsAdmin" --condition=None --quiet
@@ -88,15 +80,27 @@ Show each command before running it. Run only the commands below, in this order,
    ```
 
    - The role is granted with `--condition=None`, to the active account only, on the organization only. Never run `gcloud iap settings set`, and never remove a binding.
-   - A non-zero exit of the grant: say `The role that changes the organization's login could not be granted; nothing was changed. The active gcloud account must be an administrator of the organization.` and end with `failed`; the API is not enabled then.
+   - A non-zero exit of the grant: say `The role that changes the organization's login could not be granted; nothing was changed. The active gcloud account must be an administrator of the organization.` and end with `failed`; nothing else runs.
    - A non-zero exit of the enable when the grant did not run: say `The IAP API could not be enabled in <projectId>; nothing was changed.` and end with `failed`.
-   - A non-zero exit of the enable after this run granted the role: say `The IAP API could not be enabled in <projectId>.`, end with `updated`, and add to `pending`, before the item `login`, the item `{ "item": "api", "reason": "The IAP API could not be enabled.", "how": "gcloud services enable iap.googleapis.com --project=<projectId>" }`.
+   - A non-zero exit of the enable after this run granted the role: say `The IAP API could not be enabled in <projectId>.`, keep going with step 7, and add to `pending`, before the item `login`, the item `{ "item": "api", "reason": "The IAP API could not be enabled.", "how": "gcloud services enable iap.googleapis.com --project=<projectId>" }`.
 
-   Then print the list of what is left, and end with `updated` when something was granted or enabled, or `pending` when both were already present (nothing was changed; only the clicks are left).
+7. Is the login prepared (`apply`, and `plan` when the role is present):
+
+   ```
+   gcloud iap settings get --organization=<organizationId> --format=json
+   ```
+
+   - Exit 0 and `accessSettings.oauthSettings.clientId` is a non-empty string: the login is prepared. Print no list. End with `unchanged` when this run changed nothing, `updated` when it granted the role or enabled the API.
+   - Exit 0 with anything else (an object with only `name`, an empty object or output, settings without a client), or a non-zero exit whose text contains `NOT_FOUND`: not prepared. Go to step 8.
+   - A non-zero exit whose text contains `PERMISSION_DENIED` (which `IAM_PERMISSION_DENIED` also contains), right after this run granted the role or enabled the API: the change has not reached the read yet, and waiting cures it. Poll: wait 30 seconds, then run the same read again, alone; while it is refused that same way, wait and try again; at most 10 reads in all, the first one included (so at most 9 waits, about 5 minutes). Any other answer ends the poll and is read as this step says. When the tenth read is still refused, say `The role was granted, but the organization's login setting could not be read yet.`, and go to step 8 as if not prepared (the list stands either way: `/aleogr:platform-apply` confirms it). A read when this run changed nothing is never polled.
+   - The wait is the command `sleep 30`, the one command of this skill that is not `gcloud`. Show it, then run it with the Bash tool in the background (`run_in_background`: Claude Code refuses a `sleep` in the foreground), run nothing else while it runs, and when its completion notice arrives go on with the next read in this same run. A pending wait is part of the run: while one is pending, never end the answer, never give the result block, and never tell the owner to run anything.
+   - Any other non-zero exit, or a refusal when this run changed nothing: say `The organization's login setting could not be read. Check that the active gcloud account is signed in and may read the organization's IAP settings.` End with `failed` when this run changed nothing; otherwise end with `updated` and the item `login` in `pending`, and print the list.
+
+8. Not prepared: print the list of what is left (below). In `plan`, end with `would-update` when the API is off, or `pending` when the role and the API are both present (only the clicks are left). In `apply`, end with `updated` when this run granted the role or enabled the API, or `pending` when both were already present (nothing was changed; only the clicks are left).
 
 ## The list of what is left
 
-Whenever the login is not prepared (every status but `unchanged` and `failed`), print these lines for the owner, as written, with `<projectId>` filled in and nothing else filled in. `<client id>` stays as written: the owner builds that address from the id the console shows.
+Whenever the setting was read (or its read was polled to the limit) and the login is not prepared, print these lines for the owner, as written, with `<projectId>` filled in and nothing else filled in. `<client id>` stays as written: the owner builds that address from the id the console shows.
 
 ```
 1. Consent screen: open https://console.cloud.google.com/auth/branding?project=<projectId> and create it with app name aleogr, your own e-mail as the support and contact e-mail, and audience External. Add no logo and publish nothing.
@@ -143,8 +147,8 @@ End with exactly one fenced block tagged `aleogr-result`:
 ```
 
 - `mode` echoes the mode used. `status` is one of `unchanged` (already prepared: nothing done, no list), `would-update` (plan: the role or the API is missing), `updated` (this run granted the role or enabled the API), `pending` (the role and the API were already present and only the clicks are left: nothing was changed), `failed`.
-- `outputs.prepared` is whether the organization's setting names a client (`null` when it was not read). `outputs.roleGranted` is true when this run granted the role (in `plan`: would grant it), false otherwise. `outputs.apiEnabled` is true when this run enabled the API (in `plan`: would enable it), false otherwise.
-- `outputs.steps` holds the lines of the list, one string per line, in order, with `<projectId>` filled in, the command of item 3 as its own line, unfilled, and `<client id>` as written; `[]` when the status is `unchanged` or `failed`.
-- `pending` holds, whenever the login is not prepared and the status is not `failed`, the one item `login` above, with `<projectId>` filled in (after the item `api`, when there is one). It is empty otherwise.
+- `outputs.prepared` is whether the organization's setting names a client (`null` when it was not read: `plan` with the role missing, or a read that stayed refused). `outputs.roleGranted` is true when this run granted the role (in `plan`: would grant it), false otherwise. `outputs.apiEnabled` is true when this run enabled the API (in `plan`: would enable it), false otherwise.
+- `outputs.steps` holds the lines of the list, one string per line, in order, with `<projectId>` filled in, the command of item 3 as its own line, unfilled, and `<client id>` as written; `[]` when no list was printed (prepared, `plan` with the role missing, or `failed`).
+- `pending` holds, whenever the list was printed, the one item `login` above, with `<projectId>` filled in (after the item `api`, when there is one). It is empty otherwise.
 - `failed`: `resources` is empty, `outputs` is `{ "prepared": <as read, or null>, "roleGranted": false, "apiEnabled": false, "steps": [] }`, and `pending` is empty.
 - The result block holds no organization id, no e-mail and no client id.
