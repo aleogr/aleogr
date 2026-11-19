@@ -1,0 +1,7 @@
+# Nothing exists, plan: only reads; the answer says what would be created.
+CALLED ^projects describe aleogr-dev-demo-ab12
+CALLED ^iam service-accounts describe demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com
+CALLED ^iam workload-identity-pools describe github .*--location=global
+NOT_CALLED (create|add-iam-policy-binding|update-oidc)
+OUTPUT "status": "would-create"
+OUTPUT "condition": "missing"

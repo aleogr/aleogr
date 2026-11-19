@@ -1,0 +1,5 @@
+# The provider accepts another branch: plan reports it and changes nothing.
+CALLED ^iam workload-identity-pools providers describe github
+NOT_CALLED (create|add-iam-policy-binding|update-oidc)
+OUTPUT "status": "would-update"
+OUTPUT "condition": "differs"

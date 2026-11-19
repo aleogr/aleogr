@@ -1,0 +1,8 @@
+# The binding is refused twice: what was created stays, the binding is left pending.
+COUNT 2 ^iam service-accounts add-iam-policy-binding
+CALLED ^iam workload-identity-pools providers create-oidc github
+NOT_CALLED delete
+OUTPUT "status": "created"
+OUTPUT "item": "binding"
+OUTPUT "how": ".*mode=apply
+OUTPUT_NOT NOT_FOUND

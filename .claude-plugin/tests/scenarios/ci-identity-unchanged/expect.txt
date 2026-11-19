@@ -1,0 +1,7 @@
+# Everything exists as declared: reads only, nothing changed.
+CALLED ^iam workload-identity-pools providers describe github
+CALLED ^iam service-accounts get-iam-policy demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com
+NOT_CALLED (create|add-iam-policy-binding|update-oidc)
+OUTPUT "status": "unchanged"
+OUTPUT "condition": "as-declared"
+OUTPUT "GCP_WIF_PROVIDER": "projects/123456789012/locations/global/workloadIdentityPools/github/providers/github"

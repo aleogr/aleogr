@@ -1,0 +1,23 @@
+# Nothing exists, apply: account, pool, provider, binding, in that order, then read back.
+CALLED ^iam service-accounts create demo-ci .*--project=aleogr-dev-demo-ab12
+CALLED ^iam workload-identity-pools create github .*--location=global
+CALLED ^iam workload-identity-pools providers create-oidc github .*--workload-identity-pool=github
+CALLED ^iam workload-identity-pools providers create-oidc github .*--issuer-uri=https://token.actions.githubusercontent.com( |$)
+CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref( |$)
+CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-condition=assertion.repository=='example-org/example-repo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main'( |$)
+CALLED ^iam service-accounts add-iam-policy-binding demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com .*--member=principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/github/attribute.repository/example-org/example-repo( |$)
+CALLED ^iam service-accounts add-iam-policy-binding .*--role=roles/iam.workloadIdentityUser( |$)
+# The CI identity gets no project role here.
+NOT_CALLED ^projects add-iam-policy-binding
+NOT_CALLED update-oidc
+ORDER ^iam service-accounts create >> ^iam workload-identity-pools create
+ORDER ^iam workload-identity-pools create >> ^iam workload-identity-pools providers create-oidc
+ORDER ^iam workload-identity-pools providers create-oidc >> ^iam service-accounts add-iam-policy-binding
+# Read back after the changes.
+ORDER ^iam service-accounts add-iam-policy-binding >> ^iam service-accounts get-iam-policy
+COUNT 2 ^iam workload-identity-pools providers describe github
+OUTPUT "status": "created"
+OUTPUT "condition": "as-declared"
+OUTPUT "GCP_PROJECT_ID": "aleogr-dev-demo-ab12"
+OUTPUT "GCP_WIF_PROVIDER": "projects/123456789012/locations/global/workloadIdentityPools/github/providers/github"
+OUTPUT "GCP_CI_ACCOUNT": "demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com"

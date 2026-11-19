@@ -1,0 +1,6 @@
+# The binding is refused once (the new account is not visible yet), the single retry works.
+COUNT 2 ^iam service-accounts add-iam-policy-binding .*--role=roles/iam.workloadIdentityUser
+CALLED ^iam service-accounts create demo-ci
+OUTPUT "status": "created"
+OUTPUT "condition": "as-declared"
+OUTPUT_NOT NOT_FOUND
