@@ -79,9 +79,12 @@ Show each skill invocation before making it. The skills below end with their own
    - `status` `failed`: stop with `failed` and its cause. Invoke nothing else.
    - `outputs.exists` false: the repository is to create. Invoke nothing else: every other item follows the creation (see "Items"). Go to the answer.
    - `outputs.exists` true: take `visibility`, `description`, `topics`, `settings`, `protection.state` and `protection.matches`. Go to step 4.
-4. Invoke `aleogr-repo-github:github_checkout-setup owner=<repo.owner> name=<repo.name> mode=plan`. It reads the repository's copy of `.aleogr/project.json` and compares it with the local one.
+4. Invoke `aleogr-repo-github:github_checkout-setup owner=<repo.owner> name=<repo.name> mode=plan`. It reads the repository's copy of `.aleogr/project.json`, compares it with the local one and, when they differ, reads the folder.
+   - `status` `failed`: stop with `failed` and its cause. Invoke nothing else.
+   - Otherwise take `outputs.state` (`equal`, `not-sent`, `differs`, `missing`, `behind` or `needs-attention`), `outputs.reason` and its `pending` items. Go to step 5.
+5. Invoke `aleogr-repo-github:github_pull-request-open owner=<repo.owner> name=<repo.name> paths=.aleogr/project.json mode=plan`. It reports the open tooling pull request, if any, and whether the folder is fit for a proposal.
    - `status` `failed`: stop with `failed` and its cause.
-   - Otherwise take `outputs.state` (`equal`, `not-sent`, `differs` or `missing`) and its `pending` items.
+   - Otherwise (any other status: `pending`, `would-create` or `unchanged` are all input here) take `outputs.openPullRequest` (`null`, or its `number` and `url`), `outputs.folder` (`ready`, `not-a-checkout`, `other-remote`, `other-branch` or `local-commits`) and its `pending` items.
 
 ## Items
 
@@ -92,15 +95,25 @@ Always these five items, in this order: `repository`, `settings`, `visibility`, 
 | `repository` | `exists` false: `missing` → `create`. `exists` true: `exists` → `none`. |
 | `settings` | Compare `repo.description` with `outputs.description`, the declared topics with `outputs.topics` as sets (order ignored), and each of the seven `repo.settings` with the same key of `outputs.settings`. All equal: `as declared` → `none`. Otherwise `differs: <names>` → `update`, where `<names>` are the names that differ, comma-separated, in this order: `description`, `topics`, `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects` (for example `differs: topics, rebase`). |
 | `visibility` | `outputs.visibility` equals `repo.visibility`: `as declared` → `none`. Otherwise (including `internal`): `differs` → `update`, and the note `visibility: needs confirmVisibility=<repo.visibility>` under the table. |
-| `declaration` | From the checkout's `outputs.state`: `equal` → `in the repository` / `none`; `not-sent` → `not sent yet` / `send`, except when `protection.state` is `protected` (matching or not): then `not sent yet` / `open a pull request`, never `send`, because the protection refuses the push; `differs` → `differs from the repository` / `merge first`; `missing` → `not in the repository` / `open a pull request`. |
+| `declaration` | From the checkout's `outputs.state` and the pull request skill's `outputs.openPullRequest` and `outputs.folder`: the first case of the list under the table that applies. |
 | `protection` | From `protection.state`: `protected` with `matches` true → `protected` / `none`; `protected` with `matches` false → `differs` / `update`; `unprotected` → `unprotected` / `create`; `unavailable` → `not available on this plan` / `none`, and the notice `main is held by the working rule, not by GitHub` under the table (when `visibility` is `differs` and `repo.visibility` is `public`, the notice adds `protection is checked again once the repository is public`). |
+
+The `declaration` item: take the first case that applies, in this order. "Protected" means `protection.state` is `protected` (matching or not), where the protection refuses a push to the default branch.
+
+1. `openPullRequest` is not `null`: `proposed in pull request #<n>` / `merge it`, with its `number`, whatever the checkout found.
+2. Checkout `equal`: `in the repository` / `none`.
+3. Checkout `not-sent`, the repository not protected: `not sent yet` / `send` (the birth), whatever `folder` is.
+4. Checkout `behind`: `this folder is behind` / `update`.
+5. Checkout `needs-attention`; or checkout `differs`, `missing`, or `not-sent` with the repository protected, while `folder` is not `ready`: `this folder needs attention` / `fix the folder`.
+6. Checkout `differs`: `changed here` / `propose`.
+7. Checkout `missing`, or `not-sent` with the repository protected: `not in the repository` / `propose`.
 
 Two cases replace the rows above:
 
 - **Repository missing** (step 3, `exists` false): `repository` is `missing` / `create`, and the other four have the state `follows the creation` with the action they will have: `settings` → `update`, `visibility` → `none` (the repository is created with the declared visibility), `declaration` → `send`, `protection` → `create`.
-- **Declaration differs** (checkout `differs`): the repository's copy is the one that holds until the local change is merged, so nothing is compared with the local file: `settings`, `visibility` and `protection` are `not checked until the change is merged` / `none`. `repository` and `declaration` are as in the table.
+- **Declaration being changed** (`declaration` action `merge it`, `update`, `fix the folder` or `propose`): the repository's declaration is the one that holds until the change is merged and the folder is up to date, so nothing is compared with the local file: `settings`, `visibility` and `protection` are `not checked until the change is merged` / `none`, and `exposes` is `false`. `repository` and `declaration` are as above.
 
-`merge first` and `open a pull request` are not actions `project-apply` can take: it stops on them.
+`merge it` and `fix the folder` are the owner's to do: `project-apply` stops on them.
 
 ## Answer
 
@@ -109,9 +122,9 @@ Print the table (item, state, action). Under the table, these lines when they ap
 - `visibility` has action `update`: `visibility: needs confirmVisibility=<repo.visibility>`.
 - `exposes` is true: `This plan makes the repository public: project-apply runs it only with confirmVisibility=public.`
 - `protection` is `not available on this plan`: `main is held by the working rule, not by GitHub.` When `visibility` is `differs` and `repo.visibility` is `public`, the line is `main is held by the working rule, not by GitHub; protection is checked again once the repository is public.`
-- `declaration` has action `merge first` or `open a pull request`: the `how` of the `pending` item (below), and that `project-apply` stops until it is done.
+- `declaration` has action `merge it` or `fix the folder`: the `how` of the `pending` item (below), and that `project-apply` stops until it is done.
 
-Then one line: `nothing to do` when every action is `none`. Otherwise how many items have an action other than `none` and that `project-apply` makes them (for `merge first` or `open a pull request`, that it is the owner's to do first). Never write the words `nothing to do` when an action is not `none`. On `failed`: the sentence of the failed step instead of the table. Then the result block.
+Then one line: `nothing to do` when every action is `none`. Otherwise how many items have an action other than `none` and that `project-apply` makes them (for `merge it` or `fix the folder`, that it is the owner's to do first). Never write the words `nothing to do` when an action is not `none`. On `failed`: the sentence of the failed step instead of the table. Then the result block.
 
 ## Result block
 
@@ -146,18 +159,19 @@ Write each item of `outputs.items` on one line, as in the example.
 
 - `mode` is always `plan`.
 - `status`, in this order:
-  - `failed`: the declaration is missing or invalid, or tools-check, the describe or the checkout ended `failed`.
+  - `failed`: the declaration is missing or invalid, or tools-check, the describe, the checkout or the pull request skill ended `failed`.
   - `unchanged`: every action is `none` (the answer has the line `nothing to do`).
   - `would-create`: the repository is to create.
-  - `would-update`: some action is `create`, `update` or `send`.
-  - `pending`: the only actions other than `none` are `merge first` or `open a pull request`.
+  - `would-update`: some action is `create`, `update`, `send` or `propose`.
+  - `pending`: the only actions other than `none` are `merge it` or `fix the folder`.
 - `outputs` has the same five keys in every ending:
   - `project`: the declaration's `name`; `repository`: `<repo.owner>/<repo.name>`; `visibility`: the declared `repo.visibility`. All three `null` when the declaration is missing or invalid.
-  - `exposes`: `true` when the plan would create a public repository (repository missing and `repo.visibility` `public`) or make one public (`visibility` `differs` and `repo.visibility` `public`); `false` otherwise, and always `false` on `failed`.
+  - `exposes`: `true` when the plan would create a public repository (repository missing and `repo.visibility` `public`) or make one public (`visibility` `differs` and `repo.visibility` `public`); `false` otherwise, always `false` while the `declaration` action is `merge it`, `update`, `fix the folder` or `propose`, and always `false` on `failed`.
   - `items`: the five items in order; `[]` on `failed`.
 - `pending`:
-  - `declaration` action `merge first` or `open a pull request`: the checkout's `pending` item, as it gave it (`item`, `reason` `manual`, `how`), whatever the status. When the checkout state is `not-sent` and the repository is protected, the checkout gives no item: add `{ "item": "declaration is not in the repository", "reason": "manual", "how": "open a pull request that adds .aleogr/project.json" }`.
-  - `failed`: one item `{ "item": "<what failed>", "reason": "manual", "how": "<fix>" }`: for a missing declaration `{ "item": "declaration", "reason": "manual", "how": "declare the project first with /aleogr:project-declare" }`; for an invalid one, `item` `declaration` and `how` the problem to fix in `.aleogr/project.json`; for tools-check, `item` `gh` and its `fix`; for the describe or the checkout, `item` `repository` or `declaration` and the cause it gave.
+  - `declaration` action `merge it`: exactly one item `{ "item": "pull request #<n> is open", "reason": "manual", "how": "merge <url>, then run /aleogr:project-apply confirm=yes" }`, with the `number` and `url` of `openPullRequest`.
+  - `declaration` action `fix the folder`: exactly one item, the `this folder needs attention` item of the skill that reported it, as it gave it (`item`, `reason` `manual`, `how`): the checkout's when its state is `needs-attention`, otherwise the pull request skill's.
+  - `failed`: one item `{ "item": "<what failed>", "reason": "manual", "how": "<fix>" }`: for a missing declaration `{ "item": "declaration", "reason": "manual", "how": "declare the project first with /aleogr:project-declare" }`; for an invalid one, `item` `declaration` and `how` the problem to fix in `.aleogr/project.json`; for tools-check, `item` `gh` and its `fix`; for the describe, the checkout or the pull request skill, `item` `repository` or `declaration` and the cause it gave.
   - Otherwise `[]`.
 - `resources` is `[{ "type": "repository", "id": "<repo.owner>/<repo.name>", "name": "<repo.name>" }]` when `outputs.exists` of the describe is true, `[]` otherwise.
 - `cost` is always `{ "fixed": false, "notes": "read-only plan" }`. The block never holds the account name.
