@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_login-setup projectId=Aleogr_Shared mode=apply

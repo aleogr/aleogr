@@ -1,0 +1,7 @@
+Updated IAM policy for organization [111111111111].
+bindings:
+- members:
+  - user:demo-user@example.com
+  role: roles/iap.settingsAdmin
+etag: BwYAAAAAAAA=
+version: 1

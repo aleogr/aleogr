@@ -1,0 +1,6 @@
+# No organization: failed, nothing else read.
+CALLED ^organizations list
+NOT_CALLED ^iap
+OUTPUT "status": "failed"
+OUTPUT "organization": false
+OUTPUT No organization was found

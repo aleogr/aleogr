@@ -1,0 +1,34 @@
+# Not prepared, role and API missing: grant the role on the organization, then enable the API.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*roles/iap\.settingsAdmin
+CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*user:demo-user@example\.com
+CALLED ^services list .*--enabled
+CALLED ^services list .*--project=aleogr-shared-ab12
+CALLED ^organizations add-iam-policy-binding 111111111111 .*--member=user:demo-user@example\.com( |$)
+CALLED ^organizations add-iam-policy-binding 111111111111 .*--role=roles/iap\.settingsAdmin( |$)
+CALLED ^organizations add-iam-policy-binding 111111111111 .*--condition=None( |$)
+CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-ab12
+ORDER ^organizations add-iam-policy-binding >> ^services enable
+# The secret never passes through the skill: the command is printed, never run.
+NOT_CALLED ^iap settings set
+NOT_CALLED ^projects add-iam-policy-binding
+OUTPUT_NOT clientSecret: [^<$%]
+OUTPUT "status": "updated"
+OUTPUT "prepared": false
+OUTPUT "roleGranted": true
+OUTPUT "apiEnabled": true
+OUTPUT "item": "login"
+OUTPUT "reason": "manual"
+OUTPUT "how": ".*then run /aleogr:platform-apply"
+# The list: two console pages in the shared project, the names, the audience, the redirect, the command.
+OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-ab12
+OUTPUT https://console\.cloud\.google\.com/auth/clients\?project=aleogr-shared-ab12
+OUTPUT [Aa]pp name `?aleogr`?
+OUTPUT named `?iap`?
+OUTPUT External
+OUTPUT https://iap\.googleapis\.com/v1/oauth/clientIds/<client id>:handleRedirect
+OUTPUT read -s -p
+OUTPUT gcloud iap settings set
+OUTPUT read -p "Client id: " CID; read -s -p "Client secret: " CSEC; echo; O=\$\(gcloud organizations list --format="value\(name\)" \| sed 's#\.\*\/##'\); F=\$\(mktemp\); printf 'accessSettings:\\n  oauthSettings:\\n    clientId: %s\\n    clientSecret: %s\\n' "\$CID" "\$CSEC" > "\$F"; gcloud iap settings set "\$F" --organization="\$O"; rm -f "\$F"; unset CSEC
+RESULT_NOT 111111111111
+RESULT_NOT demo-user@example\.com

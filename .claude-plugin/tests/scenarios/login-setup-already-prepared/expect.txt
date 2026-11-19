@@ -1,0 +1,9 @@
+# Already prepared: nothing done, no list.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+NOT_CALLED add-iam-policy-binding|services enable
+NOT_CALLED ^iap settings set
+OUTPUT "status": "unchanged"
+OUTPUT "prepared": true
+OUTPUT_NOT read -s
+OUTPUT_NOT auth/clients
+OUTPUT_NOT apps\.googleusercontent\.com

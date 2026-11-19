@@ -1,0 +1,12 @@
+{
+  "accessSettings": {
+    "oauthSettings": {
+      "loginHint": "example.com"
+    },
+    "reauthSettings": {
+      "maxAge": "3600s",
+      "method": "LOGIN"
+    }
+  },
+  "name": "organizations/111111111111"
+}

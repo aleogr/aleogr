@@ -1,0 +1,7 @@
+# Settings exist but name no client: not prepared, and not a failure.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+NOT_CALLED ^iap settings set
+OUTPUT "status": "unchanged"
+OUTPUT "prepared": false
+OUTPUT "organization": true
+RESULT_NOT 111111111111
