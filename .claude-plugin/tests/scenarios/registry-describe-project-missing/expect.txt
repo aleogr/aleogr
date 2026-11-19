@@ -1,0 +1,8 @@
+CALLED ^artifacts repositories describe demo
+NOT_CALLED ^artifacts repositories (list|get-iam-policy|create)
+OUTPUT "status": "failed"
+OUTPUT_NOT "exists": false
+OUTPUT could not be read
+OUTPUT_NOT PROJECT_NOT_FOUND
+OUTPUT_NOT ErrorInfo
+OUTPUT_NOT was not found or was deleted

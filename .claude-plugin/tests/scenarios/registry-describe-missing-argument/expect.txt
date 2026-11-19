@@ -1,0 +1,4 @@
+NOT_CALLED ^artifacts
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT region`? is missing
