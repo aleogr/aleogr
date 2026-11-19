@@ -345,19 +345,21 @@ What the run shows goes into [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md) (above 
 
 ## 6. Results
 
+First real run: 2026-11-19, in Cloud Shell, by the owner. The ground of `pilot` in `dev` exists: every skill answered as designed, and the one stop was the expected one (an API enabled seconds before).
+
 | Step | What you should see | Result |
 |---|---|---|
-| Before you start | stage 4a merged; `gcloud` and `gh` signed in; the folder `dev` inside `tst`; `~/pilot` on `main`, clean | |
-| 1. Update the plugins | `aleogr` 0.9.0, `aleogr-cloud-gcp` 0.4.0, `aleogr-registry-gcp-artifact-registry` 0.1.0, `aleogr-repo-github` 0.5.0 | |
-| 2. Plan | `unchanged`, `nothing to do`, seven items, no `gcloud` | |
-| 3. Declare the environment | `updated`, `cloud` and `environments.dev`, `"root": "tst"` | |
-| 4. Plan | `would-update`; `changed here` / `propose`; the four new rows `not checked until the change is merged` | |
-| 5. Apply, no confirmation | `pending`, item `confirm`, no pull request | |
-| 6. Apply, confirmed | one pull request with the declaration only, `updated`, folder on `main` | |
-| 7. Look at the proposal | one file, one commit `Change the project declaration` | |
-| 8. CI and merge | `changes` and `ci` green, `admin / go` and `status / go` skipped; merged | |
-| 9. Apply after the merge | folder updated (`updated`); two plans, the second with `environment dev` `missing` / `create`; stopped `updated` with the item `confirm` and the sentence that the project's id is permanent; no `projects create` | |
-| 10. Apply, confirmed | `created`, `updated`, `created`, `updated`, `unchanged`, `created`, `updated`; two plans; `nothing to do`; `updated` (or stopped with the item `apis`, then a plan with `environment dev` `exists` and a run that ends `nothing to do`) | |
-| 11. Plan | `unchanged`, `nothing to do`, eleven items | |
-| 12. Console | project `dev pilot` in `tst/dev` with its labels; repository `pilot` with the two cleanup rules, not in dry run, `pilot-ci` writer; pool and provider with the condition; no key; no project role | |
-| 12.4 Search by parent | `1` | |
+| Before you start | stage 4a merged; `gcloud` and `gh` signed in; the folder `dev` inside `tst`; `~/pilot` on `main`, clean | as expected; the folder `dev` inside `tst` existed and was empty |
+| 1. Update the plugins | `aleogr` 0.9.0, `aleogr-cloud-gcp` 0.4.0, `aleogr-registry-gcp-artifact-registry` 0.1.0, `aleogr-repo-github` 0.5.0 | as expected (`aleogr-stack-go` 0.1.0 too) |
+| 2. Plan | `unchanged`, `nothing to do`, seven items, no `gcloud` | as expected; a nested block of `go_setup` was printed before the table (the known defect of form) |
+| 3. Declare the environment | `updated`, `cloud` and `environments.dev`, `"root": "tst"` | as expected (run after steps 5 and 6 had been tried without it: both answered `unchanged`, `nothing to do`, and nothing was proposed) |
+| 4. Plan | `would-update`; `changed here` / `propose`; the four new rows `not checked until the change is merged` | not sent; the first plan of step 6 showed the same eleven items, as expected |
+| 5. Apply, no confirmation | `pending`, item `confirm`, no pull request | not sent |
+| 6. Apply, confirmed | one pull request with the declaration only, `updated`, folder on `main` | as expected: pull request #5, the declaration only, about 1 minute 50 seconds |
+| 7. Look at the proposal | one file, one commit `Change the project declaration` | not looked at |
+| 8. CI and merge | `changes` and `ci` green, `admin / go` and `status / go` skipped; merged | merged; on `main`, `changes` and `ci` green, `admin` and `status` skipped |
+| 9. Apply after the merge | folder updated (`updated`); two plans, the second with `environment dev` `missing` / `create`; stopped `updated` with the item `confirm` and the sentence that the project's id is permanent; no `projects create` | as expected, about 2 minutes: folder updated, stopped `updated` with the item `confirm` (its `how` the command), the sentence about the permanent id, nothing created |
+| 10. Apply, confirmed | `created`, `updated`, `created`, `updated`, `unchanged`, `created`, `updated`; two plans; `nothing to do`; `updated` (or stopped with the item `apis`, then a plan with `environment dev` `exists` and a run that ends `nothing to do`) | the second form. First run, about 2 minutes: project `created`, APIs `updated`, the first read of the registry refused, stopped `updated` with the item `apis`. A plan about 9 minutes later: `environment dev` `exists`, `apis` `enabled`, `registry` and `ci identity` `missing` / `create`. Second run, about 4 minutes: repository, cleanup policy, account, pool and provider made; the binding refused once and made after the wait of about a minute (the run ended its turn during the wait and went on by itself); push access granted; `updated`, `pending` `[]` |
+| 11. Plan | `unchanged`, `nothing to do`, eleven items | as expected, with the three CI variables |
+| 12. Console | project `dev pilot` in `tst/dev` with its labels; repository `pilot` with the two cleanup rules, not in dry run, `pilot-ci` writer; pool and provider with the condition; no key; no project role | as expected: the project `dev pilot` in `tst/dev`; the repository `pilot`, Docker, `us-central1`, with the two rules `delete-the-rest` and `keep-most-recent` and the mode that deletes (not the dry run); the pool `github` with one provider `github`, enabled, with GitHub's issuer, the three mappings, and a condition ending in the owner's id and `refs/heads/main` (its beginning was outside the field shown). The lists of keys and of the project's roles were not opened |
+| 12.4 Search by parent | `1` | `1` |
