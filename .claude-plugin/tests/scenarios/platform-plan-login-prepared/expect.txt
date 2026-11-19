@@ -9,3 +9,6 @@ OUTPUT [Nn]othing to do
 # Neither the client id nor the organization id reaches the answer's block.
 OUTPUT_NOT apps\.googleusercontent\.com
 RESULT_NOT 111111111111
+# The row itself, as the table or the block writes it, and no list of what is left.
+OUTPUT (\| *login *\| *prepared *\| *none *\||"item": "login", "state": "prepared", "action": "none")
+OUTPUT_NOT console\.cloud\.google\.com/auth

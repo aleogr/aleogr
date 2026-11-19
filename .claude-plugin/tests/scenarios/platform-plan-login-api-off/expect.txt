@@ -1,0 +1,12 @@
+# The shared project exists but its IAP API is off (a project made before the login): the
+# describe's read is refused with SERVICE_DISABLED. That is not prepared / prepare, never a
+# failed plan, and no word of gcloud's answer.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+NOT_CALLED (create|^services enable|patch|add-iam-policy-binding|^iap settings set)
+OUTPUT "item": "login"
+OUTPUT "state": "not prepared"
+OUTPUT "action": "prepare"
+OUTPUT "status": "would-update"
+OUTPUT_NOT "status": "failed"
+OUTPUT_NOT SERVICE_DISABLED
+OUTPUT_NOT has not been used

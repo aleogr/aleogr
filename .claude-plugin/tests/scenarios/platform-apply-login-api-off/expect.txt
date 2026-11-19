@@ -1,0 +1,21 @@
+# The shared project exists with the role already granted, but its IAP API is off, so the
+# plan cannot read the login. The run enables the API, reads the setting again, prints the
+# list once and ends with the item login. It never runs the command that takes the secret.
+CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-zz99
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^iap settings set
+NOT_CALLED ^(projects create|billing projects link|billing budgets create|sql instances create|scheduler jobs create)
+# the plan's read, the setup's two reads (before and after the enable), the closing plan's read
+COUNT 4 ^iap settings get .*--organization=111111111111( |$)
+OUTPUT "action": "platform-apply"
+OUTPUT "status": "updated"
+OUTPUT "item": "login"
+OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-zz99
+OUTPUT read -r -s -p
+OUTPUT /aleogr:platform-apply confirm=yes
+OUTPUT_NOT clientSecret: [^<$%]
+OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
+# The list is for the answer only: neither the console address nor the command is in the block.
+RESULT_NOT console\.cloud\.google\.com
+RESULT_NOT read -r -s -p
+RESULT_NOT 111111111111

@@ -6,3 +6,5 @@ NOT_CALLED ^organizations (get-iam-policy|add-iam-policy-binding)
 OUTPUT "item": "login"
 OUTPUT "action": "prepare"
 OUTPUT "status": "would-create"
+# The row's state text, as the table or the block writes it.
+OUTPUT (\| *login *\| *not checked, will be checked after the project exists *\| *prepare *\||"item": "login", "state": "not checked, will be checked after the project exists", "action": "prepare")

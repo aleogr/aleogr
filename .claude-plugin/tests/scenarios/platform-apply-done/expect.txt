@@ -6,3 +6,5 @@ NOT_CALLED ^(projects create|billing projects link|services enable|billing budge
 OUTPUT "action": "platform-apply"
 OUTPUT "status": "unchanged"
 OUTPUT [Nn]othing to do
+# The login is prepared: no list of what is left.
+OUTPUT_NOT console\.cloud\.google\.com/auth

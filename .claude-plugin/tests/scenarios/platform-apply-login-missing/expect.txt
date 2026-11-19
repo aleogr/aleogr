@@ -19,9 +19,12 @@ OUTPUT https://console\.cloud\.google\.com/auth/clients\?project=aleogr-shared-z
 OUTPUT https://iap\.googleapis\.com/v1/oauth/clientIds/<client id>:handleRedirect
 OUTPUT read -r -s -p
 OUTPUT gcloud iap settings set
-OUTPUT /aleogr:platform-apply
+OUTPUT /aleogr:platform-apply confirm=yes
 OUTPUT_NOT clientSecret: [^<$%]
 # The line that ends a run with nothing left is not written (a sentence that names it is not that line).
 OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
 RESULT_NOT 111111111111
 RESULT_NOT owner@example\.com
+# The list is for the answer only: neither the console address nor the command is in the block.
+RESULT_NOT console\.cloud\.google\.com
+RESULT_NOT read -r -s -p

@@ -1,0 +1,40 @@
+# Seeded from platform-apply-empty, with the login not prepared (role missing, IAP API off).
+CALLED ^--version
+CALLED ^projects create aleogr-shared-zz99 .*--organization=111111111111
+CALLED ^projects create .*aleogr-platform=shared
+NOT_CALLED ^projects create .*--folder=
+CALLED ^billing projects link aleogr-shared-zz99 --billing-account=0X0X0X-0X0X0X-0X0X0X
+CALLED ^services enable .*billingbudgets.googleapis.com
+CALLED ^services enable .*cloudresourcemanager.googleapis.com
+CALLED ^services enable .*--project=aleogr-shared-zz99
+CALLED ^billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X .*--display-name=.?aleogr.? .*--budget-amount=100BRL .*--threshold-rule=percent=0.5 .*--threshold-rule=percent=0.9 .*--threshold-rule=percent=1(\.0)? .*--billing-project=aleogr-shared-zz99
+ORDER ^projects create >> ^billing projects link
+ORDER ^billing projects link >> ^services enable
+ORDER ^services enable >> ^billing budgets create
+# The label search never shows the new project (it can lag behind the create on real
+# Google Cloud): the services step and the closing re-plan must use the project id instead,
+# through projects describe (the format is not pinned: json, value(lifecycleState), value(projectNumber)). At least 3
+# calls: the create's own verification, the services step and the closing re-plan.
+COUNT 3 ^projects describe aleogr-shared-zz99 --format=(json|value\((lifecycleState|projectNumber)\))
+# Only the closing re-plan reaches these counts. Without it: budgets list is called 2 times
+# (budget step and its verification), services list 2 (services step's describe and its
+# verification). The re-plan adds one each.
+COUNT 3 ^billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=aleogr-shared-zz99
+COUNT 3 ^services list --enabled --project=aleogr-shared-zz99
+OUTPUT "action": "platform-apply"
+OUTPUT "mode": "apply"
+OUTPUT "status": "created"
+OUTPUT "projectId": "aleogr-shared-zz99"
+# Same run: the shared project is created, then last the login is prepared in it with the
+# new project's id; the list is printed in that same run.
+CALLED ^organizations add-iam-policy-binding 111111111111 .*--role=roles/iap\.settingsAdmin( |$)
+CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-zz99
+ORDER ^projects create >> ^organizations add-iam-policy-binding
+ORDER ^billing budgets create >> ^organizations add-iam-policy-binding
+NOT_CALLED ^iap settings set
+OUTPUT "item": "login"
+OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-zz99
+OUTPUT read -r -s -p
+OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
+RESULT_NOT console\.cloud\.google\.com
+RESULT_NOT read -r -s -p

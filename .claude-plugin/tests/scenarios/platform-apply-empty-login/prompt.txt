@@ -1,0 +1,3 @@
+/aleogr:platform-apply confirm=yes
+
+Test run: wherever a random project ID suffix is needed, use zz99 instead of random characters.

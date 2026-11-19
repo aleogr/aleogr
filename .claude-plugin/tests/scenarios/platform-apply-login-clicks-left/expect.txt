@@ -14,3 +14,6 @@ OUTPUT read -r -s -p
 OUTPUT_NOT clientSecret: [^<$%]
 # The line that ends a run with nothing left is not written (a sentence that names it is not that line).
 OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
+# The list is for the answer only: neither the console address nor the command is in the block.
+RESULT_NOT console\.cloud\.google\.com
+RESULT_NOT read -r -s -p
