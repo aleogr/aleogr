@@ -117,7 +117,7 @@ For steps 2 to 4 (except the search by parent at the end of step 3, whose outcom
    gcloud projects describe <projectId> --format="value(lifecycleState)"
    ```
 
-   - Exit `0` and `ACTIVE`: the project exists. Do not create it again; go on with step 7, and say in one sentence that the create reported an error but the project exists.
+   - Exit `0` and `ACTIVE`: the project exists. Do not create it again; go on with step 7, and say exactly `The create reported an error, but the project <projectId> exists.` Repeat no word of `gcloud`'s answer to the create (not its message, not its status words): that sentence is all the answer says about it.
    - Exit `0` with another state: the project exists but is not usable. Stop with `pending`, as below, with `pending[].how` this describe command.
    - A non-zero exit (the project is not found, or cannot be read): stop with `failed` and the sentence `The project could not be created; nothing was created.`, with `outputs.projectId` `null`. Repeat no word of `gcloud`'s answers.
 
