@@ -101,7 +101,7 @@ echo "FAIL $1"
 echo "Failed expect lines:"
 printf '  %s\n' "${failed[@]}"
 echo "call log:"
-if [ -s "$log" ]; then sed -e '/^gh /!{/^git /!s/^/gcloud /}' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
+if [ -s "$log" ]; then sed -E -e '/^(gh|git|sleep) /!s/^/gcloud /' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
 echo "claude exit status: $claude_status"
 echo "claude output:"
 sed 's/^/  /' "$out"
