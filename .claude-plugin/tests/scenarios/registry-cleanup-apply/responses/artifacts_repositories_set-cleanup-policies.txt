@@ -1,0 +1,21 @@
+Dry run is disabled.
+[
+  {
+    "action": {
+      "type": "DELETE"
+    },
+    "condition": {
+      "tagState": "ANY"
+    },
+    "name": "delete-the-rest"
+  },
+  {
+    "action": {
+      "type": "KEEP"
+    },
+    "mostRecentVersions": {
+      "keepCount": 5
+    },
+    "name": "keep-most-recent"
+  }
+]

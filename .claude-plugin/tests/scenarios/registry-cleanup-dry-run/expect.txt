@@ -1,0 +1,5 @@
+# Both rules are right but the policy is in dry-run, which deletes nothing: it reads as different.
+NOT_CALLED set-cleanup-policies
+OUTPUT "status": "would-update"
+OUTPUT "dryRun": true
+OUTPUT_NOT "status": "unchanged"

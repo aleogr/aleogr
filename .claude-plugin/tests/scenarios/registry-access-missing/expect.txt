@@ -1,0 +1,7 @@
+# A repository that does not exist is a failure that says to create it first, never a reason to create it.
+CALLED ^artifacts repositories get-iam-policy demo .*--location=us-central1
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^artifacts repositories create
+OUTPUT "status": "failed"
+OUTPUT create it first
+OUTPUT_NOT Requested entity

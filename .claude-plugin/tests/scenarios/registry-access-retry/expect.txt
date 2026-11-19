@@ -1,0 +1,5 @@
+# The binding is refused once (the new account is not visible yet), the single retry works.
+COUNT 2 ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifactregistry\.writer
+OUTPUT "status": "updated"
+OUTPUT "granted": true
+OUTPUT_NOT INVALID_ARGUMENT

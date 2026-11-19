@@ -1,0 +1,9 @@
+# keep=3 cannot use the shipped file (it keeps 5): the skill writes its own file in the system's
+# temporary folder, under a fixed name, shows its content, and leaves nothing in the working folder.
+CALLED ^artifacts repositories set-cleanup-policies demo .*--policy=.*aleogr-cleanup-policy-keep-3\.json
+CALLED ^artifacts repositories set-cleanup-policies demo .*--no-dry-run
+NOT_CALLED --policy=.*/files/cleanup-policy\.json
+NO_FILE aleogr-cleanup-policy-keep-3.json
+OUTPUT "keepCount": 3
+OUTPUT "status": "updated"
+OUTPUT "keep": 3

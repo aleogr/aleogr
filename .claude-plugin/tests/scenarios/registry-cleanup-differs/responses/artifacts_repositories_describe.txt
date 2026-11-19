@@ -1,0 +1,32 @@
+Encryption: Google-managed key
+Registry URL: us-central1-docker.pkg.dev/aleogr-dev-demo-ab12/demo
+Repository Size: 0.000MB
+{
+  "cleanupPolicies": {
+    "delete-the-rest": {
+      "action": "DELETE",
+      "condition": {
+        "tagState": "ANY"
+      },
+      "id": "delete-the-rest"
+    },
+    "keep-most-recent": {
+      "action": "KEEP",
+      "id": "keep-most-recent",
+      "mostRecentVersions": {
+        "keepCount": 3
+      }
+    }
+  },
+  "createTime": "2026-11-19T12:00:00.000000Z",
+  "format": "DOCKER",
+  "labels": {
+    "aleogr-environment": "dev",
+    "aleogr-project": "demo"
+  },
+  "mode": "STANDARD_REPOSITORY",
+  "name": "projects/aleogr-dev-demo-ab12/locations/us-central1/repositories/demo",
+  "registryUri": "us-central1-docker.pkg.dev/aleogr-dev-demo-ab12/demo",
+  "satisfiesPzi": true,
+  "updateTime": "2026-11-19T12:00:00.000000Z"
+}

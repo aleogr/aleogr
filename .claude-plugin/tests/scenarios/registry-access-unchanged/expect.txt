@@ -1,0 +1,5 @@
+# The account already has the writer role on the repository: nothing to do, even in apply.
+CALLED ^artifacts repositories get-iam-policy demo .*--location=us-central1
+NOT_CALLED add-iam-policy-binding
+OUTPUT "status": "unchanged"
+OUTPUT "granted": true

@@ -1,0 +1,18 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:123456789012-compute@developer.gserviceaccount.com"
+      ],
+      "role": "roles/artifactregistry.reader"
+    },
+    {
+      "members": [
+        "serviceAccount:demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com"
+      ],
+      "role": "roles/artifactregistry.writer"
+    }
+  ],
+  "etag": "BwYBBBBBBBB=",
+  "version": 1
+}

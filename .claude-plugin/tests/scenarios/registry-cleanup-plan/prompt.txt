@@ -1,0 +1,1 @@
+/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_cleanup-configure projectId=aleogr-dev-demo-ab12 project=demo region=us-central1 keep=5 mode=plan
