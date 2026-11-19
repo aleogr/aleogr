@@ -6,7 +6,7 @@
 # code and ci.yml are the merged ones (the fake cannot write them on the pull).
 ORDER ^git -c credential.* pull --ff-only origin main >> ^gh api --method PUT repos/example-org/demo/rulesets/123
 CALLED --input .*ruleset-main-ci\.json
-OUTPUT github_branch-protect.* checks=ci
+OUTPUT github_branch-protect.*checks=ci
 NOT_CALLED --method (POST|DELETE|PATCH)|^gh pr create|^git (commit|switch|.*push)
 NOT_CALLED ^gh api repos/aleogr/aleogr
 OUTPUT_NOT go_setup.*mode=apply

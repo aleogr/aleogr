@@ -8,4 +8,4 @@ CALLED --input .*ruleset-main-ci\.json
 NOT_CALLED --method (POST|DELETE|PATCH)|^gh pr create|^git (commit|.*push)
 OUTPUT "status": "updated"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
-OUTPUT github_branch-protect.* checks=ci
+OUTPUT github_branch-protect.*checks=ci
