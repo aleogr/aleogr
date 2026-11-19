@@ -19,6 +19,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 | `paths=<path>[,<path>...]` | The files to propose, comma-separated, relative to the current folder. Files only, never a folder. Required. |
 | `title=<text>` | The commit message and the pull request's title. Required with `mode=apply`. |
 | `body=<text>` | The pull request's body. Default `Proposed by aleogr.` |
+| `note=<text>` | One sentence appended to the pull request's body, after `<body>` and a space (`Proposed by aleogr. <note>` by default). Optional: without it the body is `<body>` alone. |
 | `mode=<plan\|apply>` | `plan` (default) only reads; `apply` opens the pull request when the folder is ready and a named file changed. |
 
 `owner`, `name` and `paths` are required, and `title` is required with `mode=apply`: a missing one ends with the result block with `status` `failed` and one sentence saying which is missing, with no command (do not ask for it). Validate before any command; a value that breaks a rule ends with the result block with `status` `failed`, one sentence saying which rule failed, and no command:
@@ -28,15 +29,16 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 - `paths` is one or more paths separated by `,`, with no empty entry. Each path is a relative file path: not empty, does not start with `/` or `./`, does not end with `/`, has no `//`, has no `..` anywhere, has no space, and has only the characters `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`. A path named twice counts once.
 - `title`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `body`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
+- `note`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `mode`, when given, is `plan` or `apply`.
 
-In the commands below, `<paths>` is the list of `paths` separated by spaces, in the order given, and `<changed>` is the list `changed` of step 7, separated by spaces, in the same order.
+In the commands below, `<paths>` is the list of `paths` separated by spaces, in the order given, `<full body>` is `<body>` alone, or, when `note` is given, `<body>`, one space and `<note>`, and `<changed>` is the list `changed` of step 7, separated by spaces, in the same order.
 
 ## Steps
 
 Show each command before running it. Run only the commands below, in this order, each step's command at most once (the `git switch <branch>` of step 15 runs at most once in a run, wherever it is reached from): no `gh auth status`, no `gh repo view`, no `gh repo clone`, no `gh pr view`, no `gh pr merge`, no `gh pr close`, no `git clone`, no `git fetch`, no `git init`, no `git stash`, no `git reset`, no `git checkout`, no `git restore`, no `git clean`, no `git branch -d` or `-D`, no `git config --global`, no `git config` without `--local`, no other `gh` or `git` command, no retry. Never print the account name, the account id or the token, and never repeat the login in the answer or the result block (the `owner` argument, as the caller gave it, is the only exception): when a command of step 9 is shown, or named in the answer, it is written with `<login>` and `<id>` in place of the values. Never repeat the output of `git remote get-url` in the answer or the result block.
 
-The commit message is exactly `<title>` and the pull request's body is exactly `<body>`: nothing is added to either (no signature, no attribution line). Nothing is ever committed on, or pushed to, the default branch: the only branch committed on and pushed is the new `aleogr/change-<random>` of step 11.
+The commit message is exactly `<title>` and the pull request's body is exactly `<full body>`: nothing else is added to either (no signature, no attribution line), and the `note` goes in the body only, never in the commit message. Nothing is ever committed on, or pushed to, the default branch: the only branch committed on and pushed is the new `aleogr/change-<random>` of step 11.
 
 A command whose result decides a step is run alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. Each case below names both the exit code and the text that identifies it; when the two disagree (an `exit 0` reported next to an error line such as `gh: Not Found (HTTP 404)`), the text decides and the answer says that the exit code could not be trusted. The text is read to decide and is never quoted: the answer gives the cause in one sentence in its own words, with no raw error text.
 
@@ -192,7 +194,7 @@ Steps 1 to 7 run in `plan` and in `apply`. Steps 3 to 6 examine the folder; the 
 14. Open the pull request:
 
     ```
-    gh pr create --repo <owner>/<name> --base <branch> --head aleogr/change-<random> --title "<title>" --body "<body>"
+    gh pr create --repo <owner>/<name> --base <branch> --head aleogr/change-<random> --title "<title>" --body "<full body>"
     ```
 
     - Exit 0 and the last line of the output is the address `https://github.com/<owner>/<name>/pull/<n>`: the pull request is open; its number is `<n>`. `status` `created`. Continue.
@@ -246,7 +248,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   - An open tooling pull request: `{ "item": "pull request #<n> is open", "reason": "manual", "how": "merge or close <url>" }`, with the `number` and `url` of step 2.
   - A folder that is not `ready`: `{ "item": "this folder needs attention", "reason": "manual", "how": "<how>" }`, where `<how>` is, by the folder: `not-a-checkout`, `this folder is not a checkout of the repository`; `other-remote`, `this folder's origin is another repository`; `other-branch`, `git switch <branch>`; `local-commits`, `this folder has commits that are not in the repository`.
   - Both apply: both items, in that order.
-  - `updated`: exactly one item `{ "item": "open the pull request", "reason": "manual", "how": "gh pr create --repo <owner>/<name> --base <branch> --head aleogr/change-<random> --title \"<title>\" --body \"<body>\"" }`, the command of step 14 with its values.
+  - `updated`: exactly one item `{ "item": "open the pull request", "reason": "manual", "how": "gh pr create --repo <owner>/<name> --base <branch> --head aleogr/change-<random> --title \"<title>\" --body \"<full body>\"" }`, the command of step 14 with its values.
   - The `git switch` of step 15 refused (any ending after step 11): one more item `{ "item": "return this folder to the default branch", "reason": "manual", "how": "git switch <branch>" }`.
   - Every other ending: `[]`.
 - `outputs` has the same five keys in every ending:
