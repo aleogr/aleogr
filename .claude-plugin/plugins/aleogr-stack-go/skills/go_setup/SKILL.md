@@ -22,8 +22,8 @@ A missing required argument is never asked for: the run ends with the result blo
 
 - Every argument is one of the table; an unknown argument fails, and so does an argument given twice.
 - `component` has 1 to 20 characters of `a-z`, `0-9` and `-`, and starts with a letter.
-- `path` is a relative folder: it does not start or end with `/`, has no space, no empty part (`a//b`) and no part `.` or `..`, and it is not `.aleogr` or `.github` and not under them (`.github/web` fails). Each part between `/` has only `A-Z`, `a-z`, `0-9`, `-`, `_` and `.`, and does not start or end with `.` (a Go module path cannot hold it).
-- `version` matches `^[0-9]+\.[0-9]+$` (`1.27`; not `1.27.4`, not `go1.27`).
+- `path` is a relative folder: it does not start or end with `/`, has no space, no empty part (`a//b`) and no part `.` or `..`, and it is not `.aleogr` or `.github` and not under them (`.github/web` fails). Each part between `/` has only `A-Z`, `a-z`, `0-9`, `-`, `_` and `.`, does not start or end with `.` (a Go module path cannot hold it) and does not start with `-` (`path=-R` fails).
+- `version` matches `^[0-9]+\.[0-9]+$` (`1.27`; not `1.27.4`, not `go1.27`), and is `1.22` or later, compared as numbers (`1.9` is earlier than `1.22`): the template's `GET /{$}` patterns need Go 1.22. An earlier version (`1.20`) fails with one sentence saying so.
 - `module` is `github.com/` + `<owner>` + `/` + `<repository>` + `/` + `path`, exactly: `<owner>` has 1 to 39 characters of `A-Z`, `a-z`, `0-9` and `-` and does not start or end with `-`; `<repository>` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-` and is not `.` or `..`; and what follows them is the `path` argument (or its default) character for character. `module=github.com/example-org/example-repo/other` with `path=web` fails: the module must end with `/web`.
 - `mode`, when given, is `plan` or `apply`.
 
@@ -41,11 +41,11 @@ A command whose result decides a step is run alone: not piped into another comma
 2. List the folder, with a `/` after the path so that it lists the folder's content:
 
    ```
-   ls -1Ap <path>/
+   ls -1Ap -- <path>/
    ```
 
    - Non-zero exit and the output says `No such file or directory`: the folder does not exist, so it holds nothing. Go to step 3.
-   - Exit 0: the output is one name per line; a folder's name ends with `/`. If a line is exactly `go.mod`: `unchanged`, as in step 1 (write nothing). Otherwise, if any line ends with `.go` (a file, not a folder): `pending` with the item `{ "item": "<path> has Go files but no go.mod", "reason": "manual", "how": "add a go.mod to <path>, or empty the folder" }`; write nothing. Otherwise (empty, or no Go file) go to step 3.
+   - Exit 0: the output is one name per line; a folder's name ends with `/`. If a line is exactly `go.mod`: `unchanged`, as in step 1 (write nothing). Otherwise, if any line ends with `.go` (a file, not a folder): `pending` with the item `{ "item": "<path> has Go files but no go.mod", "reason": "manual", "how": "add a go.mod to <path>, or empty the folder" }`; write nothing. Otherwise (empty, or no Go file) go to step 3. Only the folder's own entries count: subfolders are not searched.
    - Any other non-zero exit (`Not a directory`: the path is a file; permission denied; anything else): `failed`, one sentence, nothing written.
 
 3. Nothing is there.
@@ -83,5 +83,5 @@ One sentence saying what happened: the files written (`created`), the files that
 - `mode` echoes the mode used (`plan` when not given). `status` is one of: `created` (`apply`, the three files were written); `would-create` (`plan`, nothing is there; nothing written); `unchanged` (`<path>/go.mod` exists; nothing written); `pending` (`<path>` has Go files and no `go.mod`; nothing written; the item of step 2); `failed` (an argument, a read, the listing or a write failed).
 - `outputs.files` is always the three expected paths, `<path>/go.mod`, `<path>/main.go`, `<path>/main_test.go`, in that order, whether or not this run wrote them. `outputs.written` is `true` only on `created`, `false` otherwise.
 - `outputs.ci` is the component's CI parameters: the workflow `ci-go.yml`, with `working-directory` the `path` and `go-version` the `version`.
-- On `failed` because of an argument, `outputs` is `null`. On any other `failed`, `outputs` has the shape above with `written` `false`.
+- On `failed` because of an argument, `outputs` keeps the same keys with what is known: `component` and `path` as received when each is valid, otherwise `null` (`path` is the default when not given and `component` is valid); `module` `null`; `files` `[]`; `written` `false`; `ci` `null`. On any other `failed`, `outputs` has the shape above with `written` `false`.
 - `resources` is always empty. `pending` is `[]` except for the item of step 2.
