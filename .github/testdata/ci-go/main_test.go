@@ -13,22 +13,23 @@ func get(t *testing.T, path string) *httptest.ResponseRecorder {
 	return rec
 }
 
-func TestRoot(t *testing.T) {
-	rec := get(t, "/")
+func expect(t *testing.T, rec *httptest.ResponseRecorder, body string) {
+	t.Helper()
 	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+		t.Errorf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
-	if got, want := rec.Body.String(), "sample: ok\n"; got != want {
-		t.Fatalf("body = %q, want %q", got, want)
+	if got := rec.Header().Get("Content-Type"); got != "text/plain; charset=utf-8" {
+		t.Errorf("Content-Type = %q, want text/plain", got)
+	}
+	if got := rec.Body.String(); got != body {
+		t.Errorf("body = %q, want %q", got, body)
 	}
 }
 
+func TestRoot(t *testing.T) {
+	expect(t, get(t, "/"), "sample: ok\n")
+}
+
 func TestHealthz(t *testing.T) {
-	rec := get(t, "/healthz")
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if got, want := rec.Body.String(), "ok\n"; got != want {
-		t.Fatalf("body = %q, want %q", got, want)
-	}
+	expect(t, get(t, "/healthz"), "ok\n")
 }
