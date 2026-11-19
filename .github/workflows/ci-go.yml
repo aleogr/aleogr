@@ -1,0 +1,57 @@
+name: ci-go
+
+# Reusable: checks one Go component (one module in one folder).
+# Called by a project's ci.yml, pinned by commit SHA. Receives no secrets and
+# prints no variables. Inputs reach the scripts only through `defaults` or `env`.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Folder of the component's Go module, relative to the repository root
+        type: string
+        required: true
+      go-version:
+        description: Go version, major.minor (for example 1.27)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: ${{ inputs.go-version }}
+          cache: false
+
+      - name: Format
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not formatted with gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...
