@@ -1,3 +1,4 @@
 OUTPUT "status": "unchanged"
 FILE .aleogr/project.json "environments": \{ "dev": \{\} \}
 NOT_CALLED .
+OUTPUT_NOT "status": "(updated|created|failed)"

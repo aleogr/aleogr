@@ -1,0 +1,5 @@
+OUTPUT "status": "created"
+FILE .aleogr/project.json "name": "demo"
+FILE .aleogr/project.json "cloud": \{ "provider": "gcp", "region": "us-central1" \}
+FILE .aleogr/project.json "environments": \{ "dev": \{\} \}
+NOT_CALLED .
