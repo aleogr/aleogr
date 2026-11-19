@@ -1,0 +1,11 @@
+# The folder shows the merged declaration and a tooling pull request (#4, aleogr/change-abc123)
+# is open: the owner merges it; nothing is proposed again.
+CALLED ^gh pr list --repo example-org/demo
+OUTPUT proposed in pull request #4
+OUTPUT "action": "merge it"
+OUTPUT merge https://github\.com/example-org/demo/pull/4, then run /aleogr:project-apply confirm=yes
+OUTPUT not checked until the change is merged
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^gh pr create
+NOT_CALLED ^git (switch|add|commit|-c credential)

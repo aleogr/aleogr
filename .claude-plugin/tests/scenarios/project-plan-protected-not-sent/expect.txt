@@ -1,10 +1,12 @@
 # One commit and no declaration, but the ruleset main already exists (and matches): the push
-# would be refused, so the declaration goes through a pull request, never a send.
+# would be refused, so the declaration is proposed by pull request from this ready checkout, never sent.
 CALLED ^gh api repos/example-org/demo/rulesets/123$
 CALLED ^gh api "?repos/example-org/demo/commits\?per_page=2
-OUTPUT "action": "open a pull request"
-OUTPUT open a pull request that adds \.aleogr/project\.json
-OUTPUT "status": "pending"
+CALLED ^gh pr list --repo example-org/demo
+OUTPUT "state": "not in the repository"
+OUTPUT "action": "propose"
+OUTPUT "status": "would-update"
 OUTPUT_NOT "action": "send"
+OUTPUT_NOT open a pull request
 OUTPUT_NOT nothing to do
-NOT_CALLED --method|^gh repo|^git (commit|push)
+NOT_CALLED --method|^gh repo|^gh pr create|^git (switch|add|commit|push|-c credential)

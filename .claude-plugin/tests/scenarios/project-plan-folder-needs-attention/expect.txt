@@ -1,0 +1,9 @@
+# The folder was left on the tooling branch aleogr/change-zzz999 by an interrupted run, with no
+# open pull request: the owner fixes the folder by hand, and the plan only says how.
+CALLED ^git branch --show-current
+OUTPUT "state": "this folder needs attention"
+OUTPUT "action": "fix the folder"
+OUTPUT git switch main
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^gh pr create|^git (switch|add|commit|push|pull|fetch|-c credential)

@@ -1,9 +1,0 @@
-# The local declaration differs from the merged one (and the settings differ too): only merge first is listed.
-CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
-OUTPUT "action": "merge first"
-OUTPUT differs from the repository
-OUTPUT not checked until the change is merged
-OUTPUT "status": "pending"
-OUTPUT "reason": "manual"
-OUTPUT_NOT nothing to do
-NOT_CALLED --method|^gh repo|^git (commit|push)
