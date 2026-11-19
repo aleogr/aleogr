@@ -15,7 +15,7 @@ ORDER ^iam workload-identity-pools create >> ^iam workload-identity-pools provid
 ORDER ^iam workload-identity-pools providers create-oidc >> ^iam service-accounts add-iam-policy-binding
 # Read back after the changes.
 ORDER ^iam service-accounts add-iam-policy-binding >> ^iam service-accounts get-iam-policy
-COUNT 2 ^iam workload-identity-pools providers describe github
+ORDER ^iam workload-identity-pools providers create-oidc >> ^iam workload-identity-pools providers describe github
 OUTPUT "status": "created"
 OUTPUT "condition": "as-declared"
 OUTPUT "GCP_PROJECT_ID": "aleogr-dev-demo-ab12"
