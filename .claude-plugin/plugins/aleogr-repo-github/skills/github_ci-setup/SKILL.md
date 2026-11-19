@@ -29,7 +29,7 @@ Free text after the skill name, as `key=value` pairs.
 - `workflows`, when given, is `<owner>/<name>`: exactly one `/`, the part before it follows the rule of `owner`, the part after it the rule of `name`.
 - `components`, when not empty, is one or more entries separated by `,`, with no empty entry. Each entry is exactly four fields separated by `:`, `<name>:<path>:<stack>:<version>`:
   - `name` has 1 to 20 characters of `a-z`, `0-9` and `-`, starts with a letter, and is not `changes` or `ci` (those are the file's own jobs) nor `true`, `false`, `null`, `yes`, `no`, `on` or `off` (as a job name or a filter key YAML would read it as something other than text). No two entries have the same `name`.
-  - `path` is a relative folder; empty means the same as `name`. It does not start or end with `/`, has no `//`, has no `..` anywhere, has no space, has only the characters `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`, and is not `.aleogr` or `.github` nor under them (it does not start with `.aleogr/` or `.github/`). No two entries have the same `path` (after an empty one is replaced by its `name`).
+  - `path` is the component's folder, relative to the repository's root; empty means the same as `name`. It is made of one or more parts separated by `/` (so it does not start or end with `/` and has no empty part). Each part uses only `a-z`, `0-9`, `-`, `_` and `.`; it is not `.` or `..`, does not start with `-` or `.`, and does not end with `.` (so `.github`, `.aleogr` and every folder under them are never a component's folder). No two entries have the same `path` (after an empty one is replaced by its `name`), and no entry's `path` is inside another entry's `path` (`web` and `web/api` cannot both be components): one module per component folder.
   - `stack` is `go`, the only stack implemented.
   - `version` matches `^[0-9]+\.[0-9]+$` (for example `1.27`).
 - `ref`, when given, is `keep` or `latest`.
@@ -83,7 +83,7 @@ A command whose result decides a step is run alone: not piped into another comma
      - Non-zero exit and the output contains `HTTP 404`: `failed`. Say in one sentence that the repository `<workflows>` or its branch `main` was not found. Write nothing.
      - Any other answer: `failed`. Say the cause in one sentence, with no raw error text. Write nothing.
 
-5. `apply` only: write `.github/workflows/ci.yml` with the Write tool (it creates the folder), replacing the whole file. The content is exactly the text below, built from the sorted components, with `<branch>` the `defaultBranch`, `<workflows>` the argument, `<sha>` the commit of step 4, two spaces per indentation level, no tab, no trailing space, and one line break at the end. The two action commits and their version comments are fixed: write them exactly as here. Nothing is added, removed or reordered.
+5. `apply` only: write `.github/workflows/ci.yml` with the Write tool (it creates the folder), replacing the whole file. The content is exactly the text below, built from the sorted components, with `<branch>` the `defaultBranch`, `<workflows>` the argument, `<sha>` the commit of step 4, two spaces per indentation level, no tab, no trailing space, and one line break at the end. The `working-directory` and `go-version` values are written in double quotes, as shown. The two action commits and their version comments are fixed: write them exactly as here. Nothing is added, removed or reordered.
 
    The text, in five parts:
 
@@ -145,7 +145,7 @@ A command whose result decides a step is run alone: not piped into another comma
        if: needs.changes.outputs.<name> == 'true'
        uses: <workflows>/.github/workflows/ci-<stack>.yml@<sha>
        with:
-         working-directory: <path>
+         working-directory: "<path>"
          go-version: "<version>"
    ```
 
@@ -213,7 +213,7 @@ A command whose result decides a step is run alone: not piped into another comma
        if: needs.changes.outputs.api == 'true'
        uses: example-org/tooling/.github/workflows/ci-go.yml@2222222222222222222222222222222222222222
        with:
-         working-directory: services/api
+         working-directory: "services/api"
          go-version: "1.27"
 
      web:
@@ -221,7 +221,7 @@ A command whose result decides a step is run alone: not piped into another comma
        if: needs.changes.outputs.web == 'true'
        uses: example-org/tooling/.github/workflows/ci-go.yml@2222222222222222222222222222222222222222
        with:
-         working-directory: web
+         working-directory: "web"
          go-version: "1.27"
 
      ci:
