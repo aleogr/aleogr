@@ -1,0 +1,6 @@
+{
+  "name": "aleogr-stack-go",
+  "version": "0.1.0",
+  "description": "Go stack: the starting point of a Go component.",
+  "author": { "name": "aleogr" }
+}

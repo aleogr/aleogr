@@ -1,0 +1,4 @@
+FILE web/go.mod example\.com/kept
+FILE web/main.go kept
+NO_FILE web/main_test.go
+OUTPUT "status": "unchanged"
