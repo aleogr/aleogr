@@ -31,7 +31,7 @@ The declaration of a project is the file `.aleogr/project.json` in the project's
   - `name`: a string of 1 to 20 characters of `a-z`, `0-9` and `-`, starting with a letter. It is not `changes` or `ci` (the names of jobs of the project's CI file, where each component is a job named after it), and not `true`, `false`, `null`, `yes`, `no`, `on` or `off` (YAML does not read those as names). No two components have the same `name`.
   - `stack`: `go`, the only stack implemented.
   - `path`: the component's folder, a string relative to the repository's root, made of one or more parts separated by `/` (so it does not start or end with `/` and has no empty part). Each part uses only `a-z`, `0-9`, `-`, `_` and `.`; it is not `.` or `..`, does not start with `-` or `.`, and does not end with `.` (so `.github`, `.aleogr` and every folder under them are never a component's folder). No two components have the same `path`, and no component's `path` is inside another component's `path` (`web` and `web/api` cannot both be components): one module per component folder.
-  - `version`: the language version, `major.minor`: digits, a dot, digits (`1.27`; never `1.27.4`).
+  - `version`: the language version, `major.minor`: digits, a dot, digits (`1.27`; never `1.27.4`). With the stack `go` it is `1.22` or later, comparing the major and then the minor as numbers (`1.22`, `1.27` and `2.0` are accepted; `1.21` and `1.9` are not): the Go starting point's routes need Go 1.22.
 - `notes`, when present, is a string of free text.
 
 The canonical form of the file, the form in which it is written:
