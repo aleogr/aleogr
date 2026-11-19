@@ -37,7 +37,7 @@ The declaration of a project is the file `.aleogr/project.json` in the project's
   - `region`: a GCP region name: lowercase letters, `-`, lowercase letters, then one or more digits (`us-central1`).
   - `root`: `tst`, its only value: the project tests the tooling, and its cloud projects are created inside the folder `tst`. A real project has no `root`.
   - `cloud` without `environments` is valid and asks for nothing in the cloud.
-- `environments`, when present, is an object with at least one key. Its only allowed key is `dev`, and the value of `dev` is an empty object, `{}` (no key inside). Other environments, such as `hom` and `prd`, are not built yet and are not allowed. A declaration with `environments` has `cloud`.
+- `environments`, when present, is an object with at least one key. Its only allowed key is `dev`, and the value of `dev` is an empty object, `{}` (no key inside). Other environments, such as `hom` and `prd`, are not built yet and are not allowed. A declaration with `environments` has `cloud`, and its `name` has at least three characters (the CI identity's service account id is `<name>-ci`, and a service account id has at least six).
 - `notes`, when present, is a string of free text.
 
 The canonical form of the file, the form in which it is written:

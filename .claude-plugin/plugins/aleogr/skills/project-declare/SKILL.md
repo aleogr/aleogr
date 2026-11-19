@@ -64,7 +64,7 @@ The declaration of a project is the file `.aleogr/project.json` in the project's
   - `region`: a GCP region name: lowercase letters, `-`, lowercase letters, then one or more digits (`us-central1`).
   - `root`: `tst`, its only value: the project tests the tooling, and its cloud projects are created inside the folder `tst`. A real project has no `root`.
   - `cloud` without `environments` is valid and asks for nothing in the cloud.
-- `environments`, when present, is an object with at least one key. Its only allowed key is `dev`, and the value of `dev` is an empty object, `{}` (no key inside). Other environments, such as `hom` and `prd`, are not built yet and are not allowed. A declaration with `environments` has `cloud`.
+- `environments`, when present, is an object with at least one key. Its only allowed key is `dev`, and the value of `dev` is an empty object, `{}` (no key inside). Other environments, such as `hom` and `prd`, are not built yet and are not allowed. A declaration with `environments` has `cloud`, and its `name` has at least three characters (the CI identity's service account id is `<name>-ci`, and a service account id has at least six).
 - `notes`, when present, is a string of free text.
 
 The canonical form of the file, the form in which it is written:
@@ -148,6 +148,7 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
    - The component exists: `stack`, when given, equals its `stack`, and `path`, when given, equals its `path`. Any of them different: `failed`, "that is another component": a component never changes folder or stack; only its `version` changes. Write nothing.
    - `environment`, when given, is `dev`. Any other value fails with the sentence "`environment=<value>` is not an environment this tooling builds yet: `dev` is the only one." (with the value given).
    - `cloudRoot`, when given, is `tst`. Any other value, an empty one included, fails with the sentence "`cloudRoot=<value>` is not a root: `tst` is the only one, for a project that tests the tooling." (with the value given).
+   - `environment=dev` given while the project name (the `name` argument for a new declaration, the file's `name` otherwise) has fewer than three characters: `failed`, with the sentence "`environment=dev` needs a project name of at least three characters: the CI identity's account `<name>-ci` needs six." (with the project name).
    - `cloudRoot` given without `environment`, when the declaration has no `cloud` (a new declaration, or a file without `cloud`): `failed`, with the sentence "`cloudRoot=tst` needs the declaration's `cloud`: give `environment=dev` in the same call."
    - Existing declaration: `name`, when given, equals the file's `name`; `owner`, when given, equals the file's `repo.owner`; `repoName`, when given, equals the file's `repo.name`. Any of them different: `failed`, "that is another project": a declaration is never renamed and never moved to another repository. Run nothing, write nothing.
 4. Build the result.

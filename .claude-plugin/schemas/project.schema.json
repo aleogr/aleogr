@@ -10,7 +10,7 @@
     "$schema": { "type": "string" },
     "version": { "const": 1 },
     "name": {
-      "description": "Project name: 1 to 14 characters of a-z, 0-9 and -, starting with a letter, not ending with -; not test, not shared, not starting with test-.",
+      "description": "Project name: 1 to 14 characters of a-z, 0-9 and -, starting with a letter, not ending with -; not test, not shared, not starting with test-. With environments, at least 3 characters: the CI identity's account id <name>-ci needs 6.",
       "type": "string",
       "pattern": "^[a-z]([a-z0-9-]{0,12}[a-z0-9])?$",
       "not": { "pattern": "^(test|shared|test-.*)$" }
@@ -116,7 +116,7 @@
       }
     },
     "environments": {
-      "description": "The project's environments. Only dev is built yet, and its value is an empty object.",
+      "description": "The project's environments. Only dev is built yet, and its value is an empty object. A declaration with environments has cloud, and a name of at least 3 characters.",
       "type": "object",
       "additionalProperties": false,
       "minProperties": 1,
@@ -126,5 +126,7 @@
     },
     "notes": { "type": "string" }
   },
-  "dependentRequired": { "environments": ["cloud"] }
+  "dependentRequired": { "environments": ["cloud"] },
+  "if": { "required": ["environments"] },
+  "then": { "properties": { "name": { "minLength": 3 } } }
 }
