@@ -9,3 +9,4 @@ FILE .aleogr/project.json "topics": \[\]
 FILE .aleogr/project.json "description": "Demo project"
 FILE .aleogr/project.json "\$schema"
 NOT_CALLED ^git (init|commit|push|pull|config|remote|add)
+OUTPUT_NOT confirmVisibility
