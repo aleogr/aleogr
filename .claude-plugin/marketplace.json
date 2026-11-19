@@ -13,7 +13,7 @@
     {
       "name": "aleogr-cloud-gcp",
       "source": "./.claude-plugin/plugins/aleogr-cloud-gcp",
-      "description": "Google Cloud family: project environments, services and budget alerts.",
+      "description": "Google Cloud family: project environments, services, budget alerts and the CI identity.",
       "category": "cloud",
       "displayName": "Google Cloud (cloud)"
     },
