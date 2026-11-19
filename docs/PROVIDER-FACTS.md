@@ -90,6 +90,10 @@ A recent organization comes with a set of security policies already enforced. Se
 - **A commit made with GitHub's no-reply address is attributed to the account** (the page shows the account's name and picture) and is marked "Unverified", which only means it is not signed. Adding `.patch` to a commit's address shows the address the commit carries.
 - **A repository that is born public has its wiki on**; one born private in a free organization has it off (the note above). `github_repo-configure` turned it off after the creation (2026-11-18).
 - **A birth through `project-apply` took about two minutes in Cloud Shell** (create, configure, send the declaration, protect, and two plans); applying one changed topic took 48 seconds and a plan about 17 (2026-11-18).
+- **`gh pr create --head <branch>` works right after the push of that branch**, with no wait, and prints the pull request's address (2026-11-19, the first pull request opened by `github_pull-request-open`, on `aleogr-sandbox/pilot`).
+- **After a merge on GitHub, the next reads already showed it**: `project-apply`, started within three minutes of the merge, found the folder behind, fast-forwarded it and applied the merged change in the same run (2026-11-19). The local branch of the proposal is kept in the folder; GitHub deleted its own copy at the merge.
+- **A proposal through `project-apply` took about 1 minute 40 seconds in Cloud Shell, and the run after the merge (update the folder, plan again, apply one topic, final plan) about 3 minutes 15 seconds** (2026-11-19): the second is three plans in one run.
+- **A Cloud Shell session closed between two steps of the run was resumed with `claude --continue`** in the project folder, and the plan showed where the run had stopped (2026-11-19).
 - **Cloud Shell restarted in the middle of the run and nothing was lost**: the project folder, its git checkout and the installed plugins were there when it came back (2026-11-18).
 
 ## Claude Code
