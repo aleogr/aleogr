@@ -1,0 +1,10 @@
+# The binding is refused ten times because the account does not exist yet: the run waits
+# 30 seconds between tries, stops at the tenth and ends failed with the prescribed
+# sentence (nothing was changed).
+COUNT 10 ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifactregistry\.writer
+COUNT 9 ^sleep 30$
+NOT_CALLED ^projects add-iam-policy-binding
+OUTPUT "status": "failed"
+OUTPUT push access could not be granted
+OUTPUT_NOT "status": "updated"
+OUTPUT_NOT INVALID_ARGUMENT

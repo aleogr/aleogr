@@ -1,6 +1,11 @@
-# The binding is refused twice: one retry only, then failed (nothing was changed).
+# The binding is refused first because the account is not visible yet (the run waits 30
+# seconds and tries again), then for a reason that waiting does not cure: the poll ends
+# at once with failed and the prescribed sentence (nothing was changed).
 COUNT 2 ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifactregistry\.writer
+COUNT 1 ^sleep 30$
 NOT_CALLED ^projects add-iam-policy-binding
 OUTPUT "status": "failed"
+OUTPUT push access could not be granted
 OUTPUT_NOT "status": "updated"
 OUTPUT_NOT INVALID_ARGUMENT
+OUTPUT_NOT PERMISSION_DENIED|setIamPolicy

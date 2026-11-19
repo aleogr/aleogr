@@ -1,5 +1,8 @@
-# The binding is refused once (the new account is not visible yet), the single retry works.
+# The binding is refused once (the new account is not visible yet): the run waits 30
+# seconds and tries again, and the second try works.
 COUNT 2 ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifactregistry\.writer
+COUNT 1 ^sleep 30$
+NOT_CALLED ^sleep (60|1m)
 OUTPUT "status": "updated"
 OUTPUT "granted": true
 OUTPUT_NOT INVALID_ARGUMENT

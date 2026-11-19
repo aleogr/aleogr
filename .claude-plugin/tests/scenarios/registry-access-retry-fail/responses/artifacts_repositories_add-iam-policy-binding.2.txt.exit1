@@ -1,1 +1,1 @@
-ERROR: (gcloud.artifacts.repositories.add-iam-policy-binding) INVALID_ARGUMENT: Service account demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com does not exist.
+ERROR: (gcloud.artifacts.repositories.add-iam-policy-binding) PERMISSION_DENIED: Permission 'artifactregistry.repositories.setIamPolicy' denied on resource (or it may not exist).
