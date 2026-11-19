@@ -10,6 +10,7 @@ OUTPUT "status": "pending"
 OUTPUT "item": "login"
 OUTPUT_NOT "how": "(/aleogr:)?platform-apply confirm=yes"
 OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-zz99
-OUTPUT read -s -p
+OUTPUT read -r -s -p
 OUTPUT_NOT clientSecret: [^<$%]
-OUTPUT_NOT [Nn]othing to do
+# The line that ends a run with nothing left is not written (a sentence that names it is not that line).
+OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$

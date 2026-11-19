@@ -17,10 +17,11 @@ OUTPUT "reason": "manual"
 OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-zz99
 OUTPUT https://console\.cloud\.google\.com/auth/clients\?project=aleogr-shared-zz99
 OUTPUT https://iap\.googleapis\.com/v1/oauth/clientIds/<client id>:handleRedirect
-OUTPUT read -s -p
+OUTPUT read -r -s -p
 OUTPUT gcloud iap settings set
 OUTPUT /aleogr:platform-apply
 OUTPUT_NOT clientSecret: [^<$%]
-OUTPUT_NOT [Nn]othing to do
+# The line that ends a run with nothing left is not written (a sentence that names it is not that line).
+OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
 RESULT_NOT 111111111111
 RESULT_NOT owner@example\.com
