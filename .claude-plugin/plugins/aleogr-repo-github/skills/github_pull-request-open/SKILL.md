@@ -59,10 +59,10 @@ Steps 1 to 7 run in `plan` and in `apply`. Steps 3 to 6 examine the folder; the 
 2. Look for an open tooling pull request:
 
    ```
-   gh pr list --repo <owner>/<name> --state open --json number,url,headRefName
+   gh pr list --repo <owner>/<name> --state open --json number,url,headRefName,isCrossRepository
    ```
 
-   - Exit 0 and the output is a JSON list: the open tooling pull request is the entry whose `headRefName` starts with `aleogr/change-`; when several do, the one with the lowest `number`; when none does (an empty list, or only other branches), there is none. Pull requests on other branches are ignored. Keep its `number`, `url` and `headRefName`. Continue.
+   - Exit 0 and the output is a JSON list: the open tooling pull request is the entry whose `headRefName` starts with `aleogr/change-` and whose `isCrossRepository` is `false`; when several do, the one with the lowest `number`; when none does (an empty list, or only other branches), there is none. Pull requests on other branches are ignored, and so is a pull request from a fork (`isCrossRepository` `true`), whatever its branch is named. Keep its `number`, `url` and `headRefName`. Continue.
    - Any other answer (a non-zero exit, an output that is not a JSON list): `failed`. Say the cause in one sentence, with no raw error text. Run nothing else.
 
 3. Is the folder a git checkout?
