@@ -5,7 +5,7 @@ OUTPUT "status": "unchanged"
 OUTPUT "prepared": false
 OUTPUT "readable": false
 OUTPUT "organization": true
-OUTPUT /aleogr:platform-apply
+OUTPUT /aleogr:platform-apply confirm=yes
 OUTPUT_NOT "status": "failed"
 OUTPUT_NOT PERMISSION_DENIED
 OUTPUT_NOT getSettings

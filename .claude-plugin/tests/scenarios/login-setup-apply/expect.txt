@@ -25,7 +25,9 @@ OUTPUT "roleGranted": true
 OUTPUT "apiEnabled": true
 OUTPUT "item": "login"
 OUTPUT "reason": "manual"
-OUTPUT "how": ".*then run /aleogr:platform-apply"
+OUTPUT "how": ".*then run /aleogr:platform-apply confirm=yes"
+OUTPUT Run /aleogr:platform-apply confirm=yes again
+OUTPUT_NOT platform-apply( again|")
 # The list: two console pages in the shared project, the names, the audience, the redirect, the command.
 OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-ab12
 OUTPUT https://console\.cloud\.google\.com/auth/clients\?project=aleogr-shared-ab12

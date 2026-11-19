@@ -10,7 +10,7 @@ OUTPUT "prepared": null
 OUTPUT "roleGranted": true
 OUTPUT could not be read yet
 OUTPUT "item": "login"
-OUTPUT /aleogr:platform-apply
+OUTPUT /aleogr:platform-apply confirm=yes
 OUTPUT_NOT read -r -s
 OUTPUT_NOT auth/clients
 OUTPUT_NOT PERMISSION_DENIED
