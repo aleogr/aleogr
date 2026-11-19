@@ -28,7 +28,7 @@ Free text after the skill name, as `key=value` pairs.
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
 - `workflows`, when given, is `<owner>/<name>`: exactly one `/`, the part before it follows the rule of `owner`, the part after it the rule of `name`.
 - `components`, when not empty, is one or more entries separated by `,`, with no empty entry. Each entry is exactly four fields separated by `:`, `<name>:<path>:<stack>:<version>`:
-  - `name` has 1 to 20 characters of `a-z`, `0-9` and `-`, starts with a letter, and is not `changes` or `ci` (those are the file's own jobs). No two entries have the same `name`.
+  - `name` has 1 to 20 characters of `a-z`, `0-9` and `-`, starts with a letter, and is not `changes` or `ci` (those are the file's own jobs) nor `true`, `false`, `null`, `yes`, `no`, `on` or `off` (as a job name or a filter key YAML would read it as something other than text). No two entries have the same `name`.
   - `path` is a relative folder; empty means the same as `name`. It does not start or end with `/`, has no `//`, has no `..` anywhere, has no space, has only the characters `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`, and is not `.aleogr` or `.github` nor under them (it does not start with `.aleogr/` or `.github/`). No two entries have the same `path` (after an empty one is replaced by its `name`).
   - `stack` is `go`, the only stack implemented.
   - `version` matches `^[0-9]+\.[0-9]+$` (for example `1.27`).
