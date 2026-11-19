@@ -9,7 +9,8 @@ ORDER ^gh repo edit example-org/demo >> ^git .*push -u origin main
 CALLED ^gh api repos/example-org/demo/rulesets$
 NOT_CALLED --method|ruleset-main-ci
 NOT_CALLED ^gh pr create|^git switch
-OUTPUT_NOT github_branch-protect.*checks=ci
+# The body that requires the check ci is never sent (neither its file nor its rule in the logged body).
+NOT_CALLED ruleset-main-ci|"type":"required_status_checks"
 NO_FILE web/go.mod
 NO_FILE .github/workflows/ci.yml
 OUTPUT "status": "created"
