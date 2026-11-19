@@ -1,0 +1,9 @@
+# The folder web holds a Go file and no go.mod: the plan's components row needs attention (fix the
+# folder), and the apply stops on it, even with confirm=yes. Nothing is written or proposed.
+NO_FILE web/go.mod
+NO_FILE services/api/go.mod
+NO_FILE .github/workflows/ci.yml
+NOT_CALLED ^gh pr create|^git (switch|commit)
+NOT_CALLED --method
+OUTPUT "status": "pending"
+OUTPUT add a go\.mod to web

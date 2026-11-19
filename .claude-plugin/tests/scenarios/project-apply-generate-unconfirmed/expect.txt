@@ -1,0 +1,7 @@
+# The same folder as project-apply-generate, with no argument: the plan has components and ci to
+# generate, which need confirm=yes. Nothing is written and nothing is proposed.
+NO_FILE web/go.mod
+NO_FILE .github/workflows/ci.yml
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "status": "pending"
+OUTPUT /aleogr:project-apply confirm=yes

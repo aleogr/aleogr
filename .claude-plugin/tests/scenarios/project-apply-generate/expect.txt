@@ -1,0 +1,14 @@
+# The repository is as declared, protected without the check ci, with its declaration, but this
+# folder has no component code and no ci.yml (the declaration was born with components). With
+# confirm=yes the starting points and ci.yml are written here and proposed in one pull request
+# (#7): the run ends "updated", nothing is applied on GitHub, and the protection keeps no check.
+# git status lists the generated files once ci.yml's reusable workflow commit was read.
+FILE web/go.mod ^module github\.com/example-org/demo/web$
+FILE services/api/main.go api: ok
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 api:services/api:go:1\.27,web:web:go:1\.27$
+CALLED ^git add -- .*web/go\.mod
+CALLED ^git commit -m "?Add the components api, web and CI"? -- 
+CALLED ^gh pr create --repo example-org/demo
+NOT_CALLED --method|^git .*push .*origin main
+OUTPUT "status": "updated"
+OUTPUT merge https://github\.com/example-org/demo/pull/7
