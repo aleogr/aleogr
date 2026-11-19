@@ -55,7 +55,7 @@ Print the table (item, state, action). Under the table, these lines when they ap
 - `database instance` is `exists, running`, `exists, starting` or `exists, creating`: `The database instance is running and is charged by the hour until it is stopped: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=<projectId> instance=<database.instance>`.
 - `login` is `not checked` because its describe failed: `The login of the organization could not be checked; /aleogr-cloud-gcp:gcp_login-describe projectId=<projectId> shows why.`
 
-Then one line: `nothing to do` when every action is `none`, otherwise how many items need changes and that `platform-apply` creates them, and prepares the login as far as a command can when `login` is `prepare` (or, when an item is `blocked`, what blocks it and its fix). Then the result block.
+Then one line: `nothing to do` when every action is `none`, otherwise how many items need changes and that `/aleogr:platform-apply confirm=yes` creates them, and prepares the login as far as a command can when `login` is `prepare` (or, when an item is `blocked`, what blocks it and its fix). Then the result block.
 
 ## Result block
 
