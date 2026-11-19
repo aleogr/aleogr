@@ -7,3 +7,5 @@ NOT_CALLED ^gh pr create|^git (switch|commit)
 NOT_CALLED --method
 OUTPUT "status": "pending"
 OUTPUT add a go\.mod to web
+NO_FILE services/api/main_test.go
+OUTPUT_NOT "status": "updated"

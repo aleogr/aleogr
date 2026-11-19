@@ -12,3 +12,5 @@ CALLED ^gh pr create --repo example-org/demo
 NOT_CALLED --method|^git .*push .*origin main
 OUTPUT "status": "updated"
 OUTPUT merge https://github\.com/example-org/demo/pull/7
+OUTPUT paths=.*web/go\.mod
+NOT_CALLED ruleset-main-ci

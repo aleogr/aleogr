@@ -1,0 +1,8 @@
+# plan with head=check: the declaration is equal and the folder's last commit is the head of the
+# repository's default branch: equal, nothing to do.
+CALLED ^git rev-parse HEAD
+CALLED ^gh api repos/example-org/example-repo/commits/main
+NOT_CALLED commits/3333333333333333333333333333333333333333
+NOT_CALLED ^git (-c credential|pull|fetch|init|commit|push|config|add|remote (add|set-url|remove))
+OUTPUT "state": "equal"
+OUTPUT "status": "unchanged"

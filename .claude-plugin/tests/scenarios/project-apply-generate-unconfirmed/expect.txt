@@ -5,3 +5,5 @@ NO_FILE .github/workflows/ci.yml
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT "status": "pending"
 OUTPUT /aleogr:project-apply confirm=yes
+OUTPUT api, web
+NO_FILE services/api/main_test.go

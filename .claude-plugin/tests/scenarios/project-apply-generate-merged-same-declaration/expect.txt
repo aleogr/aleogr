@@ -1,0 +1,14 @@
+# The owner merged the pull request that added the components' code and ci.yml without changing
+# the declaration (a declaration born with its components). The repository's declaration equals
+# this folder's, but the folder is behind: with components the plan compares the heads, so the run
+# fast-forwards the folder, plans again, finds ci.yml on the default branch and makes the
+# protection require ci. Nothing is generated again and no pull request is opened. The seeded
+# code and ci.yml are the merged ones (the fake cannot write them on the pull).
+ORDER ^git -c credential.* pull --ff-only origin main >> ^gh api --method PUT repos/example-org/demo/rulesets/123
+CALLED --input .*ruleset-main-ci\.json
+OUTPUT github_branch-protect.* checks=ci
+NOT_CALLED --method (POST|DELETE|PATCH)|^gh pr create|^git (commit|switch|.*push)
+NOT_CALLED ^gh api repos/aleogr/aleogr
+OUTPUT_NOT go_setup.*mode=apply
+OUTPUT "status": "updated"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$

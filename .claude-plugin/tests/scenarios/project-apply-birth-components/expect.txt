@@ -1,0 +1,19 @@
+# Declared private with two components, the repository does not exist: created, configured, the
+# declaration sent and the protection asked for without the check ci (refused by the free plan,
+# the expected end on a private repository). The code is not generated in this run: the last plan
+# lists components and ci to generate, and the run ends "created" with the items that say so.
+# Repository reads are numbered as in project-apply-birth-private; the ci.yml read is a 404
+# before and after the push.
+CALLED ^gh repo create example-org/demo .*--private
+ORDER ^gh repo edit example-org/demo >> ^git .*push -u origin main
+CALLED ^gh api repos/example-org/demo/rulesets$
+NOT_CALLED --method|ruleset-main-ci
+NOT_CALLED ^gh pr create|^git switch
+OUTPUT_NOT github_branch-protect.*checks=ci
+NO_FILE web/go.mod
+NO_FILE .github/workflows/ci.yml
+OUTPUT "status": "created"
+OUTPUT run /aleogr:project-apply confirm=yes to generate the components
+OUTPUT "item": "components", "state": "to generate: api, web", "action": "generate"
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
+RESULT_NOT example-user
