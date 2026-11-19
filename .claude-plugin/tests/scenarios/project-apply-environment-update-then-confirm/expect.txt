@@ -1,0 +1,19 @@
+# The folder is behind: the owner merged the declaration that adds the environment dev (root tst),
+# and its GCP project does not exist. With confirm=yes the folder is brought up to date and the plan
+# runs again; that plan creates a GCP project, whose id is permanent, and the confirmation was given
+# before that plan was seen: the run stops there, "updated", with the item confirm, and creates
+# nothing. The fake cannot change the seeded file, so the seeded file is the merged one: the
+# repository's copy differs from it before the pull and equals it after.
+CALLED ^git -c credential.* pull --ff-only origin main
+CALLED ^projects list .*labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
+ORDER ^git -c credential.* pull >> ^projects list
+NOT_CALLED ^(projects create|services enable|organizations list|resource-manager|billing)
+NOT_CALLED ^(artifacts|iam)( |$)
+NOT_CALLED ^gh repo edit|--method|^gh pr create
+NOT_CALLED ^git (commit|.*push)
+OUTPUT "item": "environment dev", "state": "missing", "action": "create"
+OUTPUT "item": "confirm", "reason": "manual", "how": "/aleogr:project-apply confirm=yes"
+OUTPUT "status": "updated"
+# A word of the prescribed sentence: the id of the project the next run creates is permanent.
+OUTPUT permanent
+OUTPUT_NOT nothing to do
