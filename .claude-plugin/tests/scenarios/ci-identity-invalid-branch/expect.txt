@@ -1,0 +1,4 @@
+# A quote and a pipe in the branch would change the condition: refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT branch

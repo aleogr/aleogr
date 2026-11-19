@@ -1,0 +1,4 @@
+# A semicolon in the repository is refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT repository

@@ -1,0 +1,5 @@
+# A disabled provider is not as declared, and no command here enables it: failed before any change.
+CALLED ^iam workload-identity-pools providers describe github
+NOT_CALLED (create|update-oidc|add-iam-policy-binding|update|undelete|delete)
+OUTPUT "status": "failed"
+OUTPUT [Ee]nable

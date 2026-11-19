@@ -5,3 +5,4 @@ NOT_CALLED (create|add-iam-policy-binding|update-oidc)
 OUTPUT "status": "unchanged"
 OUTPUT "condition": "as-declared"
 OUTPUT "GCP_WIF_PROVIDER": "projects/123456789012/locations/global/workloadIdentityPools/github/providers/github"
+OUTPUT "otherMembers": 0
