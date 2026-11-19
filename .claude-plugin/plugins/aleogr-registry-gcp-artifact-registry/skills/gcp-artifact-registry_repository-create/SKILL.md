@@ -51,7 +51,7 @@ Show each command before running it. Run only the commands below (and the one sk
 
    - Exit zero: go to step 4.
    - Exit non-zero and the text contains `ALREADY_EXISTS`: the repository appeared since step 1 (another run made it). Run the read of step 4 once, and only it. It succeeds, `format` is `DOCKER` and `name` has `locations/<region>`: end with `status` `unchanged` and the `imagePath`, with the sentence `The repository was created by another run between the check and the create.` and nothing quoted from `gcloud`'s answer (not even its status word). Anything else (a non-zero exit, another format or region): end with `failed`, one sentence saying the repository exists but could not be confirmed as a Docker repository in `<region>`, without raw error text.
-   - Any other non-zero exit stops with `failed` and one sentence, `The repository could not be created`, with the likely cause and without raw error text. Run nothing else.
+   - Any other non-zero exit stops with `failed` and exactly the sentence `The repository could not be created; nothing was changed. Check that the Artifact Registry API is enabled in <projectId> and that the active gcloud account may create repositories in it.` Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only that sentence about the failure. Run nothing else.
 
 4. Read it back, with this command alone (not the describe skill; the projection keeps only what is checked):
 

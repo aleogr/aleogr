@@ -90,7 +90,7 @@ Show each command before running it. Run only the commands below, in this order,
    gcloud artifacts repositories set-cleanup-policies <project> --location=<region> --project=<projectId> --policy="<policy file>" --no-dry-run
    ```
 
-   `--no-dry-run` is required: without it `gcloud` keeps the dry-run setting the repository already has. Never pass `--dry-run`. A non-zero exit stops with `failed` and one sentence, `The cleanup policy could not be set`, with the likely cause and without raw error text. Run nothing else.
+   `--no-dry-run` is required: without it `gcloud` keeps the dry-run setting the repository already has. Never pass `--dry-run`. A non-zero exit stops with `failed` and exactly the sentence `The cleanup policy could not be set; nothing was changed. Check that the active gcloud account may change the repository.` Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only that sentence about the failure. Run nothing else.
 
 4. Read it back with step 1's command, alone. The policy was set in step 3, so the status is `updated` whatever this read shows. When the command succeeds and the policy compares as declared, nothing is pending. A non-zero exit, or a policy that differs, adds one `pending` item whose `item` is `cleanup policy of <project> read back`, `reason` `manual`, and `how` is `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_cleanup-configure projectId=<projectId> project=<project> region=<region> keep=<keep> mode=plan`, and the answer says what could not be confirmed.
 
