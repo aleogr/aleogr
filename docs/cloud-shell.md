@@ -60,6 +60,8 @@ gh auth login --hostname github.com --git-protocol https --web
 
 If it asks whether to authenticate Git with your GitHub credentials, answer yes. It shows a one-time code and an address: open the address, sign in to GitHub and **type the code in the browser**. The code is never pasted in the conversation with Claude. `gh auth status` then says an account is logged in.
 
+A push that adds a GitHub Actions workflow (`.github/workflows/ci.yml`, written when a project declares components) may be refused when the token lacks the scope `workflow` (a precaution, not yet confirmed by a real run): if `gh auth status` does not list `workflow` among the `Token scopes`, run `gh auth refresh -h github.com -s workflow` and type the code in the browser as above.
+
 ## Daily use
 
 1. Open Cloud Shell.

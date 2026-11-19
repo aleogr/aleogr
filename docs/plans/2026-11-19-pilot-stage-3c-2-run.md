@@ -20,6 +20,13 @@ The skills never wait for an answer: when one needs a confirmation, it ends `pen
 
 - The pull request of stage 3c-2 is **merged into `main`** of `aleogr/aleogr`, and on that pull request the check `self-test-ci-go` was green. This matters for more than the plugins: the project's `ci.yml` pins the reusable workflow `ci-go.yml` to the commit at the head of `main` of `aleogr/aleogr` when it is generated (step 7), so that commit must already have it.
 - `gh` is still signed in. In the Cloud Shell terminal (outside Claude Code), `gh auth status` says an account is logged in to `github.com`. Do not paste what it prints anywhere. If it says it is not logged in, sign in again as in "Set-up, once" of [`cloud-shell.md`](../cloud-shell.md).
+- **`gh` may push a workflow file.** As a precaution (not yet confirmed by a real run): GitHub may refuse a push that adds `.github/workflows/ci.yml` when the token of `gh` lacks the scope `workflow`, and step 7 pushes that file. In the same terminal, look at the line `Token scopes:` of `gh auth status` and check that `workflow` is among them, without pasting the output anywhere. If it is not, run:
+
+  ```bash
+  gh auth refresh -h github.com -s workflow
+  ```
+
+  It shows a one-time code and an address, as the login did: open the address and type the code in the browser. Then `gh auth status` lists `workflow` among the scopes.
 - **The organization lets its repositories use actions and reusable workflows of other repositories.** The project's CI uses `actions/checkout`, `actions/setup-go`, `dorny/paths-filter` and the reusable workflow `ci-go.yml` of `aleogr/aleogr`, none of which is in `aleogr-sandbox`. Open <https://github.com/organizations/aleogr-sandbox/settings/actions> (the organization's **Settings**, then **Actions**, then **General**) and look at the section **Policies** (on some pages it is called **Actions permissions**):
   - expected: **Allow all actions and reusable workflows** is selected (the default for a new organization). Change nothing;
   - if **Disable actions** is selected, or an option that allows only `aleogr-sandbox`'s own actions, select **Allow all actions and reusable workflows** and **Save**;
@@ -184,7 +191,7 @@ Expected: `main`. The folders `admin/` and `status/` and the file `.github/workf
 /aleogr:project-plan
 ```
 
-Expected: `status` `pending` and this table, with the number of step 7:
+Expected: `status` `pending` and this table, with the number of step 7. It has five items, not seven: the folder is back on `main`, whose declaration has no components yet, so the plan has no `components` or `ci` row.
 
 | Item | State | Action |
 |---|---|---|
@@ -192,8 +199,6 @@ Expected: `status` `pending` and this table, with the number of step 7:
 | `settings` | `not checked until the change is merged` | `none` |
 | `visibility` | `not checked until the change is merged` | `none` |
 | `declaration` | `proposed in pull request #<N>` | `merge it` |
-| `components` | `not checked until the change is merged` | `none` |
-| `ci` | `not checked until the change is merged` | `none` |
 | `protection` | `not checked until the change is merged` | `none` |
 
 Under the table: `merge https://github.com/aleogr-sandbox/pilot/pull/<N>, then run /aleogr:project-apply confirm=yes`, and that `project-apply` stops until that is done.
@@ -232,7 +237,7 @@ The merge is a push to `main`, so the workflow `ci` runs once more: the reposito
 
 Expected, in this order:
 
-1. The first plan:
+1. The first plan, five items (this folder's declaration still has no components: the merge is not in the folder yet):
 
    | Item | State | Action |
    |---|---|---|
@@ -240,8 +245,6 @@ Expected, in this order:
    | `settings` | `not checked until the change is merged` | `none` |
    | `visibility` | `not checked until the change is merged` | `none` |
    | `declaration` | `this folder is behind` | `update` |
-   | `components` | `not checked until the change is merged` | `none` |
-   | `ci` | `not checked until the change is merged` | `none` |
    | `protection` | `not checked until the change is merged` | `none` |
 
 2. `github_checkout-setup` updates the folder (`git -c credential.helper= -c 'credential.helper=!gh auth git-credential' pull --ff-only origin main`): expected `updated`. The folder now has `admin/`, `status/` and `.github/workflows/ci.yml` from `main`.
@@ -288,11 +291,11 @@ Then close it: **Close pull request** at the bottom of its page, then **Delete b
 
 ## 3. What the new states mean
 
-With components, the plan has two more rows, after `declaration`:
+The plan has two more rows, after `declaration`, only while the declaration in this folder (`.aleogr/project.json`) has components: seven rows then, five otherwise. After the proposing run of step 7 the folder is back on `main`, whose declaration has no components until the merge reaches the folder, so steps 8 and 11 (its first plan) show five rows.
 
 - **`components`**: `as declared` / `none` when every component's folder has a `go.mod`; `to generate: <names>` / `generate` when some have none (`project-apply confirm=yes` writes their starting point and proposes it); `needs attention: <names>` / `fix the folder` when a folder has Go files but no `go.mod` (code started by hand): the tooling never writes over it, and the line under the table says to add a `go.mod` or empty the folder.
 - **`ci`**: `as declared` / `none` when the first line of `.github/workflows/ci.yml` in this folder matches the components; `missing` or `differs` / `generate` otherwise (`project-apply confirm=yes` writes it again and proposes it).
-- While the declaration is `proposed in pull request #N`, `this folder is behind` or `this folder needs attention`, both rows say `not checked until the change is merged`.
+- When the folder's declaration has components and the declaration is `proposed in pull request #N`, `this folder is behind` or `this folder needs attention`, both rows say `not checked until the change is merged`.
 - **`protection`** says `protected, requires ci` once `ci.yml` is on `main` and the ruleset requires the check `ci`. Before `ci.yml` is on `main`, the ruleset must not require it (no workflow would report the check, and every pull request would be blocked), so the check is added only by the run after the merge.
 
 The `declaration` row means what it meant in stage 3c-1 ([`2026-11-19-pilot-stage-3c-1-run.md`](2026-11-19-pilot-stage-3c-1-run.md), section 3).
@@ -310,6 +313,7 @@ The `declaration` row means what it meant in stage 3c-1 ([`2026-11-19-pilot-stag
 - **A second `project-apply` while the pull request is open** changes nothing: it ends `pending`, with `proposed in pull request #N` / `merge it`. Merge the pull request (step 10), then run `/aleogr:project-apply confirm=yes`. If it still says `merge it` right after the merge, wait a few seconds and run it again.
 - **Step 11 says `nothing to do` right after the merge**, or does not update the folder: GitHub has not shown the merge yet. Wait a few seconds and run `/aleogr:project-apply confirm=yes` again.
 - **`this folder needs attention`**: see section 3 of the stage 3c-1 checklist.
+- **The push of step 7 is refused**: if `gh auth status` does not list `workflow` among the token scopes (do not paste what it prints), run `gh auth refresh -h github.com -s workflow` as in "Before you start". Send the whole answer of step 7 before going on.
 - If a skill says `gh` is not logged in, sign it in again as in "Set-up, once" of [`cloud-shell.md`](../cloud-shell.md) and run the step again.
 
 ## 5. What to send back
