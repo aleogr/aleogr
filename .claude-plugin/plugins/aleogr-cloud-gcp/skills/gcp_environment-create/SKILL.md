@@ -71,6 +71,8 @@ Show each command before running it. Run only the commands below, in this order.
    gcloud projects list --filter="parent.type=folder AND parent.id=<folderId> AND labels.aleogr-project=<project> AND labels.aleogr-environment=<environment>" --format="value(projectId)"
    ```
 
+   `parent.id` takes the bare number, the digits after `organizations/` or `folders/` (as `--organization=` and `--folder=` do): `parent.id=folders/<n>` matches nothing and would read as "does not exist".
+
    - Non-zero exit (not `0`): stop with `failed` and one sentence of cause, without raw error text. Create nothing.
    - No output: the project does not exist. Continue with step 4.
    - One line: that is the project's ID, and the project exists. Never create a project then. Say so in this one sentence: `The first search had not seen project <projectId> yet; the search by parent found it.` Then check its billing, alone:
@@ -109,7 +111,17 @@ For steps 2 to 4 (except the search by parent at the end of step 3, whose outcom
 
    Keep the quotes around the `--labels` value: PowerShell splits an unquoted value at its commas, and `gcloud` then rejects the arguments.
 
-   A non-zero exit stops with `failed` (nothing was created). From here on the project exists: any later failure ends with `pending`, never `failed`, with `outputs.projectId` set to the project ID, `resources` listing the project, and `pending[].how` holding the next command to run.
+   The create sets the labels itself (they are part of the create request). A non-zero exit does not prove that nothing was created: the command creates the project, waits for the operation and then enables an API, and a failure in the wait or the enable exits non-zero with the project existing. On a non-zero exit, run alone:
+
+   ```
+   gcloud projects describe <projectId> --format="value(lifecycleState)"
+   ```
+
+   - Exit `0` and `ACTIVE`: the project exists. Do not create it again; go on with step 7, and say in one sentence that the create reported an error but the project exists.
+   - Exit `0` with another state: the project exists but is not usable. Stop with `pending`, as below, with `pending[].how` this describe command.
+   - A non-zero exit (the project is not found, or cannot be read): stop with `failed` and the sentence `The project could not be created; nothing was created.`, with `outputs.projectId` `null`. Repeat no word of `gcloud`'s answers.
+
+   From here on the project exists: any later failure ends with `pending`, never `failed`, with `outputs.projectId` set to the project ID, `resources` listing the project, and `pending[].how` holding the next command to run.
 
 7. Link billing:
 
