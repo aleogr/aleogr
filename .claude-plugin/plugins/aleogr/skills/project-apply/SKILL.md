@@ -44,7 +44,7 @@ With environments (the declaration has `environments`), also, read when they are
 - `<services>` is `project.services` of `${CLAUDE_PLUGIN_ROOT}/defaults.json`, joined by `,`, and `<keep>` is its `project.registry.keep`, read with the Read tool (the plan has already checked that they can be read).
 - `<projectId>` is `outputs.environment.projectId` of the plan whose items are being applied, or, after sub-step 5 of step 4 created the GCP project, its `outputs.projectId`.
 
-1. Invoke `aleogr:project-plan`. Take `outputs.items`, `outputs.exposes`, `outputs.visibility`, `outputs.generate`, `outputs.checks`, `outputs.changed`, `outputs.environment` and its `pending` items.
+1. Invoke `aleogr:project-plan`. Take `outputs.items`, `outputs.exposes`, `outputs.visibility`, `outputs.generate`, `outputs.checks`, `outputs.changed`, `outputs.environment` and its `pending` items. Its block is not the end of this answer: right after it, take the first case below that applies and go on with it at once; when the run goes on to act, your next output is the invocation of the first skill of step 4 that runs; write nothing before it.
    - `failed`: stop with `failed`, its cause and its `pending` items. Invoke nothing else.
    - Every action is `none`: no confirmation is needed. With no argument or with `confirm=yes`, write the line `nothing to do` (in exactly those words) and end with `unchanged`. With a `confirmVisibility`, end with `failed` by the first rule of step 3. Invoke nothing else.
    - The only actions other than `none` are `fix by hand` (the `registry` item `in another region`, the `ci identity` item `needs attention`): there is nothing this skill can make. End with `pending`, nothing changed, with the plan's `pending` items as it gave them (their `how` says what the owner does by hand), whatever the argument. Invoke nothing else.
@@ -166,7 +166,7 @@ With environments (the declaration has `environments`), also, read when they are
       aleogr-cloud-gcp:gcp_services-enable projectId=<projectId> services=<services> mode=apply
       ```
 
-      By `projectId`: a search by labels may not show a GCP project created seconds ago. On `updated` or `unchanged` with an empty `pending`, read its block and go on to sub-step 7 when it runs, otherwise to the next sub-step that runs (or to the plan of step 5): your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below).
+      By `projectId`: a search by labels may not show a GCP project created seconds ago. On `updated` or `unchanged` with an empty `pending`, read its block and go on to sub-step 7 when it runs, otherwise to the next sub-step that runs (or to the plan of step 5): your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below): read its block without writing it, and your next output is what that rule says.
    7. Plan again, only when sub-step 5 did not end `created` and sub-step 5 or 6 ended `updated` (a GCP project that existed had its billing linked or APIs enabled): the items that were `follows the environment` or `follows the apis` could not be read by the plan of step 1. Invoke `aleogr:project-plan`, in full. From here on, "the plan" is this plan: its `registry` and `ci identity` items are the ones applied, and `<projectId>` is its `outputs.environment.projectId` (the project existed: the search finds it).
 
       This plan is also the one wait for just-enabled APIs: an API that `gcp_services-enable` has just enabled may still refuse a command for about a minute, and this plan's reads on GitHub come before its first read in the GCP project. Run no command to wait (no `sleep`).
@@ -182,34 +182,34 @@ With environments (the declaration has `environments`), also, read when they are
       aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_repository-create projectId=<projectId> project=<project> environment=dev region=<region> mode=apply
       ```
 
-      On `created` or `unchanged` with an empty `pending`, read its block and go on to sub-step 9: your next output is its invocation; write nothing before it. Any other ending stops the run (the rule below).
+      On `created` or `unchanged` with an empty `pending`, read its block and go on to sub-step 9: your next output is its invocation; write nothing before it. Any other ending stops the run (the rule below): read its block without writing it, and your next output is what that rule says.
    9. `registry` has the action `create` or `configure`, or sub-step 5 ended `created`:
 
       ```
       aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_cleanup-configure projectId=<projectId> project=<project> region=<region> keep=<keep> mode=apply
       ```
 
-      On `updated` or `unchanged` with an empty `pending`, read its block and go on to the next sub-step that runs (or to the plan of step 5): your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below).
+      On `updated` or `unchanged` with an empty `pending`, read its block and go on to the next sub-step that runs (or to the plan of step 5): your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below): read its block without writing it, and your next output is what that rule says.
    10. `ci identity` has the action `create` or `update`, or sub-step 5 ended `created`. First read the repository's numeric ids and default branch, which the CI identity's condition names:
 
        ```
        aleogr-repo-github:github_repo-describe owner=<owner> name=<name>
        ```
 
-       On `unchanged` with `outputs.exists` true, read its block and go on: your next output is this invocation, with its `id`, `ownerId` and `defaultBranch`; write nothing before it. Any other ending stops the run (the rule below).
+       On `unchanged` with `outputs.exists` true, read its block and go on: your next output is this invocation, with its `id`, `ownerId` and `defaultBranch`; write nothing before it. Any other ending stops the run (the rule below): read its block without writing it, and your next output is what that rule says.
 
        ```
        aleogr-cloud-gcp:gcp_ci-identity-setup projectId=<projectId> project=<project> repository=<owner>/<name> repositoryId=<id> ownerId=<ownerId> branch=<defaultBranch> mode=apply
        ```
 
-       On `created`, `updated` or `unchanged` with an empty `pending`, take its `outputs.account`, read its block and go on to sub-step 11 when it runs, otherwise to the plan of step 5: your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below).
+       On `created`, `updated` or `unchanged` with an empty `pending`, take its `outputs.account`, read its block and go on to sub-step 11 when it runs, otherwise to the plan of step 5: your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below): read its block without writing it, and your next output is what that rule says.
    11. `ci identity` has the action `grant`; or sub-step 10 ran and `registry` is not `in another region` (it is `as declared` or `cleanup differs`, or it was created in sub-step 8): a new or updated identity may push only once it is granted, on the image repository in the declared region. With `registry` `in another region` the push is not granted: the registry's `fix by hand` comes first, and the next run grants it.
 
        ```
        aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_access-grant projectId=<projectId> project=<project> region=<region> identity=<account> role=push mode=apply
        ```
 
-       `<account>` is the `outputs.account` of sub-step 10 when it ran, otherwise `<project>-ci@<projectId>.iam.gserviceaccount.com`. It reads the repository's access first and ends `unchanged` when the account may already push. On `updated` or `unchanged` with an empty `pending`, read its block and go on to the plan of step 5: your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below).
+       `<account>` is the `outputs.account` of sub-step 10 when it ran, otherwise `<project>-ci@<projectId>.iam.gserviceaccount.com`. It reads the repository's access first and ends `unchanged` when the account may already push. On `updated` or `unchanged` with an empty `pending`, read its block and go on to the plan of step 5: your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below): read its block without writing it, and your next output is what that rule says.
 
    A stop in sub-steps 5 to 11 invokes nothing after it. Read the stopping skill's block, then your next output is the invocation of the plan of step 5 when it runs (below), otherwise this skill's answer, starting with the table of the first plan; write nothing before it: no summary of the stopping skill's run, no copy of its block nor of a block it read. Its status:
 
