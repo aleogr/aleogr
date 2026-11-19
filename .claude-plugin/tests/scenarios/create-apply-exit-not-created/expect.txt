@@ -1,0 +1,7 @@
+# The create exits non-zero and the project cannot be read: nothing was created.
+CALLED ^projects create aleogr-dev-demo-[a-z0-9]{4}
+CALLED ^projects describe aleogr-dev-demo-[a-z0-9]{4} --format=value\(lifecycleState\)
+NOT_CALLED ^billing projects link
+OUTPUT "status": "failed"
+OUTPUT "projectId": null
+OUTPUT_NOT NOT_FOUND

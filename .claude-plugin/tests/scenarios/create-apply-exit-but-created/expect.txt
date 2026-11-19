@@ -1,0 +1,11 @@
+# gcloud projects create creates the project, waits for the operation, then enables an
+# API: it can exit non-zero with the project existing. The skill reads the project and
+# goes on with billing; it never reports failed with a project left behind.
+CALLED ^projects create aleogr-dev-demo-[a-z0-9]{4} .*--folder=222222222222
+ORDER ^projects create >> ^projects describe aleogr-dev-demo-[a-z0-9]{4} --format=value\(lifecycleState\)
+ORDER ^projects describe aleogr-dev-demo >> ^billing projects link
+CALLED ^billing projects link aleogr-dev-demo-[a-z0-9]{4} --billing-account=0X0X0X-0X0X0X-0X0X0X
+OUTPUT_NOT "status": "failed"
+OUTPUT "status": "(created|pending)"
+OUTPUT "projectId": "aleogr-dev-demo-[a-z0-9]{4}"
+OUTPUT_NOT Operation did not complete
