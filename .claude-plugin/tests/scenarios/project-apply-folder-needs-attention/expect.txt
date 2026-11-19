@@ -3,3 +3,6 @@
 NOT_CALLED ^git (switch|add|commit|-c credential)|^gh pr create|^gh repo
 OUTPUT git switch main
 OUTPUT "status": "pending"
+OUTPUT "pullRequest": null
+OUTPUT "item": "this folder needs attention"
+OUTPUT_NOT "item": "confirm"

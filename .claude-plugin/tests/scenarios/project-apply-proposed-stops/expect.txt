@@ -3,3 +3,5 @@
 NOT_CALLED ^git (switch|add|commit|-c credential)|^gh pr create|^gh repo
 OUTPUT pull request #4
 OUTPUT "status": "pending"
+OUTPUT "pullRequest": null
+OUTPUT merge https://github\.com/example-org/demo/pull/4

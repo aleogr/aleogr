@@ -8,3 +8,7 @@ ORDER ^git -c credential.* pull --ff-only origin main >> ^gh repo edit example-o
 CALLED ^gh repo edit example-org/demo .*--add-topic status-page
 OUTPUT "status": "updated"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+# The repository read stays numbered: a gh_api_repos_example-org_demo+after+gh_repo_edit state file
+# would also answer the contents, commits and rulesets reads of the final plan (its name is a prefix
+# of theirs, and its marker is the most recent), and giving those reads their own +after+gh_repo_edit
+# files ties on the marker, which the fake breaks by glob order, not by name length.

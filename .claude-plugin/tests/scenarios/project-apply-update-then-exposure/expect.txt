@@ -8,3 +8,9 @@ CALLED ^git -c credential.* pull --ff-only origin main
 NOT_CALLED ^gh repo edit|--method
 OUTPUT /aleogr:project-apply confirmVisibility=public
 OUTPUT "status": "updated"
+NOT_CALLED -X |--input
+NOT_CALLED ^git (commit|.*push)
+OUTPUT "item": "confirm visibility public"
+OUTPUT "pullRequest": null
+# The pull ran (COUNT is "at least": "exactly once" cannot be expressed by the harness).
+COUNT 1 ^git -c credential.* pull
