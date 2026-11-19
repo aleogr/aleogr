@@ -1,0 +1,15 @@
+# The plan's read of the login fails (the row is not checked / prepare). The setup makes
+# its own read, which names a client: nothing is granted, enabled or printed, and the closing
+# plan reads the login as prepared, so the run ends unchanged with nothing to do.
+# Reads: the plan's (refused), the setup's (a client), the closing plan's (a client).
+COUNT 3 ^iap settings get .*--organization=111111111111( |$)
+CALLED ^services list .*--project=aleogr-shared-zz99 .*iap\.googleapis\.com
+NOT_CALLED add-iam-policy-binding|services enable
+NOT_CALLED ^iap settings set
+NOT_CALLED (create|patch)
+OUTPUT "action": "platform-apply"
+OUTPUT "status": "unchanged"
+OUTPUT [Nn]othing to do
+OUTPUT_NOT console\.cloud\.google\.com/auth
+OUTPUT_NOT read -r -s -p
+OUTPUT_NOT apps\.googleusercontent\.com

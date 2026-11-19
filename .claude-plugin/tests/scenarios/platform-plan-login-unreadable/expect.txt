@@ -1,11 +1,14 @@
-# The read of the login fails (not for lack of permission): the row is not checked / none,
-# one sentence says so under the table, and the plan itself does not fail.
+# The read of the login fails (not for lack of permission, not an API that is off): the row
+# is not checked / prepare (never a silent none: platform-apply makes its own read), one
+# sentence says so under the table, and the plan itself does not fail.
 CALLED ^iap settings get .*--organization=111111111111( |$)
 NOT_CALLED (create|^services enable|patch|add-iam-policy-binding|^iap settings set)
 OUTPUT "item": "login"
 OUTPUT "state": "not checked"
+OUTPUT "action": "prepare"
 OUTPUT [Tt]he login of the organization could not be checked
-OUTPUT "status": "unchanged"
-OUTPUT_NOT "status": "failed"
+OUTPUT "status": "would-update"
+OUTPUT_NOT "status": "(failed|unchanged)"
+OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
 OUTPUT_NOT invalid_grant
 OUTPUT_NOT refreshing
