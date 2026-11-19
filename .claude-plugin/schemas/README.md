@@ -23,7 +23,7 @@ Source of truth: [`docs/DESIGN.md` — section 11](../../docs/DESIGN.md#11-proje
 - `settings` is complete: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`, all booleans; at least one of the first three is `true`.
 - **The topic `aleogr-<name>` is derived, not typed.** `repo.topics` holds only extra topics and must not contain `aleogr-<name>`; the list sent to GitHub is the derived topic plus `repo.topics`, sorted, without duplicates. The schema cannot express this, so it is stated in prose only.
 - `components` (optional; a declaration without it stays valid): a list, possibly empty, of objects with exactly `name`, `stack`, `path` and `version`, all required.
-  - `name`: 1 to 20 characters of `a-z`, `0-9`, `-`, starting with a letter; not `changes` or `ci` (the project's CI file has jobs with those names, and each component is a job named after it).
+  - `name`: 1 to 20 characters of `a-z`, `0-9`, `-`, starting with a letter; not `changes` or `ci` (the project's CI file has jobs with those names, and each component is a job named after it), nor `true`, `false`, `null`, `yes`, `no`, `on` or `off` (YAML does not read them as names).
   - `stack`: `go`, the only stack implemented.
   - `path`: the component's folder, relative to the repository root: parts separated by `/`, none empty; each part uses only `a-z`, `0-9`, `-`, `_` and `.`, is not `.` or `..`, does not start with `-` or `.` (so never `.github`, `.aleogr` or under them) and does not end with `.`. Default: the name.
   - `version`: the language version, `major.minor` (`^[0-9]+\.[0-9]+$`). Default: `stacks.<stack>.version` of the owner's defaults.

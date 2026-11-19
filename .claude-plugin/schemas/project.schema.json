@@ -78,10 +78,10 @@
         "required": ["name", "stack", "path", "version"],
         "properties": {
           "name": {
-            "description": "Component name: 1 to 20 characters of a-z, 0-9 and -, starting with a letter; not changes or ci (jobs of the project's CI file).",
+            "description": "Component name: 1 to 20 characters of a-z, 0-9 and -, starting with a letter; not changes or ci (jobs of the project's CI file), nor true, false, null, yes, no, on or off (YAML does not read them as names).",
             "type": "string",
             "pattern": "^[a-z][a-z0-9-]{0,19}$",
-            "not": { "enum": ["changes", "ci"] }
+            "not": { "enum": ["changes", "ci", "true", "false", "null", "yes", "no", "on", "off"] }
           },
           "stack": { "enum": ["go"] },
           "path": {
