@@ -1,0 +1,12 @@
+# apply; the repository's copy is newer than the seeded file and the folder is behind: one fast-forward pull.
+# The fake cannot change the seeded file, so the verification after the pull still reads a copy that
+# differs: the run ends "updated" with a non-empty pending (the item verify). The equal-after-update
+# path is exercised for real in the run checklist.
+CALLED ^git -c credential\.helper= -c '?credential\.helper=!gh auth git-credential'? pull --ff-only origin main
+NOT_CALLED ^git (add|commit|init|config)|^git .*push
+NOT_CALLED ^gh api user
+COUNT 2 ^gh api repos/example-org/example-repo/contents/\.aleogr/project\.json
+OUTPUT "updated": true
+OUTPUT "status": "updated"
+RESULT_NOT "pending": \[\]
+OUTPUT "item": "verify"

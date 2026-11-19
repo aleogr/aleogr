@@ -112,7 +112,7 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
 
 ## Answer
 
-On `created`, `updated` or `unchanged`: one sentence saying what happened and which keys changed (`outputs.changes`), then the declaration in a fenced `json` block, exactly as the file now holds it (for `unchanged`, the file as it is). When `repo.visibility` is `public`, add: `The declaration only states the visibility: nothing is public until project-apply runs with confirmVisibility=public.` On `failed`: the sentence(s) of the failed check, and no file.
+On `created`, `updated` or `unchanged`: one sentence saying what happened and which keys changed (`outputs.changes`), then the declaration in a fenced `json` block, exactly as the file now holds it (for `unchanged`, the file as it is). Only when the file is created with `repo.visibility` `public`, or when this run changes `repo.visibility` to `public`, add: `The declaration only states the visibility: nothing is public until project-apply runs with confirmVisibility=public.`; in every other case (including an edit of another key of a declaration that is already `public`, and `unchanged`) do not write that sentence. On `failed`: the sentence(s) of the failed check, and no file.
 
 Then the result block. The answer ends with exactly one block.
 

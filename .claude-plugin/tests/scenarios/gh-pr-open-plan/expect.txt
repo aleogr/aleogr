@@ -1,0 +1,4 @@
+NOT_CALLED ^git (switch|add|commit|config|-c credential)
+NOT_CALLED ^gh pr create
+OUTPUT "status": "would-create"
+OUTPUT "folder": "ready"

@@ -1,0 +1,8 @@
+# plan; the file differs and the folder's origin is another repository: never fast-forwarded from there
+CALLED ^git remote get-url origin
+NOT_CALLED ^git -c credential
+NOT_CALLED ^git (init|commit|push|pull|fetch|config|add|remote (add|set-url|remove))
+OUTPUT "state": "needs-attention"
+OUTPUT "reason": "other-remote"
+OUTPUT "status": "pending"
+OUTPUT_NOT example-org/other

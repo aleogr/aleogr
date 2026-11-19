@@ -1,0 +1,6 @@
+# Two state files share the marker gh repo edit; the one with the longer prefix (_contents)
+# answers the contents read, the shorter one answers the repository read.
+ORDER ^gh repo edit >> ^gh api repos/example-org/example-repo/contents/README\.md$
+OUTPUT repository-before-edit
+OUTPUT contents-after-edit
+OUTPUT repository-after-edit

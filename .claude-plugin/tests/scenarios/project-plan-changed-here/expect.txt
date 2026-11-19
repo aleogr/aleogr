@@ -1,0 +1,11 @@
+# The local declaration has a change the repository does not have (and the settings differ too),
+# in a ready checkout with no open tooling pull request: the change is to propose.
+CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+CALLED ^gh pr list --repo example-org/demo
+OUTPUT "state": "changed here"
+OUTPUT "action": "propose"
+OUTPUT not checked until the change is merged
+OUTPUT "status": "would-update"
+OUTPUT_NOT merge first
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^gh pr create|^git (switch|add|commit|push|-c credential)

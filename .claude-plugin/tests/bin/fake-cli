@@ -20,8 +20,9 @@
 # counter lives in a file next to FAKE_LOG.
 # State responses: a file <prefix>+after+<marker>.txt answers calls that match
 # <prefix> once an earlier call matching <marker> (same "_" rule) is in the log.
-# When several apply, the one whose marker call is the most recent wins; when none
-# applies, the files without "+after+" answer as above. They let a read answer by
+# When several apply, the one whose marker call is the most recent wins (on the same
+# marker call, the one with the longest prefix); when none applies, the files without
+# "+after+" answer as above. They let a read answer by
 # what was changed before it, not by how many reads came before.
 log="${FAKE_LOG:?FAKE_LOG is not set}"
 dir="${FAKE_RESPONSES:-}"
@@ -42,7 +43,7 @@ if [ "$tool" != gcloud ]; then
   done
 fi
 if [ -d "$dir" ]; then
-  best="" ; best_line=0
+  best="" ; best_line=0 ; best_len=0
   for f in "$dir"/*+after+*; do
     [ -f "$f" ] || continue
     base="$(basename "$f")"
@@ -58,7 +59,11 @@ if [ -d "$dir" ]; then
       case "$logged" in gh_*|git_*) logged="${logged//\//_}" ;; esac
       case "$logged" in "$marker"*) mline=$i ;; esac
     done < <(cat "$log" 2>/dev/null)
-    if [ "$mline" -gt "$best_line" ]; then best="$f"; best_line=$mline; fi
+    # The most recent marker wins; on the same marker line, the longest prefix wins.
+    if [ "$mline" -gt 0 ] && { [ "$mline" -gt "$best_line" ] ||
+         { [ "$mline" -eq "$best_line" ] && [ "${#prefix}" -gt "$best_len" ]; }; }; then
+      best="$f"; best_line=$mline; best_len=${#prefix}
+    fi
   done
   if [ -n "$best" ]; then
     echo "$line" >> "$log"

@@ -1,0 +1,4 @@
+CALLED ^git status --porcelain -- \.aleogr/project\.json$
+CALLED ^git add -- \.aleogr/project\.json$
+NOT_CALLED ^git (add|commit) .*(-A|--all| \.$)|^git (stash|reset|checkout|restore|clean)
+OUTPUT "status": "created"

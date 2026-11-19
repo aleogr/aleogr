@@ -1,0 +1,12 @@
+# The local declaration has a change the repository does not have, in a ready checkout with no
+# open tooling pull request: with confirm=yes the change is proposed by pull request (#7), the
+# run ends "updated" and the owner merges, then runs the apply again. Nothing else is applied.
+CALLED ^git commit -m "?Change the project declaration"? -- \.aleogr/project\.json
+CALLED ^gh pr create --repo example-org/demo --base main --head aleogr/change-[a-z0-9]{6}
+NOT_CALLED ^gh repo|--method|^git .*push .*origin main
+NOT_CALLED -X |--input
+OUTPUT "status": "updated"
+OUTPUT merge https://github\.com/example-org/demo/pull/7
+OUTPUT /aleogr:project-apply confirm=yes
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT "number": 7

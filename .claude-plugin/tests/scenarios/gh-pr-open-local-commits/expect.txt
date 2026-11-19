@@ -1,0 +1,3 @@
+OUTPUT "folder": "local-commits"
+OUTPUT "status": "pending"
+NOT_CALLED ^git (switch|add|commit|config|-c credential)|^gh pr create

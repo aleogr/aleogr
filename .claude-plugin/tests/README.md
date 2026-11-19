@@ -54,19 +54,24 @@ Create `scenarios/<name>/` with:
   State responses (`<prefix>+after+<marker>.txt`, `.exit1` allowed) answer a
   call that matches `<prefix>` once an earlier call matching `<marker>` (same
   `_` rule) is in the log; when several apply, the one whose marker call is the
-  most recent wins, and when none applies the other files answer as above. For
+  most recent wins (on the same marker call, the one with the longest prefix,
+  as for the files above), and when none applies the other files answer as above. For
   example `sql_instances_describe.txt.exit1` (missing),
   `sql_instances_describe+after+sql_instances_create.txt` (running) and
   `sql_instances_describe+after+sql_instances_patch.txt` (stopped) answer by
   what was done before each read, however many reads there are. A marker call
   counts even when it failed: for a change that fails first and works on a
   retry, use numbered files.
-  The `project-apply-*` scenarios use numbered files for the repository read
-  (`gh_api_repos_example-org_demo.1.txt`, ...): a `+after+` file on it would
-  also answer the `contents`, `commits` and `rulesets` reads, whose names it is
-  a prefix of. So a model that reads the repository once more or once less
-  than the fixture assumes fails the scenario (it never passes it wrongly):
-  rerun such a failure before debugging it.
+  A `+after+` file on the repository read (`gh_api_repos_example-org_demo+after+gh_repo_edit.txt`)
+  also answers the `contents`, `commits` and `rulesets` reads, whose names it is
+  a prefix of. Give each of those reads its own state file on the same marker
+  (`gh_api_repos_example-org_demo_contents+after+gh_repo_edit.txt`, ...): the
+  longer prefix wins the tie, so every read answers by what was done before it,
+  whatever the number of reads (`project-apply-update-then-apply` does this).
+  Some `project-apply-*` scenarios still use numbered files for the repository
+  read (`gh_api_repos_example-org_demo.1.txt`, ...): a model that reads the
+  repository once more or once less than such a fixture assumes fails the
+  scenario (it never passes it wrongly): rerun such a failure before debugging it.
 - `expect.txt`, one check per line (blank lines and `#` comments are ignored):
 
 | Line | Holds when |
@@ -85,4 +90,4 @@ Regexes are `grep -E`. Use fictitious values only: the repository is public.
 
 Claude Code itself runs `git ls-files --error-unmatch ... .claude/settings.local.json` through `PATH` during a run, so the call log has `git` lines the prompt did not ask for: never use a bare `NOT_CALLED ^git`; pin the subcommand (`NOT_CALLED ^git (add|commit|push)`).
 
-`scenarios/harness-selftest`, `scenarios/harness-selftest-gh` and `scenarios/harness-selftest-files` check the harness itself.
+`scenarios/harness-selftest`, `scenarios/harness-selftest-gh`, `scenarios/harness-selftest-files` and `scenarios/harness-selftest-state` check the harness itself.

@@ -1,0 +1,4 @@
+ORDER ^git -c credential.* push >> ^git switch main
+NOT_CALLED ^gh pr create
+NOT_CALLED ^git .*push .*origin main
+OUTPUT "status": "failed"

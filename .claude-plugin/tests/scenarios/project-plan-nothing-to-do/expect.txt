@@ -1,6 +1,7 @@
 # Everything as declared, the ruleset main matches, the repository's declaration is equal.
 CALLED ^gh api repos/example-org/demo/rulesets/123$
 CALLED ^gh api repos/example-org/demo/contents/\.aleogr/project\.json
+CALLED ^gh pr list --repo example-org/demo
 OUTPUT nothing to do
 OUTPUT "status": "unchanged"
 OUTPUT "exposes": false

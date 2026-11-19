@@ -1,7 +1,7 @@
 # The repository exists private, declared public, everything else as declared; confirmed
 # with confirmVisibility=public: made public, then main protected (the plan checks the
 # protection again once the repository is public). Numbered reads: the repository is
-# private for the plan's two reads and the configure's first read, then public; the
+# private for the plan's three reads and the configure's first read, then public; the
 # rulesets list is refused while private (403 Upgrade), [] before the POST, [main] after.
 CALLED ^gh repo edit example-org/demo --visibility public --accept-visibility-change-consequences
 ORDER ^gh repo edit .*--visibility public >> ^gh api --method POST repos/example-org/demo/rulesets

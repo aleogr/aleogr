@@ -1,0 +1,8 @@
+# The same local change, with no argument: proposing takes confirm=yes; nothing is committed,
+# pushed or opened.
+NOT_CALLED ^git (switch|add|commit|-c credential)|^gh pr create
+OUTPUT "status": "pending"
+OUTPUT /aleogr:project-apply confirm=yes
+OUTPUT "pullRequest": null
+OUTPUT "item": "confirm"
+OUTPUT_NOT pull request #

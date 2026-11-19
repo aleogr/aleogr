@@ -1,8 +1,9 @@
-# The repository exists with two commits and no declaration: it is never pushed to; the
-# declaration goes through a pull request, and nothing changes.
+# The repository exists with two commits and no declaration, the folder is a ready checkout and
+# the declaration is untracked in it: the default branch is never pushed to; with confirm=yes the
+# declaration is proposed by pull request, and the run ends "updated".
 CALLED ^gh api "?repos/example-org/demo/commits\?per_page=2
-NOT_CALLED ^git (init|commit|push)|^gh repo
+CALLED ^gh pr create
+NOT_CALLED ^git (init|push)|^git .*push .*origin main|^gh repo
 NOT_CALLED --method
-OUTPUT pull request
-OUTPUT "status": "pending"
-OUTPUT_NOT nothing to do
+OUTPUT "status": "updated"
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$

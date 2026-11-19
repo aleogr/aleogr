@@ -1,10 +1,10 @@
 ---
-description: GitHub checkout setup, with the gh and git CLIs. Use to tie the current folder to a GitHub repository and send one file (by default the project declaration `.aleogr/project.json`) as the repository's first content after its README, or, in plan mode, to learn whether the repository already has that file and whether it equals the local one. Pushes only to a repository whose default branch has exactly one commit and lacks the file; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
+description: GitHub checkout setup, with the gh and git CLIs. Use to tie the current folder to a GitHub repository and send one file (by default the project declaration `.aleogr/project.json`) as the repository's first content after its README, or, in plan mode, to learn whether the repository already has that file and whether it equals the local one - and, when it differs, whether this folder has a local change, is behind the repository (it then fast-forwards the folder in apply mode) or needs attention. Pushes only to a repository whose default branch has exactly one commit and lacks the file; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
 ---
 
 # github_checkout-setup
 
-Ties the current folder to a GitHub repository and sends one file as the repository's first content after its README (the "birth"), with the `gh` and `git` CLIs. In `plan` mode it only reads, through the GitHub API, so it works in a folder that is not a checkout yet: it answers whether the repository has the file and whether it equals the local one.
+Ties the current folder to a GitHub repository and sends one file as the repository's first content after its README (the "birth"), with the `gh` and `git` CLIs. In `plan` mode it only reads, through the GitHub API, so it works in a folder that is not a checkout yet: it answers whether the repository has the file and whether it equals the local one. When the repository's copy differs from the local one, it also reads the folder with read-only `git` commands, to tell a local change from a folder that is behind the repository (the repository moved on, after a merge) or one that needs attention; `apply` fast-forwards a folder that is behind, and does nothing else on that path.
 
 The file is pushed to the default branch only when that branch has exactly one commit (the README of `github_repo-create`) and does not have the file. A repository with any other history is never pushed to. The commit is signed with the account's login and GitHub's no-reply address, set in this checkout only; a real e-mail address is never used, and no global git or machine configuration is changed.
 
@@ -18,7 +18,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 | `name=<name>` | The repository name. Required. |
 | `path=<path>` | The file to send, relative to the current folder. Default `.aleogr/project.json`. |
 | `message=<text>` | The commit message. Default `Add the project declaration`. |
-| `mode=<plan\|apply>` | `plan` (default) only reads; `apply` sends the file when the repository is at its birth. |
+| `mode=<plan\|apply>` | `plan` (default) only reads; `apply` sends the file when the repository is at its birth, or fast-forwards a folder that is behind the repository. |
 
 `owner` and `name` are required: a missing `owner` or `name` ends with the result block with `status` `failed` and one sentence saying which is missing, with no command (do not ask for it). Validate before any command; a value that breaks a rule ends with the result block with `status` `failed`, one sentence saying which rule failed, and no command:
 
@@ -30,9 +30,9 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 3 runs again as the verification of step 16): no `gh auth status`, no `gh repo view`, no `gh repo clone`, no `git clone`, no `git fetch`, no `git config --global`, no `git config` without `--local`, no other `gh` or `git` command, no retry. Never print the account name, the account id or the token, and never repeat the login in the answer or the result block (the `owner` argument, as the caller gave it, is the only exception): when a command of step 11 is shown, or named in the answer, it is written with `<login>` and `<id>` in place of the values. Never repeat the output of `git remote get-url` in the answer or the result block. Read the local file with the Read tool, never a shell command.
+Show each command before running it. Run only the commands below, in this order, each step's command at most once (the read of step 3 runs again as the verification of step 16 or of step 18): no `gh auth status`, no `gh repo view`, no `gh repo clone`, no `git clone`, no `git fetch`, no `git config --global`, no `git config` without `--local`, no other `gh` or `git` command, no retry. Never print the account name, the account id or the token, and never repeat the login in the answer or the result block (the `owner` argument, as the caller gave it, is the only exception): when a command of step 11 is shown, or named in the answer, it is written with `<login>` and `<id>` in place of the values. Never repeat the output of `git remote get-url` in the answer or the result block. Read the local file with the Read tool, never a shell command.
 
-The state of the file in the repository is one of `equal`, `not-sent`, `differs` or `missing` (steps 1 to 5).
+The state of the file in the repository is one of `equal`, `not-sent`, `differs`, `behind`, `needs-attention` or `missing` (steps 1 to 5). Steps 7 to 16 are the birth (`not-sent`, `apply`); steps 17 and 18 are the update of a folder that is `behind` (`apply`).
 
 A command whose result decides a step is run alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. Each case below names both the exit code and the text that identifies it; when the two disagree (an `exit 0` reported next to an error line such as `gh: Not Found (HTTP 404)`), the text decides and the answer says that the exit code could not be trusted. The text is read to decide and is never quoted: the answer gives the cause in one sentence in its own words, with no raw error text.
 
@@ -62,7 +62,74 @@ A command whose result decides a step is run alone: not piped into another comma
    - Non-zero exit and the output contains `HTTP 404`: the file is absent. Go to step 5.
    - Any other non-zero exit: `failed`. Say the cause in one sentence, with no raw error text. Run nothing else.
 
-4. The file is present: compare the two as JSON values, not byte by byte. Key order, spacing, indentation and line endings (`\r\n` or `\n`) are ignored; every key and every value must be equal, and lists keep their order. Equal: the state is `equal`. Different, or the repository's copy is not valid JSON: the state is `differs`. Run no command; go to step 6.
+4. The file is present: compare the two as JSON values, not byte by byte. Key order, spacing, indentation and line endings (`\r\n` or `\n`) are ignored; every key and every value must be equal, and lists keep their order. Equal: the state is `equal`; run no command and go to step 6. Different, or the repository's copy is not valid JSON: the folder tells which kind of difference it is. Run the reads of steps 4a to 4e, in `plan` and in `apply`, in this order; the first that decides the state ends them, and the run goes to step 6. They only read the folder: never `git fetch`, `git pull` or any command that changes the folder.
+
+   4a. Is the folder a git checkout?
+
+   ```
+   git rev-parse --is-inside-work-tree
+   ```
+
+   - Exit 0 and the output is `true`: continue.
+   - `git` is not installed (`command not found`, or the command cannot start): `failed`. Say in one sentence that `git` must be installed. Run nothing else.
+   - Any other answer (a non-zero exit, such as one with `not a git repository`, or an output that is not `true`): the state is `needs-attention`, with the reason `not-a-checkout`. Go to step 6.
+
+   4b. Is the remote `origin` this repository?
+
+   ```
+   git remote get-url origin
+   ```
+
+   Run it as written, with no redirection, and read its output; never repeat that output in the answer or the result block (an address can carry a token): say only whether it matches.
+
+   - Exit 0 and the output is `https://github.com/<owner>/<name>`, compared ignoring letter case and ignoring a trailing `.git` or `/` (the rule of step 9): continue.
+   - Exit 0 and any other address, or a non-zero exit and the output contains `No such remote`: the state is `needs-attention`, with the reason `other-remote`. Go to step 6. Never add, change or remove a remote.
+   - Any other non-zero exit: `failed` (one sentence, no raw error text); run nothing else.
+
+   4c. Is the folder on the default branch?
+
+   ```
+   git branch --show-current
+   ```
+
+   - Exit 0 and the output is exactly `<branch>` (the `default_branch` of step 1): continue.
+   - Exit 0 and any other output (another branch, or nothing when no branch is checked out): the state is `needs-attention`, with the reason `other-branch`. Go to step 6.
+   - A non-zero exit: `failed` (one sentence, no raw error text); run nothing else.
+
+   4d. Is the file changed in this folder? The skill runs in the checkout's top folder, so `<path>` here, and the paths this command prints, are relative to it:
+
+   ```
+   git status --porcelain -- <path>
+   ```
+
+   - Exit 0 and the output lists `<path>` (any status: modified, added, untracked): the state is `differs`, a local change the repository does not have. Go to step 6.
+   - Exit 0 and an empty output: continue.
+   - A non-zero exit: `failed` (one sentence, no raw error text); run nothing else.
+
+   4e. Has the repository really moved on from this folder? Read the folder's last commit, then the head of the repository's default branch:
+
+   ```
+   git rev-parse HEAD
+   ```
+
+   Exit 0 and the output is one commit hash (40 characters of `0-9` and `a-f`): it is `<sha>`. Anything else: `failed` (one sentence, no raw error text); run nothing else.
+
+   ```
+   gh api repos/<owner>/<name>/commits/<branch>
+   ```
+
+   Exit 0 and the JSON has a `sha`: it is the head of the default branch. Anything else: `failed`. Say the cause in one sentence, with no raw error text. Run nothing else.
+
+   - `<sha>` equals the head: the folder already has the repository's last commit, yet its file differs and git sees no change in it (an ignored file, for example). The state is `needs-attention`, with the reason `untracked-difference`. Go to step 6.
+   - `<sha>` differs from the head: look `<sha>` up in the repository:
+
+     ```
+     gh api repos/<owner>/<name>/commits/<sha>
+     ```
+
+     - Exit 0: the folder's last commit is in the repository and the repository has moved on since. The state is `behind`. Go to step 6.
+     - Non-zero exit and the output contains `HTTP 404` or `HTTP 422`: the state is `needs-attention`, with the reason `local-commits`. Go to step 6.
+     - Any other non-zero exit: `failed`. Say the cause in one sentence, with no raw error text. Run nothing else.
 
 5. The file is absent: count the commits of the default branch, at most two:
 
@@ -80,7 +147,10 @@ A command whose result decides a step is run alone: not piped into another comma
 6. Decide, by the state.
 
    - `equal`: `status` `unchanged`, in `plan` and in `apply`. Run nothing else.
-   - `differs`: `status` `pending`, in `plan` and in `apply`, with the item `declaration differs from the repository`. Run nothing else: the repository's copy is the one that holds; the local change goes to the repository through a pull request.
+   - `differs`: `status` `pending`, in `plan` and in `apply`, with the item `declaration changed in this folder`. Run nothing else: the local change goes to the repository through a pull request.
+   - `needs-attention`: `status` `pending`, in `plan` and in `apply`, with the item `this folder needs attention`. Run nothing else: the owner fixes the folder by hand.
+   - `behind`, `plan`: `status` `would-update`. Show the command of step 17 that `apply` would run, without running it. Run nothing else.
+   - `behind`, `apply`: go to step 17. `<branch>` is the `default_branch` of step 1.
    - `missing`: `status` `pending`, in `plan` and in `apply`, with the item `declaration is not in the repository`. Run nothing else: a repository with history is never pushed to.
    - `not-sent`, `plan`: `status` `would-create`. Show the commands of steps 7 to 15 that `apply` would run (with `<login>` and `<id>`), without running them. Run nothing else.
    - `not-sent`, `apply`, the repository does not exist (step 1 answered `HTTP 404`): `failed`. Say in one sentence that the repository must be created first, with `/aleogr-repo-github:github_repo-create`. Run nothing else.
@@ -198,9 +268,21 @@ A command whose result decides a step is run alone: not piped into another comma
     - Non-zero exit and the output contains `GH013`, `GH006`, `protected branch` (in any letter case) or `rule violations`: the repository's rules refused it. This is not a failure of the tooling: `status` `pending`, with the item `declaration is not in the repository`. Nothing was changed on GitHub; the local commit is kept (do not undo it). Run nothing else.
     - Any other non-zero exit: `failed`. Nothing was changed on GitHub; the local commit is kept. Say the cause in one sentence, with no raw error text. Run nothing else.
 
-16. Verify, once: run the read of step 3 again and compare by the rule of step 4. The status stays `created`. Exit 0 and `equal`: nothing is left. The read fails, or the copy is not equal: say so in one sentence and add the item `verify`.
+16. Verify, once: run the read of step 3 again and compare by the rule of step 4 (the comparison only: steps 4a to 4e do not run). The status stays `created`. Exit 0 and `equal`: nothing is left. The read fails, or the copy is not equal: say so in one sentence and add the item `verify`.
 
-Then answer in a few lines: the state of the file in the repository, what was done (or would be done), the local changes made in this folder, anything left in `pending`, and the result block. The answer never contains the account's login, id or no-reply address (except the `owner` argument as given), nor the output of `git remote get-url`.
+17. The folder is `behind`: bring it up to date, by a fast-forward only. This is the only command of this path that changes anything: nothing is committed, pushed, configured or initialised. Git authenticates through `gh` for this command only, as in step 12, in the same single-quoted form in bash and in PowerShell:
+
+    ```
+    git -c credential.helper= -c 'credential.helper=!gh auth git-credential' pull --ff-only origin <branch>
+    ```
+
+    - Exit 0: the folder is up to date; the status is `updated` whatever happens in step 18. Go to step 18.
+    - Non-zero exit and the output contains `would be overwritten`, `Not possible to fast-forward`, `diverging` or `CONFLICT`: `failed`. Say in one sentence, in your own words, that this folder cannot be brought up to date by a fast-forward, and that nothing was changed on GitHub; the words of git's output (these included) are never repeated or quoted. Run nothing else.
+    - Any other non-zero exit: `failed`. Say the cause in one sentence, with no raw error text, and that nothing was changed on GitHub. Run nothing else.
+
+18. Verify, once: run the read of step 3 again and compare it with the local file, read again with the Read tool, by the rule of step 4 (the comparison only: steps 4a to 4e do not run again). The status stays `updated`. Exit 0 and `equal`: nothing is left. The read fails, or the copy is not equal: say so in one sentence and add the item `verify`.
+
+Then answer in a few lines: the state of the file in the repository, what was done (or would be done), the local changes made in this folder (including the fast-forward of step 17), anything left in `pending`, and the result block. The answer never contains the account's login, id or no-reply address (except the `owner` argument as given), nor the output of `git remote get-url`.
 
 ## Result block
 
@@ -221,7 +303,9 @@ End with exactly one fenced block tagged `aleogr-result`:
     "state": "equal",
     "defaultBranch": "main",
     "path": ".aleogr/project.json",
-    "pushed": true
+    "pushed": true,
+    "updated": false,
+    "reason": null
   },
   "cost": { "fixed": false, "notes": "no cost" },
   "pending": []
@@ -230,20 +314,25 @@ End with exactly one fenced block tagged `aleogr-result`:
 
 - `mode` echoes the mode used (`plan` when not given). `status` is one of:
   - `would-create`: `plan`, state `not-sent` (the repository exists at its birth, or does not exist yet).
+  - `would-update`: `plan`, state `behind`.
   - `created`: `apply`, the push of step 15 succeeded in this run, whatever happened after it.
+  - `updated`: `apply`, state `behind`, the fast-forward of step 17 succeeded in this run, whatever happened after it.
   - `unchanged`: state `equal` (`plan` or `apply`); nothing was done.
-  - `pending`: nothing was changed on GitHub and the rest is the owner's to do: state `differs` or `missing` (`plan` or `apply`), or the push refused by the repository's rules (`apply`).
-  - `failed`: an argument missing or broke a rule, `gh` or `git` missing, `gh` not logged in, the repository read refused, `apply` on a repository that does not exist, the local file missing or not valid JSON, a read of steps 3 or 5 refused, a repository with no commit, `gh api user` refused, `git init -b` refused (git older than 2.28), the folder's `origin` pointing to another address, the folder on another branch, local commits that are not in the repository (including a single commit with `<path>` whose author is not the account's no-reply address), or a `git` command of steps 8 to 15 refused (the push for any reason other than the repository's rules). Nothing was changed on GitHub.
+  - `pending`: nothing was changed on GitHub and the rest is the owner's to do: state `differs`, `needs-attention` or `missing` (`plan` or `apply`), or the push refused by the repository's rules (`apply`).
+  - `failed`: an argument missing or broke a rule, `gh` or `git` missing, `gh` not logged in, the repository read refused, `apply` on a repository that does not exist, the local file missing or not valid JSON, a read of steps 3 or 5 refused, a folder read of steps 4b to 4e refused, the fast-forward of step 17 refused, a repository with no commit, `gh api user` refused, `git init -b` refused (git older than 2.28), the folder's `origin` pointing to another address, the folder on another branch, local commits that are not in the repository (including a single commit with `<path>` whose author is not the account's no-reply address), or a `git` command of steps 8 to 15 refused (the push for any reason other than the repository's rules). Nothing was changed on GitHub.
 - `pending` items are `{ "item": "<what>", "reason": "manual", "how": "<text>" }`:
-  - State `differs`: exactly one item `{ "item": "declaration differs from the repository", "reason": "manual", "how": "merge the change (a pull request), then update this folder" }`.
+  - State `differs`: exactly one item `{ "item": "declaration changed in this folder", "reason": "manual", "how": "propose the change with a pull request" }`.
+  - State `needs-attention`: exactly one item `{ "item": "this folder needs attention", "reason": "manual", "how": "<how>" }`, where `<how>` is, by the reason: `not-a-checkout`, `this folder is not a checkout of the repository`; `other-remote`, `this folder's origin is another repository`; `other-branch`, `git switch <branch>`; `untracked-difference`, `the file in this folder differs from the repository's but git sees no change in it; check that the file is not ignored`; `local-commits`, `this folder has commits that are not in the repository`.
   - State `missing`, or the push refused by the repository's rules: exactly one item `{ "item": "declaration is not in the repository", "reason": "manual", "how": "open a pull request that adds <path>" }`.
-  - `created` with a verification that failed or differs: one item `{ "item": "verify", "reason": "manual", "how": "/aleogr-repo-github:github_checkout-setup owner=<owner> name=<name> mode=plan" }` (plus `path=<path>` when it is not the default). `created` with a non-empty `pending` is allowed.
+  - `created` or `updated` with a verification (step 16 or 18) that failed or differs: one item `{ "item": "verify", "reason": "manual", "how": "/aleogr-repo-github:github_checkout-setup owner=<owner> name=<name> mode=plan" }` (plus `path=<path>` when it is not the default). `created` or `updated` with a non-empty `pending` is allowed.
   - Every other ending: `[]`.
-- `outputs` has the same four keys in every ending:
-  - `state`: `equal`, `not-sent`, `differs` or `missing`, as found by steps 1 to 5. After a push (`created`), it is the verification of step 16: `equal`, `differs` when the copy is not equal, and `null` when the read failed. `null` when the run failed before the state was known (an argument, `gh`, the repository read, the reads of steps 3 and 5), and `null` whenever the local file is missing or not valid JSON, whatever step 1 found. On a `failed` ending after step 6 (`apply`), it is the state found, `not-sent`.
+- `outputs` has the same six keys in every ending:
+  - `state`: `equal`, `not-sent`, `differs`, `behind`, `needs-attention` or `missing`, as found by steps 1 to 5. After a push (`created`) or a fast-forward (`updated`), it is the verification of step 16 or 18: `equal`, `differs` when the copy is not equal, and `null` when the read failed. `null` when the run failed before the state was known (an argument, `gh`, `git` missing, the repository read, the reads of steps 3, 4b to 4e and 5), and `null` whenever the local file is missing or not valid JSON, whatever step 1 found. On a `failed` ending after step 6 (`apply`), it is the state found, `not-sent` or `behind`.
   - `defaultBranch`: the `default_branch` of step 1; `null` when the repository does not exist or step 1 did not succeed.
   - `path`: the file, `.aleogr/project.json` when not given (as given, even when it broke a rule).
   - `pushed`: `true` only when the push of step 15 exited 0 in this run; `false` otherwise.
+  - `updated`: `true` only when the fast-forward of step 17 exited 0 in this run; `false` otherwise.
+  - `reason`: for state `needs-attention`, `not-a-checkout`, `other-remote`, `other-branch`, `untracked-difference` or `local-commits` (steps 4a to 4e); `null` in every other ending.
 - `resources` is `[{ "type": "repository", "id": "<owner>/<name>", "name": "<name>" }]` when step 1 proved the repository exists, `[]` otherwise.
 - The result block never contains the account's login, id or no-reply address (except the `owner` argument as given).
 - `cost` is always `{ "fixed": false, "notes": "no cost" }`.

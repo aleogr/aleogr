@@ -1,0 +1,12 @@
+# The folder is behind (the owner merged a change of the declaration that adds the topic
+# status-page). With confirm=yes the folder is brought up to date, the plan runs again and its
+# settings change (the topic) is applied in the same run. The fake cannot change the seeded file,
+# so the seeded file is the merged one: the repository's copy differs from it before the pull and
+# equals it after. Every read answers by state files, whatever the number of reads: the
+# repository shows the topic once gh repo edit ran, and each read whose name the repository read
+# is a prefix of has its own +after+gh_repo_edit file (the longer prefix wins the tie).
+ORDER ^git -c credential.* pull --ff-only origin main >> ^gh repo edit example-org/demo
+CALLED ^gh repo edit example-org/demo .*--add-topic status-page
+NOT_CALLED ^git (commit|.*push)|^gh pr create
+OUTPUT "status": "updated"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$

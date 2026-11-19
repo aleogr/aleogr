@@ -1,0 +1,8 @@
+[
+  {
+    "headRefName": "aleogr/change-abc123",
+    "isCrossRepository": true,
+    "number": 9,
+    "url": "https://github.com/example-org/example-repo/pull/9"
+  }
+]

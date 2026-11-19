@@ -1,0 +1,7 @@
+# A tooling pull request (#4) is open: the owner merges it first. Even with confirm=yes nothing
+# is committed, pushed, opened or applied.
+NOT_CALLED ^git (switch|add|commit|-c credential)|^gh pr create|^gh repo
+OUTPUT pull request #4
+OUTPUT "status": "pending"
+OUTPUT "pullRequest": null
+OUTPUT merge https://github\.com/example-org/demo/pull/4

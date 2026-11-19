@@ -1,0 +1,14 @@
+{
+  "id": 100000001,
+  "name": "example-repo",
+  "full_name": "example-org/example-repo",
+  "owner": { "login": "example-org", "type": "Organization" },
+  "private": true,
+  "visibility": "private",
+  "html_url": "https://github.com/example-org/example-repo",
+  "ssh_url": "git@github.com:example-org/example-repo.git",
+  "clone_url": "https://github.com/example-org/example-repo.git",
+  "description": "Demo project",
+  "default_branch": "main",
+  "topics": ["aleogr-demo", "sample"]
+}

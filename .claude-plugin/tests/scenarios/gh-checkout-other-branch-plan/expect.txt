@@ -1,0 +1,9 @@
+# plan; the folder was left on a tooling branch by an interrupted run
+CALLED ^git branch --show-current
+NOT_CALLED ^git (-c credential|pull|fetch|switch|checkout)
+NOT_CALLED ^git (init|commit|push|config|add|remote (add|set-url|remove))
+OUTPUT "state": "needs-attention"
+OUTPUT "reason": "other-branch"
+OUTPUT git switch main
+OUTPUT "status": "pending"
+OUTPUT this folder needs attention

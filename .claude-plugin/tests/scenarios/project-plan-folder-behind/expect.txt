@@ -1,0 +1,10 @@
+# The repository's declaration is newer (a merged pull request) and the folder, on main with no
+# local change and its last commit in the repository, is behind: the apply updates it.
+CALLED ^gh api repos/example-org/demo/commits/1111111111111111111111111111111111111111
+CALLED ^gh pr list --repo example-org/demo
+OUTPUT "state": "this folder is behind"
+OUTPUT "action": "update"
+OUTPUT not checked until the change is merged
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh repo|^gh pr create|^git (switch|add|commit|push|pull|fetch|-c credential)
