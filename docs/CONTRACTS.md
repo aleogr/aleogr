@@ -110,7 +110,7 @@ Every skill ends with one fenced JSON block tagged `aleogr-result`. The orchestr
 
 | Action | Input | Output |
 |---|---|---|
-| `repo-describe` | owner, name, checks (the required checks the protection is compared with: `ci` or `none`, default `none`) | exists, visibility, description, default branch, merge settings, features (issues, wiki, projects), protection (state, whether it matches, the required checks it has), topics, secret/variable **names** (from stage 4) |
+| `repo-describe` | owner, name, checks (the required checks the protection is compared with: `ci` or `none`, default `none`) | exists, the numeric ids of the repository and of its owner (public, read at each run, never versioned), visibility, description, default branch, merge settings, features (issues, wiki, projects), protection (state, whether it matches, the required checks it has), topics, secret/variable **names** (from stage 4) |
 | `repo-create` | owner, name, visibility (default `private`; `public` needs its own confirmation), description, topics | creates the repository with a README; HTTPS/SSH URLs, default branch |
 | `repo-configure` | owner, name, and only the settings to change: description, topics, merge methods, delete branch on merge, features (issues, wiki, projects), visibility (a change needs its own confirmation) | applied settings |
 | `checkout-setup` | owner, name, path (default `.aleogr/project.json`), commit message, `head=check` | ties the current folder to the repository (a git checkout with the remote `origin`) and sends the file as the first content after the README, or brings a folder that is behind the repository up to date (a fast-forward); output: the file's state in the repository (`equal`, `not-sent`, `differs`, `behind`, `needs-attention`, `missing`), default branch, path, whether it pushed, whether it updated the folder, the reason of `needs-attention`. `plan` reads the repository's copy through the provider's API and, when it differs, the folder with read-only commands; it changes nothing |
@@ -202,7 +202,7 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 | `environment-describe` | project and environment, the shared platform project (`project=shared platform=shared` on GCP), or the environment id (`projectId` on GCP) | exists, parent, billing linked, enabled services, labels; identities and budget alerts (planned) |
 | `environment-create` | project, environment, `platform` (`shared`: the shared platform project, with no environment), `root` (`tst`: a project that tests the tooling, created inside the folder `tst`), parent and billing reference (discovered by the skill), region (planned) | environment id (GCP project / AWS account / Azure subscription + resource group); repairs an existing environment whose billing is not linked |
 | `services-enable` | project and environment, the shared platform project (`project=shared platform=shared` on GCP), or the environment id (`projectId` on GCP); provider API names (neutral capabilities `run`, `sql`, `secrets`, `storage`, `registry`... planned) | enabled and already enabled provider APIs/services |
-| `ci-identity-setup` | repository (owner/name), allowed branches/environments, roles | keyless CI identity (OIDC / workload identity federation); `ciVariables` with its non-secret identifiers |
+| `ci-identity-setup` | the environment id (`projectId` on GCP), project, repository (`owner/name`), the repository's and its owner's numeric ids (`repositoryId`, `ownerId`, read by the orchestrator from repo-* `repo-describe`), branch (the repository's default branch), `mode` | keyless CI identity (OIDC / workload identity federation) that only that repository's default branch can use, with no role on the environment; output: the account, the provider's name, the condition (`as-declared`, `differs`, `missing`), the number of other members that may act as the account, and `ciVariables` with its non-secret identifiers (set only when every part exists as declared) |
 | `deploy-setup` | component, image or source, environment, hosts, access (login or public), scaling (min 0 and a maximum of instances in `dev`), env vars, `secretRef`s | service name, public hostname; `dnsRecords` |
 | `access-grant` | component, environment, person (e-mail) | applied binding |
 | `deploy-remove` | component, environment | removed |
@@ -211,8 +211,9 @@ Notes: `tls-setup` covers proxied hosts, that is, `prd` (a multi-tenant project 
 Notes:
 
 - On GCP the parent of an environment is the folder of its environment, under the organization or, with `root=tst`, inside the folder `tst`; the shared platform project (`platform=shared`) is the exception, created directly under the organization (DESIGN.md section 6.7). The skill never creates folders. The skill discovers the parent and the billing account; the owner never types them.
-- Implemented: `environment-describe`, `environment-create`, `services-enable` and `budget-alert-setup` (skills in `.claude-plugin/plugins/aleogr-cloud-gcp/skills/`). The other actions are planned.
-- CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation.
+- Implemented: `environment-describe`, `environment-create`, `services-enable`, `budget-alert-setup` and `ci-identity-setup` (skills in `.claude-plugin/plugins/aleogr-cloud-gcp/skills/`). The other actions are planned.
+- CI never gets long-lived cloud keys: `ci-identity-setup` uses OIDC federation, and no key is ever created.
+- `ci-identity-setup` on GCP (`gcp_ci-identity-setup`): in the environment's GCP project, the service account `<project>-ci`, the workload identity pool `github` and its OIDC provider `github` (issuer `https://token.actions.githubusercontent.com`, location `global`), and the binding that lets the tokens of the repository act as the account (`roles/iam.workloadIdentityUser` for the member `principalSet://…/attribute.repository/<owner>/<name>`), each created only when missing, in that order. The provider's condition is exactly `assertion.repository=='<owner>/<name>' && assertion.repository_id=='<repositoryId>' && assertion.repository_owner_id=='<ownerId>' && assertion.ref=='refs/heads/<branch>'`; a provider whose condition, issuer or attribute mapping differs is `would-update` in `plan` and updated whole in `apply` (never deleted). Refused before any change, as `failed`, to be fixed by hand: a deleted or disabled pool or provider, and a pool that holds a provider other than `github`. Other members of the binding are counted (`otherMembers`) and never removed. The account gets no project role: its roles are granted on each resource (registry-* `access-grant`). A binding refused right after the account was created in the same run is retried once, after about a minute. Statuses: `would-create`, `would-update`, `unchanged` (plan); `created`, `updated`, `unchanged`, `failed` (apply). `ciVariables` are `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER` and `GCP_CI_ACCOUNT`.
 - `deploy-setup` maps every declared host to the service (the environment's host and one per tenant) and returns one `dnsRecords` request per host. There is no wildcard in `dev` and `hom` (DESIGN.md section 6.1).
 - In `dev`, `deploy-setup` must scale to zero, use the smallest size and set a maximum of instances (DESIGN.md section 6.5).
 - In `dev` and `hom`, `deploy-setup` puts the login in front of the service unless the component is declared public (DESIGN.md section 6.3); `access-grant` adds a person to the allowed list.
@@ -278,17 +279,25 @@ Notes: `generate` covers database passwords and similar; `pipe` covers keys prod
 | `access-grant` | identity, role (read/write) | applied bindings |
 | `bucket-remove` | project, environment, purpose | removed (empty first, with confirmation) |
 
-### registry-* (exclusive, project) — docker-hub, ghcr, aws-ecr
+### registry-* (exclusive, project) — gcp-artifact-registry, docker-hub, ghcr, aws-ecr
 
-`shared`: a repository per project in the shared registry.
+`shared`/`dedicated`: n/a. The image repository is the project's own, in the project's own cloud environment: one per project and environment, never a repository in a shared registry ([DESIGN.md section 6.4](DESIGN.md#64-shared-platform--project-resources)). Each component's image is a path inside it.
 
 | Action | Input | Output |
 |---|---|---|
-| `registry-describe` | project | registry, repositories, retention, access |
-| `repository-create` | project, component | image path |
-| `access-grant` | identity, role (`push` for CI, `pull` for runtime) | applied bindings |
-| `cleanup-configure` | keep last N / max age | applied retention policy |
-| `repository-remove` | project, component | removed |
+| `registry-describe` | environment id (`projectId` on GCP), project, region | exists (in the declared region), the region it was read in, other regions holding a repository of that id, format, labels, cleanup policy (how many versions it keeps, whether it deletes the rest, dry-run), who may push, image path |
+| `repository-create` | environment id, project, environment, region, `mode` | creates the repository `<project>` when missing, never changes an existing one; output: the image path, the prefix of every component's image (`<imagePath>/<component>`) |
+| `cleanup-configure` | environment id, project, region, keep (1 to 50), `mode` | the cleanup policy, two rules (keep the `keep` most recent versions of each image, delete every other version), dry-run off; output: keep and dry-run as read back |
+| `access-grant` | environment id, project, region, identity (a service account of the same environment), role (`push` only), `mode` | the role that lets the identity push, on the repository and never on the environment; output: whether it is granted |
+| `repository-remove` | environment id, project | removed (planned, stage 6) |
+
+Notes:
+
+- Implemented on GCP: the four actions above, in `.claude-plugin/plugins/aleogr-registry-gcp-artifact-registry/` (skills `gcp-artifact-registry_<action>`); `repository-remove` is planned.
+- On GCP the repository is an Artifact Registry repository, id `<project>`, format Docker, in the declared region, with the labels `aleogr-project` and `aleogr-environment`; the image path is `<region>-docker.pkg.dev/<projectId>/<project>`. A repository of that id found only in another region is `pending` with an item to fix by hand (a repository has one region), and so is one of another format; nothing is changed.
+- `cleanup-configure` owns both rules, from a policy file the plugin ships (`files/cleanup-policy.json`, for 5; another `keep` is written to a temporary file outside the project's folder). The policy is as declared only with exactly those two rules and dry-run off: a policy in dry-run deletes nothing, so it counts as different. Setting it replaces every policy of the repository and turns dry-run off in the same command. The provider applies it later (on GCP about once a day): a run never sees it delete.
+- `access-grant` grants only `push` (on GCP, `roles/artifactregistry.writer` on the repository). `pull` is refused as not needed: the runtime that pulls (on GCP, Cloud Run's own agent) reads a repository of its own environment. A binding refused right after the identity was created is retried once, after about a minute. Nothing is ever removed.
+- The statuses: `registry-describe` is `unchanged` whenever it read the state (a repository that does not exist is an answer, not a failure) and `failed` otherwise; `repository-create` is `would-create`, `created`, `unchanged`, `pending` or `failed`; `cleanup-configure` and `access-grant` are `would-update`, `updated`, `unchanged` or `failed`.
 
 ### search-* (exclusive, project) — elastic, algolia, aws-opensearch
 
@@ -550,3 +559,5 @@ Decided (reflected in DESIGN.md):
 9. dns-* in `dev` and `hom` is `record-add`: every hostname has its own record; there is no router and no `route-add`.
 10. stack-* `setup` creates at most a minimal starting point, once, and never changes existing code.
 11. repo-* `branch-protect` requires the check `ci` exactly when the project's `ci.yml` is on the default branch.
+12. registry-*: the image repository is the project's own, one per project and environment, in its own cloud environment (no `shared` mode); `access-grant` grants `push` only; `cleanup-configure` owns the whole cleanup policy.
+13. cloud-* `ci-identity-setup` accepts only the declared repository, checked by name and by numeric ids, on its default branch, and grants its account no role on the environment.

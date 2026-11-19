@@ -36,6 +36,23 @@
 - **A project created seconds ago may refuse calls made on its behalf.** On 2026-11-16, `gcloud billing budgets list` with a new project as quota project (`--billing-project`) was denied right after the Budget API was enabled on it, and succeeded about a minute later.
 - **Project IDs are permanent:** immutable, and a deleted ID is never available again. Limits: 6 to 30 characters, lowercase letters, digits and hyphens, starting with a letter.
 
+- **A deleted workload identity pool or provider is only soft-deleted: it keeps its id for 30 days** (`state` `DELETED`), and creating one with the same id fails until it is restored (`gcloud iam workload-identity-pools undelete`, `gcloud iam workload-identity-pools providers undelete`) (SDK 570 reference and API definitions, read on 2026-11-19; not yet seen in a real run). `providers list` leaves soft-deleted providers out unless `--show-deleted` is given.
+- **A pool or provider can be disabled without being deleted**: the API has a separate field `disabled`, so a disabled provider is expected to keep the state `ACTIVE` while it accepts no token. The `update` and `update-oidc` commands show only `--disabled`, with no flag to enable again in their help (SDK 570, read on 2026-11-19; not yet seen in a real run).
+- **`add-iam-policy-binding` on a service account that does not exist answers `PERMISSION_DENIED`**, by the command's reference (SDK 570, read on 2026-11-19). What a binding made seconds after the account's creation answers is not yet seen in a real run.
+
+## GCP — Artifact Registry
+
+Read in the `gcloud` reference (`--help` of SDK 570), its command definitions and the generated API messages, and on the public cleanup policy page, on 2026-11-19; **not yet seen in a real run**:
+
+- **A cleanup policy file is a JSON list of rules.** Each rule has `name`, `action` as an object, `{"type": "KEEP"}` or `{"type": "DELETE"}`, and either `condition` (for example `{"tagState": "ANY"}`, which matches every version) or `mostRecentVersions` (`{"keepCount": 5}`; without `packageNamePrefixes` it applies to every image). The values are in upper case: the SDK decodes `KEEP`, `DELETE` and `ANY`, and sends the mixed case of the public page's examples (`"Keep"`) as an unrecognised field.
+- **A version that matches a KEEP rule and a DELETE rule is kept** (public page). Keep the 5 most recent versions plus delete any version therefore deletes all but the 5 most recent of each image.
+- **`gcloud artifacts repositories set-cleanup-policies` replaces every cleanup policy of the repository**, and **keeps the repository's dry-run setting unless `--no-dry-run` is passed**: the command updates only the fields of the flags given. `--no-dry-run` works although its help shows only `--dry-run`.
+- **`describe --format=json` gives `cleanupPolicies` as a map from a policy's id to the policy**, and **an absent `cleanupPolicyDryRun` means false**: the field is omitted when false. `describe` also prints `Encryption:`, `Registry URL:` and `Repository Size:` lines on its error stream, apart from the JSON.
+- **The policy is applied by a background job, about once a day**: a run that sets it never sees it delete.
+- **A repository that does not exist answers `NOT_FOUND: Requested entity was not found.`**, while one the account may not read answers `PERMISSION_DENIED` with the words "or it may not exist": the second is not "missing".
+- **`repositories list --location=all`** lists the repositories of every location (as `projects/<p>/locations/<location>/repositories/<id>`), after a line `Listing items under project ...` on its error stream.
+- **Storage is free up to 0.5 GB, then about US$ 0.10 per GB a month** (pricing, as read for the design of stage 4 on 2026-11-19).
+
 ## GCP — organizations
 
 - **A standalone organization (no domain) is created automatically** when a Google account signs up to Google Cloud, and only one per user account; a user can be invited to own several. There is no way to create a second one from the same account without a domain (Google's documentation, read on 2026-11-17).
