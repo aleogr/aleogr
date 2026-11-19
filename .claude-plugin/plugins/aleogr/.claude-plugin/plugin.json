@@ -1,7 +1,7 @@
 {
   "name": "aleogr",
-  "version": "0.7.0",
-  "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch), and declares, plans and applies a project's GitHub repository, and proposes a change to it by pull request.",
+  "version": "0.8.0",
+  "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch), and declares, plans and applies a project's GitHub repository, proposes a change to it by pull request, generates its Go components and CI file, and makes the check ci required once that file is merged.",
   "author": {
     "name": "aleogr"
   }
