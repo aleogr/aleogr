@@ -1,0 +1,9 @@
+# The provider's condition names the branch develop, not the default branch main: the identity is
+# to update.
+CALLED ^iam workload-identity-pools providers describe github
+OUTPUT "item": "registry", "state": "as declared", "action": "none"
+OUTPUT "item": "ci identity", "state": "differs", "action": "update"
+OUTPUT "ciVariables": null
+NOT_CALLED update-oidc|add-iam-policy-binding|create
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do

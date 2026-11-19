@@ -1,0 +1,7 @@
+# A third cleanup rule added by hand: the two declared rules still read as before,
+# and the number of rules tells the caller that something else is there.
+CALLED ^artifacts repositories describe demo .*--location=us-central1
+OUTPUT "keep": 5
+OUTPUT "deletesTheRest": true
+OUTPUT "rules": 3
+OUTPUT "status": "unchanged"

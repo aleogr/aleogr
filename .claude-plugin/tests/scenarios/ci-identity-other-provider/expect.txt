@@ -1,0 +1,5 @@
+# Another provider in the pool would let tokens that fail this condition act as the account: failed before any change.
+CALLED ^iam workload-identity-pools providers list .*--workload-identity-pool=github
+NOT_CALLED (create|update-oidc|add-iam-policy-binding|delete)
+OUTPUT "status": "failed"
+OUTPUT_NOT workloadIdentityPools/github/providers/legacy

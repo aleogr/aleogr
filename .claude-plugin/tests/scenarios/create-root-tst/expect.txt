@@ -17,3 +17,6 @@ CALLED ^billing projects link aleogr-dev-pilot-[a-z0-9]{4} --billing-account=0X0
 OUTPUT "status": "created"
 RESULT_NOT 333333333333
 RESULT_NOT 444444444444
+# The search by parent uses the environment's folder inside tst.
+CALLED ^projects list --filter=parent\.type=folder AND parent\.id=444444444444
+ORDER ^projects list --filter=parent >> ^projects create

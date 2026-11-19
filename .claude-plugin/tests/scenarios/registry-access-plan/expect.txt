@@ -1,0 +1,6 @@
+# The account may not push yet: plan reads the repository's policy and changes nothing.
+CALLED ^artifacts repositories get-iam-policy demo .*--location=us-central1
+CALLED ^artifacts repositories get-iam-policy demo .*--project=aleogr-dev-demo-ab12
+NOT_CALLED add-iam-policy-binding
+OUTPUT "status": "would-update"
+OUTPUT "granted": false

@@ -1,0 +1,7 @@
+CALLED ^artifacts repositories list .*--location=all
+NOT_CALLED ^artifacts repositories (create|update|delete)
+OUTPUT "status": "pending"
+OUTPUT fix by hand
+OUTPUT southamerica-east1
+OUTPUT "reason": "manual"
+OUTPUT "imagePath": null

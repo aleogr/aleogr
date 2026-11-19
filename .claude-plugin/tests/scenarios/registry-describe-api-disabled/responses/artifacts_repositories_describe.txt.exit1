@@ -1,0 +1,6 @@
+ERROR: (gcloud.artifacts.repositories.describe) PERMISSION_DENIED: Artifact Registry API has not been used in project 123456789012 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/artifactregistry.googleapis.com/overview?project=123456789012 then retry. If you enabled this API recently, wait a few minutes for the action to propagate to our systems and retry.
+- '@type': type.googleapis.com/google.rpc.ErrorInfo
+  domain: googleapis.com
+  metadata:
+    service: artifactregistry.googleapis.com
+  reason: SERVICE_DISABLED

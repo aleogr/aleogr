@@ -6,14 +6,14 @@
     {
       "name": "aleogr",
       "source": "./.claude-plugin/plugins/aleogr",
-      "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch), and declares, plans and applies a project's GitHub repository, proposes a change to it by pull request, generates its Go components and CI file, and makes the check ci required once that file is merged.",
+      "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch), and declares, plans and applies a project's GitHub repository, proposes a change to it by pull request, generates its Go components and CI file, makes the check ci required once that file is merged, and creates the ground of the environment dev on Google Cloud: its GCP project and APIs, the Docker image repository with its cleanup policy, and a keyless CI identity that may push images to it.",
       "category": "orchestrator",
       "displayName": "aleogr (orchestrator)"
     },
     {
       "name": "aleogr-cloud-gcp",
       "source": "./.claude-plugin/plugins/aleogr-cloud-gcp",
-      "description": "Google Cloud family: project environments, services and budget alerts.",
+      "description": "Google Cloud family: project environments, services, budget alerts and the CI identity.",
       "category": "cloud",
       "displayName": "Google Cloud (cloud)"
     },
@@ -23,6 +23,13 @@
       "description": "Cloud SQL family: the shared platform's PostgreSQL instance and its start and stop.",
       "category": "db",
       "displayName": "Cloud SQL (database)"
+    },
+    {
+      "name": "aleogr-registry-gcp-artifact-registry",
+      "source": "./.claude-plugin/plugins/aleogr-registry-gcp-artifact-registry",
+      "description": "Artifact Registry family: a project's Docker image repository in its own Google Cloud project.",
+      "category": "registry",
+      "displayName": "Artifact Registry (GCP)"
     },
     {
       "name": "aleogr-repo-github",

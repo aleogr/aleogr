@@ -1,0 +1,8 @@
+OUTPUT "status": "updated"
+FILE .aleogr/project.json "environments": \{ "dev": \{\} \}
+FILE .aleogr/project.json "cloud": \{ "provider": "gcp", "region": "us-central1" \}
+FILE .aleogr/project.json "name": "web", "stack": "go", "path": "web", "version": "1\.27"
+# The changes list holds the entries (as list items, not as keys of the declaration).
+OUTPUT "environments\.dev"
+OUTPUT "cloud"[[:space:]]*[],]
+NOT_CALLED .

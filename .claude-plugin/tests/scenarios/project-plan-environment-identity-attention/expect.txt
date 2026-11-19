@@ -1,0 +1,9 @@
+# The CI identity's provider is disabled: gcp_ci-identity-setup refuses it. The row says so and the
+# owner fixes it by hand; the plan itself does not fail.
+CALLED ^iam workload-identity-pools providers describe github
+OUTPUT "item": "ci identity", "state": "needs attention", "action": "fix by hand"
+OUTPUT "item": "ci identity", "reason": "manual"
+OUTPUT disabled
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do
+NOT_CALLED update-oidc|add-iam-policy-binding|create

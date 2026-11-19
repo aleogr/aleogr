@@ -43,6 +43,10 @@ claude plugin install aleogr-db-gcp-cloud-sql@aleogr
 ```
 
 ```bash
+claude plugin install aleogr-registry-gcp-artifact-registry@aleogr
+```
+
+```bash
 claude plugin install aleogr-repo-github@aleogr
 ```
 
@@ -50,7 +54,7 @@ claude plugin install aleogr-repo-github@aleogr
 claude plugin install aleogr-stack-go@aleogr
 ```
 
-Check with `claude plugin list`: the five plugins, enabled.
+Check with `claude plugin list`: the six plugins, enabled.
 
 `gh` (the GitHub command-line tool) is preinstalled but not signed in. Sign it in once, for the GitHub repository skills:
 
@@ -95,6 +99,8 @@ Claude Code is not asked to open the pull request or to update the folder by han
 
 A component (a folder of the repository with its own program) is declared the same way, one per call, for example `/aleogr:project-declare component=status stack=go` (its folder is `status`, its Go version the default; `path=` and `version=` change them). The next `/aleogr:project-apply confirm=yes` writes its starting point (`status/go.mod`, `status/main.go`, `status/main_test.go`) and the project's CI file `.github/workflows/ci.yml` in the folder, and proposes them with the declaration in one pull request; the project's CI runs on that pull request. The starting point is written once: a folder that already has a `go.mod` is never touched. After the merge, the next `/aleogr:project-apply confirm=yes` updates the folder and makes the protection of `main` require the check `ci`: from then on, a pull request whose CI fails cannot be merged. CI needs the organization to allow actions and reusable workflows from other repositories: on GitHub, the organization's `Settings`, `Actions`, `General`, `Policies`, where the default, `Allow all actions and reusable workflows`, is enough. A repository has one open pull request of the tooling at a time; while it is open, `project-apply` only says to merge it. To drop a proposal, close its pull request on GitHub; to make it again, declare the change again.
 
+The environment `dev` (the project's own GCP project, its APIs, its Docker image repository and the keyless identity its CI will use) is declared the same way, once: `/aleogr:project-declare environment=dev`, plus `cloudRoot=tst` for a project that tests the tooling, whose GCP project goes in the folder `dev` inside the folder `tst` (the skills never create folders: a missing one stops the run, which says which folder to create). The next `/aleogr:project-apply confirm=yes` proposes the declaration by pull request; after the merge, the next one updates the folder and creates the ground, and plans again until it says `nothing to do`. Nothing is deployed, nothing is written to GitHub, and nothing of it has a cost. These skills need `gcloud` signed in as well as `gh`: Cloud Shell is, and a declaration without `environments` never runs `gcloud`. The identifiers they print (the GCP project id and number, the CI account's e-mail) are not secrets, but are not pasted anywhere either.
+
 The skills:
 
 | Skill | What it does |
@@ -102,9 +108,9 @@ The skills:
 | `/aleogr:tools-check` | Checks that `gcloud` is installed and signed in. With `command=gh`, checks `gh` instead. Read-only. |
 | `/aleogr:platform-plan` | Shows what the shared platform is missing. Read-only. |
 | `/aleogr:platform-apply` | Creates what the plan lists. Asks once, stating any fixed cost. |
-| `/aleogr:project-declare` | Writes or edits the project's declaration, `.aleogr/project.json` in the current folder. A new one needs `name`, `owner` and `description`, for example `/aleogr:project-declare name=pilot owner=aleogr-sandbox visibility=public description="Reference project of aleogr: status pages per tenant"`. Changes nothing on GitHub. |
-| `/aleogr:project-plan` | Compares the declaration with GitHub: a table of `repository`, `settings`, `visibility`, `declaration` and `protection`, each with its state and action, plus `components` and `ci` when components are declared (`generate` when a starting point or `ci.yml` is to be written). The `declaration` row also says whether a change is waiting in this folder (`propose`), in a pull request (`merge it`), or on GitHub while this folder is behind (`update`), and whether the folder needs attention (`fix the folder`). Read-only. |
-| `/aleogr:project-apply` | Does what the plan lists, then plans again and says `nothing to do`. A change in this folder, and the files it generates, are proposed as one pull request instead; after the merge, the next run updates the folder and applies it. One confirmation for the whole run: `confirm=yes`, or `confirmVisibility=public` when the plan makes the repository public. Without it, it changes nothing and shows the text that confirms. |
+| `/aleogr:project-declare` | Writes or edits the project's declaration, `.aleogr/project.json` in the current folder. A new one needs `name`, `owner` and `description`, for example `/aleogr:project-declare name=pilot owner=aleogr-sandbox visibility=public description="Reference project of aleogr: status pages per tenant"`. `component=<name> stack=go` adds a component; `environment=dev` adds the environment `dev` (and the cloud, from the defaults), `cloudRoot=tst` marks a project that tests the tooling. Changes nothing on GitHub. |
+| `/aleogr:project-plan` | Compares the declaration with GitHub: a table of `repository`, `settings`, `visibility`, `declaration` and `protection`, each with its state and action, plus `components` and `ci` when components are declared (`generate` when a starting point or `ci.yml` is to be written). The `declaration` row also says whether a change is waiting in this folder (`propose`), in a pull request (`merge it`), or on GitHub while this folder is behind (`update`), and whether the folder needs attention (`fix the folder`). With the environment `dev` declared, four more rows: `environment dev`, `apis`, `registry` and `ci identity`, read in Google Cloud once the declaration is merged; `fix by hand` there is the owner's to do. Read-only. |
+| `/aleogr:project-apply` | Does what the plan lists, then plans again and says `nothing to do`. A change in this folder, and the files it generates, are proposed as one pull request instead; after the merge, the next run updates the folder and applies it. One confirmation for the whole run: `confirm=yes`, or `confirmVisibility=public` when the plan makes the repository public. Without it, it changes nothing and shows the text that confirms. With the environment `dev` merged, the same `confirm=yes` creates its ground in Google Cloud (GCP project, APIs, image repository and its cleanup policy, CI identity and its push access): nothing with a cost, nothing deployed. |
 | `/aleogr-repo-github:github_repo-describe` | Shows a GitHub repository: visibility, settings, topics and whether `main` is protected. Read-only. |
 | `/aleogr-repo-github:github_repo-create` | Creates a GitHub repository with a README, private unless told otherwise. Plan by default; `mode=apply` creates. An existing repository is never changed. |
 | `/aleogr-repo-github:github_repo-configure` | Corrects the given settings of an existing repository, its visibility included. Plan by default; `mode=apply` changes. |
@@ -112,6 +118,11 @@ The skills:
 | `/aleogr-repo-github:github_checkout-setup` | Makes the current folder a checkout of the repository and sends the declaration as its first content after the README, only while the repository has that one commit; after a merge, brings a folder that is behind up to date. Plan by default; `project-apply` calls it. |
 | `/aleogr-repo-github:github_pull-request-open` | Proposes named files by pull request: commits only them on a new branch `aleogr/change-<random>`, pushes it, opens the pull request and returns the folder to `main`. One open at a time per repository; never merges. Plan by default; `project-apply` calls it. |
 | `/aleogr-repo-github:github_ci-setup` | Writes the project's CI file, `.github/workflows/ci.yml`, from the declared components: one job per component and a last job `ci`. Never commits or pushes. Plan by default; `project-apply` calls it. |
+| `/aleogr-cloud-gcp:gcp_ci-identity-setup` | Creates the keyless identity a repository's CI uses in a project's GCP project: the service account `<project>-ci`, the pool `github` and its provider `github`, which accept only that repository's default branch. No key, no project role. Plan by default; `project-apply` calls it. |
+| `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_registry-describe` | Shows the project's image repository: where it is, its cleanup policy and who may push. Read-only. |
+| `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_repository-create` | Creates the project's Docker image repository in its GCP project, in the declared region. Plan by default; `project-apply` calls it. |
+| `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_cleanup-configure` | Sets the repository's cleanup policy: keep the 5 most recent versions of each image, delete the rest, dry-run off. Plan by default; `project-apply` calls it. |
+| `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_access-grant` | Lets the CI account push to the repository (writer on that repository only). Plan by default; `project-apply` calls it. |
 | `/aleogr-stack-go:go_setup` | Writes the starting point of a Go component (`go.mod`, `main.go`, `main_test.go`) in its folder, once, only when the folder has no `go.mod` and no Go file. Plan by default; `project-apply` calls it. |
 
 The GitHub skills take `key=value` arguments after the name, for example `/aleogr-repo-github:github_repo-describe owner=aleogr-sandbox name=pilot`. A value with spaces or commas goes in double quotes. Nothing becomes public without `confirmVisibility=public`: without it the skill changes nothing, says so and shows the command that confirms.
@@ -139,6 +150,10 @@ claude plugin update aleogr-db-gcp-cloud-sql@aleogr
 ```
 
 ```bash
+claude plugin update aleogr-registry-gcp-artifact-registry@aleogr
+```
+
+```bash
 claude plugin update aleogr-repo-github@aleogr
 ```
 
@@ -146,10 +161,10 @@ claude plugin update aleogr-repo-github@aleogr
 claude plugin update aleogr-stack-go@aleogr
 ```
 
-A change to the project skills needs only the first command and the updates of `aleogr@aleogr`, `aleogr-repo-github@aleogr` and `aleogr-stack-go@aleogr`; updating the others as well does no harm. A plugin that is new in the catalog is installed instead (`claude plugin install <plugin>@aleogr`, as in "Set-up, once"). Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
+A change to the project skills needs only the first command and the updates of `aleogr@aleogr`, `aleogr-cloud-gcp@aleogr`, `aleogr-registry-gcp-artifact-registry@aleogr`, `aleogr-repo-github@aleogr` and `aleogr-stack-go@aleogr`; updating the others as well does no harm. A plugin that is new in the catalog is installed instead (`claude plugin install <plugin>@aleogr`, as in "Set-up, once"). Each update says "Restart to apply changes": start a new `claude` session afterwards. `claude plugin list` shows the versions.
 
 ## What to expect
 
 - It is slower than the Windows app: a full `platform-plan` took about two minutes.
 - Cloud Shell disconnects after a while idle; open it again and repeat "Daily use". Nothing installed is lost.
-- The Google Cloud skills and the GitHub repository skills work here. `gh` is preinstalled (2.104.0, seen on 2026-11-17) and signed in once with `gh auth login` (above). When the skills of another family exist, its command-line tool is signed in here with only the permissions those skills need (Cloudflare: an API token limited to editing the DNS of the zone `aleogr.dev`).
+- The Google Cloud skills, the Artifact Registry skills and the GitHub repository skills work here. `gh` is preinstalled (2.104.0, seen on 2026-11-17) and signed in once with `gh auth login` (above). When the skills of another family exist, its command-line tool is signed in here with only the permissions those skills need (Cloudflare: an API token limited to editing the DNS of the zone `aleogr.dev`).

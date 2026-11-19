@@ -1,0 +1,5 @@
+# A soft-deleted pool cannot be created again: failed before any change, the owner restores it by hand.
+CALLED ^iam workload-identity-pools describe github
+NOT_CALLED (create|update-oidc|add-iam-policy-binding|undelete|delete)
+OUTPUT "status": "failed"
+OUTPUT undelete

@@ -1,0 +1,4 @@
+# Four arguments break their rules: failed before any command (a gcloud call is logged as its bare arguments, so "." catches it).
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT repositoryId

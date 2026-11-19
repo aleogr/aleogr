@@ -1,0 +1,26 @@
+# Nothing of the environment dev exists in GCP (the declaration, merged, has root tst). One confirmed
+# run creates the GCP project in the folder dev inside tst and carries the id it made up through the
+# whole run: the APIs, the image repository, its policy, the CI identity and its push access, with no
+# plan in the middle (a project created now has nothing inside it). The fake answers a search by
+# labels after the enable with an error, and with the created id only after the last change, so a
+# plan made between the create and the last change breaks the run. Two plans: the first and the last.
+CALLED ^resource-manager folders list --folder=333333333333 .*displayName=dev
+CALLED ^projects create aleogr-dev-demo-[a-z0-9]{4} .*--folder=444444444444
+NOT_CALLED aleogr-dev-demo-ab12
+CALLED ^services enable .*artifactregistry\.googleapis\.com.* --project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories create demo .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories set-cleanup-policies demo .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^iam service-accounts create demo-ci .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--member=serviceAccount:demo-ci@aleogr-dev-demo-[a-z0-9]{4}\.iam\.gserviceaccount\.com
+ORDER ^projects create >> ^services enable
+ORDER ^services enable >> ^artifacts repositories create
+ORDER ^artifacts repositories set-cleanup-policies >> ^iam service-accounts create
+ORDER ^iam service-accounts add-iam-policy-binding >> ^artifacts repositories add-iam-policy-binding
+NOT_CALLED ^projects add-iam-policy-binding|update-oidc
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "item": "environment dev", "state": "exists", "action": "none"
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT [Nn]othing is deployed yet
+OUTPUT "status": "updated"
+OUTPUT_NOT "item": "verify"

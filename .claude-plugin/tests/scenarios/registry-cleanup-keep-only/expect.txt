@@ -1,0 +1,4 @@
+# The keep rule alone deletes nothing: without the delete rule the policy differs.
+NOT_CALLED set-cleanup-policies
+OUTPUT "status": "would-update"
+OUTPUT_NOT "status": "unchanged"

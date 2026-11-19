@@ -1,0 +1,5 @@
+# The cloud keeps 3, the declaration asks for 5: the policy differs.
+NOT_CALLED set-cleanup-policies
+OUTPUT "status": "would-update"
+OUTPUT "keep": 3
+OUTPUT_NOT "status": "unchanged"

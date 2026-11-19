@@ -1,0 +1,4 @@
+# A missing argument is a failure with one sentence, never a question.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT identity`? is missing

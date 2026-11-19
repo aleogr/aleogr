@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_ci-identity-setup projectId=Aleogr_dev project=demo repository=example-repo repositoryId=abc ownerId=2345678 branch="my branch" mode=apply

@@ -1,0 +1,7 @@
+CALLED ^artifacts repositories create demo .*--repository-format=docker
+ORDER ^artifacts repositories create >> ^artifacts repositories describe demo .*--format=json\(
+NOT_CALLED ^artifacts repositories (update|delete)
+COUNT 1 ^artifacts repositories create
+OUTPUT "status": "unchanged"
+OUTPUT "imagePath": "us-central1-docker\.pkg\.dev/aleogr-dev-demo-ab12/demo"
+OUTPUT_NOT ALREADY_EXISTS

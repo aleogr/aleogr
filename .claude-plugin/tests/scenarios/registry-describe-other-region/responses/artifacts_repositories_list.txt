@@ -1,0 +1,4 @@
+Listing items under project aleogr-dev-demo-ab12, across all locations.
+
+projects/aleogr-dev-demo-ab12/locations/us-central1/repositories/demo-cache
+projects/aleogr-dev-demo-ab12/locations/southamerica-east1/repositories/demo

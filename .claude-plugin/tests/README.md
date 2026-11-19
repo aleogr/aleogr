@@ -2,7 +2,8 @@
 
 A headless harness that runs the real skills of `plugins/aleogr`,
 `plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql`,
-`plugins/aleogr-repo-github` and `plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
+`plugins/aleogr-registry-gcp-artifact-registry`, `plugins/aleogr-repo-github` and
+`plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
 `gh` and a fake `git`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
 
 ```
@@ -72,6 +73,16 @@ Create `scenarios/<name>/` with:
   read (`gh_api_repos_example-org_demo.1.txt`, ...): a model that reads the
   repository once more or once less than such a fixture assumes fails the
   scenario (it never passes it wrongly): rerun such a failure before debugging it.
+  Two rules serve a value the skill makes up, such as the random suffix of a GCP
+  project id. A `%` in a file's name stands for one or more of `a-z0-9`
+  (`projects_describe_aleogr-dev-demo-%_--format=json.txt` answers
+  `projects describe aleogr-dev-demo-x7k2 --format=json`); the longest name still wins.
+  `{{log:<regex>}}` in a file's content is replaced by the last text of the call log,
+  this call's line included, that matches the `grep -E` regex (which must not contain
+  `}}`), or by nothing: `projects_list+after+projects_create.txt` holding
+  `{{log:aleogr-dev-demo-[a-z0-9][a-z0-9][a-z0-9][a-z0-9]}}` answers the search with the
+  id the skill created (`project-apply-environment-new-project` does this). Names without
+  `%` and contents without `{{log:` behave as before.
 - `expect.txt`, one check per line (blank lines and `#` comments are ignored):
 
 | Line | Holds when |
@@ -89,5 +100,7 @@ Create `scenarios/<name>/` with:
 Regexes are `grep -E`. Use fictitious values only: the repository is public.
 
 Claude Code itself runs `git ... ls-files --error-unmatch -- :(icase).claude/settings.local.json` through `PATH` during a run. `run.sh` drops the lines of that exact call from the call log before the checks, so `NOT_CALLED .` holds when the skill ran nothing. Pinning the subcommand remains good practice (`NOT_CALLED ^git (add|commit|push)` rather than a bare `NOT_CALLED ^git`): Claude Code may run other commands in a later version.
+
+A `gcloud` line has no word `gcloud` in it, so `NOT_CALLED ^gcloud` holds whatever ran. To pin that a skill ran no `gcloud` command, pin the subcommands instead: `NOT_CALLED ^(projects|services|artifacts|iam)( |$)`, or, to cover every `gcloud` line while letting `gh` and `git` through, `NOT_CALLED ^([a-fi-z-]|g[^hi])` (as `project-plan-nothing-to-do` does).
 
 `scenarios/harness-selftest`, `scenarios/harness-selftest-gh`, `scenarios/harness-selftest-files` and `scenarios/harness-selftest-state` check the harness itself.

@@ -1,0 +1,6 @@
+# The repository's numeric id and its owner's, from the read the skill already makes.
+CALLED ^gh api repos/example-org/example-repo$
+NOT_CALLED ^gh api user
+OUTPUT "id": 7654321
+OUTPUT "ownerId": 2345678
+OUTPUT "status": "unchanged"

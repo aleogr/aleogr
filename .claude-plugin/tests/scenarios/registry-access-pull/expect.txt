@@ -1,0 +1,4 @@
+# Pull access is refused: Cloud Run's own agent pulls from a repository of its own project.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT not needed

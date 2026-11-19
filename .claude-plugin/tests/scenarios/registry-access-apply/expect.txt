@@ -1,0 +1,12 @@
+# The writer role on the one repository, never on the project; the policy is read before and after.
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifactregistry\.writer
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--member=serviceAccount:demo-ci@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--location=us-central1
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--project=aleogr-dev-demo-ab12
+NOT_CALLED ^projects add-iam-policy-binding
+NOT_CALLED --role=roles/artifactregistry\.(reader|admin|repoAdmin)
+COUNT 1 add-iam-policy-binding
+COUNT 2 ^artifacts repositories get-iam-policy demo
+ORDER ^artifacts repositories get-iam-policy >> add-iam-policy-binding
+OUTPUT "status": "updated"
+OUTPUT "granted": true

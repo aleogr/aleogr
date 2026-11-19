@@ -1,0 +1,6 @@
+# Both rules as declared, dry-run absent (off): nothing to do, even in apply.
+CALLED ^artifacts repositories describe demo .*--location=us-central1
+NOT_CALLED set-cleanup-policies
+OUTPUT "status": "unchanged"
+OUTPUT "keep": 5
+OUTPUT "dryRun": false

@@ -1,0 +1,10 @@
+# The project name ab has two characters: the CI identity's account id ab-ci would be too short, so
+# adding an environment fails and writes nothing.
+OUTPUT "status": "failed"
+# Nothing written: the components list is still the last key (a written cloud or environments would add a comma).
+FILE .aleogr/project.json ^  \]$
+FILE .aleogr/project.json "name": "ab",
+OUTPUT_NOT "status": "(updated|created)"
+# A word of the prescribed sentence: a project name of at least three characters.
+OUTPUT three characters
+NOT_CALLED .

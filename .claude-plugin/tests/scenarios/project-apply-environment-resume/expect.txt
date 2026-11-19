@@ -1,0 +1,14 @@
+# The GCP project and its APIs exist; the image repository and the CI identity do not. Only the last
+# four skills act, in order, and no second plan is made before them.
+CALLED ^artifacts repositories create demo .*--repository-format=docker
+CALLED ^artifacts repositories set-cleanup-policies demo .*--no-dry-run
+CALLED ^iam service-accounts create demo-ci .*--project=aleogr-dev-demo-ab12
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifactregistry\.writer
+ORDER ^artifacts repositories create >> ^artifacts repositories set-cleanup-policies
+ORDER ^artifacts repositories set-cleanup-policies >> ^iam service-accounts create
+ORDER ^iam service-accounts add-iam-policy-binding >> ^artifacts repositories add-iam-policy-binding
+NOT_CALLED ^(projects create|billing projects link|services enable|organizations list|resource-manager)
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT "status": "updated"

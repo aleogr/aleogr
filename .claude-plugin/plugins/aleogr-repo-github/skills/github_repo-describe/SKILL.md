@@ -90,6 +90,8 @@ End with exactly one fenced block tagged `aleogr-result`:
   ],
   "outputs": {
     "exists": true,
+    "id": 7654321,
+    "ownerId": 2345678,
     "url": "https://github.com/<owner>/<name>",
     "visibility": "public",
     "defaultBranch": "main",
@@ -103,11 +105,11 @@ End with exactly one fenced block tagged `aleogr-result`:
 }
 ```
 
-- Values come only from the commands' output: `url` from `html_url`, `visibility` from `visibility` (`public`, `private` or `internal`), `defaultBranch` from `default_branch`, `description` from `description` (`null` when it has none), `topics` from `topics` (sorted), and `settings` from `allow_merge_commit`, `allow_squash_merge`, `allow_rebase_merge`, `delete_branch_on_merge`, `has_issues`, `has_wiki`, `has_projects`, in that order.
+- Values come only from the commands' output: `url` from `html_url`, `visibility` from `visibility` (`public`, `private` or `internal`), `defaultBranch` from `default_branch`, `description` from `description` (`null` when it has none), `topics` from `topics` (sorted), and `settings` from `allow_merge_commit`, `allow_squash_merge`, `allow_rebase_merge`, `delete_branch_on_merge`, `has_issues`, `has_wiki`, `has_projects`, in that order. `id` and `ownerId` are GitHub's numeric ids of the repository and of its owner, numbers taken from `id` and `owner.id` of the same read (`null` when the read does not have one).
 - `protection.state` is `protected` (a ruleset named `main` exists), `unprotected` (none is named `main`) or `unavailable` (the plan does not allow rulesets). `rulesetId` and `matches` are `null` and `requiredChecks` is `[]` unless `protected`.
 - `status` is `unchanged` whenever every step that ran succeeded, whether or not the repository exists (`HTTP 404` in step 1 and `unavailable` in step 2 are successful answers); it is `failed` otherwise.
-- Repository does not exist (HTTP 404 in step 1): `resources` is empty and `outputs` is `{ "exists": false, "url": null, "visibility": null, "defaultBranch": null, "description": null, "topics": [], "settings": null, "protection": null }`.
+- Repository does not exist (HTTP 404 in step 1): `resources` is empty and `outputs` is `{ "exists": false, "id": null, "ownerId": null, "url": null, "visibility": null, "defaultBranch": null, "description": null, "topics": [], "settings": null, "protection": null }`.
 - `status` is `failed` when an argument is missing or broke a rule, `gh` is missing or not logged in, a command exited non-zero in a way the steps do not name as a known answer, step 2 did not give a JSON list, two rulesets are named `main`, or the ruleset file could not be read. A failed read never says the repository does not exist. The shape depends on where it failed:
-  - Before or at step 1 (arguments, `gh`, the repository read): `resources` is empty and `outputs` is `{ "exists": null, "url": null, "visibility": null, "defaultBranch": null, "description": null, "topics": [], "settings": null, "protection": null }`.
-  - At step 2 or 3 (step 1 proved the repository exists): `resources` has the repository, and `outputs` keeps `exists` true and everything step 1 read (`url`, `visibility`, `defaultBranch`, `description`, `topics`, `settings`), with `protection` `{ "state": null, "rulesetId": null, "matches": null, "requiredChecks": [], "otherRulesets": [] }`.
+  - Before or at step 1 (arguments, `gh`, the repository read): `resources` is empty and `outputs` is `{ "exists": null, "id": null, "ownerId": null, "url": null, "visibility": null, "defaultBranch": null, "description": null, "topics": [], "settings": null, "protection": null }`.
+  - At step 2 or 3 (step 1 proved the repository exists): `resources` has the repository, and `outputs` keeps `exists` true and everything step 1 read (`id`, `ownerId`, `url`, `visibility`, `defaultBranch`, `description`, `topics`, `settings`), with `protection` `{ "state": null, "rulesetId": null, "matches": null, "requiredChecks": [], "otherRulesets": [] }`.
 - `mode` is always `plan`: the skill only reads.

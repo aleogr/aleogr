@@ -1,0 +1,12 @@
+# The declaration (with the environment dev) is merged and GitHub is as declared, but the GCP
+# project of dev does not exist. Without confirm=yes nothing is created: pending, one item.
+CALLED ^projects list .*labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
+NOT_CALLED ^(projects create|services enable|organizations list|resource-manager|billing projects link)
+NOT_CALLED ^(artifacts|iam) .*(create|add-iam-policy-binding|set-cleanup-policies|update-oidc)
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "item": "environment dev", "state": "missing", "action": "create"
+OUTPUT "item": "confirm", "reason": "manual", "how": "/aleogr:project-apply confirm=yes"
+OUTPUT "status": "pending"
+# The answer names what the confirmed run would make in Google Cloud.
+OUTPUT makes in Google Cloud: .*GCP project
+OUTPUT_NOT nothing to do

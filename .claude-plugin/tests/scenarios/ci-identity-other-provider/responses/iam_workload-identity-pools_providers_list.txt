@@ -1,0 +1,2 @@
+projects/123456789012/locations/global/workloadIdentityPools/github/providers/github
+projects/123456789012/locations/global/workloadIdentityPools/github/providers/legacy

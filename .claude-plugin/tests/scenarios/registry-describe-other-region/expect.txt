@@ -1,0 +1,9 @@
+CALLED ^artifacts repositories describe demo .*--location=us-central1
+CALLED ^artifacts repositories list .*--location=all
+COUNT 1 ^artifacts repositories list
+NOT_CALLED get-iam-policy
+OUTPUT "exists": false
+OUTPUT "otherRegions": \[ *"southamerica-east1" *\]
+RESULT_NOT "us-central1" *\]
+OUTPUT "imagePath": null
+OUTPUT "status": "unchanged"

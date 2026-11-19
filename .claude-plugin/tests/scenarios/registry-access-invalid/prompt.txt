@@ -1,0 +1,1 @@
+/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_access-grant projectId=aleogr-dev-demo-ab12 project=demo region=us-central1 identity=demo-ci role=push mode=apply

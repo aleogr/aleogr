@@ -1,0 +1,11 @@
+# The GCP project exists with billing, but sts.googleapis.com is not enabled: one API to enable, and
+# no Artifact Registry or IAM command runs before the APIs are on.
+CALLED ^services list --enabled --project=aleogr-dev-demo-ab12
+OUTPUT "item": "environment dev", "state": "exists", "action": "none"
+OUTPUT "item": "apis", "state": "to enable: 1", "action": "enable"
+OUTPUT "item": "registry", "state": "follows the apis", "action": "none"
+OUTPUT "item": "ci identity", "state": "follows the apis", "action": "none"
+NOT_CALLED ^(artifacts|iam)( |$)
+OUTPUT "projectId": "aleogr-dev-demo-ab12"
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do

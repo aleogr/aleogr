@@ -1,0 +1,7 @@
+# The search by labels shows nothing, the search filtered by the parent shows two
+# projects: the skill picks none and creates nothing.
+CALLED ^projects list --filter=parent\.type=folder AND parent\.id=222222222222 AND labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
+NOT_CALLED ^projects create
+NOT_CALLED ^billing projects link
+OUTPUT "status": "failed"
+OUTPUT picked

@@ -1,0 +1,5 @@
+# Another member may act as the account: reported by its number only, never removed.
+NOT_CALLED (create|update-oidc|add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy)
+OUTPUT "status": "unchanged"
+OUTPUT "otherMembers": 1
+OUTPUT_NOT helper@

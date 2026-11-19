@@ -1,0 +1,6 @@
+# The binding is refused twice: one retry only, then failed (nothing was changed).
+COUNT 2 ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifactregistry\.writer
+NOT_CALLED ^projects add-iam-policy-binding
+OUTPUT "status": "failed"
+OUTPUT_NOT "status": "updated"
+OUTPUT_NOT INVALID_ARGUMENT

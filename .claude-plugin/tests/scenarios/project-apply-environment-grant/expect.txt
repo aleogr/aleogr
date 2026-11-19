@@ -1,0 +1,10 @@
+# Everything exists and the CI identity is as declared, but it is not a writer of the image
+# repository: only the push access is granted.
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--member=serviceAccount:demo-ci@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--location=us-central1
+NOT_CALLED ^(projects create|services enable|artifacts repositories (create|set-cleanup-policies)|iam .*(create|update-oidc|add-iam-policy-binding))
+NOT_CALLED ^projects add-iam-policy-binding
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT "status": "updated"

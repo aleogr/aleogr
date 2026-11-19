@@ -1,0 +1,6 @@
+# A missing required argument ends the skill with failed and one sentence naming it;
+# the skill never asks for it (nobody may answer in an automated run).
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT `?project`? is missing
+OUTPUT_NOT \?

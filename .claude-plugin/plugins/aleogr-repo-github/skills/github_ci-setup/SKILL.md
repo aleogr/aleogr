@@ -57,7 +57,7 @@ A command whose result decides a step is run alone: not piped into another comma
    - `gh` is not installed (`command not found`, or the command cannot start): `failed`. Say in one sentence that `gh` must be installed. Run nothing else.
    - The output names authentication (`gh auth login`, not logged in, bad credentials, HTTP 401): `failed`. Say in one sentence that `gh` is not logged in and that the fix is `gh auth login`. Run nothing else.
    - Non-zero exit and the output contains `HTTP 404`: the file (or the repository) is not there. `inRepository` is `false`. Continue.
-   - Any other non-zero exit (HTTP 403, 5xx, network error, anything else): `failed`. Whether the repository has the file is unknown: never report it as absent. Say the cause in one sentence, with no raw error text. Write nothing and run nothing else.
+   - Any other non-zero exit (HTTP 403, 5xx, network error, anything else): `failed`. Whether the repository has the file is unknown: never report it as absent. Say exactly `The repository's CI file could not be read; nothing was written. Check that gh is signed in, may read the repository, and that GitHub answers, then run this skill again.` Never explain which text decided this, and repeat no word of `gh`'s answer (not its message, not its HTTP status or status words): that sentence is all the answer says about the failure. Write nothing and run nothing else.
    - Exit 0: the output is the repository's copy. `inRepository` is `true`; `repositoryAsDeclared` is `true` when its first line (with a trailing carriage return removed) equals the marker, `false` otherwise (and `false` whenever there is no component). Continue.
 
 3. Decide `local`, then the status:

@@ -1,0 +1,4 @@
+# A service account of another GCP project is refused: only the project's own account may push.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT of the project aleogr-dev-demo-ab12

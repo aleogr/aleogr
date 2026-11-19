@@ -1,0 +1,12 @@
+# The search by labels does not show a project created a minute ago (that list is
+# eventually consistent); the search filtered by the parent does. The skill creates
+# nothing and treats the project it found as the existing one.
+CALLED ^projects list --filter=labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
+CALLED ^projects list --filter=parent\.type=folder AND parent\.id=222222222222 AND labels\.aleogr-project=demo AND labels\.aleogr-environment=dev --format=value\(projectId\)
+ORDER ^resource-manager folders list >> ^projects list --filter=parent
+NOT_CALLED ^projects create
+NOT_CALLED ^billing projects link
+CALLED ^billing projects describe aleogr-dev-demo-ab12
+OUTPUT "status": "unchanged"
+OUTPUT "projectId": "aleogr-dev-demo-ab12"
+OUTPUT not seen

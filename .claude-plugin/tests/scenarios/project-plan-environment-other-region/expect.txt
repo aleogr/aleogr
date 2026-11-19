@@ -1,0 +1,11 @@
+# The image repository demo exists only in southamerica-east1, not in the declared us-central1:
+# the owner fixes it by hand; the plan is not "nothing to do".
+CALLED ^artifacts repositories list --location=all --project=aleogr-dev-demo-ab12
+OUTPUT "item": "registry", "state": "in another region", "action": "fix by hand"
+OUTPUT southamerica-east1
+OUTPUT "item": "registry", "reason": "manual"
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT "status": "pending"
+OUTPUT_NOT "action": "grant"
+OUTPUT_NOT nothing to do
+NOT_CALLED ^artifacts repositories (create|delete|set-cleanup-policies|add-iam-policy-binding)

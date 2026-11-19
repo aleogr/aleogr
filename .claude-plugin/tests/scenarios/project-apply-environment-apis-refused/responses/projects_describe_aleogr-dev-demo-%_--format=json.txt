@@ -1,0 +1,11 @@
+{
+  "labels": {
+    "aleogr-environment": "dev",
+    "aleogr-project": "demo"
+  },
+  "lifecycleState": "ACTIVE",
+  "name": "dev demo",
+  "parent": { "id": "444444444444", "type": "folder" },
+  "projectId": "{{log:aleogr-dev-demo-[a-z0-9][a-z0-9][a-z0-9][a-z0-9]}}",
+  "projectNumber": "123456789012"
+}

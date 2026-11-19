@@ -1,0 +1,10 @@
+# The GCP project of dev exists but its billing is not linked: it is to repair, and nothing inside
+# it is read.
+CALLED ^billing projects describe aleogr-dev-demo-ab12
+OUTPUT "item": "environment dev", "state": "billing not linked", "action": "repair"
+OUTPUT "item": "apis", "state": "follows the environment", "action": "none"
+OUTPUT "item": "registry", "state": "follows the environment", "action": "none"
+OUTPUT "item": "ci identity", "state": "follows the environment", "action": "none"
+NOT_CALLED ^(artifacts|iam)( |$)
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
