@@ -97,6 +97,34 @@
         }
       }
     },
+    "cloud": {
+      "description": "Where the project's environments run. Valid without environments, where it asks for nothing in the cloud.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "region"],
+      "properties": {
+        "provider": { "const": "gcp" },
+        "region": {
+          "description": "A GCP region name, such as us-central1.",
+          "type": "string",
+          "pattern": "^[a-z]+-[a-z]+[0-9]+$"
+        },
+        "root": {
+          "description": "Only tst: the project tests the tooling and its cloud projects are created inside the folder tst. A real project has no root.",
+          "const": "tst"
+        }
+      }
+    },
+    "environments": {
+      "description": "The project's environments. Only dev is built yet, and its value is an empty object.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "dev": { "type": "object", "additionalProperties": false }
+      }
+    },
     "notes": { "type": "string" }
-  }
+  },
+  "dependentRequired": { "environments": ["cloud"] }
 }

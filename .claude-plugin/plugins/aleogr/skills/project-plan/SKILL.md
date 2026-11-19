@@ -15,7 +15,7 @@ None. Any text after the skill name is ignored. Everything comes from the declar
 The declaration of a project is the file `.aleogr/project.json` in the project's folder. It is a JSON object, version 1, described by the schema `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`. A file is a valid declaration only when it is valid JSON and every rule below holds; a file that breaks any of them is not a valid declaration.
 
 - No object in the file has a key other than the ones listed here (no unknown keys, at any level).
-- The top level has `version`, `name` and `repo` (required), and may have `$schema`, `components` and `notes`.
+- The top level has `version`, `name` and `repo` (required), and may have `$schema`, `components`, `cloud`, `environments` and `notes`.
 - `$schema`, when present, is a string.
 - `version` is the number `1`.
 - `name`, the project name, is a string of 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. It is not `test`, not `shared` and does not start with `test-` (those names are reserved for tests and for the shared platform).
@@ -32,15 +32,23 @@ The declaration of a project is the file `.aleogr/project.json` in the project's
   - `stack`: `go`, the only stack implemented.
   - `path`: the component's folder, a string relative to the repository's root, made of one or more parts separated by `/` (so it does not start or end with `/` and has no empty part). Each part uses only `a-z`, `0-9`, `-`, `_` and `.`; it is not `.` or `..`, does not start with `-` or `.`, and does not end with `.` (so `.github`, `.aleogr` and every folder under them are never a component's folder). No two components have the same `path`, and no component's `path` is inside another component's `path` (`web` and `web/api` cannot both be components): one module per component folder.
   - `version`: the language version, `major.minor`: digits, a dot, digits (`1.27`; never `1.27.4`). With the stack `go` it is `1.22` or later, comparing the major and then the minor as numbers (`1.22`, `1.27` and `2.0` are accepted; `1.21` and `1.9` are not): the Go starting point's routes need Go 1.22.
+- `cloud`, when present, says where the project's environments run. It is an object with `provider` and `region` (both required), and may have `root`:
+  - `provider`: `gcp`, the only cloud implemented.
+  - `region`: a GCP region name: lowercase letters, `-`, lowercase letters, then one or more digits (`us-central1`).
+  - `root`: `tst`, its only value: the project tests the tooling, and its cloud projects are created inside the folder `tst`. A real project has no `root`.
+  - `cloud` without `environments` is valid and asks for nothing in the cloud.
+- `environments`, when present, is an object with at least one key. Its only allowed key is `dev`, and the value of `dev` is an empty object, `{}` (no key inside). Other environments, such as `hom` and `prd`, are not built yet and are not allowed. A declaration with `environments` has `cloud`.
 - `notes`, when present, is a string of free text.
 
 The canonical form of the file, the form in which it is written:
 
 - Two-space indentation, one key per line, and a final newline.
-- Keys in this order: `$schema`, `version`, `name`, `repo`, `components`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`; inside each component: `name`, `stack`, `path`, `version`.
+- Keys in this order: `$schema`, `version`, `name`, `repo`, `components`, `cloud`, `environments`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`; inside each component: `name`, `stack`, `path`, `version`; inside `cloud`: `provider`, `region`, `root`.
 - `$schema` is always present, with the value `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`.
 - `repo.topics` is always present, on one line, sorted: `"topics": []` or `"topics": ["docs", "sample"]`.
 - `components` is present only when it has at least one component. The components are sorted by `name`, each on one line: `{ "name": "web", "stack": "go", "path": "web", "version": "1.27" }`.
+- `cloud`, when present, is on one line: `"cloud": { "provider": "gcp", "region": "us-central1" }`, or with `root`, `"cloud": { "provider": "gcp", "region": "us-central1", "root": "tst" }`.
+- `environments`, when present, is on one line: `"environments": { "dev": {} }`.
 - `notes` is present only when it has a value.
 
 For example, a canonical declaration:
@@ -79,6 +87,16 @@ The same declaration with two components ends like this:
     { "name": "api", "stack": "go", "path": "services/api", "version": "1.27" },
     { "name": "web", "stack": "go", "path": "web", "version": "1.27" }
   ]
+}
+```
+
+With the environment `dev` and the root `tst` as well, it ends like this:
+
+```json
+    { "name": "web", "stack": "go", "path": "web", "version": "1.27" }
+  ],
+  "cloud": { "provider": "gcp", "region": "us-central1", "root": "tst" },
+  "environments": { "dev": {} }
 }
 ```
 

@@ -1,5 +1,5 @@
 ---
-description: aleogr project declare. Use to write or edit the project's declaration, `.aleogr/project.json` in the current folder (project name, GitHub repository, visibility, description, topics, settings, components), pre-filled from the owner's defaults. It only writes that file: it runs no command and changes nothing on GitHub.
+description: aleogr project declare. Use to write or edit the project's declaration, `.aleogr/project.json` in the current folder (project name, GitHub repository, visibility, description, topics, settings, components, cloud and environments), pre-filled from the owner's defaults. It only writes that file: it runs no command and changes nothing on GitHub.
 ---
 
 # project-declare
@@ -30,8 +30,10 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 | `stack=<go>` | `stack` of the component | Required when the component is new. For an existing component, when given, it equals the component's `stack`. |
 | `path=<folder>` | `path` of the component | Default for a new component: its name. For an existing component, when given, it equals the component's `path`. |
 | `version=<major.minor>` | `version` of the component | Default for a new component: `stacks.<stack>.version` of the defaults. For an existing component, the new version. |
+| `environment=<dev>` | `environments` | The environment this run adds: `dev`, the only one built yet. When the declaration has no `cloud`, it is written too, with `cloud.provider` and `cloud.region` of the defaults. An environment already declared stays as it is. |
+| `cloudRoot=<tst>` | `cloud.root` | `tst`, the only value: the project tests the tooling, and its cloud projects are created inside the folder `tst`. It needs `cloud`: the declaration has one, or `environment=` is given in the same call. |
 
-`stack`, `path` and `version` describe the component named by `component`: given without `component`, the run fails. Removing a component is not done by this skill.
+`stack`, `path` and `version` describe the component named by `component`: given without `component`, the run fails. Removing a component is not done by this skill, nor removing an environment, the cloud or the root, nor changing the region.
 
 A missing required argument is never asked for: the run ends with `status` `failed`, one sentence naming every missing argument, and nothing written.
 
@@ -40,7 +42,7 @@ A missing required argument is never asked for: the run ends with `status` `fail
 The declaration of a project is the file `.aleogr/project.json` in the project's folder. It is a JSON object, version 1, described by the schema `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`. A file is a valid declaration only when it is valid JSON and every rule below holds; a file that breaks any of them is not a valid declaration.
 
 - No object in the file has a key other than the ones listed here (no unknown keys, at any level).
-- The top level has `version`, `name` and `repo` (required), and may have `$schema`, `components` and `notes`.
+- The top level has `version`, `name` and `repo` (required), and may have `$schema`, `components`, `cloud`, `environments` and `notes`.
 - `$schema`, when present, is a string.
 - `version` is the number `1`.
 - `name`, the project name, is a string of 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. It is not `test`, not `shared` and does not start with `test-` (those names are reserved for tests and for the shared platform).
@@ -57,15 +59,23 @@ The declaration of a project is the file `.aleogr/project.json` in the project's
   - `stack`: `go`, the only stack implemented.
   - `path`: the component's folder, a string relative to the repository's root, made of one or more parts separated by `/` (so it does not start or end with `/` and has no empty part). Each part uses only `a-z`, `0-9`, `-`, `_` and `.`; it is not `.` or `..`, does not start with `-` or `.`, and does not end with `.` (so `.github`, `.aleogr` and every folder under them are never a component's folder). No two components have the same `path`, and no component's `path` is inside another component's `path` (`web` and `web/api` cannot both be components): one module per component folder.
   - `version`: the language version, `major.minor`: digits, a dot, digits (`1.27`; never `1.27.4`). With the stack `go` it is `1.22` or later, comparing the major and then the minor as numbers (`1.22`, `1.27` and `2.0` are accepted; `1.21` and `1.9` are not): the Go starting point's routes need Go 1.22.
+- `cloud`, when present, says where the project's environments run. It is an object with `provider` and `region` (both required), and may have `root`:
+  - `provider`: `gcp`, the only cloud implemented.
+  - `region`: a GCP region name: lowercase letters, `-`, lowercase letters, then one or more digits (`us-central1`).
+  - `root`: `tst`, its only value: the project tests the tooling, and its cloud projects are created inside the folder `tst`. A real project has no `root`.
+  - `cloud` without `environments` is valid and asks for nothing in the cloud.
+- `environments`, when present, is an object with at least one key. Its only allowed key is `dev`, and the value of `dev` is an empty object, `{}` (no key inside). Other environments, such as `hom` and `prd`, are not built yet and are not allowed. A declaration with `environments` has `cloud`.
 - `notes`, when present, is a string of free text.
 
 The canonical form of the file, the form in which it is written:
 
 - Two-space indentation, one key per line, and a final newline.
-- Keys in this order: `$schema`, `version`, `name`, `repo`, `components`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`; inside each component: `name`, `stack`, `path`, `version`.
+- Keys in this order: `$schema`, `version`, `name`, `repo`, `components`, `cloud`, `environments`, `notes`; inside `repo`: `provider`, `owner`, `name`, `visibility`, `description`, `topics`, `settings`; inside `settings`: `mergeCommit`, `squash`, `rebase`, `deleteBranchOnMerge`, `issues`, `wiki`, `projects`; inside each component: `name`, `stack`, `path`, `version`; inside `cloud`: `provider`, `region`, `root`.
 - `$schema` is always present, with the value `https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json`.
 - `repo.topics` is always present, on one line, sorted: `"topics": []` or `"topics": ["docs", "sample"]`.
 - `components` is present only when it has at least one component. The components are sorted by `name`, each on one line: `{ "name": "web", "stack": "go", "path": "web", "version": "1.27" }`.
+- `cloud`, when present, is on one line: `"cloud": { "provider": "gcp", "region": "us-central1" }`, or with `root`, `"cloud": { "provider": "gcp", "region": "us-central1", "root": "tst" }`.
+- `environments`, when present, is on one line: `"environments": { "dev": {} }`.
 - `notes` is present only when it has a value.
 
 For example, a canonical declaration:
@@ -107,13 +117,23 @@ The same declaration with two components ends like this:
 }
 ```
 
+With the environment `dev` and the root `tst` as well, it ends like this:
+
+```json
+    { "name": "web", "stack": "go", "path": "web", "version": "1.27" }
+  ],
+  "cloud": { "provider": "gcp", "region": "us-central1", "root": "tst" },
+  "environments": { "dev": {} }
+}
+```
+
 Two declarations are equal when they hold the same values: the order of keys, the spacing, line endings and the order of `repo.topics` and the order of `components` do not matter, an absent `repo.topics` equals `[]` and an absent `components` equals `[]`.
 
 ## Steps
 
 Use only the Read tool and the Write tool. Run no shell command at all (no `ls`, `cat`, `mkdir`, `gh`, `git`: the Write tool creates the `.aleogr` folder) and invoke no skill. On `failed`, write nothing: the file stays as it was, or absent.
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json` and take its block `repo` (`provider`, `visibility`, `settings`) and its block `stacks` (the default `version` of each stack). If `repo.provider` is not `github`: `failed`, only GitHub is implemented.
+1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json` and take its block `repo` (`provider`, `visibility`, `settings`), its block `stacks` (the default `version` of each stack) and its block `cloud` (`provider`, `region`). If `repo.provider` is not `github`: `failed`, only GitHub is implemented.
 2. Read `.aleogr/project.json` in the current folder.
    - It does not exist: this is a new declaration. Go to step 3.
    - It exists: check it against every rule of "The declaration's rules" (the canonical form is not a rule: a valid file in another layout is accepted). If it is not valid JSON or breaks a rule: `failed`, one sentence saying which rule the file breaks (for example, that it is not valid JSON), and the file untouched. Otherwise go to step 3.
@@ -126,17 +146,23 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
    - `component`, `stack`, `path` and `version`, when given, follow the rules of a component's `name`, `stack`, `path` and `version` in "The declaration's rules" (`version=1.27.4` fails). A `version` of the right form but earlier than `1.22` for the stack `go` (the `stack` argument, or the existing component's `stack`) fails with the sentence "`version=<value>` is too old: a Go component needs Go 1.22 or later." (with the value given). `component=` with `changes`, `ci`, `true`, `false`, `null`, `yes`, `no`, `on` or `off` fails with the sentence "`component=<value>` is a reserved name: `changes` and `ci` are jobs of the project's CI file, and YAML does not read `true`, `false`, `null`, `yes`, `no`, `on` and `off` as names." A `path` that breaks its rule fails with the sentence "`path=<value>` cannot hold a component:" followed by the part of the rule it breaks (for `path=.github/web`: a part starts with `.`, so it is under `.github`).
    - The component is new (the declaration has no component with that `name`, or the declaration is new): `stack` is given, otherwise `failed`, and the sentence naming missing arguments names `stack` too. Its `path` (the argument, or the name) is not the `path` of another component of the declaration, otherwise `failed` with the sentence "`path=<value>` is the folder of the component `<other>`: no two components share a folder." It is not inside another component's `path`, and no other component's `path` is inside it (`web/api` next to `web`, or `web` next to `web/api`), otherwise `failed` with the sentence "`path=<value>` and the folder of the component `<other>` are one inside the other: a component's folder is never inside another component's folder."
    - The component exists: `stack`, when given, equals its `stack`, and `path`, when given, equals its `path`. Any of them different: `failed`, "that is another component": a component never changes folder or stack; only its `version` changes. Write nothing.
+   - `environment`, when given, is `dev`. Any other value fails with the sentence "`environment=<value>` is not an environment this tooling builds yet: `dev` is the only one." (with the value given).
+   - `cloudRoot`, when given, is `tst`. Any other value, an empty one included, fails with the sentence "`cloudRoot=<value>` is not a root: `tst` is the only one, for a project that tests the tooling." (with the value given).
+   - `cloudRoot` given without `environment`, when the declaration has no `cloud` (a new declaration, or a file without `cloud`): `failed`, with the sentence "`cloudRoot=tst` needs the declaration's `cloud`: give `environment=dev` in the same call."
    - Existing declaration: `name`, when given, equals the file's `name`; `owner`, when given, equals the file's `repo.owner`; `repoName`, when given, equals the file's `repo.name`. Any of them different: `failed`, "that is another project": a declaration is never renamed and never moved to another repository. Run nothing, write nothing.
 4. Build the result.
    - New declaration: `name`, `repo.owner` and `repo.description` from the arguments; `repo.provider` from the defaults; `repo.name` from `repoName`, or the project name; `repo.visibility` from `visibility`, or the defaults; `repo.topics` from `topics`, or `[]`; each of the seven settings from its argument, or the defaults' `repo.settings`; `notes` from `notes`, or no key.
    - Existing declaration: start from the file and set only the keys whose argument was given.
    - `component`: a new component is `{ "name": <component>, "stack": <stack>, "path": <path, or the name>, "version": <version, or stacks.<stack>.version of the defaults> }`, added to `components`; for an existing component only `version` is set, when given. `components` is kept sorted by `name`. A run without `component` keeps the file's components unchanged and writes them in the canonical form (sorted by `name`; an empty list is dropped); a declaration without `components` gets none.
+   - `environment=dev`: `environments.dev` is set to `{}` (an environment already declared stays as it is). When the declaration has no `cloud`, `cloud` is written as `{ "provider": <cloud.provider of the defaults>, "region": <cloud.region of the defaults> }`; a `cloud` already in the file is kept as it is (its region is not changed).
+   - `cloudRoot=tst`: `cloud.root` is set to `tst`.
+   - A run without `environment` and `cloudRoot` keeps the file's `cloud` and `environments` unchanged and writes them in the canonical form; a declaration without them gets none.
    - `topics=` replaces the whole list of extra topics (it does not add to the file's list); `topics=` with an empty value makes it `[]`.
    - The argument text `true` or `false` of a setting is written as the JSON boolean `true` or `false`, never as a string.
-   - Check the result: at least one of `mergeCommit`, `squash` and `rebase` is `true`, otherwise `failed`, nothing written.
+   - Check the result: at least one of `mergeCommit`, `squash` and `rebase` is `true`, otherwise `failed`, nothing written. When this run writes `cloud` from the defaults, its `provider` is `gcp` and its `region` follows the rule of `cloud.region`, otherwise `failed`, one sentence saying that the defaults' `cloud` is not one this tooling implements, nothing written.
 5. Compare and write.
-   - New declaration: `created`. `outputs.changes` lists every key path written, in the canonical order: `$schema`, `version`, `name`, `repo.provider`, `repo.owner`, `repo.name`, `repo.visibility`, `repo.description`, `repo.topics`, `repo.settings.mergeCommit`, `repo.settings.squash`, `repo.settings.rebase`, `repo.settings.deleteBranchOnMerge`, `repo.settings.issues`, `repo.settings.wiki`, `repo.settings.projects`, `components.<name>` when a component is written, and `notes` when written.
-   - Existing declaration: `outputs.changes` lists, in the canonical order, the key paths whose value in the result differs from the file's (equality as in "The declaration's rules": `repo.topics` compared as a set). A component added, or whose `version` changes, is `components.<name>`, between `repo.settings.projects` and `notes`. An empty list is `unchanged`: do not write, the file stays byte for byte as it was. Otherwise `updated`. Only values count: a valid file without `$schema`, without `repo.topics`, with `"components": []`, or in a non-canonical layout (other indentation, other key order) does not differ for that alone, so with no argument that changes a value the result is `unchanged` and the file is left as it is.
+   - New declaration: `created`. `outputs.changes` lists every key path written, in the canonical order: `$schema`, `version`, `name`, `repo.provider`, `repo.owner`, `repo.name`, `repo.visibility`, `repo.description`, `repo.topics`, `repo.settings.mergeCommit`, `repo.settings.squash`, `repo.settings.rebase`, `repo.settings.deleteBranchOnMerge`, `repo.settings.issues`, `repo.settings.wiki`, `repo.settings.projects`, `components.<name>` when a component is written, `cloud` and `environments.dev` when written, and `notes` when written.
+   - Existing declaration: `outputs.changes` lists, in the canonical order, the key paths whose value in the result differs from the file's (equality as in "The declaration's rules": `repo.topics` compared as a set). A component added, or whose `version` changes, is `components.<name>`, between `repo.settings.projects` and `notes`. A `cloud` added is `cloud`; a `root` set on a `cloud` already in the file is `cloud.root`; an environment added is `environments.dev`; these come after the components and before `notes`, in that order. An empty list is `unchanged`: do not write, the file stays byte for byte as it was. Otherwise `updated`. Only values count: a valid file without `$schema`, without `repo.topics`, with `"components": []`, or in a non-canonical layout (other indentation, other key order) does not differ for that alone, so with no argument that changes a value the result is `unchanged` and the file is left as it is.
    - `created` or `updated`: write `.aleogr/project.json` with the Write tool, the whole file in the canonical form.
 
 ## Answer
