@@ -1,0 +1,3 @@
+FILE .aleogr/project.json "topics"
+OUTPUT "status": "failed"
+OUTPUT_NOT "name": "web"
