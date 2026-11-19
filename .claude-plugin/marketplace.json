@@ -25,6 +25,13 @@
       "displayName": "Cloud SQL (database)"
     },
     {
+      "name": "aleogr-registry-gcp-artifact-registry",
+      "source": "./.claude-plugin/plugins/aleogr-registry-gcp-artifact-registry",
+      "description": "Artifact Registry family: a project's Docker image repository in its own Google Cloud project.",
+      "category": "registry",
+      "displayName": "Artifact Registry (GCP)"
+    },
+    {
       "name": "aleogr-repo-github",
       "source": "./.claude-plugin/plugins/aleogr-repo-github",
       "description": "GitHub family: repositories, their settings, branch protection, the checkout that sends the first content, and the pull requests that propose changes.",

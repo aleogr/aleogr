@@ -2,7 +2,8 @@
 
 A headless harness that runs the real skills of `plugins/aleogr`,
 `plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql`,
-`plugins/aleogr-repo-github` and `plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
+`plugins/aleogr-registry-gcp-artifact-registry`, `plugins/aleogr-repo-github` and
+`plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
 `gh` and a fake `git`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
 
 ```
