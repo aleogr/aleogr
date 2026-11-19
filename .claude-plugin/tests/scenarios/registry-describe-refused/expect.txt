@@ -1,0 +1,9 @@
+CALLED ^artifacts repositories describe demo
+NOT_CALLED ^artifacts repositories list
+NOT_CALLED get-iam-policy
+OUTPUT "status": "failed"
+OUTPUT "exists": null
+OUTPUT could not be read
+OUTPUT_NOT PERMISSION_DENIED
+OUTPUT_NOT artifactregistry\.repositories\.get
+OUTPUT_NOT may not exist

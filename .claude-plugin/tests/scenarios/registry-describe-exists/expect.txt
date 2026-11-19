@@ -1,0 +1,14 @@
+CALLED ^artifacts repositories describe demo .*--location=us-central1
+CALLED ^artifacts repositories get-iam-policy demo .*--location=us-central1
+ORDER ^artifacts repositories describe >> ^artifacts repositories get-iam-policy
+NOT_CALLED ^artifacts repositories list
+OUTPUT "exists": true
+OUTPUT "region": "us-central1"
+OUTPUT "format": "DOCKER"
+OUTPUT "keep": 5
+OUTPUT "deletesTheRest": true
+OUTPUT "dryRun": true
+OUTPUT serviceAccount:demo-ci@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com
+RESULT_NOT 123456789012-compute
+OUTPUT "imagePath": "us-central1-docker\.pkg\.dev/aleogr-dev-demo-ab12/demo"
+OUTPUT "status": "unchanged"
