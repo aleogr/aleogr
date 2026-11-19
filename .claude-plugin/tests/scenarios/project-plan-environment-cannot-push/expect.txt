@@ -7,3 +7,5 @@ OUTPUT "item": "ci identity", "state": "cannot push", "action": "grant"
 NOT_CALLED add-iam-policy-binding|create|update-oidc
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
+# The nested skills' blocks are input only: the answer holds this skill's block alone.
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

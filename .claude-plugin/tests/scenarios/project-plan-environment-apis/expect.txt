@@ -9,3 +9,5 @@ NOT_CALLED ^(artifacts|iam)( |$)
 OUTPUT "projectId": "aleogr-dev-demo-ab12"
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
+# The nested skills' blocks are input only: the answer holds this skill's block alone.
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"

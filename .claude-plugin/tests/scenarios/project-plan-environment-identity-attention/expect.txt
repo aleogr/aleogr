@@ -7,3 +7,5 @@ OUTPUT disabled
 OUTPUT "status": "pending"
 OUTPUT_NOT nothing to do
 NOT_CALLED update-oidc|add-iam-policy-binding|create
+# The nested skills' blocks are input only: the answer holds this skill's block alone.
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"
