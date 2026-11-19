@@ -4,7 +4,7 @@ A headless harness that runs the real skills of `plugins/aleogr`,
 `plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql`,
 `plugins/aleogr-registry-gcp-artifact-registry`, `plugins/aleogr-repo-github` and
 `plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
-`gh` and a fake `git`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
+`gh`, a fake `git` and a fake `sleep`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
 
 ```
 bash .claude-plugin/tests/run.sh <scenario>
@@ -27,6 +27,15 @@ prints a canned response. The `gcloud` line is its arguments; the `gh` and `git`
 ` <<< ` and the file's content with all whitespace removed (so a body file can be
 checked: `CALLED ... --input .* <<< \{"name":"main"\}$`). The working folder starts with the content of the scenario's `files/` folder, if it has one. The
 temporary directory, the log and Claude's output are removed afterwards.
+
+`bin/sleep` is a fake wait: it appends `sleep <arguments>` to the same log and returns
+at once, printing nothing, with exit 0. It reads no response file (a scenario's
+`default.txt` or `default.txt.exit1` never answers it). A skill's wait is pinned as
+`COUNT <n> ^sleep 30$`. Claude Code refuses a `sleep` run in the foreground before it
+runs, so such a refused call is not logged; a `sleep` run in the background is logged,
+returns at once, and the run goes on when its completion notice arrives. A `sleep` line
+starts with `s`, so `NOT_CALLED ^([a-fi-z-]|g[^hi])` (below) also holds that the skill
+did not wait.
 
 ## Adding a scenario
 
@@ -103,4 +112,4 @@ Claude Code itself runs `git ... ls-files --error-unmatch -- :(icase).claude/set
 
 A `gcloud` line has no word `gcloud` in it, so `NOT_CALLED ^gcloud` holds whatever ran. To pin that a skill ran no `gcloud` command, pin the subcommands instead: `NOT_CALLED ^(projects|services|artifacts|iam)( |$)`, or, to cover every `gcloud` line while letting `gh` and `git` through, `NOT_CALLED ^([a-fi-z-]|g[^hi])` (as `project-plan-nothing-to-do` does).
 
-`scenarios/harness-selftest`, `scenarios/harness-selftest-gh`, `scenarios/harness-selftest-files` and `scenarios/harness-selftest-state` check the harness itself.
+`scenarios/harness-selftest`, `scenarios/harness-selftest-gh`, `scenarios/harness-selftest-files`, `scenarios/harness-selftest-state` and `scenarios/harness-selftest-sleep` check the harness itself.
