@@ -24,7 +24,39 @@
 # marker call, the one with the longest prefix); when none applies, the files without
 # "+after+" answer as above. They let a read answer by
 # what was changed before it, not by how many reads came before.
+# Two additive rules, for a value the skill makes up (such as a random project id):
+# - A "%" in a response file's name stands for one or more of a-z0-9
+#   (projects_describe_aleogr-dev-demo-%_--format=json.txt answers
+#   "projects describe aleogr-dev-demo-x7k2 --format=json"). Names without "%" match as before.
+# - "{{log:<regex>}}" in a response file's content is replaced by the last text of the
+#   call log (this call's line included) that matches the grep -E regex <regex> (which
+#   must not contain "}}"), or by nothing when none does. Files without it print as before.
 log="${FAKE_LOG:?FAKE_LOG is not set}"
+# matches <key> <name>: <name> is a prefix of <key>, a "%" in <name> standing for [a-z0-9]+.
+matches() {
+  case "$2" in
+    *%*)
+      local re
+      re="$(printf '%s' "$2" | sed -e 's/[]\/$*.^[()+?{}|]/\\&/g' -e 's/%/[a-z0-9]+/g')"
+      [[ "$1" =~ ^$re ]]
+      ;;
+    *) case "$1" in "$2"*) return 0 ;; *) return 1 ;; esac ;;
+  esac
+}
+# emit <file>: prints the file, with each {{log:<regex>}} replaced as described above.
+emit() {
+  if ! grep -qF '{{log:' "$1"; then cat "$1"; return; fi
+  local content rest re val
+  content="$(cat "$1"; printf x)"; content="${content%x}"
+  while [[ "$content" == *'{{log:'* ]]; do
+    rest="${content#*\{\{log:}"
+    [[ "$rest" == *'}}'* ]] || break
+    re="${rest%%\}\}*}"
+    val="$(grep -oE -- "$re" "$log" | tail -n 1)"
+    content="${content/"{{log:$re}}"/$val}"
+  done
+  printf '%s' "$content"
+}
 dir="${FAKE_RESPONSES:-}"
 tool="${1:?tool is not set}"; shift
 line="$*"
@@ -51,7 +83,7 @@ if [ -d "$dir" ]; then
     name="${name%.*}"
     prefix="${name%%+after+*}"
     marker="${name#*+after+}"
-    case "$key" in "$prefix"*) ;; *) continue ;; esac
+    matches "$key" "$prefix" || continue
     mline=0 ; i=0
     while IFS= read -r logged || [ -n "$logged" ]; do
       i=$(( i + 1 ))
@@ -67,7 +99,7 @@ if [ -d "$dir" ]; then
   done
   if [ -n "$best" ]; then
     echo "$line" >> "$log"
-    cat "$best"
+    emit "$best"
     case "$best" in *.exit1) exit 1 ;; esac
     exit 0
   fi
@@ -90,11 +122,9 @@ for f in "$dir"/*; do
     *.[0-9]*) num="${name##*.}"; name="${name%.*}" ;;
   esac
   [ "$name" = default ] && continue
-  case "$key" in
-    "$name"*)
-      if [ "${#name}" -gt "${#pick_name}" ]; then pick="$f"; pick_name="$name"; pick_num="$num"; fi
-      ;;
-  esac
+  if matches "$key" "$name" && [ "${#name}" -gt "${#pick_name}" ]; then
+    pick="$f"; pick_name="$name"; pick_num="$num"
+  fi
 done
 if [ -n "$pick" ]; then
   f="$pick"; base="$(basename "$f")"; name="$pick_name"; num="$pick_num"
@@ -113,7 +143,7 @@ if [ -n "$pick" ]; then
     [ -n "$chosen" ] || chosen="$f"
     f="$chosen"; base="$(basename "$f")"
   fi
-  cat "$f"
+  emit "$f"
   case "$base" in *.exit1) exit 1 ;; *.exit127) exit 127 ;; esac
   exit 0
 fi

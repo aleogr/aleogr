@@ -7,4 +7,6 @@ NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT "item": "environment dev", "state": "missing", "action": "create"
 OUTPUT "item": "confirm", "reason": "manual", "how": "/aleogr:project-apply confirm=yes"
 OUTPUT "status": "pending"
+# The answer names what the confirmed run would make in Google Cloud.
+OUTPUT makes in Google Cloud: .*GCP project
 OUTPUT_NOT nothing to do

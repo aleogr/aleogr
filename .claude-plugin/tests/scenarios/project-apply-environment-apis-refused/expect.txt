@@ -1,0 +1,15 @@
+# The GCP project is created and its APIs enabled, but the first Artifact Registry read is refused (an
+# API just enabled is not on yet). The run stops: status updated, the item apis says to wait a minute
+# and apply again, nothing after it runs, and no last plan is made (a search after the enable fails in
+# this fixture, which would add the item verify).
+CALLED ^services enable .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories describe demo
+NOT_CALLED ^artifacts repositories (create|set-cleanup-policies|add-iam-policy-binding)
+NOT_CALLED ^iam( |$)
+OUTPUT "item": "apis", "reason": "manual", "how": "[^"]*minute[^"]*/aleogr:project-apply confirm=yes"
+OUTPUT "status": "updated"
+OUTPUT_NOT "item": "verify"
+OUTPUT_NOT nothing to do
+OUTPUT_NOT PERMISSION_DENIED|has not been used
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"

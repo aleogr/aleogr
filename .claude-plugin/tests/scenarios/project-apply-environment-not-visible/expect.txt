@@ -1,0 +1,12 @@
+# As project-apply-environment-new-project, but the last plan's search by labels does not show the
+# project created in this run yet. The run never says to apply again (it would create a second
+# project): status updated, one item that says to wait a minute and run project-plan.
+CALLED ^projects create aleogr-dev-demo-[a-z0-9]{4} .*--folder=444444444444
+CALLED ^artifacts repositories add-iam-policy-binding demo
+OUTPUT "item": "environment dev", "reason": "manual", "how": "[^"]*aleogr-dev-demo-[a-z0-9]{4}[^"]*minute[^"]*/aleogr:project-plan"
+OUTPUT_NOT "how": "[^"]*/aleogr:project-apply
+OUTPUT does not show it yet
+OUTPUT "status": "updated"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"
