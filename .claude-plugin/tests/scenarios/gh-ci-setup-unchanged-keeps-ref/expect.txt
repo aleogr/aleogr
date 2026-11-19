@@ -1,0 +1,8 @@
+NOT_CALLED commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 api:services/api:go:1\.27,web:web:go:1\.27$
+FILE .github/workflows/ci.yml ci-go\.yml@1{40}
+OUTPUT "local": "differs"
+OUTPUT "repositoryAsDeclared": false
+OUTPUT "status": "updated"
+OUTPUT "ref": "1{40}"
+NOT_CALLED ^git (add|commit|push|-c credential)

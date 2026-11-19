@@ -1,0 +1,8 @@
+NOT_CALLED commits/main
+FILE .github/workflows/ci.yml ci-go\.yml@1{40}
+OUTPUT "local": "as-declared"
+OUTPUT "inRepository": true
+OUTPUT "repositoryAsDeclared": true
+OUTPUT "written": false
+OUTPUT "status": "unchanged"
+NOT_CALLED ^git (add|commit|push|-c credential)

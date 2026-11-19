@@ -1,0 +1,6 @@
+CALLED ^gh api repos/example-org/tooling/commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 api:services/api:go:1\.27,web:web:go:1\.27$
+FILE .github/workflows/ci.yml ci-go\.yml@2{40}
+OUTPUT "status": "updated"
+OUTPUT "ref": "2{40}"
+NOT_CALLED ^git (add|commit|push|-c credential)
