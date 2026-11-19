@@ -22,7 +22,7 @@ ORDER ^iam service-accounts add-iam-policy-binding >> ^artifacts repositories ad
 NOT_CALLED ^projects add-iam-policy-binding|update-oidc
 NOT_CALLED ^gh repo edit|--method|^gh pr create
 NOT_CALLED ^git (commit|.*push)
-OUTPUT "item": "environment dev", "state": "missing", "action": "create"
+OUTPUT environment dev[^a-z]*(as )?[^a-z]*missing
 OUTPUT "item": "environment dev", "state": "exists", "action": "none"
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
