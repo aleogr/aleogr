@@ -19,5 +19,5 @@ OUTPUT "item": "environment dev", "state": "exists", "action": "none"
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "updated"
-OUTPUT_NOT "item": "(apis|verify)"
+OUTPUT_NOT "item": "(apis|verify)", "reason"
 OUTPUT_NOT PERMISSION_DENIED|has not been used
