@@ -8,3 +8,6 @@ NOT_CALLED ^projects create .*--organization=
 NOT_CALLED ^projects create .*aleogr-platform
 CALLED ^billing projects link aleogr-dev-demo-[a-z0-9]{4} --billing-account=0X0X0X-0X0X0X-0X0X0X
 OUTPUT "status": "created"
+# Before the create, one more search, filtered by the parent (the environment's folder).
+CALLED ^projects list --filter=parent\.type=folder AND parent\.id=222222222222 AND labels\.aleogr-project=demo AND labels\.aleogr-environment=dev --format=value\(projectId\)
+ORDER ^projects list --filter=parent >> ^projects create

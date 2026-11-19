@@ -5,3 +5,5 @@ NOT_CALLED ^projects create
 NOT_CALLED ^billing projects link
 OUTPUT "status": "would-create"
 OUTPUT "mode": "plan"
+# The search by parent only reads: plan runs it too.
+CALLED ^projects list --filter=parent\.type=organization AND parent\.id=111111111111

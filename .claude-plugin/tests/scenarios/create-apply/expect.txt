@@ -15,3 +15,6 @@ NOT_CALLED --billing-account=billingAccounts/
 CALLED ^projects describe aleogr-shared-[a-z0-9]{4}
 OUTPUT "status": "created"
 OUTPUT "projectId": "aleogr-shared-[a-z0-9]{4}"
+# Before the create, one more search, filtered by the parent (the organization).
+CALLED ^projects list --filter=parent\.type=organization AND parent\.id=111111111111 AND labels\.aleogr-project=shared AND labels\.aleogr-platform=shared --format=value\(projectId\)
+ORDER ^projects list --filter=parent >> ^projects create
