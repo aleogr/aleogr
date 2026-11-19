@@ -1,4 +1,5 @@
-# Not prepared, role and API missing: grant the role on the organization, then enable the API.
+# A fresh organization: role and API missing, and the setting cannot be read before the
+# role is granted. Grant the role, enable the API, and only then read the setting.
 CALLED ^iap settings get .*--organization=111111111111( |$)
 CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*roles/iap\.settingsAdmin
 CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*user:demo-user@example\.com
@@ -9,6 +10,9 @@ CALLED ^organizations add-iam-policy-binding 111111111111 .*--role=roles/iap\.se
 CALLED ^organizations add-iam-policy-binding 111111111111 .*--condition=None( |$)
 CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-ab12
 ORDER ^organizations add-iam-policy-binding >> ^services enable
+ORDER ^organizations add-iam-policy-binding >> ^iap settings get
+ORDER ^services enable >> ^iap settings get
+NOT_CALLED ^sleep
 # The secret never passes through the skill: the command is printed, never run.
 NOT_CALLED ^iap settings set
 NOT_CALLED ^projects add-iam-policy-binding

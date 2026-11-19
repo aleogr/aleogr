@@ -1,12 +1,14 @@
-# Plan reads and changes nothing.
-CALLED ^iap settings get .*--organization=111111111111( |$)
+# Plan, the role present and the API off: the setting is read, nothing is changed.
 CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*roles/iap\.settingsAdmin
 CALLED ^services list .*--project=aleogr-shared-ab12
+CALLED ^iap settings get .*--organization=111111111111( |$)
 NOT_CALLED add-iam-policy-binding
 NOT_CALLED ^services enable
 NOT_CALLED ^iap settings set
 OUTPUT "mode": "plan"
 OUTPUT "status": "would-update"
 OUTPUT "prepared": false
+OUTPUT "apiEnabled": true
 OUTPUT "item": "login"
+OUTPUT read -s -p
 OUTPUT_NOT clientSecret: [^<$%]

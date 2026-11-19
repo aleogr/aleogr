@@ -1,0 +1,12 @@
+# The read is refused for lack of permission (a fresh organization, before the role is
+# granted): not a failure of the plan. Not prepared, not readable, platform-apply prepares it.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+OUTPUT "status": "unchanged"
+OUTPUT "prepared": false
+OUTPUT "readable": false
+OUTPUT "organization": true
+OUTPUT /aleogr:platform-apply
+OUTPUT_NOT "status": "failed"
+OUTPUT_NOT PERMISSION_DENIED
+OUTPUT_NOT getSettings
+OUTPUT_NOT may not exist

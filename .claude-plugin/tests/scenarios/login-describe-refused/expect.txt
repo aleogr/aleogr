@@ -1,9 +1,10 @@
-# A refused read is a failure, never "not prepared"; the prescribed sentence, no raw text.
+# A read that fails for another reason than a permission (here, expired credentials) is a
+# failure, never "not prepared"; the prescribed sentence, no raw text.
 CALLED ^iap settings get .*--organization=111111111111( |$)
 OUTPUT "status": "failed"
 OUTPUT "prepared": null
 OUTPUT "organization": true
 OUTPUT login setting could not be read
-OUTPUT_NOT PERMISSION_DENIED
-OUTPUT_NOT getSettings
-OUTPUT_NOT may not exist
+OUTPUT_NOT invalid_grant
+OUTPUT_NOT refreshing
+OUTPUT_NOT Bad Request

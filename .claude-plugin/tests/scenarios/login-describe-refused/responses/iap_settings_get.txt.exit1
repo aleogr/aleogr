@@ -1,1 +1,6 @@
-ERROR: (gcloud.iap.settings.get) PERMISSION_DENIED: Permission 'iap.organizations.getSettings' denied on resource '//iap.googleapis.com/organizations/111111111111/iap_web' (or it may not exist).
+ERROR: (gcloud.iap.settings.get) There was a problem refreshing your current auth tokens: invalid_grant: Bad Request
+Please run:
+
+  $ gcloud auth login
+
+to obtain new credentials.

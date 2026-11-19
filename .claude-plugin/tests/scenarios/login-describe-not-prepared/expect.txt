@@ -5,3 +5,4 @@ OUTPUT "status": "unchanged"
 OUTPUT "prepared": false
 OUTPUT "organization": true
 RESULT_NOT 111111111111
+OUTPUT "readable": true

@@ -1,0 +1,10 @@
+# Plan on a fresh organization: the role is missing, so the setting is not read (it would
+# be refused); the role would be granted and the rest checked after.
+CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*roles/iap\.settingsAdmin
+NOT_CALLED ^iap settings get
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^services enable
+OUTPUT "mode": "plan"
+OUTPUT "status": "would-update"
+OUTPUT "roleGranted": true
+OUTPUT_NOT "status": "failed"
