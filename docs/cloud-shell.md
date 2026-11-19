@@ -82,7 +82,7 @@ On later days: `cd ~/<project> && claude`. Claude Code asks once whether to trus
 Once the repository exists, a change to the project takes three steps:
 
 1. Edit the declaration with `/aleogr:project-declare`, then run `/aleogr:project-apply confirm=yes`: it proposes the change as a pull request and shows its address. The folder is back on `main` and shows the merged state again; the change lives in the pull request.
-2. Merge the pull request on GitHub, with the normal button. Claude Code is never asked to merge, and the skills never merge.
+2. Merge the pull request on GitHub, with the normal button. Claude Code is never asked to merge, and the skills never merge. Do not declare another change while the pull request is open: after the merge, the folder could not be updated over it.
 3. Run `/aleogr:project-apply confirm=yes` again: it brings the folder up to date and applies the merged change.
 
 Claude Code is not asked to open the pull request or to update the folder by hand: `project-apply` does both. A repository has one open pull request of the tooling at a time; while it is open, `project-apply` only says to merge it. To drop a proposal, close its pull request on GitHub; to make it again, declare the change again.

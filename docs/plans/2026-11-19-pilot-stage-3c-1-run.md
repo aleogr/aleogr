@@ -78,7 +78,7 @@ Expected: `status` `unchanged`, the line `nothing to do`, and this table:
 | `declaration` | `in the repository` | `none` |
 | `protection` | `protected` | `none` |
 
-It now also asks GitHub whether a pull request of the tooling is open (`gh pr list`) and reads the folder with `git` commands that change nothing (`git rev-parse`, `git remote get-url origin`, `git branch --show-current`, `git status --porcelain`): allow them.
+It now also asks GitHub whether a pull request of the tooling is open (`gh pr list`) and whether the folder's last commit is in the repository (`gh api repos/aleogr-sandbox/pilot/commits/<hash>`), and reads the folder with `git` commands that change nothing (`git rev-parse --is-inside-work-tree`, `git rev-parse HEAD`, `git remote get-url origin`, `git branch --show-current`, `git status --porcelain`): allow them.
 
 If `declaration` says `this folder needs attention` / `fix the folder`, see [section 3](#3-what-the-declaration-states-mean): the line under the table says what to fix.
 
@@ -164,7 +164,7 @@ Under the table: `merge https://github.com/aleogr-sandbox/pilot/pull/<N>, then r
 Then open the pull request's address in the browser:
 
 - **Files changed** shows one file, `.aleogr/project.json`, with one line changed: the topics, now `["demo", "status-page"]`;
-- **Commits** shows one commit, `Change the project declaration`. Open it and add `.patch` to the end of its address: the `From:` line ends with `@users.noreply.github.com`. Do not paste that line anywhere; just say whether it ends that way (yes or no).
+- **Commits** shows one commit, `Change the project declaration`. Open it and add `.patch` to the end of its address: the `From:` line has `@users.noreply.github.com` just before its closing `>` (the line does not end with it). Do not paste that line anywhere; just say whether it has it there (yes or no).
 
 ### Step 7. Merge on GitHub
 
@@ -224,6 +224,8 @@ While the declaration is `changed here`, `proposed` or `behind`, the rows `setti
 - Nothing in this run costs money: repositories, topics, pull requests and rulesets are free, and no workflow runs.
 - **A second `project-apply` while the pull request is open** changes nothing: it ends `pending`, with `proposed in pull request #N` / `merge it`. Merge the pull request (step 7), then run `/aleogr:project-apply confirm=yes`. If it still says `merge it` right after the merge, wait a few seconds and run it again.
 - **To drop a proposal**, close its pull request on GitHub (**Close pull request**, at the bottom of its page). Nothing else is needed: the folder already shows the merged state, and the next plan says `in the repository`. To make the change again, declare it again (step 3) and apply it (step 5): it gets a new pull request. The branch of the closed pull request stays on GitHub and in the folder; it does no harm.
+- **Step 8 says `nothing to do` right after the merge**: GitHub has not shown the merge yet. Wait a few seconds and run `/aleogr:project-apply confirm=yes` again.
+- **A run prints a plan and stops without applying**: run the same command again.
 - **`this folder is behind`** at any other moment means someone merged a change into `main` since this folder was last updated: `project-apply confirm=yes` updates it.
 - **`this folder needs attention`**: see [section 3](#3-what-the-declaration-states-mean).
 - **Step 5 ends `failed`** (a refused push, for example): nothing reached GitHub, and the folder is back on `main`; the commit may be kept in a local branch `aleogr/change-…`. Do not run anything again: send the whole answer.
@@ -236,7 +238,7 @@ While the declaration is `changed here`, `proposed` or `behind`, the rows `setti
 - The answer of every step whose status or table differed from **Expected** (the text and the `aleogr-result` block).
 - The whole answer of step 5, whatever it said: it shows the first pull request opened by the tooling, and its `git push`.
 - The whole answer of step 8, whatever it said: it shows the folder updated and the merged change applied in one run.
-- Whether the `From:` line of step 6 ends with `@users.noreply.github.com` (yes or no; not the line itself).
+- Whether the `From:` line of step 6 has `@users.noreply.github.com` just before its closing `>` (yes or no; not the line itself).
 - The full text of any error, from any step. Never paste the code of `gh auth login`, a token, or what `gh auth status` prints.
 
 What the run shows goes into [`PROVIDER-FACTS.md`](../PROVIDER-FACTS.md), and whatever failed becomes a fix in the skills.

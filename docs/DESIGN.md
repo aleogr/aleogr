@@ -687,7 +687,7 @@ Each family has a contract: the same ACTIONS, with the same kind of result, acro
 
 ### 12.2 Apply order
 
-1. Repositories: create → configure (settings, then visibility) → send the declaration (only at the birth, [section 11.4](#114-the-declaration-in-its-repository)) → protect.
+1. Repositories: create → configure (settings, then visibility) → send the declaration (only at the birth, [section 11.4](#114-the-declaration-in-its-repository)) → protect. After the birth, a `propose` or `update` of the declaration comes first: `propose` ends the run, `update` plans again.
 2. Domain registration.
 3. Cloud base (or verification of the shared platform).
 4. Secrets.
