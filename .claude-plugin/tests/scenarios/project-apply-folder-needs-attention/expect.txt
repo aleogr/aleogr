@@ -1,0 +1,5 @@
+# The folder was left on the tooling branch aleogr/change-zzz999 by an interrupted run: the owner
+# fixes the folder by hand. Even with confirm=yes nothing is committed, pushed, opened or applied.
+NOT_CALLED ^git (switch|add|commit|-c credential)|^gh pr create|^gh repo
+OUTPUT git switch main
+OUTPUT "status": "pending"
