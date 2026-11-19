@@ -347,4 +347,4 @@ First real run: 2026-11-19, in Cloud Shell, by the owner. Every step answered as
 | 10. Merge | merged; `ci` green on `main` | as expected; `ci` green on `main` in 52 seconds, `changes` included |
 | 11. Apply after the merge | folder updated, ruleset updated with `checks=ci`, `nothing to do`, `updated` | as expected, about 3 minutes; `go_setup` answered `unchanged` for both components after the update |
 | 12. Plan | `unchanged`; `protected, requires ci`; the ruleset has the check `ci` | as expected; the page of the ruleset was not opened |
-| 13. A broken test | `status / go` and `ci` red, merge blocked; pull request closed and branch deleted | as expected: `ci` (marked **Required**) and `status / go` red, `admin` skipped, `changes` green, **Merge pull request** disabled (pull request #4) |
+| 13. A broken test | `status / go` and `ci` red, merge blocked; pull request closed and branch deleted | as expected: `ci` (marked **Required**) and `status / go` red, `admin` skipped, `changes` green, **Merge pull request** disabled (pull request #4); then closed by the owner |
