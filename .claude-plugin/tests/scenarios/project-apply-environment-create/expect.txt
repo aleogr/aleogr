@@ -3,11 +3,9 @@
 # in the run, so the project to make is this repair): nothing inside it. One confirmed run repairs
 # it, enables the APIs, plans again, creates the image repository and its cleanup policy, the CI
 # identity, grants it push after both exist, and the last plan says nothing to do.
-# The first plan's table, and the invocation with root=tst (the folder lookup inside tst is pinned
-# by project-apply-environment-folder-missing).
+# The first plan's table (root=tst is proven by the folder lookup in folder-missing).
 OUTPUT \| *environment dev *\| *billing not linked *\| *repair *\|
 OUTPUT \| *apis *\| *follows the environment *\| *none *\|
-OUTPUT gcp_environment-create.*root=tst
 CALLED ^billing projects link aleogr-dev-demo-ab12 --billing-account=0X0X0X-0X0X0X-0X0X0X
 NOT_CALLED ^projects create
 CALLED ^services enable .*artifactregistry\.googleapis\.com.* --project=aleogr-dev-demo-ab12

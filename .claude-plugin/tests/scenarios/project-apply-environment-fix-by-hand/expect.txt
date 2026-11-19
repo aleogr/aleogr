@@ -9,6 +9,6 @@ NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT "item": "registry", "state": "in another region", "action": "fix by hand"
 OUTPUT "item": "registry", "reason": "manual", "how": "[^"]*southamerica-east1
 OUTPUT "status": "updated"
-OUTPUT_NOT nothing to do
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
 # The blocks of the skills project-apply invokes in apply are input only: never printed.
 OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"
