@@ -1,9 +1,10 @@
 {
-  "id": 100000001,
+  "id": 7654321,
   "name": "demo",
   "full_name": "example-org/demo",
   "owner": {
     "login": "example-org",
+    "id": 2345678,
     "type": "Organization"
   },
   "private": true,

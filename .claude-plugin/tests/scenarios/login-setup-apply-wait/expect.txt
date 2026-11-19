@@ -1,12 +1,13 @@
-# The role was just granted and has not propagated: the setting's read is refused twice,
-# the run waits 30 seconds between tries and goes on when the read answers.
+# The first read is refused (role missing); the role is granted and the API enabled; the
+# read right after is refused twice (the role has not propagated), the run waits 30
+# seconds between tries and goes on when the read answers.
 CALLED ^organizations add-iam-policy-binding 111111111111 .*--role=roles/iap\.settingsAdmin( |$)
-ORDER ^organizations add-iam-policy-binding >> ^iap settings get
-COUNT 3 ^iap settings get
+CALLED ^services enable iap\.googleapis\.com
+COUNT 4 ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)
 COUNT 2 ^sleep 30$
 NOT_CALLED ^iap settings set
 OUTPUT "status": "updated"
 OUTPUT "prepared": false
 OUTPUT "item": "login"
-OUTPUT read -s -p
+OUTPUT read -r -s -p
 OUTPUT_NOT PERMISSION_DENIED

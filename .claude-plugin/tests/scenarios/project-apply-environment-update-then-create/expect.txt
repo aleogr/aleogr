@@ -1,19 +1,32 @@
 # The folder is behind: the owner merged the declaration that adds the environment dev (root tst),
-# and its GCP project does not exist. With confirm=yes the folder is brought up to date and the plan
-# runs again; that plan creates a GCP project, whose id is permanent, and the confirmation was given
-# before that plan was seen: the run stops there, "updated", with the item confirm, and creates
-# nothing. The fake cannot change the seeded file, so the seeded file is the merged one: the
-# repository's copy differs from it before the pull and equals it after.
+# and its GCP project does not exist. The proposal already said that applying it creates a GCP
+# project, whose id is permanent, so one run with confirm=yes does everything: it brings the folder
+# up to date, plans again, and under the confirmation given creates the GCP project, its APIs, the
+# image repository and its policy, the CI identity and its push access; the last plan says nothing
+# to do. No stop for a second confirmation. The fake cannot change the seeded file, so the seeded
+# file is the merged one: the repository's copy differs from it before the pull and equals it after.
 CALLED ^git -c credential.* pull --ff-only origin main
 CALLED ^projects list .*labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
 ORDER ^git -c credential.* pull >> ^projects list
-NOT_CALLED ^(projects create|services enable|organizations list|resource-manager|billing)
-NOT_CALLED ^(artifacts|iam)( |$)
+CALLED ^projects create aleogr-dev-demo-[a-z0-9]{4} .*--folder=444444444444
+CALLED ^services enable .*artifactregistry\.googleapis\.com.* --project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories create demo .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories set-cleanup-policies demo .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^iam service-accounts create demo-ci .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--member=serviceAccount:demo-ci@aleogr-dev-demo-[a-z0-9]{4}\.iam\.gserviceaccount\.com
+ORDER ^projects list >> ^projects create
+ORDER ^projects create >> ^services enable
+ORDER ^services enable >> ^artifacts repositories create
+ORDER ^artifacts repositories set-cleanup-policies >> ^iam service-accounts create
+ORDER ^iam service-accounts add-iam-policy-binding >> ^artifacts repositories add-iam-policy-binding
+NOT_CALLED ^projects add-iam-policy-binding|update-oidc
 NOT_CALLED ^gh repo edit|--method|^gh pr create
 NOT_CALLED ^git (commit|.*push)
 OUTPUT "item": "environment dev", "state": "missing", "action": "create"
-OUTPUT "item": "confirm", "reason": "manual", "how": "/aleogr:project-apply confirm=yes"
+OUTPUT "item": "environment dev", "state": "exists", "action": "none"
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "updated"
-# A word of the prescribed sentence: the id of the project the next run creates is permanent.
-OUTPUT permanent
-OUTPUT_NOT nothing to do
+OUTPUT "pending": \[\]
+OUTPUT_NOT "item": "confirm"
+OUTPUT_NOT "item": "verify"

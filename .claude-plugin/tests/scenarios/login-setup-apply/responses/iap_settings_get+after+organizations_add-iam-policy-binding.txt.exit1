@@ -1,0 +1,4 @@
+ERROR: (gcloud.iap.settings.get) PERMISSION_DENIED: Cloud Identity-Aware Proxy API has not been used in project aleogr-shared-ab12 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/iap.googleapis.com/overview?project=aleogr-shared-ab12 then retry.
+- '@type': type.googleapis.com/google.rpc.ErrorInfo
+  domain: googleapis.com
+  reason: SERVICE_DISABLED

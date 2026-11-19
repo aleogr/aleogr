@@ -1,0 +1,8 @@
+# The API of the quota project is off: a failure, not "cannot be read yet".
+CALLED ^iap settings get .*--organization=111111111111( |$)
+OUTPUT "status": "failed"
+OUTPUT "prepared": null
+OUTPUT login setting could not be read
+OUTPUT_NOT "readable": false
+OUTPUT_NOT has not been used
+OUTPUT_NOT SERVICE_DISABLED

@@ -7,4 +7,4 @@ OUTPUT "status": "updated"
 OUTPUT "roleGranted": false
 OUTPUT "apiEnabled": true
 OUTPUT "item": "login"
-OUTPUT read -s -p
+OUTPUT read -r -s -p

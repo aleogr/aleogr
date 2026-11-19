@@ -1,0 +1,23 @@
+# As project-apply-environment-new-project, but the first two reads of the image repository are
+# refused, as an API enabled seconds before refuses them. The run does not stop: it waits 30
+# seconds and tries the image repository's skill again, twice, and the third read answers. The run
+# then makes the rest and the last plan says nothing to do. No plan in the middle: the fake answers
+# a search by labels after the enable with an error until the last change.
+CALLED ^projects create aleogr-dev-demo-[a-z0-9]{4} .*--folder=444444444444
+CALLED ^services enable .*artifactregistry\.googleapis\.com.* --project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+COUNT 3 ^artifacts repositories describe demo .*--format=json$
+COUNT 2 ^sleep 30$
+ORDER ^services enable >> ^sleep 30
+ORDER ^sleep 30 >> ^artifacts repositories create
+CALLED ^artifacts repositories create demo .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories set-cleanup-policies demo .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^iam service-accounts create demo-ci .*--project=aleogr-dev-demo-[a-z0-9]{4}( |$)
+CALLED ^artifacts repositories add-iam-policy-binding demo .*--member=serviceAccount:demo-ci@aleogr-dev-demo-[a-z0-9]{4}\.iam\.gserviceaccount\.com
+NOT_CALLED ^projects add-iam-policy-binding|update-oidc
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "item": "environment dev", "state": "exists", "action": "none"
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT "status": "updated"
+OUTPUT_NOT "item": "(apis|verify)"
+OUTPUT_NOT PERMISSION_DENIED|has not been used

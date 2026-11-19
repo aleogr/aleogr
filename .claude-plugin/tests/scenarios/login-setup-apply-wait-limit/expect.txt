@@ -1,0 +1,16 @@
+# The read after the grant stays refused: 10 tries (9 waits), then the prescribed ending.
+# The 12th read (an 11th after the grant) would answer "not prepared": a skill that tries
+# once more prints the list and fails the pins below.
+CALLED ^organizations add-iam-policy-binding 111111111111
+COUNT 11 ^iap settings get
+COUNT 9 ^sleep 30$
+NOT_CALLED ^iap settings set
+OUTPUT "status": "updated"
+OUTPUT "prepared": null
+OUTPUT "roleGranted": true
+OUTPUT could not be read yet
+OUTPUT "item": "login"
+OUTPUT /aleogr:platform-apply
+OUTPUT_NOT read -r -s
+OUTPUT_NOT auth/clients
+OUTPUT_NOT PERMISSION_DENIED

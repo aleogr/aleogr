@@ -1,6 +1,9 @@
 # A fresh organization: role and API missing, and the setting cannot be read before the
-# role is granted. Grant the role, enable the API, and only then read the setting.
+# role is granted. One read first (refused), then grant the role, enable the API in the
+# shared project, and read again. A read after the grant but before the enable would
+# answer SERVICE_DISABLED (its fixture), and the list would not be printed.
 CALLED ^iap settings get .*--organization=111111111111( |$)
+COUNT 2 ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)
 CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*roles/iap\.settingsAdmin
 CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*user:demo-user@example\.com
 CALLED ^services list .*--enabled
@@ -10,8 +13,7 @@ CALLED ^organizations add-iam-policy-binding 111111111111 .*--role=roles/iap\.se
 CALLED ^organizations add-iam-policy-binding 111111111111 .*--condition=None( |$)
 CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-ab12
 ORDER ^organizations add-iam-policy-binding >> ^services enable
-ORDER ^organizations add-iam-policy-binding >> ^iap settings get
-ORDER ^services enable >> ^iap settings get
+ORDER ^iap settings get >> ^organizations add-iam-policy-binding
 NOT_CALLED ^sleep
 # The secret never passes through the skill: the command is printed, never run.
 NOT_CALLED ^iap settings set
@@ -31,8 +33,11 @@ OUTPUT [Aa]pp name `?aleogr`?
 OUTPUT named `?iap`?
 OUTPUT External
 OUTPUT https://iap\.googleapis\.com/v1/oauth/clientIds/<client id>:handleRedirect
-OUTPUT read -s -p
+OUTPUT read -r -s -p
+OUTPUT --billing-project=aleogr-shared-ab12 \)
+OUTPUT bash terminal
+OUTPUT shown only once
 OUTPUT gcloud iap settings set
-OUTPUT read -p "Client id: " CID; read -s -p "Client secret: " CSEC; echo; O=\$\(gcloud organizations list --format="value\(name\)" \| sed 's#\.\*\/##'\); F=\$\(mktemp\); printf 'accessSettings:\\n  oauthSettings:\\n    clientId: %s\\n    clientSecret: %s\\n' "\$CID" "\$CSEC" > "\$F"; gcloud iap settings set "\$F" --organization="\$O"; rm -f "\$F"; unset CSEC
 RESULT_NOT 111111111111
 RESULT_NOT demo-user@example\.com
+OUTPUT \( read -r -p "Client id: " CID; read -r -s -p "Client secret: " CSEC; echo; O=\$\(gcloud organizations list --format="value\(name\)" \| sed 's#\.\*\/##'\); F=\$\(mktemp\); trap 'rm -f "\$F"' EXIT; printf 'accessSettings:\\n  oauthSettings:\\n    clientId: %s\\n    clientSecret: %s\\n' "\$CID" "\$CSEC" > "\$F"; gcloud iap settings set "\$F" --organization="\$O" --billing-project=aleogr-shared-ab12 \)

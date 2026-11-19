@@ -10,5 +10,6 @@ OUTPUT "status": "would-update"
 OUTPUT "prepared": false
 OUTPUT "apiEnabled": true
 OUTPUT "item": "login"
-OUTPUT read -s -p
+OUTPUT read -r -s -p
 OUTPUT_NOT clientSecret: [^<$%]
+CALLED ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)

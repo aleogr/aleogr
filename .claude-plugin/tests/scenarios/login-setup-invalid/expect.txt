@@ -1,5 +1,5 @@
 # A projectId that breaks the id rule: failed before any command.
 NOT_CALLED .
 OUTPUT "status": "failed"
-OUTPUT projectId
+OUTPUT projectId is not a valid GCP project id\.
 OUTPUT_NOT \?$

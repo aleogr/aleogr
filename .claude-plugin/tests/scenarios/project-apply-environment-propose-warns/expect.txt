@@ -1,0 +1,14 @@
+# The local declaration adds the environment dev (root tst), which the repository's copy does not
+# have. With confirm=yes the change is proposed by pull request, and nothing is made in Google Cloud.
+# The proposal is where the creation is announced: applying the merged change creates a Google Cloud
+# project, whose id is permanent. The prescribed sentence is passed as note= to the pull request
+# skill (so it is in the body, after "Proposed by aleogr.") and said in the answer.
+CALLED ^git commit -m "?Change the project declaration"? -- \.aleogr/project\.json
+CALLED ^gh pr create --repo example-org/demo --base main --head aleogr/change-[a-z0-9]{6} .*--body "?Proposed by aleogr\. Applying this change after the merge creates a Google Cloud project, whose id is permanent\.
+NOT_CALLED ^(projects (create|list)|services|organizations|resource-manager|billing|artifacts|iam)( |$)
+NOT_CALLED ^gh repo|--method|^git .*push .*origin main
+OUTPUT "status": "updated"
+OUTPUT merge https://github\.com/example-org/demo/pull/7
+OUTPUT "number": 7
+OUTPUT Google Cloud project, whose id is permanent
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$

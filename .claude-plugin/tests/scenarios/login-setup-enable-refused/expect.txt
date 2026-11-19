@@ -1,0 +1,9 @@
+# The role is present, the API off: the enable is refused, nothing was changed: failed.
+CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-ab12
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^iap settings set
+OUTPUT "status": "failed"
+OUTPUT could not be enabled
+OUTPUT_NOT read -r -s
+OUTPUT_NOT FAILED_PRECONDITION
+OUTPUT_NOT Billing account
