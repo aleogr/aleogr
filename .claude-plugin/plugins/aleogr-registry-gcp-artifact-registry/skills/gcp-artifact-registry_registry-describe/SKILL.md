@@ -16,7 +16,7 @@ Free text after the skill name, as `key=value` pairs. All are required.
 | `project=<name>` | The aleogr project name, which is also the repository's id. |
 | `region=<region>` | The region the repository is declared in, for example `us-central1`. |
 
-Validate before any command. If one is missing, ask for it. Any invalid value ends the skill with the result block, `status` `failed`, one sentence saying which argument is wrong, and no `gcloud` call.
+Validate before any command, and never ask for anything. A missing argument ends the skill with the result block, `status` `failed`, the one sentence `<argument> is missing.` and no `gcloud` call; an invalid value ends it the same way, with one sentence saying which argument is wrong.
 
 - `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`.
 - `project` has 1 to 14 characters, only lowercase letters, digits and `-`, starts with a letter and does not end with `-`.
@@ -34,8 +34,8 @@ Show each command before running it. Run only the commands below, in this order,
 
    `gcloud` prints lines such as `Encryption: ...`, `Registry URL: ...` and `Repository Size: ...` before the JSON (on its error stream); they are not part of the JSON.
 
-   - Exit non-zero and the text contains `NOT_FOUND` or `Requested entity was not found`: the repository does not exist in `region`. This is a normal answer, not a failure. Go to step 2.
-   - Any other non-zero exit is a failure of the check, never "missing": the Artifact Registry API not enabled, permission denied (Artifact Registry answers `PERMISSION_DENIED` with the words "or it may not exist" when the account may not read the repository: that is still a failure, not "missing"), `gcloud` missing or not signed in. Say `The repository could not be read` and the likely cause in one sentence, with no raw error text (no quoted message, no permission name, no resource path), run nothing else and end with `status` `failed`.
+   - Exit non-zero and the text contains both `NOT_FOUND:` and the sentence `Requested entity was not found`: the repository does not exist in `region`. This is a normal answer, not a failure. Go to step 2.
+   - Any other non-zero exit is a failure of the check, never "missing", even when its text has `NOT_FOUND` or another word ending in `_NOT_FOUND` (a GCP project or a location that does not exist): the Artifact Registry API not enabled (`SERVICE_DISABLED`), permission denied (Artifact Registry answers `PERMISSION_DENIED` with the words "or it may not exist" when the account may not read the repository: that is still a failure, not "missing"), `gcloud` missing or not signed in. Say `The repository could not be read` and the likely cause in one sentence, with no raw error text (no quoted message, no permission name, no resource path), run nothing else and end with `status` `failed`.
    - Success: take the values listed under "Reading the JSON" below and go to step 3. Step 2 is not run.
 
 2. Only when step 1 said the repository does not exist: list the GCP project's repositories in every location, to learn whether one with the same id exists in another region:
@@ -44,7 +44,7 @@ Show each command before running it. Run only the commands below, in this order,
    gcloud artifacts repositories list --location=all --project=<projectId> --format="value(name)"
    ```
 
-   Each printed line that starts with `projects/` is `projects/<projectId>/locations/<location>/repositories/<id>` (ignore any other line, such as `Listing items under project ...`). `otherRegions` is the `<location>` of every line whose `<id>` is exactly `<project>` (not merely starting with it), without `region`. A non-zero exit is a failure: say `The repository could not be read` and the cause in one sentence, with no raw error text, and end with `status` `failed`. Run nothing else: end with `exists` false.
+   Each printed line that starts with `projects/` is `projects/<projectId>/locations/<location>/repositories/<id>` (ignore any other line, such as `Listing items under project ...`). `otherRegions` is the `<location>` of every line whose `<id>` is exactly `<project>` (not merely starting with it), without `region`. A non-zero exit is a failure: say `The repository could not be read` and the cause in one sentence, with no raw error text, and end with `status` `failed` (`exists` `null`, as for any failure). On success run nothing else and end with `status` `unchanged` and `exists` `false`.
 
 3. Only when the repository exists: read who may push to it, from the repository's IAM policy:
 

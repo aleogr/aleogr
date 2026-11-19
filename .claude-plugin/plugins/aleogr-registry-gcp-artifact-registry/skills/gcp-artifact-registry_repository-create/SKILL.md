@@ -20,7 +20,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 
 ## Validate first
 
-Before any command, check the arguments. A missing required argument is a validation failure: do not ask for it. Any failure ends the skill with the result block, `status` `failed`, the one sentence given below for the rule that failed, and no `gcloud` call.
+Before any command, check the arguments. A missing required argument is a validation failure, with the sentence `<argument> is missing.`: do not ask for it. Any failure ends the skill with the result block, `status` `failed`, the one sentence given below for the rule that failed, and no `gcloud` call.
 
 - `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. Otherwise: `projectId is not a GCP project id.`
 - `project` has 1 to 14 characters, only lowercase letters, digits and `-`, starts with a letter and does not end with `-`. Otherwise: `project must have 1 to 14 lowercase letters, digits and hyphens, starting with a letter.`
@@ -47,15 +47,17 @@ Show each command before running it. Run only the commands below (and the one sk
    gcloud artifacts repositories create <project> --project=<projectId> --location=<region> --repository-format=docker --labels=aleogr-project=<project>,aleogr-environment=<environment>
    ```
 
-   A non-zero exit stops with `failed` and one sentence, `The repository could not be created`, with the likely cause and without raw error text. Run nothing else.
+   - Exit zero: go to step 4.
+   - Exit non-zero and the text contains `ALREADY_EXISTS`: the repository appeared since step 1 (another run made it). Run the read of step 4 once, and only it. It succeeds, `format` is `DOCKER` and `name` has `locations/<region>`: end with `status` `unchanged` and the `imagePath`, with the sentence `The repository was created by another run between the check and the create.` and nothing quoted from `gcloud`'s answer (not even its status word). Anything else (a non-zero exit, another format or region): end with `failed`, one sentence saying the repository exists but could not be confirmed as a Docker repository in `<region>`, without raw error text.
+   - Any other non-zero exit stops with `failed` and one sentence, `The repository could not be created`, with the likely cause and without raw error text. Run nothing else.
 
-4. Read it back, with this command alone (not the describe skill):
+4. Read it back, with this command alone (not the describe skill; the projection keeps only what is checked):
 
    ```
-   gcloud artifacts repositories describe <project> --location=<region> --project=<projectId> --format=json
+   gcloud artifacts repositories describe <project> --location=<region> --project=<projectId> --format="json(name,format,labels)"
    ```
 
-   `gcloud` prints lines such as `Encryption: ...` and `Registry URL: ...` before the JSON; they are not part of it. The repository was created in step 3, so the status is `created` whatever this read shows. When the command succeeds, `format` is `DOCKER` and `labels` has both labels with the values above, nothing is pending. A non-zero exit, or a JSON that differs, adds one `pending` item whose `item` is `repository <project> read back`, `reason` `manual`, and `how` is `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_registry-describe projectId=<projectId> project=<project> region=<region>`, and the answer says what could not be confirmed.
+   `gcloud` prints lines such as `Encryption: ...` and `Registry URL: ...` before the JSON; they are not part of it. After a create that exited zero, the repository was created in step 3, so the status is `created` whatever this read shows. When the command succeeds, `format` is `DOCKER` and `labels` has both labels with the values above, nothing is pending. A non-zero exit, or a JSON that differs, adds one `pending` item whose `item` is `repository <project> read back`, `reason` `manual`, and `how` is `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_registry-describe projectId=<projectId> project=<project> region=<region>`, and the answer says what could not be confirmed.
 
 Then answer in a few lines: the repository, its region, what was done (created, already there, or what to fix by hand), the image path, and the result block.
 
