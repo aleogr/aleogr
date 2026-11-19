@@ -1,5 +1,5 @@
 ---
-description: GitHub checkout setup, with the gh and git CLIs. Use to tie the current folder to a GitHub repository and send one file (by default the project declaration `.aleogr/project.json`) as the repository's first content after its README, or, in plan mode, to learn whether the repository already has that file and whether it equals the local one - and, when it differs, whether this folder has a local change, is behind the repository (it then fast-forwards the folder in apply mode) or needs attention. Pushes only to a repository whose default branch has exactly one commit and lacks the file; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
+description: GitHub checkout setup, with the gh and git CLIs. Use to tie the current folder to a GitHub repository and send one file (by default the project declaration `.aleogr/project.json`) as the repository's first content after its README, or, in plan mode, to learn whether the repository already has that file and whether it equals the local one - and, when it differs, whether this folder has a local change, is behind the repository (it then fast-forwards the folder in apply mode) or needs attention; with head=check, also when the file is equal, whether the folder's last commit is behind the repository's head. Pushes only to a repository whose default branch has exactly one commit and lacks the file; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
 ---
 
 # github_checkout-setup
@@ -18,6 +18,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 | `name=<name>` | The repository name. Required. |
 | `path=<path>` | The file to send, relative to the current folder. Default `.aleogr/project.json`. |
 | `message=<text>` | The commit message. Default `Add the project declaration`. |
+| `head=check` | Also when the file is equal, compare the folder's last commit with the head of the repository's default branch (step 4). Absent: an equal file is `equal`, and no command is run for it. |
 | `mode=<plan\|apply>` | `plan` (default) only reads; `apply` sends the file when the repository is at its birth, or fast-forwards a folder that is behind the repository. |
 
 `owner` and `name` are required: a missing `owner` or `name` ends with the result block with `status` `failed` and one sentence saying which is missing, with no command (do not ask for it). Validate before any command; a value that breaks a rule ends with the result block with `status` `failed`, one sentence saying which rule failed, and no command:
@@ -26,6 +27,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
 - `path`, when given, is a relative path: not empty, does not start with `/`, has no `..` anywhere, has no space, and has only the characters `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`.
 - `message`, when given, is not empty and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
+- `head`, when given, is `check`.
 - `mode`, when given, is `plan` or `apply`.
 
 ## Steps
@@ -62,7 +64,7 @@ A command whose result decides a step is run alone: not piped into another comma
    - Non-zero exit and the output contains `HTTP 404`: the file is absent. Go to step 5.
    - Any other non-zero exit: `failed`. Say the cause in one sentence, with no raw error text. Run nothing else.
 
-4. The file is present: compare the two as JSON values, not byte by byte. Key order, spacing, indentation and line endings (`\r\n` or `\n`) are ignored; every key and every value must be equal, and lists keep their order. Equal: the state is `equal`; run no command and go to step 6. Different, or the repository's copy is not valid JSON: the folder tells which kind of difference it is. Run the reads of steps 4a to 4e, in `plan` and in `apply`, in this order; the first that decides the state ends them, and the run goes to step 6. They only read the folder: never `git fetch`, `git pull` or any command that changes the folder.
+4. The file is present: compare the two as JSON values, not byte by byte. Key order, spacing, indentation and line endings (`\r\n` or `\n`) are ignored; every key and every value must be equal, and lists keep their order. Equal, without `head=check`: the state is `equal`; run no command and go to step 6. Equal, with `head=check`: the folder's head decides (a merge can move the repository on without changing the file); see "An equal file with `head=check`" below. Different, or the repository's copy is not valid JSON: the folder tells which kind of difference it is. Run the reads of steps 4a to 4e, in `plan` and in `apply`, in this order; the first that decides the state ends them, and the run goes to step 6. They only read the folder: never `git fetch`, `git pull` or any command that changes the folder.
 
    4a. Is the folder a git checkout?
 
@@ -130,6 +132,14 @@ A command whose result decides a step is run alone: not piped into another comma
      - Exit 0: the folder's last commit is in the repository and the repository has moved on since. The state is `behind`. Go to step 6.
      - Non-zero exit and the output contains `HTTP 404` or `HTTP 422`: the state is `needs-attention`, with the reason `local-commits`. Go to step 6.
      - Any other non-zero exit: `failed`. Say the cause in one sentence, with no raw error text. Run nothing else.
+
+   An equal file with `head=check`: run the reads of steps 4a, 4b, 4c and 4e, in this order, with their commands and their rules, in `plan` and in `apply`; step 4d is not run (the file is equal, so there is no change of it to find). The first that decides the state ends them, and the run goes to step 6. Their outcomes, where they differ from the list above:
+
+   - 4a finds that the folder is not a checkout: the state is `equal` (`plan` keeps working in a folder that is not a checkout yet); run nothing else.
+   - 4b finds another remote: `needs-attention`, with the reason `other-remote`, as in 4b.
+   - 4c finds another branch: `needs-attention`, with the reason `other-branch`, as in 4c.
+   - 4e: `<sha>` equals the head: the state is `equal` (never `untracked-difference`: the file is equal). `<sha>` differs and its lookup exits 0: `behind`. Its lookup answers `HTTP 404` or `HTTP 422`: `needs-attention`, with the reason `local-commits`.
+   - Every `failed` of those steps stays `failed`.
 
 5. The file is absent: count the commits of the default branch, at most two:
 
@@ -324,7 +334,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   - State `differs`: exactly one item `{ "item": "declaration changed in this folder", "reason": "manual", "how": "propose the change with a pull request" }`.
   - State `needs-attention`: exactly one item `{ "item": "this folder needs attention", "reason": "manual", "how": "<how>" }`, where `<how>` is, by the reason: `not-a-checkout`, `this folder is not a checkout of the repository`; `other-remote`, `this folder's origin is another repository`; `other-branch`, `git switch <branch>`; `untracked-difference`, `the file in this folder differs from the repository's but git sees no change in it; check that the file is not ignored`; `local-commits`, `this folder has commits that are not in the repository`.
   - State `missing`, or the push refused by the repository's rules: exactly one item `{ "item": "declaration is not in the repository", "reason": "manual", "how": "open a pull request that adds <path>" }`.
-  - `created` or `updated` with a verification (step 16 or 18) that failed or differs: one item `{ "item": "verify", "reason": "manual", "how": "/aleogr-repo-github:github_checkout-setup owner=<owner> name=<name> mode=plan" }` (plus `path=<path>` when it is not the default). `created` or `updated` with a non-empty `pending` is allowed.
+  - `created` or `updated` with a verification (step 16 or 18) that failed or differs: one item `{ "item": "verify", "reason": "manual", "how": "/aleogr-repo-github:github_checkout-setup owner=<owner> name=<name> mode=plan" }` (plus `path=<path>` when it is not the default, and `head=check` when it was given). `created` or `updated` with a non-empty `pending` is allowed.
   - Every other ending: `[]`.
 - `outputs` has the same six keys in every ending:
   - `state`: `equal`, `not-sent`, `differs`, `behind`, `needs-attention` or `missing`, as found by steps 1 to 5. After a push (`created`) or a fast-forward (`updated`), it is the verification of step 16 or 18: `equal`, `differs` when the copy is not equal, and `null` when the read failed. `null` when the run failed before the state was known (an argument, `gh`, `git` missing, the repository read, the reads of steps 3, 4b to 4e and 5), and `null` whenever the local file is missing or not valid JSON, whatever step 1 found. On a `failed` ending after step 6 (`apply`), it is the state found, `not-sent` or `behind`.
@@ -332,7 +342,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   - `path`: the file, `.aleogr/project.json` when not given (as given, even when it broke a rule).
   - `pushed`: `true` only when the push of step 15 exited 0 in this run; `false` otherwise.
   - `updated`: `true` only when the fast-forward of step 17 exited 0 in this run; `false` otherwise.
-  - `reason`: for state `needs-attention`, `not-a-checkout`, `other-remote`, `other-branch`, `untracked-difference` or `local-commits` (steps 4a to 4e); `null` in every other ending.
+  - `reason`: for state `needs-attention`, `not-a-checkout`, `other-remote`, `other-branch`, `untracked-difference` or `local-commits` (steps 4a to 4e; with an equal file and `head=check`, only `other-remote`, `other-branch` or `local-commits`); `null` in every other ending.
 - `resources` is `[{ "type": "repository", "id": "<owner>/<name>", "name": "<name>" }]` when step 1 proved the repository exists, `[]` otherwise.
 - The result block never contains the account's login, id or no-reply address (except the `owner` argument as given).
 - `cost` is always `{ "fixed": false, "notes": "no cost" }`.

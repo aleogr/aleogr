@@ -88,7 +88,7 @@ Two declarations are equal when they hold the same values: the order of keys, th
 
 Show each skill invocation before making it. The skills below end with their own `aleogr-result` block: use those blocks only as input, never repeat them, and after each one go on with the next step: a skill's block is never the end of this answer, which always ends with the table and this skill's own block. Invoke only these skills, in this order, each at most once (`go_setup` once per component), and run no command yourself (no `gh`, no `git`, no `ls`, no `cat`). Your answer ends with exactly one block, its own. Never print the account name: not in the answer and not in the result block.
 
-A declaration without components (`components` absent or `[]`) skips steps 3 and 8, invokes step 4 without `checks` and step 6 with `paths=.aleogr/project.json`, and has the five items of "Items"; a `ci.yml` left in the repository after the last component is removed is not reported by this skill (removing a component is not built yet). Only a declaration with at least one component invokes `github_ci-setup` and `go_setup` and has seven items.
+A declaration without components (`components` absent or `[]`) skips steps 3 and 8, invokes step 4 without `checks`, step 5 without `head` and step 6 with `paths=.aleogr/project.json`, and has the five items of "Items"; a `ci.yml` left in the repository after the last component is removed is not reported by this skill (removing a component is not built yet). Only a declaration with at least one component invokes `github_ci-setup` and `go_setup` and has seven items.
 
 1. Read `.aleogr/project.json` in the current folder with the Read tool.
    - It does not exist: `failed`, with the sentence `There is no .aleogr/project.json in this folder: declare the project first with /aleogr:project-declare.` Invoke nothing.
@@ -106,7 +106,7 @@ A declaration without components (`components` absent or `[]`) skips steps 3 and
    - `status` `failed`: stop with `failed` and its cause. Invoke nothing else.
    - `outputs.exists` false: the repository is to create. Invoke nothing else: every other item follows the creation (see "Items"). Go to the answer.
    - `outputs.exists` true: take `visibility`, `description`, `topics`, `settings`, `protection.state` and `protection.matches`. Go to step 5.
-5. Invoke `aleogr-repo-github:github_checkout-setup owner=<repo.owner> name=<repo.name> mode=plan`. It reads the repository's copy of `.aleogr/project.json`, compares it with the local one and, when they differ, reads the folder.
+5. Invoke `aleogr-repo-github:github_checkout-setup owner=<repo.owner> name=<repo.name> mode=plan`, with `head=check` added exactly when the declaration has at least one component. It reads the repository's copy of `.aleogr/project.json`, compares it with the local one and, when they differ, reads the folder. With `head=check` it also reads the folder when they are equal, and reports `behind` when the repository's head moved on from this folder's last commit: a merged pull request that added code or `ci.yml` without changing the declaration leaves this folder behind all the same.
    - `status` `failed`: stop with `failed` and its cause. Invoke nothing else.
    - Otherwise take `outputs.state` (`equal`, `not-sent`, `differs`, `missing`, `behind` or `needs-attention`), `outputs.reason` and its `pending` items. Go to step 6.
 6. Invoke `aleogr-repo-github:github_pull-request-open owner=<repo.owner> name=<repo.name> paths=<paths> mode=plan`, where `<paths>` is `.aleogr/project.json` without components and the tooling paths with components. It reports the open tooling pull request, if any, whether the folder is fit for a proposal and which of the paths changed.
@@ -190,7 +190,8 @@ Then one line: `nothing to do` when every action is `none`. Otherwise how many i
       { "item": "protection", "state": "follows the creation", "action": "create" }
     ],
     "generate": false,
-    "checks": "none"
+    "checks": "none",
+    "changed": []
   },
   "cost": { "fixed": false, "notes": "read-only plan" },
   "pending": []
@@ -206,12 +207,13 @@ Write each item of `outputs.items` on one line, as in the example.
   - `would-create`: the repository is to create.
   - `would-update`: some action is `create`, `update`, `send`, `propose` or `generate`.
   - `pending`: the only actions other than `none` are `merge it` or `fix the folder`.
-- `outputs` has the same seven keys in every ending:
+- `outputs` has the same eight keys in every ending:
   - `project`: the declaration's `name`; `repository`: `<repo.owner>/<repo.name>`; `visibility`: the declared `repo.visibility`. All three `null` when the declaration is missing or invalid.
   - `exposes`: `true` when the plan would create a public repository (repository missing and `repo.visibility` `public`) or make one public (`visibility` `differs` and `repo.visibility` `public`); `false` otherwise, always `false` while the `declaration` action is `merge it`, `update`, `fix the folder` or `propose`, and always `false` on `failed`.
   - `items`: the five items in order, or the seven with components; `[]` on `failed`.
   - `generate`: `true` when some action is `generate`, `false` otherwise (always `false` without components and on `failed`).
   - `checks`: `ci` when `.github/workflows/ci.yml` is in the repository's default branch (step 4 used `checks=ci`), `none` otherwise; the protection row may still be `not checked`.
+  - `changed`: the `outputs.changed` of the pull request skill of step 6, as it gave it (the tooling paths that changed in this folder, in its order); `[]` when step 6 was not invoked or failed. `project-apply` chooses the pull request's title from it.
 - `pending`:
   - `declaration` action `merge it`: exactly one item `{ "item": "pull request #<n> is open", "reason": "manual", "how": "merge <url>, then run /aleogr:project-apply confirm=yes" }`, with the `number` and `url` of `openPullRequest`.
   - `declaration` action `fix the folder`: exactly one item, the `this folder needs attention` item of the skill that reported it, as it gave it (`item`, `reason` `manual`, `how`): the checkout's when its state is `needs-attention`, otherwise the pull request skill's.
