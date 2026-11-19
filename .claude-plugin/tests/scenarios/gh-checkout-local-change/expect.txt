@@ -1,0 +1,8 @@
+# plan; the folder is a checkout on main and git status lists the declaration: a local change
+CALLED ^git status --porcelain -- \.aleogr/project\.json
+NOT_CALLED ^git (init|commit|push|pull|fetch|config|remote|add)
+NOT_CALLED ^git -c credential
+NOT_CALLED ^gh api user
+OUTPUT "state": "differs"
+OUTPUT "status": "pending"
+OUTPUT declaration changed in this folder

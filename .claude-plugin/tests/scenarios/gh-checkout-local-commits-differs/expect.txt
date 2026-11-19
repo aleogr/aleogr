@@ -1,0 +1,7 @@
+# plan; the folder's last commit is not in the repository (the commits read exits 1 with HTTP 422)
+CALLED ^gh api repos/example-org/example-repo/commits/2222222222222222222222222222222222222222
+NOT_CALLED ^git (init|commit|push|pull|fetch|config|remote|add)
+OUTPUT "state": "needs-attention"
+OUTPUT "reason": "local-commits"
+OUTPUT "status": "pending"
+OUTPUT_NOT No commit found

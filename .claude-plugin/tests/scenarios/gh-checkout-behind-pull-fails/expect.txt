@@ -1,0 +1,6 @@
+# apply; the folder is behind and the fast-forward pull exits 1
+CALLED ^git -c credential.* pull --ff-only origin main
+NOT_CALLED ^git (add|commit|init|config)|^git .*push
+OUTPUT "status": "failed"
+OUTPUT "updated": false
+OUTPUT_NOT Not possible to fast-forward
