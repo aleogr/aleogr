@@ -1,9 +1,0 @@
-{
-  "labels": {
-    "aleogr-environment": "dev",
-    "aleogr-project": "demo"
-  },
-  "lifecycleState": "ACTIVE",
-  "name": "dev demo",
-  "parent": { "id": "444444444444", "type": "folder" }
-}

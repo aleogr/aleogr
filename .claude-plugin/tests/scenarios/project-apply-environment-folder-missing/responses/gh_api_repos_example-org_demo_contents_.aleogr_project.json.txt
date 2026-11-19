@@ -23,6 +23,6 @@
     { "name": "api", "stack": "go", "path": "services/api", "version": "1.27" },
     { "name": "web", "stack": "go", "path": "web", "version": "1.27" }
   ],
-  "cloud": { "provider": "gcp", "region": "us-central1" },
+  "cloud": { "provider": "gcp", "region": "us-central1", "root": "tst" },
   "environments": { "dev": {} }
 }

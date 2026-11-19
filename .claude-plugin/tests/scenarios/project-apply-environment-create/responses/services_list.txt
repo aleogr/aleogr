@@ -1,2 +1,1 @@
 logging.googleapis.com
-storage.googleapis.com

@@ -1,12 +1,15 @@
-# The GCP project of dev is to create, but the folder dev does not exist under the organization:
-# gcp_environment-create stops (it never creates a folder), nothing was created, nothing after it runs.
-CALLED ^resource-manager folders list --organization=111111111111 .*displayName=dev
+# The GCP project of dev is to create inside the folder tst (root tst), but the folder dev does not
+# exist inside tst: gcp_environment-create stops (it never creates a folder), nothing was created,
+# nothing after it runs.
+OUTPUT gcp_environment-create project=demo environment=dev root=tst mode=apply
+CALLED ^resource-manager folders list --organization=111111111111 .*displayName=tst
+CALLED ^resource-manager folders list --folder=333333333333 .*displayName=dev
 NOT_CALLED ^(projects create|billing projects link|services enable|resource-manager folders create)
 NOT_CALLED ^(artifacts|iam)( |$)
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT "status": "failed"
-OUTPUT "item": "environment dev", "reason": "manual"
-OUTPUT created first
+# The item says which folder to create: dev, inside tst.
+OUTPUT "item": "environment dev", "reason": "manual", "how": "[^"]*folder[^"]*(dev[^"]*tst|tst[^"]*dev)[^"]*/aleogr:project-apply confirm=yes
 OUTPUT_NOT nothing to do
 # The blocks of the skills project-apply invokes in apply are input only: never printed.
 OUTPUT_NOT "action": "(environment-create|services-enable|repository-create|cleanup-configure|access-grant)"
