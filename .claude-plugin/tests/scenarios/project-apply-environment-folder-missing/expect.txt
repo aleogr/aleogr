@@ -1,0 +1,10 @@
+# The GCP project of dev is to create, but the folder dev does not exist under the organization:
+# gcp_environment-create stops (it never creates a folder), nothing was created, nothing after it runs.
+CALLED ^resource-manager folders list --organization=111111111111 .*displayName=dev
+NOT_CALLED ^(projects create|billing projects link|services enable|resource-manager folders create)
+NOT_CALLED ^(artifacts|iam)( |$)
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "status": "failed"
+OUTPUT "item": "environment dev", "reason": "manual"
+OUTPUT created first
+OUTPUT_NOT nothing to do

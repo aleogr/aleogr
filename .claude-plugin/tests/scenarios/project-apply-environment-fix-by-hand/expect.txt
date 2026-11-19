@@ -1,0 +1,12 @@
+# The image repository demo exists only in another region (fix by hand) and the CI identity is
+# missing. The run creates the identity, never touches the registry nor grants push on it, and ends
+# with the registry's item, the plan's sentence, in pending.
+CALLED ^iam service-accounts create demo-ci .*--project=aleogr-dev-demo-ab12
+CALLED ^iam workload-identity-pools providers create-oidc github
+NOT_CALLED ^artifacts repositories (create|delete|set-cleanup-policies|add-iam-policy-binding)
+NOT_CALLED ^(projects create|services enable)
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT "item": "registry", "state": "in another region", "action": "fix by hand"
+OUTPUT "item": "registry", "reason": "manual", "how": "[^"]*southamerica-east1
+OUTPUT "status": "updated"
+OUTPUT_NOT nothing to do
