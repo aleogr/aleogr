@@ -63,7 +63,7 @@ These end the skill with `failed`, in `plan` and in `apply`, after the reads of 
 
 - A pool or provider whose state is not `ACTIVE` was deleted, and stays reserved for 30 days: creating it again would fail. The sentence says which one was deleted and that the owner restores it by hand (`gcloud iam workload-identity-pools undelete github --project=<projectId> --location=global`, or `gcloud iam workload-identity-pools providers undelete github --project=<projectId> --location=global --workload-identity-pool=github`).
 - A pool or provider that is disabled (`disabled` true, whatever its state) accepts no token. The sentence says which one is disabled and that the owner enables it by hand, in the Google Cloud console (IAM, Workload Identity Federation).
-- The pool holds a provider other than `github`. The binding's member matches `attribute.repository` of a token from any provider of the pool, so another provider would let tokens in that do not pass `<condition>`. The sentence says that the pool `github` has another provider, names it by its id only (the last part of its name), and says the owner removes it by hand or confirms it is not wanted in this pool. It names no other resource.
+- The pool holds a provider other than `github`. The binding's member matches `attribute.repository` of a token from any provider of the pool, so another provider would let tokens in that do not pass `<condition>`. The sentence says that the pool `github` has another provider, names it by its id only (the last part of its name), and says the owner removes it by hand. It names no other resource.
 
 ## Steps
 
