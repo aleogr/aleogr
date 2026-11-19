@@ -1,6 +1,6 @@
 # plan; the repository's copy differs and the folder is not a git checkout (the fake exits 1, not 128)
 CALLED ^git rev-parse --is-inside-work-tree
-NOT_CALLED ^git (branch|status)
+NOT_CALLED ^git (branch|status|remote)
 NOT_CALLED ^git (init|commit|push|pull|fetch|config|add|remote (add|set-url|remove))
 OUTPUT "state": "needs-attention"
 OUTPUT "reason": "not-a-checkout"

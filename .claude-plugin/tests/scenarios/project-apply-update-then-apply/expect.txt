@@ -7,5 +7,6 @@
 # is a prefix of has its own +after+gh_repo_edit file (the longer prefix wins the tie).
 ORDER ^git -c credential.* pull --ff-only origin main >> ^gh repo edit example-org/demo
 CALLED ^gh repo edit example-org/demo .*--add-topic status-page
+NOT_CALLED ^git (commit|.*push)|^gh pr create
 OUTPUT "status": "updated"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$

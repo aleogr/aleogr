@@ -1,5 +1,6 @@
 ORDER ^git config --local user\.email 1234567\+example-user@users\.noreply\.github\.com >> ^git commit
 ORDER ^git -c credential.* pull --ff-only origin main >> ^git switch -c aleogr/change-[a-z0-9]{6}
+ORDER ^git switch -c aleogr/change-[a-z0-9]{6} >> ^git commit
 CALLED ^git commit -m "?Change the project declaration"? -- \.aleogr/project\.json
 CALLED ^git -c credential\.helper= -c '?credential\.helper=!gh auth git-credential'? push -u origin aleogr/change-[a-z0-9]{6}
 CALLED ^gh pr create --repo example-org/example-repo --base main --head aleogr/change-[a-z0-9]{6} --title

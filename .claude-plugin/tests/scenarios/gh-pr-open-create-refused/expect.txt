@@ -1,3 +1,5 @@
 CALLED ^git switch main$
+ORDER ^gh pr create >> ^git switch main
 OUTPUT "status": "updated"
 OUTPUT gh pr create
+OUTPUT "item": "open the pull request"

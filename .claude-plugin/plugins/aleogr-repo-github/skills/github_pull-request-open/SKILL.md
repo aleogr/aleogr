@@ -25,7 +25,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 
 - `owner` has 1 to 39 characters of `A-Z`, `a-z`, `0-9` and `-`, and does not start or end with `-`.
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
-- `paths` is one or more paths separated by `,`, with no empty entry. Each path is a relative file path: not empty, does not start with `/`, does not end with `/`, has no `..` anywhere, has no space, and has only the characters `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`. A path named twice counts once.
+- `paths` is one or more paths separated by `,`, with no empty entry. Each path is a relative file path: not empty, does not start with `/` or `./`, does not end with `/`, has no `//`, has no `..` anywhere, has no space, and has only the characters `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`. A path named twice counts once.
 - `title`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `body`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `mode`, when given, is `plan` or `apply`.
@@ -178,7 +178,7 @@ Steps 1 to 7 run in `plan` and in `apply`. Steps 3 to 6 examine the folder; the 
     git commit -m "<title>" -- <changed>
     ```
 
-    A non-zero exit on either: the run will end `failed` (one sentence, no raw error text); nothing reached GitHub. Go to step 15, then end.
+    A non-zero exit on either: the run will end `failed` (one sentence, no raw error text); nothing reached GitHub. What is left: the named files stay staged in the folder, which step 15 returns to the default branch, and the empty local branch `aleogr/change-<random>` is kept. Go to step 15, then end.
 
 13. Push the new branch, never the default branch:
 
