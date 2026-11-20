@@ -161,6 +161,8 @@ Write nothing between the invocations of steps 9 to 11 and the table: no summary
    - `status` `failed` with `outputs.account` set (a pool or provider deleted or disabled, a pool that holds another provider, or a part it could not read): this is not a failure of the plan but something the owner fixes by hand. Keep its sentence (the cause and what the owner does) for the `ci identity` item. Your next output is the table, starting with its header row; write nothing before it.
    - Otherwise (`would-create`, `would-update` or `unchanged` are all input here) take its `status`, `outputs.account` and `outputs.ciVariables`. Your next output is the table, starting with its header row; write nothing before it.
 
+   This was the last invocation. Now write this skill's answer, and nothing before it: not the lines of `gcp_ci-identity-setup`, not its CI variables, not its block. Start with the table's header row (on `failed`, with the sentence of the failure), and end with this skill's block.
+
 ## Items
 
 Without components, always these five items, in this order: `repository`, `settings`, `visibility`, `declaration`, `protection`. With at least one component, always these seven, in this order: `repository`, `settings`, `visibility`, `declaration`, `components`, `ci`, `protection`. Each is `{ "item": "<item>", "state": "<state>", "action": "<action>" }`, with the state and action texts exactly as written here.
