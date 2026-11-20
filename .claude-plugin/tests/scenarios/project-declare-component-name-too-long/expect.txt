@@ -7,4 +7,5 @@ FILE_NOT .aleogr/project.json notifications-api
 FILE .aleogr/project.json ^  "environments": \{$
 # A word of the prescribed sentence: the rule's bound.
 OUTPUT 30
+OUTPUT choose another component name
 NOT_CALLED .

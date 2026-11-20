@@ -9,3 +9,7 @@ OUTPUT "status": "pending"
 OUTPUT_NOT "action": "(configure|grant)"
 OUTPUT_NOT nothing to do
 NOT_CALLED ^artifacts repositories (create|delete|set-cleanup-policies|add-iam-policy-binding)
+# The image path is not known while the registry is not a Docker repository: the CI variables
+# follow the registry and are not read.
+OUTPUT "item": "ci variables", "state": "follows the registry", "action": "none"
+NOT_CALLED ^gh variable

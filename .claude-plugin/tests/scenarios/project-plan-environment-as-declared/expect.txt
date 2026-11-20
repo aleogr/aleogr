@@ -20,3 +20,5 @@ OUTPUT "status": "unchanged"
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|update-oidc|set-cleanup-policies|services enable
 # The nested skills' blocks are input only: the answer holds this skill's block alone.
 OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set)"
+CALLED ^run services describe demo-api
+CALLED ^run services describe demo-web

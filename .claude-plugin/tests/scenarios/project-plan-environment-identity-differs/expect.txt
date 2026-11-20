@@ -7,3 +7,6 @@ OUTPUT "ciVariables": null
 NOT_CALLED update-oidc|add-iam-policy-binding|create
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
+# The CI variables follow the identity that is to update, and are not read.
+OUTPUT "item": "ci variables", "state": "follows the ci identity", "action": "none"
+NOT_CALLED ^gh variable
