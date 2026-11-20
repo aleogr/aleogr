@@ -28,6 +28,8 @@ OUTPUT "item": "environment dev", "state": "exists", "action": "none"
 OUTPUT "item": "registry", "state": "as declared", "action": "none"
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+# Services already as declared: none is created; what is left is nothing.
+NOT_CALLED ^run deploy
 OUTPUT https://demo-web-123456789012\.us-central1\.run\.app
 OUTPUT "status": "updated"
 OUTPUT "pending": \[\]

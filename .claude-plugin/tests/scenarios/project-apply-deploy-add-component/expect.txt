@@ -1,0 +1,17 @@
+# Everything is deployed with the component api; the merged declaration adds web (no code for it
+# in this folder yet). One confirmed run creates the service of web (api is left as it is), then,
+# from the plan made after it, writes web's starting point and Dockerfile and a ci.yml with the
+# deploy jobs of both components, and proposes them.
+CALLED ^run deploy demo-web .*--no-allow-unauthenticated .*--iap
+NOT_CALLED ^run deploy demo-api|^run services update demo-api
+ORDER ^run deploy demo-web >> ^gh pr create
+FILE web/Dockerfile ^FROM golang:1\.27 AS build$
+FILE web/go.mod ^module github\.com/example-org/demo/web$
+FILE .github/workflows/ci.yml ^  deploy-web-dev:$
+FILE .github/workflows/ci.yml ^  deploy-api-dev:$
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main$
+CALLED ^gh pr create --repo example-org/demo
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"
+OUTPUT https://demo-web-123456789012\.us-central1\.run\.app
+NOT_CALLED ( |^)--allow-unauthenticated|allUsers|--no-iap|--method

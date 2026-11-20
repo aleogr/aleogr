@@ -1,0 +1,11 @@
+# Before that merge: the folder's declaration adds web, the repository's has only api, whose
+# service is deployed. The proposal writes web's files and a ci.yml that keeps the deploy job of
+# api and has none for web (its service does not exist yet). Nothing is made in the cloud.
+FILE web/Dockerfile ^FROM golang:1\.27 AS build$
+FILE .github/workflows/ci.yml ^  deploy-api-dev:$
+FILE_NOT .github/workflows/ci.yml deploy-web-dev
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api project=demo branch=main$
+CALLED ^gh pr create --repo example-org/demo
+NOT_CALLED ^run (deploy|services (update|add-iam-policy-binding))|^iam service-accounts create|^gh variable set|^services enable
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"

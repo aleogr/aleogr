@@ -11,3 +11,9 @@ OUTPUT "status": "failed"
 OUTPUT_NOT "how": "[^"]*(/aleogr:project-apply confirm=yes"|apply again)
 OUTPUT_NOT PERMISSION_DENIED
 OUTPUT_NOT "action": "(deploy-setup|project-plan)"
+# Only the item services, whose how runs the plan first, guesses no cause and is not that skill's
+# advice; no item for the rows the plan still lists.
+OUTPUT "item": "services", "reason": "manual", "how": "[^"]*/aleogr:project-plan
+OUTPUT_NOT "item": "(components|ci|ci variables|confirm)", "reason"
+OUTPUT_NOT "how": "[^"]*active gcloud account
+OUTPUT_NOT [Rr]un this same skill again|gcp_deploy-setup again

@@ -1,0 +1,15 @@
+# A project of stage 4a: the run enables Cloud Run, and the plan made right after it is refused the
+# services' read twice (a just-enabled API). The bounded wait polls that plan (two waits); the
+# third try reads the services, and the run goes on to the services and the proposal.
+COUNT 2 ^sleep 30$
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)
+COUNT 3 ^run services describe demo-api
+ORDER ^services enable >> ^sleep 30
+ORDER ^sleep 30 >> ^iam workload-identity-pools providers update-oidc
+CALLED ^run deploy demo-api .*--no-allow-unauthenticated .*--iap
+CALLED ^gh variable set GCP_PROJECT_ID
+CALLED ^gh pr create --repo example-org/demo
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"
+OUTPUT_NOT "item": "(apis|verify|services)", "reason"
+OUTPUT_NOT PERMISSION_DENIED|has not been used

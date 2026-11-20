@@ -9,3 +9,6 @@ OUTPUT anyone signed in
 OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=allAuthenticatedUsers
 RESULT_NOT demo-user@example\.com
 OUTPUT_NOT "action": "(environment-describe|access-grant)"
+# The undo command's template, with the placeholder, and where the addresses are.
+OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-(api|web) --region=us-central1 --project=aleogr-dev-demo-ab12 --member="?user:<e-mail>"? --role="?roles/iap\.httpsResourceAccessor"? --condition=None
+OUTPUT addresses are in the answer of /aleogr:project-plan

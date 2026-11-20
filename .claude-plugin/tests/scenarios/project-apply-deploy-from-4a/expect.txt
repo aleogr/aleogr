@@ -9,7 +9,7 @@ CALLED ^gh variable set GCP_IMAGE_PATH --repo example-org/demo --body "?us-centr
 CALLED ^gh variable set GCP_WIF_PROVIDER --repo example-org/demo --body "?projects/123456789012/locations/global/workloadIdentityPools/github/providers/github"?$
 FILE web/Dockerfile ^FROM golang:1\.27 AS build$
 FILE services/api/Dockerfile ^USER nonroot:nonroot$
-FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev project=demo branch=main$
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main$
 FILE .github/workflows/ci.yml deploy-cloud-run\.yml@3333333333333333333333333333333333333333
 CALLED ^git add -- .*services/api/Dockerfile
 CALLED ^git add -- .*web/Dockerfile

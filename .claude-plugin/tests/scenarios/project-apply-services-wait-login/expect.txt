@@ -8,3 +8,8 @@ OUTPUT "item": "login", "reason": "manual", "how": "[^"]*/aleogr:platform-plan
 OUTPUT "status": "updated"
 OUTPUT_NOT nothing to do
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+# The Dockerfiles are missing too, but no file is proposed while the services wait for the login:
+# the files come with the services.
+NO_FILE web/Dockerfile
+NOT_CALLED pr create
+OUTPUT_NOT "item": "(components|ci)", "reason"
