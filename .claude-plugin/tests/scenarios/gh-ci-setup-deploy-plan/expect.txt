@@ -5,6 +5,6 @@ OUTPUT "status": "would-create"
 OUTPUT "local": "missing"
 OUTPUT "inRepository": true
 OUTPUT "repositoryAsDeclared": false
-OUTPUT "marker": "# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev project=demo branch=main"
+OUTPUT "marker": "# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main"
 OUTPUT "written": false
 NOT_CALLED ^git (add|commit|push|-c credential)

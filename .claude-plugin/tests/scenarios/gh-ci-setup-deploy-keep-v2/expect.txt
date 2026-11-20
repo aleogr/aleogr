@@ -1,5 +1,5 @@
 NOT_CALLED commits/main
-FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev project=demo branch=main$
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main$
 FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@3{40}$
 FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/deploy-cloud-run\.yml@3{40}$
 FILE .github/workflows/ci.yml ^  deploy-api-dev:$

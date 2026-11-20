@@ -1,6 +1,6 @@
 CALLED ^gh api repos/example-org/example-repo/contents/\.github/workflows/ci\.yml
 CALLED ^gh api repos/example-org/tooling/commits/main
-FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev project=demo branch=main$
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main$
 FILE .github/workflows/ci.yml ^  pull_request:$
 FILE .github/workflows/ci.yml ^    branches: \[main\]$
 FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@2{40}$
@@ -31,3 +31,4 @@ OUTPUT "checks": \["ci"\]
 OUTPUT "deploy": \["dev"\]
 NOT_CALLED ^git (add|commit|push|-c credential)
 NOT_CALLED ^gh (pr|repo|variable)
+OUTPUT "deployComponents": \["api", "web"\]
