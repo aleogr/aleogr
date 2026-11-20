@@ -6,7 +6,7 @@ description: GitHub CI setup, with the gh CLI. Use to write a project's `.github
 
 Writes the project's CI file, `.github/workflows/ci.yml`, in the current folder, from the components the caller declares. The file has one job per component, which calls the reusable workflow of the component's stack (`ci-go.yml` of the `workflows` repository, pinned by commit) when that component's folder, or `ci.yml` itself, changed; and a last job `ci`, the status check that branch protection requires, which passes only when the change detection succeeded and every component job passed or was skipped. With `deploy`, each component's job is followed by a deploy job, which calls the reusable workflow `deploy-cloud-run.yml` of the same repository, at the same commit, only on a push to the default branch and only after that component's job succeeded; the deploy jobs are not part of the job `ci`.
 
-The first line of the file is a marker, `# aleogr-ci 1 <name>:<path>:<stack>:<version>,...` (or, with `deploy`, `# aleogr-ci 2 <name>:<path>:<stack>:<version>,... deploy=<environment>`), with the components sorted by name. Whether a file is "as declared" is decided by comparing that line, never the rest of the file. The file is fully owned by the tooling: when the marker differs it is rewritten whole. It reads the copy on the repository's default branch only to report it. It never commits, pushes or opens anything: the pull request that proposes the change carries the file.
+The first line of the file is a marker, `# aleogr-ci 1 <name>:<path>:<stack>:<version>,...` (or, with `deploy`, `# aleogr-ci 2 <name>:<path>:<stack>:<version>,... deploy=<environment> project=<project> branch=<defaultBranch>`, so that a change of the project or of the default branch, both written into the deploy jobs, also rewrites the file), with the components sorted by name. Whether a file is "as declared" is decided by comparing that line, never the rest of the file. The file is fully owned by the tooling: when the marker differs it is rewritten whole. It reads the copy on the repository's default branch only to report it. It never commits, pushes or opens anything: the pull request that proposes the change carries the file.
 
 ## Arguments
 
@@ -18,7 +18,7 @@ Free text after the skill name, as `key=value` pairs.
 | `name=<name>` | The repository name. Required. |
 | `components=<name>:<path>:<stack>:<version>[,...]` | The declared components, comma-separated, in any order. Empty or not given: no component. |
 | `workflows=<owner>/<name>` | The repository that holds the reusable workflows. Required when `components` is not empty. |
-| `ref=<keep\|latest>` | `keep` (default) keeps the commit the existing file pins (with `deploy`, only when that file's marker is of version 2); `latest` pins the head of the `workflows` repository's `main`. |
+| `ref=<keep\|latest>` | `keep` (default) keeps the commit the existing file pins (with `deploy`, only when that file's marker is of version 2 and it pins the deploy workflow at the same commit); `latest` pins the head of the `workflows` repository's `main`. |
 | `defaultBranch=<branch>` | The repository's default branch, the one `push` runs CI on. Default `main`. |
 | `deploy=<environment>[,...]` | The environments each component is deployed to by CI. Empty or not given: no deploy job, and the file and its marker are those of version 1. This version accepts exactly one environment. |
 | `project=<project>` | The project name; each component's service is `<project>-<name>`. Required when `deploy` is not empty; not used otherwise. |
@@ -38,9 +38,10 @@ Free text after the skill name, as `key=value` pairs.
 - `defaultBranch`, when given, has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`, does not start with `-` or `/`, does not end with `/` or `.`, and has no `..` and no `//`.
 - `deploy`, when not empty, is one or more entries separated by `,`, with no empty entry; each entry has 1 to 20 characters of `a-z` and `0-9` and starts with a letter. More than one entry fails with exactly the sentence `deploy names more than one environment; this version deploys to exactly one, because the Actions variables the deploy job reads would clash.` (no command).
 - `project`, when `deploy` is not empty, has 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`.
+- When `deploy` is not empty, each component's service name `<project>-<name>` has at most 30 characters and no component's `name` ends with `-` (the rule the service skills enforce). Otherwise the run fails with exactly the sentence `The service name <project>-<name> breaks the rule on service names (at most 30 characters, not ending with -); shorten the project or the component name.` (with the first such service, in the order of the sorted components) and no command.
 - `mode`, when given, is `plan` or `apply`.
 
-Below, the components are always taken **sorted by `name`**, in byte order (ASCII), with each empty `path` replaced by its `name`. The **marker** is the text `# aleogr-ci 1 ` followed by the entries `<name>:<path>:<stack>:<version>` of the sorted components, joined by `,`, with no space (for `components=web:web:go:1.27,api:services/api:go:1.27` it is `# aleogr-ci 1 api:services/api:go:1.27,web:web:go:1.27`). With `deploy` not empty, the **marker** is instead the text `# aleogr-ci 2 `, the same entries joined by `,`, one space, `deploy=` and the environments joined by `,` (for the same components and `deploy=dev` it is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev`). With no component there is no marker, with or without `deploy`.
+Below, the components are always taken **sorted by `name`**, in byte order (ASCII), with each empty `path` replaced by its `name`. The **marker** is the text `# aleogr-ci 1 ` followed by the entries `<name>:<path>:<stack>:<version>` of the sorted components, joined by `,`, with no space (for `components=web:web:go:1.27,api:services/api:go:1.27` it is `# aleogr-ci 1 api:services/api:go:1.27,web:web:go:1.27`). With `deploy` not empty, the **marker** is instead the text `# aleogr-ci 2 `, the same entries joined by `,`, one space, `deploy=` and the environments joined by `,`, one space, `project=<project>`, one space, `branch=<defaultBranch>` (for the same components, `deploy=dev`, `project=demo` and the default branch `main` it is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev project=demo branch=main`). With no component there is no marker, with or without `deploy`.
 
 ## Steps
 
@@ -76,7 +77,8 @@ A command whose result decides a step is run alone: not piped into another comma
 
 4. `apply` only: choose the commit `<sha>` of the reusable workflow.
 
-   - `ref` is `keep`, the local file exists, and either `deploy` is empty or the local file's first line starts with `# aleogr-ci 2 `: look in its content for the lines `uses: <workflows>/.github/workflows/ci-<stack>.yml@<commit>` and `uses: <workflows>/.github/workflows/deploy-cloud-run.yml@<commit>`, where `<workflows>` is the argument exactly and `<commit>` is 40 characters of `0-9` and `a-f`. At least one such line, and every one names the same commit: that commit is `<sha>`; run no command; go to step 5. Otherwise (no such line, or lines naming different commits): read it as below.
+   - `ref` is `keep`, `deploy` is empty, and the local file exists: look in its content for the lines `uses: <workflows>/.github/workflows/ci-<stack>.yml@<commit>`, where `<workflows>` is the argument exactly and `<commit>` is 40 characters of `0-9` and `a-f`. At least one such line, and every one names the same commit: that commit is `<sha>`; run no command; go to step 5. Otherwise (no such line, or lines naming different commits): read it as below.
+   - `ref` is `keep`, `deploy` is not empty, the local file exists and its first line starts with `# aleogr-ci 2 `: look in its content for the lines `uses: <workflows>/.github/workflows/ci-<stack>.yml@<commit>` and the lines `uses: <workflows>/.github/workflows/deploy-cloud-run.yml@<commit>`, as above. At least one line of each kind, and every one of them names the same commit: that commit is `<sha>`; run no command; go to step 5. Otherwise (a kind with no line, or lines naming different commits): read it as below.
    - Otherwise (`ref` is `latest`; or the local file is missing; or `deploy` is not empty and the local file's marker is not of version 2, whose commit may be older than the deploy workflow), read the head of the `workflows` repository's `main`:
 
      ```
@@ -269,7 +271,7 @@ A command whose result decides a step is run alone: not piped into another comma
              done
    ```
 
-   With `deploy=dev project=demo` and the same arguments otherwise, the first line is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev`, and the job `api` is followed by:
+   With `deploy=dev project=demo` and the same arguments otherwise, the first line is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev project=demo branch=main`, and the job `api` is followed by:
 
    ```yaml
 

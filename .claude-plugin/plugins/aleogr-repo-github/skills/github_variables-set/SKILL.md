@@ -24,7 +24,7 @@ Validate before any command, in this order; the first rule broken ends with the 
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
 - `variables` is one or more entries separated by `,`, with no empty entry. Each entry is split at its first `=` into the variable's name and its value; an entry without `=` breaks this rule.
   - The name matches `^[A-Z][A-Z0-9_]{0,63}$` and does not start with `GITHUB_` (GitHub reserves that prefix). No two entries have the same name.
-  - The value is not empty and has no `,`, no line break, no `"`, no backtick, no `$` and no `\` (the value is written in the double quotes of the command and must not break out of them).
+  - The value is not empty and has no `,`, no whitespace (no space, tab or line break), no `"`, no backtick, no `$` and no `\` (the value is written in the double quotes of the command and must not break out of them).
 - `mode`, when given, is `plan` or `apply`.
 
 Below, the given variables are always taken **sorted by name**, in byte order (ASCII).
