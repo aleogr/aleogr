@@ -220,7 +220,7 @@ With environments (the declaration has `environments`), also, read when they are
 
        `<account>` is the `outputs.account` of sub-step 10 when it ran, otherwise `<project>-ci@<projectId>.iam.gserviceaccount.com`. It reads the repository's access first and ends `unchanged` when the account may already push. On `updated` or `unchanged` with an empty `pending`, read its block and go on to the plan of step 5: your next output is that invocation; write nothing before it. Any other ending stops the run (the rule below): read its block without writing it, and your next output is what that rule says.
 
-   A stop in sub-steps 5 to 11 invokes nothing after it. Read the stopping skill's block, then your next output is the invocation of the plan of step 5 when it runs (below), otherwise this skill's answer, starting with the table of the first plan; write nothing before it: no summary of the stopping skill's run, no copy of its block nor of a block it read. Its status:
+   A stop in sub-steps 5 to 11 invokes nothing after it. Read the stopping skill's block, then your next output is the invocation of the plan of step 5 when it runs (below), otherwise this skill's answer, starting with the line of each skill of step 4 (see Answer), then the table of the last plan this run invoked; write nothing before it: no summary of the stopping skill's run, no copy of its block nor of a block it read. Its status:
 
    - `updated` when something was changed in this run: by an earlier step or sub-step (a GCP project, an API, the image repository, its policy, the identity or its access), or by the stopping skill itself (it ended `created` or `updated` with `pending` items, or it is `gcp_environment-create` ending `pending` after creating the GCP project in this run). A `gcp_environment-create` that ends `pending` while repairing a project that existed changed nothing, and its `resources` listing that project, or any skill's `resources` listing what it read, is not a change.
    - Otherwise the stopping skill's status (`failed` or `pending`): nothing at all was changed.
@@ -248,6 +248,8 @@ With environments (the declaration has `environments`), also, read when they are
    - The last plan lists `generate` (a declaration born with components in this run: the repository was created, configured, sent its declaration and protected without the check `ci`, and the code comes next): the run keeps its status (`created`) and has, for each item with the action `generate`, the `pending` item `{ "item": "<item>", "reason": "manual", "how": "run /aleogr:project-apply confirm=yes to generate the components" }`. Generation is never made in the run that created the repository.
 
 ## Answer
+
+Whichever step led here, the last skill invoked is over: your next output is this skill's answer, with nothing before it, not that skill's lines, table or block.
 
 The answer is short. In every ending, in this order, and nothing else:
 

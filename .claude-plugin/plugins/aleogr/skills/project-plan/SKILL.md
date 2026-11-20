@@ -193,7 +193,7 @@ These cases replace the rows above:
 - **Declaration being changed** (`declaration` action `merge it`, `update`, `fix the folder` or `propose`): the repository's declaration is the one that holds until the change is merged and the folder is up to date, so nothing on GitHub is compared with the local file: `settings`, `visibility` and `protection` are `not checked until the change is merged` / `none`, and `exposes` is `false`. `repository` and `declaration` are as above.
 - **Code not checked** (with components, `declaration` action `merge it`, `update` or `fix the folder`): `components` and `ci` are `not checked until the change is merged` / `none`, and step 8 is not run. With the action `send` (the birth): `components` and `ci` are `not checked until the declaration is sent` / `none`, and step 8 is not run.
 
-With the `declaration` action `propose` or `none`, `components` and `ci` are computed from the local declaration and this folder, as the table says: writing files in the folder and proposing them changes nothing on GitHub, so they do not wait for a merge.
+With the `declaration` action `propose` or `none`, `components` and `ci` are computed from the local declaration and this folder, as the table says: writing files in the folder and proposing them changes nothing on GitHub, so they do not wait for a merge. `settings`, `visibility` and `protection` do wait for it: with the `declaration` action `propose` (as with `merge it`, `update` and `fix the folder`) they are `not checked until the change is merged` / `none`, whatever the repository's state, by the case "Declaration being changed" above.
 
 `merge it` and `fix the folder` are the owner's to do: `project-apply` stops on them.
 
@@ -219,6 +219,8 @@ These cases replace the rows above, the first that applies:
 
 ## Answer
 
+Whichever step led here, the last skill invoked is over: your next output is this skill's answer, with nothing before it, not that skill's lines, table or block.
+
 Print the table (item, state, action). Under the table, these lines when they apply, worded as here:
 
 - `visibility` has action `update`: `visibility: needs confirmVisibility=<repo.visibility>`.
@@ -235,7 +237,7 @@ Then one line: `nothing to do` when every action is `none`. Otherwise how many i
 
 ## Result block
 
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). Its answer never contains this block and never ends with it.
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
 
 ```aleogr-result
 {

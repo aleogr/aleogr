@@ -48,6 +48,8 @@ The items are always listed in this order: `shared project`, `services`, `budget
 
 ## Answer
 
+Whichever step led here, the last skill invoked is over: your next output is this skill's answer, with nothing before it, not that skill's lines, table or block.
+
 Print the table (item, state, action). Under the table, these lines when they apply, worded as here:
 
 - `database instance` has action `create`: `Cost: the database instance has a fixed cost of about R$ 50 per month while stopped, from its creation.`
@@ -59,7 +61,7 @@ Then one line: `nothing to do` when every action is `none`, otherwise how many i
 
 ## Result block
 
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). Its answer never contains this block and never ends with it.
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
 
 ```aleogr-result
 {
