@@ -12,7 +12,7 @@ CALLED ^run deploy demo-api .*--no-allow-unauthenticated .*--iap
 CALLED ^run deploy demo-web .*--image=us-docker\.pkg\.dev/cloudrun/container/hello
 COUNT 5 ^gh variable set GCP_
 CALLED ^gh pr create --repo example-org/demo
-NOT_CALLED allow-unauthenticated[^-]|allUsers|no-iap|^projects add-iam-policy-binding|--method
+NOT_CALLED ( |^)--allow-unauthenticated|allUsers|--no-iap|^projects add-iam-policy-binding|--method
 NOT_CALLED ^git .*push .*origin main
 # The answer: the two addresses, the placeholder line, the item saying to merge.
 OUTPUT https://demo-api-123456789012\.us-central1\.run\.app
