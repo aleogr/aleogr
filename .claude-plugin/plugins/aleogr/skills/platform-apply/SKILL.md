@@ -54,7 +54,7 @@ When the login step gave a list in this run (its `outputs.steps` is not empty), 
 
 ## Answer
 
-In every path (including `nothing to do`): the table of what each step did (item, state, action), the result of the last plan with the lines it printed under its table (the cost line, the running-instance line, the login line), the `GitHub secrets` section when it applies, the `Login` section when it applies, and the result block. The nested skills' result blocks are never part of the answer, and the answer never ends at one.
+The answer is short. In every path (including `nothing to do`), in this order, and nothing else: one line per step of step 4 that ran, with the skill's name and its status (`gcp_services-enable: updated`); the table of the last plan (item, state, action) with the lines it printed under it (the cost line, the running-instance line, the login line) and the line `nothing to do` when step 5 says to write it; the sentences this skill prescribes, each once (the cost line before the instance, the cause of a stop in one sentence); the `GitHub secrets` section when it applies; the `Login` section when it applies; the `how` of each `pending` item; and the result block. The table of the first plan is not repeated when a later plan ran. The nested skills' lines and result blocks are never part of the answer, and the answer never ends at one.
 
 ## Result block
 
