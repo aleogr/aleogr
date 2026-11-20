@@ -1,0 +1,11 @@
+# One person is let in to both services, through the login, on each service only. The address is
+# never in the result block. The service web lets anyone signed in through: the answer says so.
+CALLED ^projects list .*labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-api .*--member="?user:demo-user@example\.com"?
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member="?user:demo-user@example\.com"?
+NOT_CALLED ^projects add-iam-policy-binding|^run services add-iam-policy-binding|set-iam-policy|remove-iam-policy-binding
+OUTPUT "status": "updated"
+OUTPUT anyone signed in
+OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=allAuthenticatedUsers
+RESULT_NOT demo-user@example\.com
+OUTPUT_NOT "action": "(environment-describe|access-grant)"

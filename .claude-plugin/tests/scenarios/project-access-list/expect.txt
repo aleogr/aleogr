@@ -1,0 +1,7 @@
+# list=yes only reads: how many people each service lets in; nothing granted.
+CALLED ^iap web get-iam-policy --resource-type=cloud-run --service=demo-api
+CALLED ^iap web get-iam-policy --resource-type=cloud-run --service=demo-web
+NOT_CALLED add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy
+OUTPUT "status": "unchanged"
+RESULT_NOT @
+OUTPUT_NOT "action": "(environment-describe|access-grant)"

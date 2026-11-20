@@ -23,7 +23,7 @@ NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT "item": "environment dev", "state": "exists", "action": "none"
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
-OUTPUT [Nn]othing is deployed yet
+OUTPUT https://demo-web-123456789012\.us-central1\.run\.app
 OUTPUT "status": "updated"
 OUTPUT_NOT "item": "verify"
 COUNT 2 ^projects describe aleogr-dev-demo-[a-z0-9]{4} --format=json$

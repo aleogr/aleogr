@@ -1,0 +1,26 @@
+# The ground of stage 4a is there (GCP project, five APIs, image repository, CI identity without the
+# workflow clause, a version 1 ci.yml, no Dockerfile) and nothing of stage 4b-2. One confirmed run
+# makes the cloud first, in this order: the two new APIs, the CI identity's update, both services
+# (one gcp_deploy-setup), the five CI variables; then, from a plan made after them, it writes the
+# Dockerfiles and the version 2 ci.yml and proposes them in one pull request.
+ORDER ^services enable >> ^iam workload-identity-pools providers update-oidc
+ORDER ^iam workload-identity-pools providers update-oidc >> ^run deploy demo-api
+ORDER ^run deploy demo-web >> ^gh variable set
+ORDER ^gh variable set >> ^gh api repos/aleogr/aleogr/commits/main
+ORDER ^gh variable set >> ^gh pr create
+CALLED ^run deploy demo-api .*--no-allow-unauthenticated .*--iap
+CALLED ^run deploy demo-web .*--image=us-docker\.pkg\.dev/cloudrun/container/hello
+COUNT 5 ^gh variable set GCP_
+CALLED ^gh pr create --repo example-org/demo
+NOT_CALLED allow-unauthenticated[^-]|allUsers|no-iap|^projects add-iam-policy-binding|--method
+NOT_CALLED ^git .*push .*origin main
+# The answer: the two addresses, the placeholder line, the item saying to merge.
+OUTPUT https://demo-api-123456789012\.us-central1\.run\.app
+OUTPUT https://demo-web-123456789012\.us-central1\.run\.app
+OUTPUT placeholder
+OUTPUT "item": "pull request #7 is open", "reason": "manual", "how": "merge https://github\.com/example-org/demo/pull/7
+OUTPUT "status": "updated"
+RESULT_NOT run\.app
+OUTPUT_NOT "how": "[^"]*run\.app
+OUTPUT_NOT nothing to do
+OUTPUT_NOT "action": "(services-enable|ci-identity-setup|deploy-setup|variables-set|setup|ci-setup|pull-request-open|project-plan)"

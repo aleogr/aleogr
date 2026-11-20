@@ -1,0 +1,10 @@
+# Review Focus 8: the login of the organization is not prepared. The confirmed run sets the CI
+# variables it can, creates no service and no service account, and leaves the item login, whose
+# how names the platform's plan.
+CALLED ^gh variable set GCP_PROJECT_ID
+NOT_CALLED ^run (deploy|services (update|add-iam-policy-binding))|^iam service-accounts create|^iap web add-iam-policy-binding
+OUTPUT "item": "services", "state": "waits for the login", "action": "prepare the login"
+OUTPUT "item": "login", "reason": "manual", "how": "[^"]*/aleogr:platform-plan
+OUTPUT "status": "updated"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)

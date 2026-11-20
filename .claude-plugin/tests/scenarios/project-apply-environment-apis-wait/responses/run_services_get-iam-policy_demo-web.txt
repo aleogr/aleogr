@@ -1,0 +1,17 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:demo-ci@{{log:aleogr-dev-demo-[a-z0-9][a-z0-9][a-z0-9][a-z0-9]}}.iam.gserviceaccount.com"
+      ],
+      "role": "roles/run.developer"
+    },
+    {
+      "members": [
+        "serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com"
+      ],
+      "role": "roles/run.invoker"
+    }
+  ],
+  "etag": "BwYxxxxxxxx="
+}
