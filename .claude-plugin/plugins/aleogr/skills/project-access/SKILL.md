@@ -19,7 +19,7 @@ Free text after the skill name, as `key=value` pairs. Exactly one of `person` an
 
 ## Validate first
 
-Before invoking anything, check the arguments, and never ask for anything. When one breaks a rule, end with the result block, `status` `failed`, its one sentence, and no skill invoked and no file read.
+Before invoking anything, check the arguments, and never ask for anything. When one breaks a rule, end with its one sentence, written exactly as below as plain text (no backticks, no other formatting), then the result block, `status` `failed`, with no skill invoked and no file read.
 
 - Neither `person` nor `list` given: `person is missing (or give list=yes).` Both given: `Give either person or list=yes, not both.` Any other argument: `<argument> is not an argument of project-access: give person=<e-mail> or list=yes.`
 - `person` is the e-mail address of one person, and all of these hold:
@@ -55,11 +55,11 @@ Show each skill invocation before making it. The skills below end with their own
    aleogr-cloud-gcp:gcp_access-grant projectId=<projectId> project=<project> region=<region> components=<components> person=<person> mode=apply
    ```
 
-   with `list=yes` in place of `person=<person>` when `list=yes` was given (`gcp_access-grant` then only reads, in either mode). Read its block, take its `status`, `outputs` and `pending`, and go on with the next environment (step 2), or, after the last one, with the answer. A `failed` ending does not stop the other environments; it is that environment's status.
+   with `list=yes` in place of `person=<person>` when `list=yes` was given (`gcp_access-grant` then only reads, in either mode). Read its block without writing it (its lines and its block are input only, never part of this answer), take its `status`, `outputs` and `pending`, and go on with the next environment (step 2), or, after the last one, with the answer: your next output is that invocation, or this skill's answer starting with its first line (`dev: updated`); write nothing before it, and never copy the block of `gcp_access-grant` or of `gcp_environment-describe`. A `failed` ending does not stop the other environments; it is that environment's status.
 
 ## Answer
 
-Whichever step led here, the last skill invoked is over: your next output is this skill's answer, with nothing before it, not that skill's lines or block.
+Whichever step led here, the last skill invoked is over: your next output is this skill's answer, with nothing before it, not that skill's lines or block. The answer contains exactly one fenced block, this skill's own, at its end.
 
 The answer is short, in this order, and nothing else:
 
