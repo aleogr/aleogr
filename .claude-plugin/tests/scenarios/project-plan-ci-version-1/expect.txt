@@ -1,0 +1,9 @@
+# A project of stage 4a: its ci.yml is of version 1, without deploy jobs. With an environment the
+# file is expected with them: ci differs, to generate.
+OUTPUT "item": "ci", "state": "differs", "action": "generate"
+OUTPUT "generate": true
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 api:services/api:go:1\.27,web:web:go:1\.27$
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"
