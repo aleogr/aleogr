@@ -55,7 +55,7 @@ Show each skill invocation before making it. The skills below end with their own
    aleogr-cloud-gcp:gcp_access-grant projectId=<projectId> project=<project> region=<region> components=<components> person=<person> mode=apply
    ```
 
-   with `list=yes` in place of `person=<person>` when `list=yes` was given (`gcp_access-grant` then only reads, in either mode). Read its block without writing it (its lines and its block are input only, never part of this answer), take its `status`, `outputs` and `pending`, and go on with the next environment (step 2), or, after the last one, with the answer: your next output is that invocation, or this skill's answer starting with its first line (`dev: updated`); write nothing before it, and never copy the block of `gcp_access-grant` or of `gcp_environment-describe`. A `failed` ending does not stop the other environments; it is that environment's status.
+   with `list=yes` in place of `person=<person>` when `list=yes` was given (`gcp_access-grant` then only reads, in either mode). Read its block without writing it (its lines and its block are input only, never part of this answer), take its `status`, `outputs` and `pending`, and go on with the next environment (step 2), or, after the last one, with the answer: your next output is that invocation, or this skill's answer starting with its first line (`dev: updated`); write nothing before it, and never copy the block of `gcp_access-grant` or of `gcp_environment-describe`. A `failed` ending does not stop the other environments; it is that environment's status. When it failed because a component's service does not exist (its answer says to create it first), the answer says, for that environment, exactly `The service of <component> does not exist yet in <environment>: run /aleogr:project-apply confirm=yes first, then this skill again.` (one sentence per such component), and never the name of a nested skill as the thing to run.
 
 ## Answer
 
@@ -64,11 +64,11 @@ Whichever step led here, the last skill invoked is over: your next output is thi
 The answer is short, in this order, and nothing else:
 
 1. One line per environment: its name and the status of `gcp_access-grant` (`dev: updated`).
-2. With `person`: for each component, whether the person already had access, was let in by this run, or could not be (from `granted`, `already` and `pending`); that the person opens each service's address and signs in with that Google account; and the sentence `The address must be a person's Google account: a group's address is not supported and would let nobody in.` The answer may name the person (the owner gave the address).
+2. With `person`: for each component, whether the person already had access, was let in by this run, or could not be (from `granted`, `already` and `pending`); that the person opens each service's address and signs in with that Google account, with the line `The addresses are in the answer of /aleogr:project-plan.` (no read this skill makes gives them: `gcp_access-grant` reads only each service's name, and this skill makes no other read); and the sentence `The address must be a person's Google account: a group's address is not supported and would let nobody in.` The answer may name the person (the owner gave the address).
 3. With `list=yes`: for each component, how many people its service lets in, and the members `gcp_access-grant` listed, as it listed them.
 4. When `gcp_access-grant` reported a service open to anyone signed in to a Google account (its `outputs.open` is not empty): its warning, repeated in plain words, for each such service: anyone signed in to a Google account gets through the login of the service `<project>-<component>`; then the remove command it gave, exactly.
 5. The command that undoes a grant, for the owner to run by hand (with `person`): `gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=<project>-<component> --region=<region> --project=<projectId> --member="user:<e-mail>" --role="roles/iap.httpsResourceAccessor" --condition=None`, written with `<e-mail>` as it is here.
-6. On `failed`: the sentence of the failure instead of 1 to 5.
+6. On `failed`: the sentence of the failure instead of 1 to 5 (for a missing service, the sentence of step 3).
 7. The result block, the one block of the answer.
 
 ## Result block
@@ -98,6 +98,6 @@ Write each item of `outputs.environments` on one line, as in the example.
 - `mode` is always `apply`.
 - `status`: `failed` when an argument broke a rule, the declaration is missing or invalid or has no environment or no component, a GCP project could not be read or does not exist, or every `gcp_access-grant` ended `failed`; `updated` when some `gcp_access-grant` ended `updated`; `unchanged` otherwise (every service already let the person in, or `list=yes`).
 - `outputs.project` is the declaration's `name` (`null` before it was read). `outputs.environments` has one item per environment for which `gcp_access-grant` was invoked, with its `status` and its `granted`, `already`, `people` and `open`, as it gave them; `[]` otherwise.
-- `pending`: the items of each `gcp_access-grant`, as it gave them (their `how` names no e-mail), and, on `failed`, one item `{ "item": "<arguments, declaration or environment <name>>", "reason": "manual", "how": "<the fix, as in the sentence>" }`.
+- `pending`: the items of each `gcp_access-grant`, as it gave them (their `how` names no e-mail); for each component whose service does not exist, `{ "item": "<component>: service", "reason": "manual", "how": "run /aleogr:project-apply confirm=yes first, then /aleogr:project-access again" }`; and, on `failed`, one item `{ "item": "<arguments, declaration or environment <name>>", "reason": "manual", "how": "<the fix, as in the sentence>" }`.
 - `cost` is always `{ "fixed": false, "notes": "letting a person through the login has no cost" }`.
 - The result block holds no e-mail at all: never the person's address, not even inside a `how`.
