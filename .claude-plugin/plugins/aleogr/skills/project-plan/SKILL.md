@@ -260,7 +260,7 @@ Print the table (item, state, action). Under the table, these lines when they ap
 - `registry` or `ci identity` has action `fix by hand`: the `how` of its `pending` item, and that the owner does it by hand: `project-apply` does not.
 - `services` has action `prepare the login`: `The services wait for the login of the organization: /aleogr:platform-plan shows what preparing it makes and what it costs. project-apply creates no service until it is prepared.` Name no other command for it.
 - `services` is `waiting for the first deploy: <names>`: `The services of <names> still run the placeholder image until CI deploys them: merge the pull request that carries the deploy jobs, or, once it is merged, merge a change to the component (re-running an older run deploys nothing new).` (with the names of the row).
-- `ci secrets` has the action `set`: `The CI secrets are compared by name only: a secret's value cannot be read back.`
+- `ci secrets` has the action `set`: `The CI secrets are compared by name only: a secret's value cannot be read back.` With any other action (`none` included) no line about the secrets is written.
 
 The words `requires ci` appear only as the `protection` state `protected, requires ci`, never elsewhere in the answer.
 

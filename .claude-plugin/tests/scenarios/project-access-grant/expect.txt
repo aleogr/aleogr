@@ -5,7 +5,7 @@ CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-
 CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member="?user:demo-user@example\.com"?
 NOT_CALLED ^projects add-iam-policy-binding|^run services add-iam-policy-binding|set-iam-policy|remove-iam-policy-binding
 OUTPUT "status": "updated"
-OUTPUT anyone on the internet who signs in
+OUTPUT [Aa]nyone on the internet who signs in
 OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=allAuthenticatedUsers
 RESULT_NOT demo-user@example\.com
 OUTPUT_NOT "action": "(environment-describe|access-grant)"
