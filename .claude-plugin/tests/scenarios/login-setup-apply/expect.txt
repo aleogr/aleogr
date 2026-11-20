@@ -25,9 +25,11 @@ OUTPUT "roleGranted": true
 OUTPUT "apiEnabled": true
 OUTPUT "item": "login"
 OUTPUT "reason": "manual"
-OUTPUT "how": ".*then run /aleogr:platform-apply confirm=yes"
-OUTPUT Run /aleogr:platform-apply confirm=yes again
-OUTPUT_NOT platform-apply( again|")
+# The next command named is the platform's plan, which shows the login prepared; never
+# platform-apply confirm=yes from this skill's answer.
+OUTPUT "how": ".*then run /aleogr:platform-plan"
+OUTPUT Run /aleogr:platform-plan
+OUTPUT_NOT platform-apply confirm=yes
 # The list: two console pages in the shared project, the names, the audience, the redirect, the command.
 OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-ab12
 OUTPUT https://console\.cloud\.google\.com/auth/clients\?project=aleogr-shared-ab12

@@ -1,11 +1,13 @@
 # The read is refused for lack of permission (a fresh organization, before the role is
-# granted): not a failure of the plan. Not prepared, not readable, platform-apply prepares it.
+# granted): not a failure of the plan. Not prepared, not readable; the next command named is the
+# platform's plan (it shows what would be made and its cost), never platform-apply confirm=yes.
 CALLED ^iap settings get .*--organization=111111111111( |$)
 OUTPUT "status": "unchanged"
 OUTPUT "prepared": false
 OUTPUT "readable": false
 OUTPUT "organization": true
-OUTPUT /aleogr:platform-apply confirm=yes
+OUTPUT /aleogr:platform-plan
+OUTPUT_NOT platform-apply confirm=yes
 OUTPUT_NOT "status": "failed"
 OUTPUT_NOT PERMISSION_DENIED
 OUTPUT_NOT getSettings

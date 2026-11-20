@@ -12,7 +12,7 @@ OUTPUT "status": "updated"
 OUTPUT "item": "login"
 OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-zz99
 OUTPUT read -r -s -p
-OUTPUT /aleogr:platform-apply confirm=yes
+OUTPUT "how": ".*then run /aleogr:platform-plan"
 OUTPUT_NOT clientSecret: [^<$%]
 OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
 # The list is for the answer only: neither the console address nor the command is in the block.

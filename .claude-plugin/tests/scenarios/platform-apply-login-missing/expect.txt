@@ -19,7 +19,8 @@ OUTPUT https://console\.cloud\.google\.com/auth/clients\?project=aleogr-shared-z
 OUTPUT https://iap\.googleapis\.com/v1/oauth/clientIds/<client id>:handleRedirect
 OUTPUT read -r -s -p
 OUTPUT gcloud iap settings set
-OUTPUT /aleogr:platform-apply confirm=yes
+# After the clicks and the command, the platform's plan shows the login prepared.
+OUTPUT "how": ".*then run /aleogr:platform-plan"
 OUTPUT_NOT clientSecret: [^<$%]
 # The line that ends a run with nothing left is not written (a sentence that names it is not that line).
 OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$

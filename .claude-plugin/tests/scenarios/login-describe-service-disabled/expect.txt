@@ -8,7 +8,9 @@ OUTPUT "prepared": false
 OUTPUT "readable": false
 OUTPUT "organization": true
 OUTPUT IAP API
-OUTPUT /aleogr:platform-apply confirm=yes
+# The next command named is the platform's plan, never platform-apply confirm=yes.
+OUTPUT /aleogr:platform-plan
+OUTPUT_NOT platform-apply confirm=yes
 OUTPUT_NOT "status": "failed"
 OUTPUT_NOT has not been used
 OUTPUT_NOT SERVICE_DISABLED

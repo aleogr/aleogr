@@ -9,3 +9,5 @@ OUTPUT "item": "login"
 OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-ab12
 OUTPUT read -r -s -p
 CALLED ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)
+OUTPUT "how": ".*then run /aleogr:platform-plan"
+OUTPUT_NOT platform-apply confirm=yes
