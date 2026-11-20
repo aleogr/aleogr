@@ -8,7 +8,7 @@ Reads, for each component, the Cloud Run service `<project>-<component>` in one 
 
 ## Arguments
 
-Free text after the skill name, as `key=value` pairs. All are required.
+Free text after the skill name, as `key=value` pairs. All are required except `environment`.
 
 | Argument | Meaning |
 |---|---|
@@ -18,14 +18,16 @@ Free text after the skill name, as `key=value` pairs. All are required.
 | `components=<name>[,<name>…]` | The components, in the declaration's order; each runs as the service `<project>-<name>`. |
 | `maxInstances=<n>` | The declared maximum number of instances of each service. |
 | `cpu=<n>` | The declared CPU of each service. |
-| `memory=<size>` | The declared memory of each service, such as `256Mi`. |
+| `memory=<size>` | The declared memory of each service, such as `512Mi`. |
 | `ciAccount=<e-mail>` | The CI account (`<project>-ci@<projectId>.iam.gserviceaccount.com`, from `gcp_ci-identity-setup`). |
+| `environment=<name>` | Optional: the environment, `dev`, `hom` or `prd`. Given, the service's `aleogr-environment` label must equal it. Orchestrators always give it. |
 
 ## Validate first
 
 Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
 
-- A missing argument: `<argument> is missing.`
+- A missing required argument: `<argument> is missing.`
+- `environment`, when given, is `dev`, `hom` or `prd`. Otherwise: `environment must be dev, hom or prd.`
 - `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. Otherwise: `projectId is not a GCP project id.`
 - `project` has 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. Otherwise: `project must have 1 to 14 lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen.`
 - `region` is a Google Cloud region name: lowercase letters, then one or more `-<letters>` parts, then digits (`us-central1`, `southamerica-east1`). Otherwise: `region is not a Google Cloud region name (such as us-central1).`
@@ -33,7 +35,7 @@ Before any command, check every argument, and never ask for anything. Each argum
 - For each component, `<project>-<name>` has 6 to 30 characters: it is the service's name and its account's id, and an account id has 6 to 30. Otherwise: `<project>-<name> has <n> characters: a service's name, which is also its account's, must have 6 to 30.`
 - `maxInstances` is a whole number from 1 to 100, written without a leading `0`. Otherwise: `maxInstances must be a whole number from 1 to 100.`
 - `cpu` is `1`, `2`, `4` or `8`. Otherwise: `cpu must be 1, 2, 4 or 8.`
-- `memory` is a whole number without a leading `0` followed by `Mi` or `Gi` (`256Mi`, `1Gi`). Otherwise: `memory must be a size in Mi or Gi, such as 256Mi.`
+- `memory` is a whole number without a leading `0` followed by `Mi` or `Gi` (`512Mi`, `1Gi`). Otherwise: `memory must be a size in Mi or Gi, such as 512Mi.`
 - `ciAccount` is `<id>@<projectId>.iam.gserviceaccount.com`, all lowercase, with no prefix such as `serviceAccount:`, where `<id>` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`, and `<projectId>` is exactly the argument `projectId`. Otherwise: `ciAccount must be a service account of the project <projectId> (<id>@<projectId>.iam.gserviceaccount.com).`
 
 ## Names
@@ -43,7 +45,7 @@ For each component `<name>`:
 - `<service>` is `<project>-<name>`.
 - `<account>` is `<project>-<name>@<projectId>.iam.gserviceaccount.com`.
 - `<agent>` is `serviceAccount:service-<number>@gcp-sa-iap.iam.gserviceaccount.com`, the login's (IAP's) service agent, with `<number>` the project number read in step 1.
-- The labels are `aleogr-project=<project>`, `aleogr-component=<name>`, and `aleogr-environment` with any of `dev`, `hom` or `prd` (this skill is not told the environment; `gcp_deploy-setup`, which is, checks the value).
+- The labels are `aleogr-project=<project>`, `aleogr-component=<name>`, and `aleogr-environment=<environment>` when `environment` is given (without it, any of `dev`, `hom` or `prd`).
 
 ## As declared
 
@@ -56,9 +58,9 @@ A service that exists is as declared when none of these parts differs. Each part
 | `size` | `.spec.template.spec.containers[0].resources.limits.cpu` is `cpu` (a value in thousandths reads as CPUs: `1000m` is `1`, `2000m` is `2`); `.spec.template.spec.containers[0].resources.limits.memory` is `memory` (`1Gi` is `1024Mi`); and `.spec.template.metadata.annotations["run.googleapis.com/cpu-throttling"]` is absent or `true` (billing by request). |
 | `public` | No binding of the service's policy, whatever its role, lists `allUsers` or `allAuthenticatedUsers`, and `.metadata.annotations["run.googleapis.com/invoker-iam-disabled"]` is absent or not `true`. |
 | `login` | `.metadata.annotations["run.googleapis.com/iap-enabled"]` is exactly `true`. |
-| `agent` | A binding of `roles/run.invoker` in the service's policy lists `<agent>`. |
+| `agent` | A binding of `roles/run.invoker` without a `condition` in the service's policy lists `<agent>`. |
 | `ci` | A binding of `roles/run.developer` without a `condition` in the service's policy lists `serviceAccount:<ciAccount>`, and a binding of `roles/iam.serviceAccountUser` without a `condition` in the account's policy lists `serviceAccount:<ciAccount>` (when the account does not exist, `ci` differs too). |
-| `labels` | `.metadata.labels` holds `aleogr-project` = `<project>`, `aleogr-component` = `<name>` and `aleogr-environment` = `dev`, `hom` or `prd`. Other labels do not count. |
+| `labels` | `.metadata.labels` holds `aleogr-project` = `<project>`, `aleogr-component` = `<name>` and `aleogr-environment` = `environment` (when it is not given: `dev`, `hom` or `prd`). Other labels do not count. |
 
 - `placeholder` is true when `.spec.template.spec.containers[0].image` is the placeholder, Google's hello sample: `us-docker.pkg.dev/cloudrun/container/hello`, alone or followed by `:<tag>` or `@sha256:<digest>`. Any other image is one CI deployed.
 - `url` is `.status.url`, or `null` when it is absent.
@@ -134,4 +136,4 @@ End with exactly one fenced block tagged `aleogr-result`:
 - `outputs.services` has one item per component, in the order of `components`. A service that does not exist has `exists` false, `asDeclared` false, `differences` `[]`, `placeholder` false and `url` `null`. Lists are written on one line, as above.
 - `outputs.missing` names the components whose service does not exist; `outputs.differing` those whose service exists and is not as declared; `outputs.waiting` those whose service is as declared and still runs the placeholder (the first deploy of CI has not replaced it). Each in the order of `components`.
 - `failed`: `resources` is empty and `outputs` is `{ "services": [], "missing": [], "differing": [], "waiting": [] }`.
-- The result block holds no e-mail: no member of a policy, not even `<ciAccount>`.
+- The result block holds no e-mail at all: no member of a policy, not the login's agent, not `<ciAccount>`.
