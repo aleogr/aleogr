@@ -1,0 +1,12 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "allUsers",
+        "user:owner@example.com"
+      ],
+      "role": "roles/iap.httpsResourceAccessor"
+    }
+  ],
+  "etag": "BwYxxxxxxxx="
+}

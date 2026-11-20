@@ -7,3 +7,4 @@ OUTPUT "status": "failed"
 OUTPUT_NOT PERMISSION_DENIED
 OUTPUT_NOT does not have permission
 RESULT_NOT demo-user@example.com
+OUTPUT could not be let in

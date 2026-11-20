@@ -1,0 +1,5 @@
+# Two addresses joined by a comma are refused before any command: one person per run.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT person
+OUTPUT e-mail address of one person

@@ -15,3 +15,4 @@ OUTPUT "already": \["api"\]
 OUTPUT "pending": \[\]
 RESULT_NOT demo-user@example.com
 RESULT_NOT owner@example.com
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--condition=None( |$)

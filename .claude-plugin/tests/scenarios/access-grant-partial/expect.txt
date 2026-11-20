@@ -1,0 +1,12 @@
+# Granted on web, refused on api: what was made stays, the status says something changed, and
+# api is left pending with the placeholder in place of the address.
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=user:demo-user@example.com( |$)
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-api
+NOT_CALLED ^sleep|remove-iam-policy-binding|set-iam-policy
+OUTPUT "status": "updated"
+OUTPUT "granted": \["web"\]
+OUTPUT "item": "api: access"
+OUTPUT person=<e-mail>
+OUTPUT_NOT PERMISSION_DENIED
+RESULT_NOT demo-user@example\.com
+RESULT_NOT @

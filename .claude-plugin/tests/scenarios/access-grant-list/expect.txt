@@ -9,3 +9,4 @@ OUTPUT "api": 2
 OUTPUT remove-iam-policy-binding
 OUTPUT owner@example.com
 RESULT_NOT @example.com
+OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-(web|api) --region=us-central1 --project=aleogr-dev-demo-ab12 --member=.?user:.* --role=.?roles/iap.httpsResourceAccessor

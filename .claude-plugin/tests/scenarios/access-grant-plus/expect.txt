@@ -1,0 +1,7 @@
+# An address with "+" is a valid person: granted on web, where it lacks; api already has it.
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=user:demo-user\+test@example.com( |$)
+NOT_CALLED add-iam-policy-binding .*--service=demo-api
+OUTPUT "status": "updated"
+OUTPUT "granted": \["web"\]
+OUTPUT "already": \["api"\]
+RESULT_NOT @

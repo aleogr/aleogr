@@ -1,0 +1,23 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com",
+        "user:demo-user@example.com"
+      ],
+      "role": "roles/iap.httpsResourceAccessor"
+    },
+    {
+      "condition": {
+        "expression": "request.time < timestamp(\"2027-01-01T00:00:00Z\")",
+        "title": "until-2027"
+      },
+      "members": [
+        "user:owner@example.com"
+      ],
+      "role": "roles/iap.httpsResourceAccessor"
+    }
+  ],
+  "etag": "BwYxxxxxxxx=",
+  "version": 3
+}
