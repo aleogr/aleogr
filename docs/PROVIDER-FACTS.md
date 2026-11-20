@@ -106,11 +106,11 @@ A recent organization comes with a set of security policies already enforced. Se
 - Uploading a logo to the consent screen starts Google's verification of the brand: no logo is uploaded.
 - Google offers no command that creates a consent screen or an OAuth client: the `gcloud iap oauth-brands` and `oauth-clients` commands were discontinued, so both are made in the console (Google Auth Platform: Branding, Clients).
 
-**From the installed SDK's source, read on 2026-11-19:** `gcloud iap settings get --organization=<id>` returns the stored settings as they are; in them `accessSettings.oauthSettings` has `clientId`, `clientSecret` (input only, never returned) and `clientSecretSha256` (output only). `set` reads its file as YAML (or JSON) in that same camelCase shape. A refused call prints `PERMISSION_DENIED: …`, with a reason such as `IAM_PERMISSION_DENIED` or `SERVICE_DISABLED` in the details below it.
+**From the installed SDK's source, read on 2026-11-19:** `gcloud iap settings get --organization=<id>` returns the stored settings as they are; in them `accessSettings.oauthSettings` has `clientId`, `clientSecret` (input only, never returned) and `clientSecretSha256` (output only). `set` reads its file as YAML (or JSON) in that same camelCase shape, and sends the whole message with no update mask (`SetIapSetting` in `lib/googlecloudsdk/api_lib/iap/util.py`, SDK 570). A refused call prints `PERMISSION_DENIED: …`, with a reason such as `IAM_PERMISSION_DENIED` or `SERVICE_DISABLED` in the details below it.
 
 **Unverified:**
 
-- Whether `gcloud iap settings set` with a file that holds only `oauthSettings` replaces other settings stored on the organization.
+- Whether the server, given no update mask, replaces the other settings stored on the organization when `gcloud iap settings set` sends a file that holds only `oauthSettings`.
 - The exact permission names in the refusals of `get` and `set` at the organization (the SDK names only `iap.projects.getSettings`).
 - What `get` answers on an organization with no setting: an object with only `name`, an empty one, or `NOT_FOUND`.
 - That a second Google account gets in after one `add-iam-policy-binding`, with no other step: the run checklist of stage 4b-1 proves it or not.

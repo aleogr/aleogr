@@ -82,7 +82,7 @@ The work is done in **two parts, each with its own plan, pull request and real r
 `DESIGN.md` section 10.4 gains the rule and what follows from it, for every skill:
 
 - A run goes as far as it safely can. It stops only before an action that cannot be undone, that exposes something, or that has a cost, and then with one confirmation that covers the whole run.
-- Where a wait is known to be needed (an API just enabled, an account just created), the skill waits and tries again by itself, once, and only then stops.
+- Where a wait is known to be needed (an API just enabled, an account just created), the skill waits and tries again by itself, every 30 seconds, at most 10 tries, and only then stops.
 - A stop says what was done, what is left and the one command that goes on. It never asks the owner to check something a command can check.
 - An answer is short: what was done, what is left, the addresses when there are any. One result block.
 

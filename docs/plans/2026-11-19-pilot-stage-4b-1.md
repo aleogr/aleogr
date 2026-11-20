@@ -41,11 +41,11 @@
 
 | Path | Responsibility |
 |---|---|
-| `.claude-plugin/plugins/aleogr-cloud-gcp/skills/gcp_login-describe`, `gcp_login-setup`, `plugin.json` (0.5.0), the plugin's entry in `marketplace.json` | the login |
+| `.claude-plugin/plugins/aleogr-cloud-gcp/skills/gcp_login-describe`, `gcp_login-setup`, `plugin.json` (0.5.1), the plugin's entry in `marketplace.json` | the login |
 | `.claude-plugin/tests/bin/sleep`, `bin/fake-cli`, `tests/README.md` | a fake wait |
-| `.../aleogr-cloud-gcp/skills/gcp_ci-identity-setup`, `.../aleogr-registry-gcp-artifact-registry/skills/gcp-artifact-registry_access-grant` (plugin 0.1.1) | the bounded poll |
-| `.../aleogr/skills/project-apply`, `.../aleogr-repo-github/skills/github_pull-request-open` (0.5.1) | one run after a merge; waits; the note of a proposal |
-| `.../aleogr/skills/platform-plan`, `platform-apply`, `plugin.json` (0.10.0) | the row `login` |
+| `.../aleogr-cloud-gcp/skills/gcp_ci-identity-setup`, `.../aleogr-registry-gcp-artifact-registry/skills/gcp-artifact-registry_access-grant` (plugin 0.1.2) | the bounded poll |
+| `.../aleogr/skills/project-apply`, `.../aleogr-repo-github/skills/github_pull-request-open` (0.5.2) | one run after a merge; waits; the note of a proposal |
+| `.../aleogr/skills/platform-plan`, `platform-apply`, `plugin.json` (0.10.2) | the row `login` |
 | `.../aleogr/skills/project-plan`, `project-apply`, `platform-plan`, `platform-apply` | the form of the answer |
 | `docs/DESIGN.md`, `CONTRACTS.md`, `PROVIDER-FACTS.md`, `cloud-shell.md`, `docs/plans/2026-11-19-pilot-stage-4b-1-run.md` | documents |
 

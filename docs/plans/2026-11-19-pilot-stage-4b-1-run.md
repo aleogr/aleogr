@@ -69,10 +69,14 @@ In the terminal, outside Claude Code.
 
    Expected: one address ending in `.run.app`.
 2. Open a **private window**, paste the address, and sign in with the **second account**. Expected: Google's sign-in, then a page "You don't have access". Note whether any other screen appeared first (a warning that the app is not verified, or a consent screen).
-3. Let it in. Type this in the terminal, with the second account's e-mail in place of `<second account's e-mail>` (in the terminal only, never in the chat):
+3. Let it in. Paste these two lines in the terminal, one at a time; the first asks for the second account's e-mail (type it there only, never in the chat):
 
    ```bash
-   gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=spike-iap2 --region="$R" --project="$P" --member=user:<second account's e-mail> --role=roles/iap.httpsResourceAccessor
+   read -r -p "Second account's e-mail: " M
+   ```
+
+   ```bash
+   gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=spike-iap2 --region="$R" --project="$P" --member="user:$M" --role=roles/iap.httpsResourceAccessor
    ```
 
    Expected: it prints the new policy (do not paste it).
@@ -100,7 +104,13 @@ The spike's OAuth client is removed in the console (no command exists for it):
 
 1. Open `https://console.cloud.google.com/auth/clients?project=<project id of pilot>` (run `echo "$P"` in the terminal to see the id; type it in the address only).
 2. Check the project picker at the top: it must show the project of `pilot` (`dev pilot`). **If it shows the shared project, stop**: the consent screen `aleogr` and the client `iap` there are the organization's login, and every service needs them. Never touch them.
-3. Under **Google Auth Platform → Clients**, the project of `pilot` has the one client the spike made: open its menu, **Delete**, confirm.
+3. Under **Google Auth Platform → Clients**, the project of `pilot` has the one client the spike made. Before deleting it, check that it is not the organization's login: in the terminal, run
+
+   ```bash
+   gcloud iap settings get --organization="$(gcloud organizations list --format="value(name)" | sed 's#.*/##')" --format="value(accessSettings.oauthSettings.clientId)"
+   ```
+
+   and compare the id it prints with the client id the console shows for the client about to be deleted (do not paste either). **If they are the same, stop**: the organization's login uses that client. If they differ, open its menu, **Delete**, confirm.
 
 The consent screen `aleogr dev` of that project stays: a consent screen cannot be removed, and it is harmless.
 
