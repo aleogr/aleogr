@@ -112,7 +112,7 @@ On an organization whose login was never prepared, even its administrator may no
    - The wait is the command `sleep 30`, the one command of this skill that is not `gcloud`. Show it, then run it with the Bash tool in the background (`run_in_background`: Claude Code refuses a `sleep` in the foreground), run nothing else while it runs, and when its completion notice arrives go on with the next read in this same run. A pending wait is part of the run: while one is pending, never end the answer, never give the result block, and never tell the owner to run anything.
    - Any other non-zero exit (a network or unknown error, or a permission refusal when this run did not grant the role): say `The organization's login setting could not be read after the change.`, print no list, and end with `updated` and the item `login` "not read".
 
-   The item `login` "not read" is `{ "item": "login", "reason": "The login's setting could not be read.", "how": "Wait a few minutes, then run /aleogr:platform-apply confirm=yes" }`. The list is never printed while the login is not known to be unprepared.
+   The item `login` "not read" is `{ "item": "login", "reason": "The login's setting could not be read.", "how": "Wait a few minutes, then run /aleogr:platform-plan" }`. The list is never printed while the login is not known to be unprepared.
 
 9. Not prepared: print the list of what is left (below), and end with `updated` when this run granted the role or enabled the API, or `pending` when both were already present (nothing was changed; only the clicks are left).
 
@@ -125,12 +125,12 @@ Print these lines for the owner only when the login is known not to be prepared 
 2. Client: open https://console.cloud.google.com/auth/clients?project=<projectId> and create a client of type Web application named iap. When the console shows the client id and the client secret, copy both: the secret is shown only once. Keep them private; the next step asks for them. Then add to the client the authorized redirect URI https://iap.googleapis.com/v1/oauth/clientIds/<client id>:handleRedirect, with the client id in place of <client id>.
 3. Paste this command in a bash terminal (Cloud Shell). It asks for the client id and, without showing it, the client secret, sets the login on the organization, and removes its temporary file however it ends:
 ( read -r -p "Client id: " CID; read -r -s -p "Client secret: " CSEC; echo; O=$(gcloud organizations list --format="value(name)" | sed 's#.*/##'); F=$(mktemp); trap 'rm -f "$F"' EXIT; printf 'accessSettings:\n  oauthSettings:\n    clientId: %s\n    clientSecret: %s\n' "$CID" "$CSEC" > "$F"; gcloud iap settings set "$F" --organization="$O" --billing-project=<projectId> )
-4. Run /aleogr:platform-apply confirm=yes again; it confirms the login.
+4. Run /aleogr:platform-plan; its row login then reads prepared.
 ```
 
 Print the command of item 3 byte for byte as above, with `<projectId>` filled in and nothing else changed, added or removed, on a line of its own, in one fenced block labelled `bash` that starts at the beginning of the line. It is text for the owner, never a command of this skill: do not run it.
 
-Then answer in a few lines: whether the login is prepared, not prepared or not known yet, whether the role and the API were present, granted or enabled, the list when it applies, and the result block. The answer prints no organization id and no e-mail outside the commands shown before running them.
+Then answer in a few lines: whether the login is prepared, not prepared or not known yet, whether the role and the API were present, granted or enabled, the list when it applies, and the result block. The next command this skill names to the owner is `/aleogr:platform-plan` (it shows the login's row, what would be made and what it costs), never `/aleogr:platform-apply`. The answer prints no organization id and no e-mail outside the commands shown before running them.
 
 ## Result block
 
@@ -156,12 +156,12 @@ End with exactly one fenced block tagged `aleogr-result`:
       "2. Client: open https://console.cloud.google.com/auth/clients?project=<projectId> and ...",
       "3. Paste this command in a bash terminal (Cloud Shell). ...",
       "<the command of item 3, with only <projectId> filled in>",
-      "4. Run /aleogr:platform-apply confirm=yes again; it confirms the login."
+      "4. Run /aleogr:platform-plan; its row login then reads prepared."
     ]
   },
   "cost": { "fixed": false, "notes": "the role and the API are free" },
   "pending": [
-    { "item": "login", "reason": "manual", "how": "In the Google Cloud console of <projectId>, create the consent screen aleogr (External) and the web application client iap with its redirect address, paste the printed command in a terminal, then run /aleogr:platform-apply confirm=yes" }
+    { "item": "login", "reason": "manual", "how": "In the Google Cloud console of <projectId>, create the consent screen aleogr (External) and the web application client iap with its redirect address, paste the printed command in a terminal, then run /aleogr:platform-plan" }
   ]
 }
 ```

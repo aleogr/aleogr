@@ -50,7 +50,7 @@ Whenever the database switch is `ready` at the end of the run (whether this run 
 
 ## Login
 
-When the login step gave a list in this run (its `outputs.steps` is not empty), the answer has a section titled `Login`: those lines, once and only here, exactly as the skill gave them (the two addresses, the values of the fields, the one command in a fenced `bash` block of its own, byte for byte), never restated in your own words. When the list's last line does not already say to run `/aleogr:platform-apply confirm=yes` again once the clicks and the command are done, add that one line after it. The list never goes into the result block: `outputs.steps` is kept for this section only. When the login step did not run or gave no list, there is no such section (its one sentence and its `pending` item say what is left).
+When the login step gave a list in this run (its `outputs.steps` is not empty), the answer has a section titled `Login`: those lines, once and only here, exactly as the skill gave them (the two addresses, the values of the fields, the one command in a fenced `bash` block of its own, byte for byte), never restated in your own words. When the list's last line does not already say to run `/aleogr:platform-plan` once the clicks and the command are done, add that one line after it. The list never goes into the result block: `outputs.steps` is kept for this section only. When the login step did not run or gave no list, there is no such section (its one sentence and its `pending` item say what is left).
 
 ## Answer
 
