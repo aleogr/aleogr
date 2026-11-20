@@ -1,6 +1,6 @@
 {
   "name": "aleogr-cloud-gcp",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Google Cloud family: project environments, APIs, budget alerts, the CI identity bound to the deploy workflow, the login of the organization, the Cloud Run services of a project's components and who may get in to them.",
   "author": { "name": "aleogr" }
 }

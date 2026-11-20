@@ -53,7 +53,7 @@ For each component `<name>`:
 - A binding "lets in" when its `role` is exactly `roles/iap.httpsResourceAccessor` and it has no `condition`. A binding of that role with a `condition` is "conditional": it does not count for `has` or `people`. A binding of another role does not count.
 - `has` is true when a binding that lets in lists `<member>` in its `members` (compared without regard to case); otherwise false (also when the policy has no `bindings`). `conditional` is true when `has` is false and a conditional binding lists `<member>`.
 - `people` is the number of distinct members of the bindings that let in, whatever their kind (`0` when there is none). The members of conditional bindings are not counted; `list=yes` lists them apart.
-- `open` is true when any binding of the service's login policy, whatever its role and whether or not it has a `condition`, lists `allUsers` or `allAuthenticatedUsers`: anyone signed in to a Google account gets through the login of that service. Its remove command, one per such member and binding, is:
+- `open` is true when any binding of the service's login policy, whatever its role and whether or not it has a `condition`, lists `allUsers` or `allAuthenticatedUsers`: anyone on the internet who signs in with any Google account gets through the login of that service (these are not people of the owner's, nor a group of theirs: they are everyone). Its remove command, one per such member and binding, is:
 
   ```
   gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=<service> --region=<region> --project=<projectId> --member=<allUsers or allAuthenticatedUsers> --role=<the binding's role> --all
@@ -101,7 +101,7 @@ Show each command before running it. Run only the commands below, in this order,
 
 Then answer in a few lines, and the result block:
 
-- First, in both modes and with `person` or `list=yes`, each service whose `open` is true, in plain words: anyone signed in to a Google account gets through the login of the service `<service>`; then its remove command of "Names", exactly.
+- First, in both modes and with `person` or `list=yes`, each service whose `open` is true, in plain words: anyone on the internet who signs in with any Google account gets through the login of the service `<service>`; then its remove command of "Names", exactly.
 - With `person`: for each component, whether the person already had access, was let in by this run, or would be (plan); when `conditional` was true, that a conditional binding already named the person and an unconditional one was added (or would be); the sentence of each failure; that the person opens each service's address and signs in with that Google account; and the sentence that the address must be a person's Google account (a group's address is not supported and would let nobody in). The answer may name the person (the owner gave the address), but no other member of a policy.
 - With `list=yes`, in the text of the answer only, for each component: how many people its service lets in; the `user:` members of the bindings that let in, one per line; on a line of its own, the other members of those bindings (service accounts, groups, domains), each as the policy lists it; on a line of its own, the members of conditional bindings, with the binding's condition title. Then the one command that removes a person (a `user:` member), for the owner to run by hand, printed only when some `user:` member was listed:
 

@@ -4,7 +4,7 @@ description: Google Cloud (GCP) deploy describe. Use to learn whether each compo
 
 # gcp_deploy-describe
 
-Reads, for each component, the Cloud Run service `<project>-<component>` in one GCP project, its access policy and its account's access policy, and says whether the service exists, whether it is as declared and, when it is not, which parts differ. It never creates, changes or deletes anything and has no `mode`. It does not read who may get in through the login: `gcp_access-grant` does.
+Reads, for each component, the Cloud Run service `<project>-<component>` in one GCP project, its access policy, its login policy and its account's access policy, and says whether the service exists, whether it is as declared and, when it is not, which parts differ. It never creates, changes or deletes anything and has no `mode`. Of the login policy it only looks for `allUsers` and `allAuthenticatedUsers` (an open service); which people may get in is `gcp_access-grant`'s, and is never compared.
 
 ## Arguments
 
@@ -33,9 +33,9 @@ Before any command, check every argument, and never ask for anything. Each argum
 - `region` is a Google Cloud region name: lowercase letters, then one or more `-<letters>` parts, then digits (`us-central1`, `southamerica-east1`). Otherwise: `region is not a Google Cloud region name (such as us-central1).`
 - `components` holds one or more names separated by `,`, with no space and no empty name. Each name has 1 to 20 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. Otherwise, for each name that breaks it: `component <name> must have 1 to 20 lowercase letters, digits and hyphens, starting with a letter and not ending with a hyphen.` A name given twice: `component <name> is given twice.`
 - For each component, `<project>-<name>` has 6 to 30 characters: it is the service's name and its account's id, and an account id has 6 to 30. Otherwise: `<project>-<name> has <n> characters: a service's name, which is also its account's, must have 6 to 30.`
-- `maxInstances` is a whole number from 1 to 100, written without a leading `0`. Otherwise: `maxInstances must be a whole number from 1 to 100.`
-- `cpu` is `1`, `2`, `4` or `8`. Otherwise: `cpu must be 1, 2, 4 or 8.`
-- `memory` is a whole number without a leading `0` followed by `Mi` or `Gi` (`512Mi`, `1Gi`). Otherwise: `memory must be a size in Mi or Gi, such as 512Mi.`
+- `maxInstances` is a whole number from 1 to 10, written without a leading `0` (a limit on what a mistake can cost). Otherwise: `maxInstances must be a whole number from 1 to 10.`
+- `cpu` is `1` or `2`. Otherwise: `cpu must be 1 or 2.`
+- `memory` is `512Mi`, `1Gi` or `2Gi`. Otherwise: `memory must be 512Mi, 1Gi or 2Gi.`
 - `ciAccount` is `<id>@<projectId>.iam.gserviceaccount.com`, all lowercase, with no prefix such as `serviceAccount:`, where `<id>` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`, and `<projectId>` is exactly the argument `projectId`. Otherwise: `ciAccount must be a service account of the project <projectId> (<id>@<projectId>.iam.gserviceaccount.com).`
 
 ## Names
@@ -57,6 +57,7 @@ A service that exists is as declared when none of these parts differs. Each part
 | `scaling` | `.metadata.annotations["run.googleapis.com/maxScale"]` is exactly `maxInstances`; `.metadata.annotations["run.googleapis.com/minScale"]` is absent or `0`; `.metadata.annotations["run.googleapis.com/scalingMode"]` is not `manual`; and `.spec.template.metadata.annotations["autoscaling.knative.dev/minScale"]` is absent or `0`. Any minimum above 0 keeps an instance running, which has a fixed cost. |
 | `size` | `.spec.template.spec.containers[0].resources.limits.cpu` is `cpu` (a value in thousandths reads as CPUs: `1000m` is `1`, `2000m` is `2`); `.spec.template.spec.containers[0].resources.limits.memory` is `memory` (`1Gi` is `1024Mi`); and `.spec.template.metadata.annotations["run.googleapis.com/cpu-throttling"]` is absent or `true` (billing by request). |
 | `public` | No binding of the service's policy, whatever its role, lists `allUsers` or `allAuthenticatedUsers`, and `.metadata.annotations["run.googleapis.com/invoker-iam-disabled"]` is absent or not `true`. |
+| `open` | No binding of the service's login policy (`gcloud iap web get-iam-policy`), whatever its role and whether or not it has a `condition`, lists `allUsers` or `allAuthenticatedUsers`. Either member there lets anyone on the internet who signs in with any Google account through the login: the service is open. |
 | `login` | `.metadata.annotations["run.googleapis.com/iap-enabled"]` is exactly `true`. |
 | `agent` | A binding of `roles/run.invoker` without a `condition` in the service's policy lists `<agent>`. |
 | `ci` | A binding of `roles/run.developer` without a `condition` in the service's policy lists `serviceAccount:<ciAccount>`, and a binding of `roles/iam.serviceAccountUser` without a `condition` in the account's policy lists `serviceAccount:<ciAccount>` (when the account does not exist, `ci` differs too). |
@@ -87,18 +88,19 @@ Show each command before running it. Run only the commands below, in this order,
    - A non-zero exit whose text contains `Cannot find service`, `NOT_FOUND` or `could not be found`: the service does not exist. That is not a failure: `exists` false, and no other read for this component. Both are needed: a non-zero exit without that text is not "missing".
    - Any other non-zero exit (permission denied, the Cloud Run API not enabled, a network error, anything else): say `The service <service> could not be read. Check that the Cloud Run API is enabled in <projectId> and that the active gcloud account may read its services.` and end with `failed`. Never treat it as missing.
 
-3. For each service that exists, in the same order, its policy, then its account's policy:
+3. For each service that exists, in the same order, its policy, its account's policy, then its login policy:
 
    ```
    gcloud run services get-iam-policy <service> --project=<projectId> --region=<region> --format=json
    gcloud iam service-accounts get-iam-policy <account> --project=<projectId> --format=json
+   gcloud iap web get-iam-policy --resource-type=cloud-run --service=<service> --region=<region> --project=<projectId> --format=json
    ```
 
    - Exit 0: read the `bindings` (none at all is an empty policy).
    - A non-zero exit of the account's policy whose text contains `NOT_FOUND` or `does not exist`: the account does not exist (`account` and `ci` differ).
-   - Any other non-zero exit: say `The access of the service <service> could not be read. Check that the active gcloud account may read the access of its services and accounts.` and end with `failed`.
+   - Any other non-zero exit: say `The access of the service <service> could not be read. Check that the IAP API is enabled in <projectId> and that the active gcloud account may read the access of its services and accounts.` and end with `failed`.
 
-Then answer in a few lines: for each component, whether its service exists, is as declared or differs (naming the words), and whether it still runs the placeholder; then the result block. The answer prints no identifier other than the project id, the service names and their addresses, and no word of a policy's members other than `<ciAccount>`.
+Then answer in a few lines: for each component, whether its service exists, is as declared or differs (naming the words; for `open`, in plain words: anyone on the internet who signs in with any Google account gets through its login), and whether it still runs the placeholder; then the result block. The answer prints no identifier other than the project id, the service names and their addresses, and no word of a policy's members other than `<ciAccount>`.
 
 ## Result block
 
