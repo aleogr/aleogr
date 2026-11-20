@@ -15,15 +15,17 @@ FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/
 FILE .github/workflows/ci.yml ^      service: "demo-api"$
 FILE .github/workflows/ci.yml ^      service: "demo-web"$
 FILE .github/workflows/ci.yml ^      working-directory: "services/api"$
+FILE .github/workflows/ci.yml ^      image-name: "web"$
 FILE .github/workflows/ci.yml ^      region: \$\{\{ vars\.GCP_REGION \}\}$
-FILE .github/workflows/ci.yml ^      image: \$\{\{ vars\.GCP_IMAGE_PATH \}\}/web$
+FILE .github/workflows/ci.yml ^    secrets:$
 FILE .github/workflows/ci.yml ^      project-id: \$\{\{ vars\.GCP_PROJECT_ID \}\}$
 FILE .github/workflows/ci.yml ^      workload-identity-provider: \$\{\{ vars\.GCP_WIF_PROVIDER \}\}$
 FILE .github/workflows/ci.yml ^      service-account: \$\{\{ vars\.GCP_CI_ACCOUNT \}\}$
+FILE .github/workflows/ci.yml ^      image-path: \$\{\{ vars\.GCP_IMAGE_PATH \}\}$
 FILE .github/workflows/ci.yml ^    needs: \[changes, api, web\]$
 FILE .github/workflows/ci.yml ^          RESULTS: \$\{\{ needs\.api\.result \}\} \$\{\{ needs\.web\.result \}\}$
-# The harness has no FILE_NOT: the answer, which reports what was written, never names these triggers.
-OUTPUT_NOT pull_request_target|workflow_run
+# The harness has no FILE_NOT: the answer, which reports what was written, never names these triggers nor `secrets: inherit`.
+OUTPUT_NOT pull_request_target|workflow_run|secrets: inherit
 OUTPUT "status": "created"
 OUTPUT "checks": \["ci"\]
 OUTPUT "deploy": \["dev"\]

@@ -46,11 +46,13 @@ jobs:
     with:
       working-directory: "web"
       service: "demo-web"
+      image-name: "web"
       region: ${{ vars.GCP_REGION }}
-      image: ${{ vars.GCP_IMAGE_PATH }}/web
+    secrets:
       project-id: ${{ vars.GCP_PROJECT_ID }}
       workload-identity-provider: ${{ vars.GCP_WIF_PROVIDER }}
       service-account: ${{ vars.GCP_CI_ACCOUNT }}
+      image-path: ${{ vars.GCP_IMAGE_PATH }}
 
   ci:
     needs: [changes, web]
