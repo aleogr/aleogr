@@ -1,0 +1,4 @@
+# A workflow with "@" (a ref of its own) would change the clause: refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT workflow

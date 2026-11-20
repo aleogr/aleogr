@@ -1,0 +1,17 @@
+# Two services; the person already has access to api: only web gets the binding, on the
+# service's login policy, as user:<person>, and the e-mail stays out of the result block
+# (Review Focus 4).
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=user:demo-user@example.com( |$)
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--role=roles/iap.httpsResourceAccessor( |$)
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--region=us-central1
+NOT_CALLED add-iam-policy-binding .*--service=demo-api
+NOT_CALLED ^(projects|run services|iam service-accounts) add-iam-policy-binding
+NOT_CALLED set-iam-policy|remove-iam-policy-binding
+NOT_CALLED --member=(group|domain|serviceAccount):|allUsers|allAuthenticatedUsers
+COUNT 2 ^iap web get-iam-policy --resource-type=cloud-run --service=demo-web
+OUTPUT "status": "updated"
+OUTPUT "granted": \["web"\]
+OUTPUT "already": \["api"\]
+OUTPUT "pending": \[\]
+RESULT_NOT demo-user@example.com
+RESULT_NOT owner@example.com

@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_access-grant projectId=aleogr-dev-demo-ab12 project=demo region=us-central1 components=web,api person=demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com mode=apply

@@ -1,0 +1,10 @@
+# The person lacks access to web and has it on api: plan reads both and changes nothing.
+CALLED ^run services describe demo-web .*--region=us-central1
+CALLED ^iap web get-iam-policy --resource-type=cloud-run --service=demo-web .*--region=us-central1
+CALLED ^iap web get-iam-policy --resource-type=cloud-run --service=demo-api .*--project=aleogr-dev-demo-ab12
+NOT_CALLED add-iam-policy-binding|set-iam-policy
+OUTPUT "status": "would-update"
+OUTPUT "granted": \["web"\]
+OUTPUT "already": \["api"\]
+RESULT_NOT demo-user@example.com
+RESULT_NOT owner@example.com

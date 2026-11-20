@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_ci-identity-setup projectId=aleogr-dev-demo-ab12 project=demo repository=example-org/example-repo repositoryId=7654321 ownerId=2345678 branch=main workflow=aleogr/aleogr/.github/workflows/deploy-cloud-run.yml@main mode=apply

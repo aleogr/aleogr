@@ -1,0 +1,4 @@
+# A group given as person is refused before any command: the member is only ever user:<e-mail>.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT person

@@ -1,0 +1,16 @@
+# A provider made by stage 4a (the condition without the workflow clause, the mapping of three
+# keys) is updated in place, once, with the whole condition and the whole mapping. It is never
+# deleted or created again, and nothing else of the identity changes. A second update would be
+# refused, and the run would then not end clean.
+COUNT 1 ^iam workload-identity-pools providers update-oidc github .*--workload-identity-pool=github
+CALLED ^iam workload-identity-pools providers update-oidc github .*--attribute-condition=assertion.repository=='example-org/example-repo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main' && assertion.job_workflow_ref.startsWith\('aleogr/aleogr/\.github/workflows/deploy-cloud-run\.yml@'\)( |$)
+CALLED ^iam workload-identity-pools providers update-oidc github .*--attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.job_workflow_ref=assertion.job_workflow_ref( |$)
+CALLED ^iam workload-identity-pools providers update-oidc github .*--issuer-uri=https://token.actions.githubusercontent.com( |$)
+NOT_CALLED providers create-oidc|providers delete|undelete
+NOT_CALLED ^iam (service-accounts|workload-identity-pools) create
+NOT_CALLED add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy
+COUNT 2 ^iam workload-identity-pools providers describe github
+OUTPUT "status": "updated"
+OUTPUT "condition": "as-declared"
+OUTPUT "pending": \[\]
+OUTPUT "GCP_WIF_PROVIDER": "projects/123456789012/locations/global/workloadIdentityPools/github/providers/github"

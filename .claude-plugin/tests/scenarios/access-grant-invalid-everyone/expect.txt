@@ -1,0 +1,4 @@
+# allUsers given as person is refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT person

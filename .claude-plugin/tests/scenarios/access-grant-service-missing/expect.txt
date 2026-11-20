@@ -1,0 +1,7 @@
+# The service of api does not exist: failed naming the component, before any change.
+CALLED ^run services describe demo-api
+NOT_CALLED add-iam-policy-binding|set-iam-policy|^run deploy|create
+OUTPUT "status": "failed"
+OUTPUT api
+OUTPUT_NOT Cannot find
+RESULT_NOT demo-user@example.com
