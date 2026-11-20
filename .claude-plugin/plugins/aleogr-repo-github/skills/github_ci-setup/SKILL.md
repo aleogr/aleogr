@@ -6,7 +6,7 @@ description: GitHub CI setup, with the gh CLI. Use to write a project's `.github
 
 Writes the project's CI file, `.github/workflows/ci.yml`, in the current folder, from the components the caller declares. The file has one job per component, which calls the reusable workflow of the component's stack (`ci-go.yml` of the `workflows` repository, pinned by commit) when that component's folder, or `ci.yml` itself, changed; and a last job `ci`, the status check that branch protection requires, which passes only when the change detection succeeded and every component job passed or was skipped. With `deploy`, the job of each component listed in `deployComponents` (the components whose service exists) is followed by a deploy job, which calls the reusable workflow `deploy-cloud-run.yml` of the same repository, at the same commit, only on a push to the default branch and only after that component's job succeeded; the deploy jobs are not part of the job `ci`. A component not listed gets no deploy job, so a component added to a deployed project neither breaks the default branch nor stops the others' deploys.
 
-The first line of the file is a marker, `# aleogr-ci 1 <name>:<path>:<stack>:<version>,...` (or, with `deploy`, `# aleogr-ci 2 <name>:<path>:<stack>:<version>,... deploy=<environment>:<name>+... project=<project> branch=<defaultBranch>`, so that a change of the deployed components, of the project or of the default branch, all written into the deploy jobs, also rewrites the file), with the components sorted by name. Whether a file is "as declared" is decided by comparing that line, never the rest of the file. The file is fully owned by the tooling: when the marker differs it is rewritten whole. It reads the copy on the repository's default branch only to report it. It never commits, pushes or opens anything: the pull request that proposes the change carries the file.
+The first line of the file is a marker, `# aleogr-ci 1 <name>:<path>:<stack>:<version>,...` (or, with `deploy`, `# aleogr-ci 2 <name>:<path>:<stack>:<version>,... deploy=<environment>:<name>+... project=<project> branch=<defaultBranch> region=<region>`, so that a change of the deployed components, of the project, of the default branch or of the region, all written into the deploy jobs, also rewrites the file), with the components sorted by name. Whether a file is "as declared" is decided by comparing that line, never the rest of the file. The file is fully owned by the tooling: when the marker differs it is rewritten whole. It reads the copy on the repository's default branch only to report it. It never commits, pushes or opens anything: the pull request that proposes the change carries the file.
 
 ## Arguments
 
@@ -22,28 +22,31 @@ Free text after the skill name, as `key=value` pairs.
 | `defaultBranch=<branch>` | The repository's default branch, the one `push` runs CI on. Default `main`. |
 | `deploy=<environment>[,...]` | The environments the components of `deployComponents` are deployed to by CI. Empty or not given: no deploy job, and the file and its marker are those of version 1. This version accepts exactly one environment. |
 | `deployComponents=<name>[,...]` | The components that get a deploy job (those whose service exists), comma-separated, in any order. Required when `deploy` is not empty; not allowed otherwise. |
+| `region=<region>` | The region of the services, written literally in each deploy job (it is in the public declaration; it is not an identifier). Required when `deploy` is not empty; not used otherwise. |
 | `project=<project>` | The project name; each component's service is `<project>-<name>`. Required when `deploy` is not empty; not used otherwise. |
 | `mode=<plan\|apply>` | `plan` (default) only reads; `apply` writes the file when it is missing or differs. |
 
-`owner` and `name` are required, `workflows` is required when `components` is not empty, and `project` and `deployComponents` are required when `deploy` is not empty: a missing one ends with the result block with `status` `failed` and one sentence saying which is missing, with no command (do not ask for it). Validate before any command or read; a value that breaks a rule ends with the result block with `status` `failed`, one sentence saying which rule failed, and no command:
+`owner` and `name` are required, `workflows` is required when `components` is not empty, and `project`, `deployComponents` and `region` are required when `deploy` is not empty: a missing one ends with the result block with `status` `failed` and one sentence saying which is missing, with no command (do not ask for it). Validate before any command or read; a value that breaks a rule ends with the result block with `status` `failed`, one sentence saying which rule failed, and no command:
 
 - `owner` has 1 to 39 characters of `A-Z`, `a-z`, `0-9` and `-`, and does not start or end with `-`.
 - `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
 - `workflows`, when given, is `<owner>/<name>`: exactly one `/`, the part before it follows the rule of `owner`, the part after it the rule of `name`.
 - `components`, when not empty, is one or more entries separated by `,`, with no empty entry. Each entry is exactly four fields separated by `:`, `<name>:<path>:<stack>:<version>`:
-  - `name` has 1 to 20 characters of `a-z`, `0-9` and `-`, starts with a letter, and is not `changes` or `ci` (those are the file's own jobs) nor `true`, `false`, `null`, `yes`, `no`, `on` or `off` (as a job name or a filter key YAML would read it as something other than text). No two entries have the same `name`.
+  - `name` has 1 to 20 characters of `a-z`, `0-9` and `-`, starts with a letter, and is not `changes` or `ci` (those are the file's own jobs), does not start with `deploy-` (a deploy job's name could be the same as a component's) nor is `true`, `false`, `null`, `yes`, `no`, `on` or `off` (as a job name or a filter key YAML would read it as something other than text). No two entries have the same `name`.
   - `path` is the component's folder, relative to the repository's root; empty means the same as `name`. It is made of one or more parts separated by `/` (so it does not start or end with `/` and has no empty part). Each part uses only `a-z`, `0-9`, `-`, `_` and `.`; it is not `.` or `..`, does not start with `-` or `.`, and does not end with `.` (so `.github`, `.aleogr` and every folder under them are never a component's folder). No two entries have the same `path` (after an empty one is replaced by its `name`), and no entry's `path` is inside another entry's `path` (`web` and `web/api` cannot both be components): one module per component folder.
   - `stack` is `go`, the only stack implemented.
   - `version` matches `^[0-9]+\.[0-9]+$` (for example `1.27`).
 - `ref`, when given, is `keep` or `latest`.
 - `defaultBranch`, when given, has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`, does not start with `-` or `/`, does not end with `/` or `.`, and has no `..` and no `//`.
 - `deploy`, when not empty, is one or more entries separated by `,`, with no empty entry; each entry has 1 to 20 characters of `a-z` and `0-9` and starts with a letter. More than one entry fails with exactly the sentence `deploy names more than one environment; this version deploys to exactly one, because the Actions variables the deploy job reads would clash.` (no command).
+- `deploy` not empty and `region` not given (or empty): the run fails with exactly the sentence `deploy needs region=<region>: the deploy jobs write the services' region, which is never guessed.` and no command. Never take a region from anywhere else.
+- `region`, when `deploy` is not empty, has 1 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`.
 - `project`, when `deploy` is not empty, has 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`.
 - `deployComponents`, when given: `deploy` is not empty (otherwise the run fails with exactly the sentence `deployComponents is given without deploy; give deploy=<environment> as well, or leave deployComponents out.`); it is one or more names separated by `,`, with no empty entry and no name twice; and each name is the `name` of one of `components` (otherwise the run fails with exactly the sentence `deployComponents names <name>, which is not one of the components.`, with the first such name). An empty `deployComponents` with `deploy` not empty is missing. No command in any of these cases.
-- When `deploy` is not empty, each listed component's service name `<project>-<name>` (the components of `deployComponents` only) has at most 30 characters and no listed component's `name` ends with `-` (the rule the service skills enforce). Otherwise the run fails with exactly the sentence `The service name <project>-<name> breaks the rule on service names (at most 30 characters, not ending with -); shorten the project or the component name.` (with the first such service, in the order of the sorted listed components) and no command.
+- When `deploy` is not empty, each listed component's service name `<project>-<name>` (the components of `deployComponents` only) has 6 to 30 characters and no listed component's `name` ends with `-` (the rule the service skills enforce). Otherwise the run fails with exactly the sentence `The service name <project>-<name> breaks the rule on service names (6 to 30 characters, not ending with -); shorten the project or the component name.` (with the first such service, in the order of the sorted listed components) and no command.
 - `mode`, when given, is `plan` or `apply`.
 
-Below, the components are always taken **sorted by `name`**, in byte order (ASCII), with each empty `path` replaced by its `name`. The **marker** is the text `# aleogr-ci 1 ` followed by the entries `<name>:<path>:<stack>:<version>` of the sorted components, joined by `,`, with no space (for `components=web:web:go:1.27,api:services/api:go:1.27` it is `# aleogr-ci 1 api:services/api:go:1.27,web:web:go:1.27`). With `deploy` not empty, the **marker** is instead the text `# aleogr-ci 2 `, the same entries joined by `,`, one space, `deploy=`, the environment, `:` and the names of `deployComponents` sorted by name and joined by `+`, one space, `project=<project>`, one space, `branch=<defaultBranch>` (for the same components, `deploy=dev`, `deployComponents=web,api`, `project=demo` and the default branch `main` it is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev:api+web project=demo branch=main`; with `deployComponents=api` it ends `deploy=dev:api project=demo branch=main`). With no component there is no marker, with or without `deploy`.
+Below, the components are always taken **sorted by `name`**, in byte order (ASCII), with each empty `path` replaced by its `name`. The **marker** is the text `# aleogr-ci 1 ` followed by the entries `<name>:<path>:<stack>:<version>` of the sorted components, joined by `,`, with no space (for `components=web:web:go:1.27,api:services/api:go:1.27` it is `# aleogr-ci 1 api:services/api:go:1.27,web:web:go:1.27`). With `deploy` not empty, the **marker** is instead the text `# aleogr-ci 2 `, the same entries joined by `,`, one space, `deploy=`, the environment, `:` and the names of `deployComponents` sorted by name and joined by `+`, one space, `project=<project>`, one space, `branch=<defaultBranch>`, one space, `region=<region>` (for the same components, `deploy=dev`, `deployComponents=web,api`, `project=demo`, the default branch `main` and `region=us-central1` it is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev:api+web project=demo branch=main region=us-central1`; with `deployComponents=api` it ends `deploy=dev:api project=demo branch=main region=us-central1`). With no component there is no marker, with or without `deploy`.
 
 ## Steps
 
@@ -91,7 +94,7 @@ A command whose result decides a step is run alone: not piped into another comma
      - Non-zero exit and the output contains `HTTP 404`: `failed`. Say in one sentence that the repository `<workflows>` or its branch `main` was not found. Write nothing.
      - Any other answer: `failed`. Say the cause in one sentence, with no raw error text. Write nothing.
 
-5. `apply` only: write `.github/workflows/ci.yml` with the Write tool (it creates the folder), replacing the whole file. The content is exactly the text below, built from the sorted components, with `<branch>` the `defaultBranch`, `<workflows>` the argument, `<sha>` the commit of step 4, two spaces per indentation level, no tab, no trailing space, and one line break at the end. The `working-directory`, `go-version`, `service` and `image-name` values are written in double quotes, as shown; the values that are expressions (`${{ vars.<NAME> }}`) are written without quotes, as shown. The two action commits and their version comments are fixed: write them exactly as here. Nothing is added, removed or reordered.
+5. `apply` only: write `.github/workflows/ci.yml` with the Write tool (it creates the folder), replacing the whole file. The content is exactly the text below, built from the sorted components, with `<branch>` the `defaultBranch`, `<workflows>` the argument, `<sha>` the commit of step 4, two spaces per indentation level, no tab, no trailing space, and one line break at the end. The `working-directory`, `go-version`, `service` and `image-name` values are written in double quotes, as shown; the `region` value too; the values that are expressions (`${{ secrets.<NAME> }}`) are written without quotes, as shown. No `vars.` is ever written. The two action commits and their version comments are fixed: write them exactly as here. Nothing is added, removed or reordered.
 
    The text, in five parts (part d has its deploy jobs only when `deploy` is not empty):
 
@@ -172,15 +175,15 @@ A command whose result decides a step is run alone: not piped into another comma
          working-directory: "<path>"
          service: "<project>-<name>"
          image-name: "<name>"
-         region: ${{ vars.GCP_REGION }}
+         region: "<region>"
        secrets:
-         project-id: ${{ vars.GCP_PROJECT_ID }}
-         workload-identity-provider: ${{ vars.GCP_WIF_PROVIDER }}
-         service-account: ${{ vars.GCP_CI_ACCOUNT }}
-         image-path: ${{ vars.GCP_IMAGE_PATH }}
+         project-id: ${{ secrets.GCP_PROJECT_ID }}
+         workload-identity-provider: ${{ secrets.GCP_WIF_PROVIDER }}
+         service-account: ${{ secrets.GCP_CI_ACCOUNT }}
+         image-path: ${{ secrets.GCP_IMAGE_PATH }}
    ```
 
-   The identifiers go as `secrets:` of the reusable workflow, so that the runner masks them in the logs from the job's start; `secrets: inherit` is never written. The deploy job runs only on a push to the default branch, never on a pull request: no trigger other than `pull_request` and `push` is ever written (never `pull_request_target`, never `workflow_run`).
+   The four identifiers are the repository's Actions secrets (`github_variables-set kind=secrets` sets them): GitHub masks them in every log and never gives them to a pull request from a fork. They go as `secrets:` of the reusable workflow; `secrets: inherit` is never written. The deploy job runs only on a push to the default branch, never on a pull request: no trigger other than `pull_request` and `push` is ever written (never `pull_request_target`, never `workflow_run`).
 
    e. The job `ci`, once, after an empty line. `<names>` is the components' names in order, separated by `, ` (never a deploy job: the deploy jobs are not part of the required check); `<results>` is `${{ needs.<name>.result }}` for each component in order, separated by one space:
 
@@ -273,7 +276,7 @@ A command whose result decides a step is run alone: not piped into another comma
              done
    ```
 
-   With `deploy=dev deployComponents=web,api project=demo` and the same arguments otherwise, the first line is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev:api+web project=demo branch=main`, and the job `api` is followed by:
+   With `deploy=dev deployComponents=web,api project=demo region=us-central1` and the same arguments otherwise, the first line is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev:api+web project=demo branch=main region=us-central1`, and the job `api` is followed by:
 
    ```yaml
 
@@ -288,12 +291,12 @@ A command whose result decides a step is run alone: not piped into another comma
          working-directory: "services/api"
          service: "demo-api"
          image-name: "api"
-         region: ${{ vars.GCP_REGION }}
+         region: "us-central1"
        secrets:
-         project-id: ${{ vars.GCP_PROJECT_ID }}
-         workload-identity-provider: ${{ vars.GCP_WIF_PROVIDER }}
-         service-account: ${{ vars.GCP_CI_ACCOUNT }}
-         image-path: ${{ vars.GCP_IMAGE_PATH }}
+         project-id: ${{ secrets.GCP_PROJECT_ID }}
+         workload-identity-provider: ${{ secrets.GCP_WIF_PROVIDER }}
+         service-account: ${{ secrets.GCP_CI_ACCOUNT }}
+         image-path: ${{ secrets.GCP_IMAGE_PATH }}
    ```
 
    and the job `web` by `deploy-web-dev`, built the same way; the rest of the file (the job `ci` included) is the same as above. With `deployComponents=api`, only `deploy-api-dev` is written and the job `web` is followed directly by the job `ci`.
@@ -346,7 +349,7 @@ End with exactly one fenced block tagged `aleogr-result`:
   - `failed`: an argument missing or broke a rule, `gh` missing, `gh` not logged in, the read of step 2 refused, the read of step 4 refused, or the write of step 5 refused. Nothing was written.
 - `pending` items are `{ "item": "<what>", "reason": "manual", "how": "<text>" }`:
   - No component and a local file: exactly one item `{ "item": "ci.yml is not needed", "reason": "manual", "how": "remove .github/workflows/ci.yml by hand and propose the removal with a pull request" }`.
-  - `created` or `updated` with a verification (step 6) that failed: one item `{ "item": "verify", "reason": "manual", "how": "/aleogr-repo-github:github_ci-setup owner=<owner> name=<name> components=<components> workflows=<workflows> mode=plan" }`, with the arguments as given (plus `deploy=<deploy> deployComponents=<deployComponents> project=<project>` when `deploy` was given). `created` or `updated` with a non-empty `pending` is allowed.
+  - `created` or `updated` with a verification (step 6) that failed: one item `{ "item": "verify", "reason": "manual", "how": "/aleogr-repo-github:github_ci-setup owner=<owner> name=<name> components=<components> workflows=<workflows> mode=plan" }`, with the arguments as given (plus `deploy=<deploy> deployComponents=<deployComponents> project=<project> region=<region>` when `deploy` was given). `created` or `updated` with a non-empty `pending` is allowed.
   - Every other ending: `[]`.
 - `outputs` has the same ten keys in every ending:
   - `path`: always `.github/workflows/ci.yml`.
