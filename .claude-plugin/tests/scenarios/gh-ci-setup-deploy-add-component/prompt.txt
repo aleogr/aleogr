@@ -1,1 +1,1 @@
-/aleogr-repo-github:github_ci-setup owner=example-org name=example-repo components=web:web:go:1.27,api:services/api:go:1.27 workflows=example-org/tooling deploy=dev deployComponents=api,web project=demo mode=apply
+/aleogr-repo-github:github_ci-setup owner=example-org name=example-repo components=web:web:go:1.27,api:services/api:go:1.27 workflows=example-org/tooling deploy=dev deployComponents=api,web project=demo region=us-central1 mode=apply
