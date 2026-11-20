@@ -1,0 +1,126 @@
+name: deploy-cloud-run
+
+# Reusable: builds one component's image, pushes it to Artifact Registry and
+# replaces the image of its existing Cloud Run service, by digest. Nothing else
+# on the service changes: no create, no access change. A missing service fails.
+# Called by a project's ci.yml, pinned by commit SHA, from a job that runs only
+# on push to the default branch and grants `contents: read` and
+# `id-token: write`. Authenticates by workload identity federation (no key).
+# Logs are public: the first step masks the project id, the project number and
+# the service account before anything else runs; no step prints an input.
+# Inputs reach the scripts only through `env`.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Folder of the component (its Dockerfile and build context), relative to the repository root
+        type: string
+        required: true
+      service:
+        description: Name of the existing Cloud Run service
+        type: string
+        required: true
+      region:
+        description: Region of the service and of the Artifact Registry repository (for example us-central1)
+        type: string
+        required: true
+      image:
+        description: Image path without tag, <region>-docker.pkg.dev/<project>/<repository>/<component>
+        type: string
+        required: true
+      project-id:
+        description: Google Cloud project id
+        type: string
+        required: true
+      workload-identity-provider:
+        description: Full path of the provider, projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
+        type: string
+        required: true
+      service-account:
+        description: E-mail of the CI service account
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: deploy-${{ inputs.service }}
+      cancel-in-progress: false
+    steps:
+      - name: Mask the identifiers
+        env:
+          PROJECT_ID: ${{ inputs.project-id }}
+          SERVICE_ACCOUNT: ${{ inputs.service-account }}
+          WIF_PROVIDER: ${{ inputs.workload-identity-provider }}
+        run: |
+          if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ACCOUNT" ] || [ -z "$WIF_PROVIDER" ]; then
+            echo "::error::An identifier input is empty."
+            exit 1
+          fi
+          echo "::add-mask::$PROJECT_ID"
+          echo "::add-mask::$SERVICE_ACCOUNT"
+          echo "::add-mask::$WIF_PROVIDER"
+          project_number="${WIF_PROVIDER#projects/}"
+          project_number="${project_number%%/*}"
+          if [[ "$WIF_PROVIDER" != projects/* ]] || [[ ! "$project_number" =~ ^[0-9]+$ ]]; then
+            echo "::error::The workload identity provider is not a path that starts with projects/<number>/."
+            exit 1
+          fi
+          echo "::add-mask::$project_number"
+
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ inputs.workload-identity-provider }}
+          service_account: ${{ inputs.service-account }}
+
+      - name: Log in to Artifact Registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ${{ inputs.region }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ inputs.working-directory }}
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ inputs.image }}:${{ github.sha }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+
+      - name: Replace the image of the service
+        env:
+          SERVICE: ${{ inputs.service }}
+          PROJECT: ${{ inputs.project-id }}
+          REGION: ${{ inputs.region }}
+          IMAGE: ${{ inputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::The build returned no sha256 digest."
+            exit 1
+          fi
+          gcloud run services update "$SERVICE" --project="$PROJECT" --region="$REGION" --image="$IMAGE@$DIGEST" --quiet
