@@ -13,3 +13,4 @@ OUTPUT "written": true
 OUTPUT "checks": \["ci"\]
 NOT_CALLED ^git (add|commit|push|-c credential)
 NOT_CALLED ^gh (pr|repo)
+OUTPUT "deploy": \[\]

@@ -1,6 +1,6 @@
 CALLED ^gh api repos/example-org/example-repo/contents/\.github/workflows/ci\.yml
 CALLED ^gh api repos/example-org/tooling/commits/main
-FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev$
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev project=demo branch=main$
 FILE .github/workflows/ci.yml ^  pull_request:$
 FILE .github/workflows/ci.yml ^    branches: \[main\]$
 FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@2{40}$
@@ -15,6 +15,7 @@ FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/
 FILE .github/workflows/ci.yml ^      service: "demo-api"$
 FILE .github/workflows/ci.yml ^      service: "demo-web"$
 FILE .github/workflows/ci.yml ^      working-directory: "services/api"$
+FILE .github/workflows/ci.yml ^      image-name: "api"$
 FILE .github/workflows/ci.yml ^      image-name: "web"$
 FILE .github/workflows/ci.yml ^      region: \$\{\{ vars\.GCP_REGION \}\}$
 FILE .github/workflows/ci.yml ^    secrets:$
@@ -24,8 +25,7 @@ FILE .github/workflows/ci.yml ^      service-account: \$\{\{ vars\.GCP_CI_ACCOUN
 FILE .github/workflows/ci.yml ^      image-path: \$\{\{ vars\.GCP_IMAGE_PATH \}\}$
 FILE .github/workflows/ci.yml ^    needs: \[changes, api, web\]$
 FILE .github/workflows/ci.yml ^          RESULTS: \$\{\{ needs\.api\.result \}\} \$\{\{ needs\.web\.result \}\}$
-# The harness has no FILE_NOT: the answer, which reports what was written, never names these triggers nor `secrets: inherit`.
-OUTPUT_NOT pull_request_target|workflow_run|secrets: inherit
+FILE_NOT .github/workflows/ci.yml pull_request_target|workflow_run|secrets: *inherit
 OUTPUT "status": "created"
 OUTPUT "checks": \["ci"\]
 OUTPUT "deploy": \["dev"\]

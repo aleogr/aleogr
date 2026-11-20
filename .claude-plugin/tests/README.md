@@ -104,6 +104,7 @@ Create `scenarios/<name>/` with:
 | `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |
 | `FILE <relative path> <regex>` | the file exists in the working folder after the run and some line of it matches (the regex is required: a `FILE` line with a path only is a bad expect line and fails) |
 | `NO_FILE <relative path>` | the file does not exist in the working folder after the run |
+| `FILE_NOT <relative path> <regex>` | the file does not exist in the working folder after the run, or no line of it matches (the regex is required, as for `FILE`; pins that a written file lacks something) |
 | `ORDER <regex1> >> <regex2>` | the first call matching regex1 comes before the first matching regex2 |
 
 Regexes are `grep -E`. Use fictitious values only: the repository is public.

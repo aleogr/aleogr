@@ -5,3 +5,4 @@ OUTPUT "set": \["GCP_IMAGE_PATH", "GCP_REGION"\]
 OUTPUT "already": \["GCP_CI_ACCOUNT", "GCP_PROJECT_ID", "GCP_WIF_PROVIDER"\]
 RESULT_NOT aleogr-dev-demo-ab12|123456789012|us-central1
 NOT_CALLED ^git (add|commit|push)
+RESULT_NOT LEGACY_FLAG

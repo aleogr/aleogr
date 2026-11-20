@@ -1,0 +1,6 @@
+CALLED ^gh variable list --repo example-org/example-repo --json name,value
+CALLED ^gh variable set GCP_CI_ACCOUNT --repo example-org/example-repo --body demo-ci@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com$
+NOT_CALLED ^gh variable set (GCP_PROJECT_ID|GCP_WIF_PROVIDER|GCP_REGION|GCP_IMAGE_PATH|LEGACY_FLAG)
+OUTPUT "status": "updated"
+OUTPUT "set": \["GCP_CI_ACCOUNT"\]
+RESULT_NOT demo-ci@|old-ci@|aleogr-dev-demo-ab12|LEGACY_FLAG
