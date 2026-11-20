@@ -36,7 +36,7 @@ claude plugin marketplace update aleogr
 for p in aleogr aleogr-cloud-gcp aleogr-db-gcp-cloud-sql aleogr-registry-gcp-artifact-registry aleogr-repo-github aleogr-stack-go; do claude plugin update "$p@aleogr"; done
 ```
 
-Expected: `claude plugin list` shows, all enabled: `aleogr` 0.10.1, `aleogr-cloud-gcp` 0.5.1, `aleogr-db-gcp-cloud-sql` 0.4.1, `aleogr-registry-gcp-artifact-registry` 0.1.2, `aleogr-repo-github` 0.5.2, `aleogr-stack-go` 0.1.1.
+Expected: `claude plugin list` shows, all enabled: `aleogr` 0.10.2, `aleogr-cloud-gcp` 0.5.1, `aleogr-db-gcp-cloud-sql` 0.4.1, `aleogr-registry-gcp-artifact-registry` 0.1.2, `aleogr-repo-github` 0.5.2, `aleogr-stack-go` 0.1.1.
 
 ## 2. The platform's plan: the login is prepared
 
