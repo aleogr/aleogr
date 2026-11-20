@@ -1,6 +1,14 @@
+# No confirm=yes: the run shows the plan and its cost, asks nothing, changes nothing, and ends
+# pending with the one item confirm and the one command that confirms.
 CALLED ^--version
 CALLED ^projects list .*aleogr-project=shared
 NOT_CALLED ^(projects create|billing projects link|services enable|billing budgets create)
+NOT_CALLED (create|patch|enable|link|add-iam-policy-binding|update|delete)( |$)
+NOT_CALLED ^sleep
 OUTPUT "action": "platform-apply"
 OUTPUT "status": "pending"
 OUTPUT "item": "shared project"
+OUTPUT "item": "confirm"
+OUTPUT "how": "/aleogr:platform-apply confirm=yes"
+OUTPUT about R\$ 50 per month while stopped
+OUTPUT_NOT \?[[:space:]*]*$

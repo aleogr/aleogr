@@ -1,0 +1,16 @@
+# The organization's IAP setting names a client: the login is prepared.
+CALLED ^organizations list
+CALLED ^iap settings get .*--organization=111111111111( |$)
+CALLED ^iap settings get .*--format=json
+NOT_CALLED ^iap settings set
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^services
+OUTPUT "status": "unchanged"
+OUTPUT "prepared": true
+OUTPUT "organization": true
+# Neither the client id nor the hash of its secret is repeated; no organization id in the block.
+OUTPUT_NOT apps\.googleusercontent\.com
+OUTPUT_NOT 0f1e2d3c4b5a
+RESULT_NOT 111111111111
+OUTPUT "readable": true
+NOT_CALLED billing-project

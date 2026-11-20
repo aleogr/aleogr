@@ -1,0 +1,13 @@
+# Role and API already right, the clicks are left: pending, nothing changed.
+CALLED ^services list .*--project=aleogr-shared-ab12
+NOT_CALLED add-iam-policy-binding|services enable
+NOT_CALLED ^iap settings set
+OUTPUT "status": "pending"
+OUTPUT "roleGranted": false
+OUTPUT "apiEnabled": false
+OUTPUT "item": "login"
+OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-ab12
+OUTPUT read -r -s -p
+CALLED ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)
+OUTPUT "how": ".*then run /aleogr:platform-plan"
+OUTPUT_NOT platform-apply confirm=yes

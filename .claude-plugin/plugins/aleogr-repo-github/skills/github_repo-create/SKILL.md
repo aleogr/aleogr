@@ -95,6 +95,8 @@ Then answer in a few lines: what was done (or would be done), the repository URL
 
 ## Result block
 
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
+
 End with exactly one fenced block tagged `aleogr-result`:
 
 ```aleogr-result

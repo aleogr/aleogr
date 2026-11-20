@@ -1,0 +1,10 @@
+{
+  "labels": {
+    "aleogr-platform": "shared",
+    "aleogr-project": "shared"
+  },
+  "lifecycleState": "ACTIVE",
+  "name": "shared",
+  "parent": { "id": "111111111111", "type": "organization" },
+  "projectId": "aleogr-shared-zz99"
+}

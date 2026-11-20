@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_pull-request-open owner=example-org name=example-repo paths=.aleogr/project.json title="Change the project declaration" note="Applying this change after the merge creates a Google Cloud project, whose id is permanent." mode=apply

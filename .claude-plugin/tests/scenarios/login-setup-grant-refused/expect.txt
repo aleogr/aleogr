@@ -1,0 +1,10 @@
+# The grant is refused: failed at once, nothing else changed, no list, no raw text.
+CALLED ^organizations add-iam-policy-binding 111111111111 .*--role=roles/iap\.settingsAdmin
+NOT_CALLED ^services enable
+NOT_CALLED ^iap settings set
+COUNT 1 ^iap settings get
+OUTPUT "status": "failed"
+OUTPUT could not be granted
+OUTPUT_NOT read -r -s
+OUTPUT_NOT setIamPolicy
+OUTPUT_NOT does not have permission

@@ -1,0 +1,11 @@
+# Everything of the platform exists; the organization's IAP setting names no client: the
+# other rows are none, the row login is not prepared / prepare, and the plan changes nothing.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+NOT_CALLED (create|^services enable|patch|add-iam-policy-binding|^iap settings set)
+OUTPUT "item": "database instance"
+OUTPUT "item": "login"
+OUTPUT "state": "not prepared"
+OUTPUT "action": "prepare"
+OUTPUT "status": "would-update"
+OUTPUT_NOT [Nn]othing to do
+RESULT_NOT 111111111111

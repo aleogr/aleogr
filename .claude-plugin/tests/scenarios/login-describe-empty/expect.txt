@@ -1,0 +1,5 @@
+# No setting at all on the organization (only its name): not prepared, not a failure.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+OUTPUT "status": "unchanged"
+OUTPUT "prepared": false
+OUTPUT "organization": true

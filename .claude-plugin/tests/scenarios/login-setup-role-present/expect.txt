@@ -1,0 +1,10 @@
+# The account already has the role: only the API is enabled.
+CALLED ^organizations get-iam-policy 111111111111
+CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-ab12
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^iap settings set
+OUTPUT "status": "updated"
+OUTPUT "roleGranted": false
+OUTPUT "apiEnabled": true
+OUTPUT "item": "login"
+OUTPUT read -r -s -p

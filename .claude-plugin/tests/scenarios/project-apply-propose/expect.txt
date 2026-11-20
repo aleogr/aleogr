@@ -10,3 +10,7 @@ OUTPUT merge https://github\.com/example-org/demo/pull/7
 OUTPUT /aleogr:project-apply confirm=yes
 OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "number": 7
+# The change adds no environment: the pull request's body is exactly "Proposed by aleogr.", with no
+# warning about a GCP project, and the answer has none.
+CALLED ^gh pr create .* --body "?Proposed by aleogr\."?$
+OUTPUT_NOT permanent

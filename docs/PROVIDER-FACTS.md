@@ -39,9 +39,9 @@
 - **A deleted workload identity pool or provider is only soft-deleted: it keeps its id for 30 days** (`state` `DELETED`), and creating one with the same id fails until it is restored (`gcloud iam workload-identity-pools undelete`, `gcloud iam workload-identity-pools providers undelete`) (SDK 570 reference and API definitions, read on 2026-11-19; not yet seen in a real run). `providers list` leaves soft-deleted providers out unless `--show-deleted` is given.
 - **A pool or provider can be disabled without being deleted**: the API has a separate field `disabled`, so a disabled provider is expected to keep the state `ACTIVE` while it accepts no token. The `update` and `update-oidc` commands show only `--disabled`, with no flag to enable again in their help (SDK 570, read on 2026-11-19; not yet seen in a real run).
 - **`add-iam-policy-binding` on a service account that does not exist answers `PERMISSION_DENIED`**, by the command's reference (SDK 570, read on 2026-11-19).
-- **A binding made seconds after its service account was created is refused, and works about a minute later** (2026-11-19, the CI account of `pilot`: `gcp_ci-identity-setup` retried once after its wait and the binding was made).
+- **A binding made seconds after its service account was created is refused, and works about a minute later** (2026-11-19, the CI account of `pilot`: `gcp_ci-identity-setup` retried once after its wait and the binding was made). The skills that make such a binding now wait for it by a bounded poll (every 30 seconds, 10 tries at most).
 - **A project is found by the search by labels some minutes after its creation, and by the search filtered by parent** (`parent.type=folder AND parent.id=<number> AND labels…`), which printed the one project (2026-11-19). How soon after the creation each search sees it was not measured: the first search made after the creation ran about nine minutes later.
-- **The first Artifact Registry command in a new project, seconds after its API was enabled, is refused**; some minutes later it works (2026-11-19). `project-apply` stopped there with the item `apis`, as designed.
+- **The first Artifact Registry command in a new project, seconds after its API was enabled, is refused**; some minutes later it works (2026-11-19). `project-apply` stopped there with the item `apis`, as designed then; it now waits for it by a bounded poll (every 30 seconds, 10 tries at most). How long a just-enabled API refuses was not measured: only that it worked "some minutes later".
 - **Creating the ground of a project took three commands and about eight minutes of runs in Cloud Shell** (2026-11-19): the run that creates the project and enables the APIs about 2 minutes, a plan about 1 minute, the run that makes the repository, the policy, the identity and the grant about 4 minutes with its one wait, and a last plan under a minute.
 
 ## GCP — Artifact Registry
@@ -86,8 +86,34 @@ A recent organization comes with a set of security policies already enforced. Se
 
 - **Domain mappings use one DNS record per hostname**, a `CNAME` to `ghs.googlehosted.com`, with a Google-managed certificate. In the previous lab every hostname was mapped explicitly; there was no wildcard.
 
-- **IAP can be enabled directly on a Cloud Run service, without a load balancer** (documentation read on 2026-11-16). Requests are authenticated with a Google account before they reach the container; access is granted with the role `roles/iap.httpsResourceAccessor`. It replaces the caller's identity, so anything that calls the service with its own authentication (for example, Pub/Sub) may fail behind it.
+- **IAP can be enabled directly on a Cloud Run service, without a load balancer** (documentation read on 2026-11-16). Requests are authenticated with a Google account before they reach the container; access is granted with the role `roles/iap.httpsResourceAccessor`. It replaces the caller's identity, so anything that calls the service with its own authentication (for example, Pub/Sub) may fail behind it. Seen in a real run on 2026-11-19: see [GCP — Identity-Aware Proxy](#gcp--identity-aware-proxy-the-login) below.
 - **Cloud Run charges only while a service is handling requests**, with a monthly free tier; any public address is found by bots (issued certificates are published in public logs) and every visit wakes the service.
+
+## GCP — Identity-Aware Proxy (the login)
+
+**Seen in a real run** on 2026-11-19, in spikes on two throwaway Cloud Run services, `spike-iap` and `spike-iap2`, in the project of `pilot`, in an organization owned by a personal Google account:
+
+- **`gcloud run deploy … --no-allow-unauthenticated --iap` puts Google's login in front of a Cloud Run service, with no load balancer.** Not signed in: Google's sign-in page. Signed in but not allowed: "You don't have access", before the request reaches the service.
+- **The project's IAP service agent needs `roles/run.invoker` on the service.** `--iap` created the agent by itself ("Setting IAP service agent"), and the binding was accepted right after.
+- **A person is let in with `roles/iap.httpsResourceAccessor` on the service**, granted with `gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=<service> --region=<region> --member=user:<e-mail> --role=roles/iap.httpsResourceAccessor`.
+- **In an organization owned by a personal Google account, Google's managed OAuth client refuses the login**, also for an account on the allowed list (every account is outside such an organization). **A custom OAuth client works:** a consent screen of audience External, left in testing, and an OAuth client of type web application.
+- **A custom client set once on the organization is inherited by a new service** of a project of that organization, with nothing configured on the service. It is set with `gcloud iap settings set <file> --organization=<id>`, where the file holds the keys `accessSettings.oauthSettings.clientId` and `accessSettings.oauthSettings.clientSecret`. **Setting it needs `roles/iap.settingsAdmin` on the organization**, which the organization's administrator does not have by default: the set was refused until the role was granted.
+- **The consent screen of audience External, in testing with an empty list of test users, let the owner's account in with no warning.**
+
+**From Google's help, not yet seen in a real run:**
+
+- With only the basic sign-in scopes (`openid`, `email`, `profile`), as IAP asks, an application in testing needs no publishing and no list of test users, shows no warning, and its authorizations do not expire; the cap of test users and the verification apply to sensitive scopes. Whether a second Google account gets in that way is what the run of stage 4b-1 checks.
+- Uploading a logo to the consent screen starts Google's verification of the brand: no logo is uploaded.
+- Google offers no command that creates a consent screen or an OAuth client: the `gcloud iap oauth-brands` and `oauth-clients` commands were discontinued, so both are made in the console (Google Auth Platform: Branding, Clients).
+
+**From the installed SDK's source, read on 2026-11-19:** `gcloud iap settings get --organization=<id>` returns the stored settings as they are; in them `accessSettings.oauthSettings` has `clientId`, `clientSecret` (input only, never returned) and `clientSecretSha256` (output only). `set` reads its file as YAML (or JSON) in that same camelCase shape, and sends the whole message with no update mask (`SetIapSetting` in `lib/googlecloudsdk/api_lib/iap/util.py`, SDK 570). A refused call prints `PERMISSION_DENIED: …`, with a reason such as `IAM_PERMISSION_DENIED` or `SERVICE_DISABLED` in the details below it.
+
+**Unverified:**
+
+- Whether the server, given no update mask, replaces the other settings stored on the organization when `gcloud iap settings set` sends a file that holds only `oauthSettings`.
+- The exact permission names in the refusals of `get` and `set` at the organization (the SDK names only `iap.projects.getSettings`).
+- What `get` answers on an organization with no setting: an object with only `name`, an empty one, or `NOT_FOUND`.
+- That a second Google account gets in after one `add-iam-policy-binding`, with no other step: the run checklist of stage 4b-1 proves it or not.
 
 ## Cloudflare
 
@@ -139,4 +165,7 @@ A recent organization comes with a set of security policies already enforced. Se
 - **A later layout of the desktop app moved those controls** (seen on the evening of 2026-11-17): the plugins are under **Plugins** in the sidebar; the marketplaces are under **Add → Manage marketplaces**, and each one has a `···` menu with "Check for updates" and "Delete". The page of an installed plugin shows its version and an "Update" button, which stays disabled until the marketplace has been checked for updates; the `···` menu of an installed plugin only offers "Delete". Deleting the plugins, checking the marketplace for updates and installing them again brought the new versions.
 - **In Cloud Shell, an installed plugin's files are under `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`** (2026-11-18): that is the folder a skill writes in place of `${CLAUDE_PLUGIN_ROOT}`, and a new version gets a new folder.
 - **A model following a skill does not always capture a command's exit code reliably**: in one run of `github_repo-create` it reported that its own capture printed 0 for a failed `gh api` call and relied on the `HTTP 404` line instead (2026-11-18). The conclusion was right; skills that decide by exit code should also name the text that identifies the case.
+- **Claude Code refuses a `sleep` run in the foreground before it runs** ("Blocked: standalone sleep …"), and suggests running it in the background. Run with `run_in_background`, the wait returns a completion notice, and a headless `claude -p` run goes on in the same turn after it, also with a real 30-second wait (Claude Code 2.1.328, in the scenarios of the skills, 2026-11-19). In Cloud Shell, in stage 4a, a wait in the background ended the turn and the run went on by itself when it finished.
+- **`claude -p` prints only the final message**: text a skill writes between two tool calls is not in its output (seen in the scenarios of the skills, 2026-11-19).
+- **A model following an orchestrator tends to write the answer and the result block of the last skill it invoked at the start of its own final message** (13 of 40 runs of two scenarios that read the cloud, 2026-11-19). A sentence after that last invocation saying that the next output is the orchestrator's own answer, and nothing of the invoked skill, reduced it: on the final text of stage 4b-1, 1 of 40 runs (1 of 20 on the plan, 0 of 20 on the apply), and once more in a full run of the scenarios. Reduced, not eliminated.
 - **The PowerShell quoting of a value with `&&` and single quotes inside double quotes** (`--attribute-condition="assertion.repository=='<owner>/<repo>' && assertion.ref=='refs/heads/main'"`) reached `gcloud` intact in the desktop app (2026-11-17).

@@ -1,0 +1,13 @@
+# Plan on a fresh organization: the role is missing; one read of the setting is refused, so
+# the login is not known yet: would-update, the role would be granted and the rest checked
+# after. No list.
+CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*roles/iap\.settingsAdmin
+CALLED ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^services enable
+NOT_CALLED ^sleep
+OUTPUT "mode": "plan"
+OUTPUT "status": "would-update"
+OUTPUT "roleGranted": true
+OUTPUT_NOT "status": "failed"
+OUTPUT_NOT read -r -s

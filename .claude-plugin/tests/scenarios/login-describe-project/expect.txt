@@ -1,0 +1,6 @@
+# With projectId, the read is counted against the shared project.
+CALLED ^iap settings get .*--organization=111111111111( |$)
+CALLED ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)
+OUTPUT "status": "unchanged"
+OUTPUT "prepared": false
+OUTPUT "readable": true

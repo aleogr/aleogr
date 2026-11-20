@@ -1,0 +1,26 @@
+# The login was set by hand on the organization and the account already has the role, but
+# the IAP API is off in the shared project, so the first read is refused (SERVICE_DISABLED)
+# and the login is not known yet. The run enables the API and reads again; that read names a
+# client: the login is prepared. No list, no command printed, nothing pending.
+CALLED ^organizations get-iam-policy 111111111111 .*--filter=.*roles/iap\.settingsAdmin
+CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-ab12
+COUNT 2 ^iap settings get .*--billing-project=aleogr-shared-ab12( |$)
+ORDER ^iap settings get >> ^services enable
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^iap settings set
+NOT_CALLED ^sleep
+OUTPUT "status": "updated"
+OUTPUT "prepared": true
+OUTPUT "roleGranted": false
+OUTPUT "apiEnabled": true
+OUTPUT "steps": \[\]
+OUTPUT "pending": \[\]
+OUTPUT_NOT "item": "login"
+OUTPUT_NOT read -r -s
+OUTPUT_NOT auth/clients
+OUTPUT_NOT auth/branding
+OUTPUT_NOT settings set "\$F"
+OUTPUT_NOT apps\.googleusercontent\.com
+OUTPUT_NOT SERVICE_DISABLED
+RESULT_NOT 111111111111
+RESULT_NOT demo-user@example\.com

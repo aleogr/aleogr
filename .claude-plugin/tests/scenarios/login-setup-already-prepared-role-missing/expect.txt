@@ -1,0 +1,10 @@
+# Someone else prepared the login; the active account lacks the role. One read answers
+# "prepared": nothing is granted, unchanged.
+CALLED ^iap settings get .*--organization=111111111111 .*--billing-project=aleogr-shared-ab12|^iap settings get .*--billing-project=aleogr-shared-ab12 .*--organization=111111111111
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^services enable
+NOT_CALLED ^iap settings set
+OUTPUT "status": "unchanged"
+OUTPUT "prepared": true
+OUTPUT_NOT read -r -s
+OUTPUT_NOT apps\.googleusercontent\.com

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Fake sleep for the skill tests: logs "sleep <arguments>" and returns at once, with
+# no output and exit 0. It reads no response file (a scenario's default.txt or
+# default.txt.exit1 answers gcloud, gh and git, never the wait).
+echo "sleep $*" >> "${FAKE_LOG:?FAKE_LOG is not set}"
+exit 0

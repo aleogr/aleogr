@@ -1,0 +1,16 @@
+# The binding made right after the account is refused ten times: the run waits 30
+# seconds between tries, stops at the tenth, keeps what it made and leaves the binding
+# pending. An eleventh try would be accepted (and the policy would then read the binding
+# back), so a run that tried more than ten times ends without the item binding.
+COUNT 10 ^iam service-accounts add-iam-policy-binding .*--role=roles/iam.workloadIdentityUser
+COUNT 9 ^sleep 30$
+CALLED ^iam service-accounts create demo-ci
+NOT_CALLED delete
+OUTPUT "status": "created"
+OUTPUT "item": "binding"
+OUTPUT "how": ".*mode=apply
+OUTPUT_NOT NOT_FOUND
+OUTPUT_NOT "status": "updated"
+OUTPUT "ciVariables": null
+# Every wait is exactly sleep 30 (COUNT is "at least"; this keeps other lengths out).
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)

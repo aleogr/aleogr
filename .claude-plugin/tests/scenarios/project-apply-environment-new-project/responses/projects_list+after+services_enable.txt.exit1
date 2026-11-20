@@ -1,1 +1,1 @@
-ERROR: (gcloud.projects.list) this scenario allows no search by labels between the enable and the last plan.
+ERROR: (gcloud.projects.list) this scenario allows no search by labels after the enable: the last plan reads the project by its id.

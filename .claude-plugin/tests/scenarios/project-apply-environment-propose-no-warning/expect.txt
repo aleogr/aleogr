@@ -1,0 +1,12 @@
+# The repository's declaration already has the environment dev; the local declaration changes only
+# the description. With confirm=yes the change is proposed by pull request, and the proposal adds no
+# environment: the body is exactly "Proposed by aleogr.", and neither it nor the answer warns about
+# a GCP project.
+CALLED ^git commit -m "?Change the project declaration"? -- \.aleogr/project\.json
+CALLED ^gh pr create --repo example-org/demo --base main --head aleogr/change-[a-z0-9]{6} .* --body "?Proposed by aleogr\."?$
+NOT_CALLED ^(projects (create|list)|services|organizations|resource-manager|billing|artifacts|iam)( |$)
+NOT_CALLED ^gh repo|--method|^git .*push .*origin main
+OUTPUT "status": "updated"
+OUTPUT merge https://github\.com/example-org/demo/pull/7
+OUTPUT_NOT permanent
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$

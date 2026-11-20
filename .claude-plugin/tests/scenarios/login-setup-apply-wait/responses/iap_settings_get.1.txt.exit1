@@ -1,0 +1,4 @@
+ERROR: (gcloud.iap.settings.get) PERMISSION_DENIED: Permission 'iap.organizations.getSettings' denied on resource '//iap.googleapis.com/organizations/111111111111' (or it may not exist). This command is authenticated as demo-user@example.com which is the active account specified by the [core/account] property.
+- '@type': type.googleapis.com/google.rpc.ErrorInfo
+  domain: iam.googleapis.com
+  reason: IAM_PERMISSION_DENIED

@@ -1,0 +1,8 @@
+# The fake sleep logs "sleep <arguments>", prints nothing and exits 0 at once; it is not
+# answered by the scenario's default.txt.exit1, which answers gcloud.
+CALLED ^sleep 30$
+ORDER ^sleep 30$ >> ^projects list
+CALLED ^projects list --format=json$
+OUTPUT SELFTEST-PROJECTS
+OUTPUT_NOT SELFTEST-DEFAULT
+RESULT_NOT selftest-absent

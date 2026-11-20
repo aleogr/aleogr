@@ -1,12 +1,13 @@
-# As project-apply-environment-new-project, but the last plan's search by labels does not show the
-# project created in this run yet. The run never says a bare "apply again": status updated, one
-# item that names the project's id, says to wait a minute and run project-plan, and to apply again
-# only when that plan shows environment dev as exists.
+# As project-apply-environment-new-project, but the search by labels never shows the project created
+# in this run (it answers nothing after the last change). The last plan reads the project by the id
+# the run created (project-plan projectId=), so the run still ends with nothing to do: no stop that
+# waits for a search by labels, and never a bare "apply again".
 CALLED ^projects create aleogr-dev-demo-[a-z0-9]{4} .*--folder=444444444444
 CALLED ^artifacts repositories add-iam-policy-binding demo
-OUTPUT "item": "environment dev", "reason": "manual", "how": "[^"]*aleogr-dev-demo-[a-z0-9]{4}[^"]*minute[^"]*/aleogr:project-plan[^"]*only when[^"]*environment dev[^"]*exists
-OUTPUT_NOT "how": "[^"]*/aleogr:project-apply confirm=yes"
-OUTPUT does not show it yet
+COUNT 2 ^projects describe aleogr-dev-demo-[a-z0-9]{4} --format=json$
+OUTPUT "item": "environment dev", "state": "exists", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "updated"
-OUTPUT_NOT nothing to do
+OUTPUT_NOT does not show it yet
+OUTPUT_NOT "item": "(environment dev|verify)", "reason"
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)

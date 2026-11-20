@@ -1,0 +1,31 @@
+# Everything of the platform exists; the login was never prepared (its setting cannot be
+# read before the role). The run grants the role and enables the IAP API, prints the list
+# of clicks and the one command once, and ends with the item login. It never runs the
+# command that takes the secret.
+CALLED ^organizations add-iam-policy-binding 111111111111 .*--role=roles/iap\.settingsAdmin( |$)
+CALLED ^organizations add-iam-policy-binding 111111111111 .*--member=user:owner@example\.com( |$)
+CALLED ^services enable iap\.googleapis\.com .*--project=aleogr-shared-zz99
+NOT_CALLED ^iap settings set
+NOT_CALLED ^(projects create|billing projects link|billing budgets create|sql instances create|scheduler jobs create)
+# the plan, the setup and the closing plan each read the setting
+COUNT 3 ^iap settings get .*--organization=111111111111( |$)
+ORDER ^organizations add-iam-policy-binding >> ^services enable iap
+OUTPUT "action": "platform-apply"
+OUTPUT "status": "updated"
+OUTPUT "item": "login"
+OUTPUT "reason": "manual"
+OUTPUT https://console\.cloud\.google\.com/auth/branding\?project=aleogr-shared-zz99
+OUTPUT https://console\.cloud\.google\.com/auth/clients\?project=aleogr-shared-zz99
+OUTPUT https://iap\.googleapis\.com/v1/oauth/clientIds/<client id>:handleRedirect
+OUTPUT read -r -s -p
+OUTPUT gcloud iap settings set
+# After the clicks and the command, the platform's plan shows the login prepared.
+OUTPUT "how": ".*then run /aleogr:platform-plan"
+OUTPUT_NOT clientSecret: [^<$%]
+# The line that ends a run with nothing left is not written (a sentence that names it is not that line).
+OUTPUT_NOT ^[[:space:]*_>-]*[Nn]othing to do[[:space:].*_]*$
+RESULT_NOT 111111111111
+RESULT_NOT owner@example\.com
+# The list is for the answer only: neither the console address nor the command is in the block.
+RESULT_NOT console\.cloud\.google\.com
+RESULT_NOT read -r -s -p

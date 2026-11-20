@@ -8,7 +8,13 @@ Compares the project's declaration, `.aleogr/project.json` in the folder the ski
 
 ## Arguments
 
-None. Any text after the skill name is ignored. Everything comes from the declaration.
+Free text after the skill name, as `key=value` pairs. Everything else comes from the declaration, and any other text is ignored.
+
+| Argument | Meaning |
+|---|---|
+| `projectId=<id>` | Optional. The GCP project id of `dev`, when the caller already knows it (`project-apply` passes it after it created or found the project in its run): step 9 reads that project by its id instead of searching by labels, which can lag behind a creation. |
+
+Before invoking anything, check it: `projectId`, when given, has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. Otherwise end with `status` `failed`, one sentence saying which rule failed (item `arguments`), and invoke nothing. A `projectId` given for a declaration without `environments` is not used.
 
 ## The declaration's rules
 
@@ -130,20 +136,20 @@ A declaration without `environments` skips the `gcloud` check of step 2 and step
    - `outputs.exists` true: take `visibility`, `description`, `topics`, `settings`, `protection.state` and `protection.matches`, and, with `environments`, `id`, `ownerId` and `defaultBranch`. Go to step 5.
 5. Invoke `aleogr-repo-github:github_checkout-setup owner=<repo.owner> name=<repo.name> mode=plan`, with `head=check` added exactly when the declaration has at least one component. It reads the repository's copy of `.aleogr/project.json`, compares it with the local one and, when they differ, reads the folder. With `head=check` it also reads the folder when they are equal, and reports `behind` when the repository's head moved on from this folder's last commit: a merged pull request that added code or `ci.yml` without changing the declaration leaves this folder behind all the same.
    - `status` `failed`: stop with `failed` and its cause. Invoke nothing else.
-   - Otherwise take `outputs.state` (`equal`, `not-sent`, `differs`, `missing`, `behind` or `needs-attention`), `outputs.reason` and its `pending` items. Go to step 6.
+   - Otherwise take `outputs.state` (`equal`, `not-sent`, `differs`, `missing`, `behind` or `needs-attention`), `outputs.reason` and its `pending` items. Also note the environments of the repository's copy of the declaration (the output `repositoryEnvironments`), from what this step already read, with no other read: state `equal`, the names of the folder's `environments` (the two are equal); state `not-sent` or `missing` (the repository has no declaration), `[]`; any other state, the keys of `environments` of the repository's copy that this step read and showed (`gh api repos/<owner>/<name>/contents/.aleogr/project.json`), `[]` when that copy has no `environments`, and `null` when the copy could not be read as JSON. Go to step 6.
 6. Invoke `aleogr-repo-github:github_pull-request-open owner=<repo.owner> name=<repo.name> paths=<paths> mode=plan`, where `<paths>` is `.aleogr/project.json` without components and the tooling paths with components. It reports the open tooling pull request, if any, whether the folder is fit for a proposal and which of the paths changed.
    - `status` `failed`: stop with `failed` and its cause.
    - Otherwise (any other status: `pending`, `would-create` or `unchanged` are all input here) take `outputs.openPullRequest` (`null`, or its `number` and `url`), `outputs.folder` (`ready`, `not-a-checkout`, `other-remote`, `other-branch` or `local-commits`), `outputs.changed` and its `pending` items. Go to step 7.
-7. Decide the `declaration` item now, by the list under "Items". Without components: with `environments` and the action `none`, go to step 9; otherwise go to the answer. With components: its action `merge it`, `update`, `fix the folder` or `send`: invoke nothing else (the rows `components` and `ci` are not checked, nor the environment's) and go to the answer; its action `propose` or `none`: go to step 8.
+7. Decide the `declaration` item now, by the list under "Items". Without components: with `environments` and the action `none`, go to step 9; otherwise go to the answer. With components: its action `merge it`, `update`, `fix the folder` or `send`: invoke nothing else (the rows `components` and `ci` are not checked, nor the environment's) and go to the answer; its action `propose` or `none`: go to step 8. When this step goes to the answer, the last invocation is over. Now write this skill's answer, and nothing before it: not the lines or the block of `github_pull-request-open`, of `github_checkout-setup` or of a `go_setup`. Start with the table's header row (on `failed`, with the sentence of the failure), and end with this skill's block.
 8. For each component, sorted by `name`, invoke `aleogr-stack-go:go_setup component=<name> path=<path> version=<version> module=<module> mode=plan`. In `plan` it writes nothing; it reads the component's folder.
    - `status` `failed`: stop with `failed` and its cause. Invoke nothing else.
-   - Otherwise (any other status: `unchanged`, `would-create` or `pending` are all input here) take its `status` and its `pending` items, and go on with the next component. After the last one: with `environments` and the `declaration` action `none`, go to step 9; otherwise go to the answer.
+   - Otherwise (any other status: `unchanged`, `would-create` or `pending` are all input here) take its `status` and its `pending` items, and go on with the next component. After the last one: with `environments` and the `declaration` action `none`, go to step 9; otherwise go to the answer. When this step goes to the answer, the last invocation is over. Now write this skill's answer, and nothing before it: not the lines or the block of `github_pull-request-open`, of `github_checkout-setup` or of a `go_setup`. Start with the table's header row (on `failed`, with the sentence of the failure), and end with this skill's block.
 
 Steps 9 to 11 run only with `environments`, and only when the `declaration` action is `none` (the declaration in the repository is this one).
 
 Write nothing between the invocations of steps 9 to 11 and the table: no summary of a skill's run, no copy of its block.
 
-9. Invoke `aleogr-cloud-gcp:gcp_environment-describe project=<name> environment=dev`. It only reads. Read its block, then take the case below that applies.
+9. Invoke `aleogr-cloud-gcp:gcp_environment-describe projectId=<projectId>` when the argument `projectId` was given, otherwise `aleogr-cloud-gcp:gcp_environment-describe project=<name> environment=dev`. It only reads. Read its block, then take the case below that applies.
    - `status` `failed`: stop with `failed` and its cause. Invoke nothing else. Go to the Answer: your next output is the sentence of the failure; write nothing before it.
    - `outputs.exists` false, or `outputs.billingLinked` false: nothing inside the GCP project is read. Go to the Answer. Your next output is the table, starting with its header row; write nothing before it.
    - Otherwise take `projectId` and `enabledServices`. The APIs to enable are the names of `project.services` that are not in `enabledServices`. Some (no Artifact Registry or IAM read works before they are on): go to the Answer. Your next output is the table, starting with its header row; write nothing before it. None: write nothing and go straight to step 10.
@@ -154,6 +160,8 @@ Write nothing between the invocations of steps 9 to 11 and the table: no summary
    - `status` `failed` with `outputs.account` `null` (it refused an argument, or could not read the GCP project): stop with `failed` and its cause. Invoke nothing else. Your next output is the sentence of the failure; write nothing before it.
    - `status` `failed` with `outputs.account` set (a pool or provider deleted or disabled, a pool that holds another provider, or a part it could not read): this is not a failure of the plan but something the owner fixes by hand. Keep its sentence (the cause and what the owner does) for the `ci identity` item. Your next output is the table, starting with its header row; write nothing before it.
    - Otherwise (`would-create`, `would-update` or `unchanged` are all input here) take its `status`, `outputs.account` and `outputs.ciVariables`. Your next output is the table, starting with its header row; write nothing before it.
+
+   This was the last invocation. Now write this skill's answer, and nothing before it: not the lines of `gcp_ci-identity-setup`, not its CI variables, not its block. Start with the table's header row (on `failed`, with the sentence of the failure), and end with this skill's block.
 
 ## Items
 
@@ -185,7 +193,7 @@ These cases replace the rows above:
 - **Declaration being changed** (`declaration` action `merge it`, `update`, `fix the folder` or `propose`): the repository's declaration is the one that holds until the change is merged and the folder is up to date, so nothing on GitHub is compared with the local file: `settings`, `visibility` and `protection` are `not checked until the change is merged` / `none`, and `exposes` is `false`. `repository` and `declaration` are as above.
 - **Code not checked** (with components, `declaration` action `merge it`, `update` or `fix the folder`): `components` and `ci` are `not checked until the change is merged` / `none`, and step 8 is not run. With the action `send` (the birth): `components` and `ci` are `not checked until the declaration is sent` / `none`, and step 8 is not run.
 
-With the `declaration` action `propose` or `none`, `components` and `ci` are computed from the local declaration and this folder, as the table says: writing files in the folder and proposing them changes nothing on GitHub, so they do not wait for a merge.
+With the `declaration` action `propose` or `none`, `components` and `ci` are computed from the local declaration and this folder, as the table says: writing files in the folder and proposing them changes nothing on GitHub, so they do not wait for a merge. `settings`, `visibility` and `protection` do wait for it: with the `declaration` action `propose` (as with `merge it`, `update` and `fix the folder`, and never with `send` or `none`) they are `not checked until the change is merged` / `none`, whatever the repository's state, by the case "Declaration being changed" above.
 
 `merge it` and `fix the folder` are the owner's to do: `project-apply` stops on them.
 
@@ -211,6 +219,8 @@ These cases replace the rows above, the first that applies:
 
 ## Answer
 
+Whichever step led here, the last skill invoked is over: your next output is this skill's answer, with nothing before it, not that skill's lines, table or block.
+
 Print the table (item, state, action). Under the table, these lines when they apply, worded as here:
 
 - `visibility` has action `update`: `visibility: needs confirmVisibility=<repo.visibility>`.
@@ -226,6 +236,8 @@ The words `requires ci` appear only as the `protection` state `protected, requir
 Then one line: `nothing to do` when every action is `none`. Otherwise how many items have an action other than `none` and that `project-apply` makes them (for `merge it`, `fix the folder` or `fix by hand`, that it is the owner's to do). Never write the words `nothing to do` when an action is not `none`. On `failed`: the sentence of the failed step instead of the table. Then the result block.
 
 ## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
 
 ```aleogr-result
 {
@@ -252,6 +264,7 @@ Then one line: `nothing to do` when every action is `none`. Otherwise how many i
     "checks": "none",
     "changed": [],
     "environment": null,
+    "repositoryEnvironments": [],
     "ciVariables": null
   },
   "cost": { "fixed": false, "notes": "read-only plan" },
@@ -268,7 +281,7 @@ Write each item of `outputs.items` on one line, as in the example.
   - `would-create`: the repository is to create.
   - `would-update`: some action is `create`, `update`, `send`, `propose`, `generate`, `repair`, `enable`, `configure` or `grant`.
   - `pending`: the only actions other than `none` are `merge it`, `fix the folder` or `fix by hand`.
-- `outputs` has the same ten keys in every ending:
+- `outputs` has the same eleven keys in every ending:
   - `project`: the declaration's `name`; `repository`: `<repo.owner>/<repo.name>`; `visibility`: the declared `repo.visibility`. All three `null` when the declaration is missing or invalid.
   - `exposes`: `true` when the plan would create a public repository (repository missing and `repo.visibility` `public`) or make one public (`visibility` `differs` and `repo.visibility` `public`); `false` otherwise, always `false` while the `declaration` action is `merge it`, `update`, `fix the folder` or `propose`, and always `false` on `failed`.
   - `items`: the five items in order, or the seven with components, followed by the four of the environment when the declaration has `environments`; `[]` on `failed`.
@@ -276,6 +289,7 @@ Write each item of `outputs.items` on one line, as in the example.
   - `checks`: `ci` when `.github/workflows/ci.yml` is in the repository's default branch (step 4 used `checks=ci`), `none` otherwise; the protection row may still be `not checked`.
   - `changed`: the `outputs.changed` of the pull request skill of step 6, as it gave it (the tooling paths that changed in this folder, in its order); `[]` when step 6 was not invoked or failed. `project-apply` chooses the pull request's title from it.
   - `environment`: `null` without `environments` and on `failed`. Otherwise `{ "name": "dev", "projectId": <id> }`, on one line, where `<id>` is `outputs.projectId` of step 9 when it ran and the GCP project exists, and `null` otherwise.
+  - `repositoryEnvironments`: the names of the environments the repository's copy of the declaration has (the keys of its `environments`, sorted), as step 5 noted them, on one line: `[]` when that copy has none, when the repository has no declaration, or when the repository does not exist (step 4: `exists` false); `null` when it is not known (the copy could not be read as JSON, or the plan ended `failed` before step 5 decided it). `project-apply` reads it to know whether a proposal adds an environment.
   - `ciVariables`: `outputs.ciVariables` of step 11 as it gave it (set only when the CI identity exists as declared), on one line; `null` when step 11 was not run or ended `failed`.
 - `pending` holds the items of every case below that applies, in the order of the items:
   - `declaration` action `merge it`: exactly one item `{ "item": "pull request #<n> is open", "reason": "manual", "how": "merge <url>, then run /aleogr:project-apply confirm=yes" }`, with the `number` and `url` of `openPullRequest`.
