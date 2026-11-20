@@ -1,0 +1,11 @@
+# Manual scaling with one instance (a fixed cost): back to automatic, minimum 0, maximum 2.
+CALLED ^run services update demo-web .*--scaling=auto( |$)
+CALLED ^run services update demo-web .*--min=0( |$)
+CALLED ^run services update demo-web .*--max=2( |$)
+NOT_CALLED --scaling=[0-9]|--min=[1-9]|--min-instances=[1-9]
+NOT_CALLED --image
+NOT_CALLED ^run services update .*(--iap|--invoker-iam-check)
+OUTPUT "status": "updated"
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

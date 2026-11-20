@@ -15,3 +15,6 @@ OUTPUT "created": \[ ?"web" ?\]
 OUTPUT "web": "https://demo-web-123456789012.us-central1.run.app"
 OUTPUT_NOT Setting IAM permissions failed
 RESULT_NOT demo-user@example\.com
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

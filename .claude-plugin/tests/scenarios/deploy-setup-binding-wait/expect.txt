@@ -2,7 +2,11 @@
 COUNT 3 ^iam service-accounts add-iam-policy-binding demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com
 COUNT 2 ^sleep 30$
 ORDER ^iam service-accounts create demo-web >> ^sleep 30$
+ORDER ^sleep 30$ >> ^run deploy demo-web
 NOT_CALLED ^sleep ([^3]|3[^0]|30.)
 OUTPUT "status": "created"
 OUTPUT "pending": \[ ?\]
 OUTPUT_NOT NOT_FOUND
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

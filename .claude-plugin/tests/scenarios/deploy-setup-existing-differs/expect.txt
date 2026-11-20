@@ -6,8 +6,9 @@ CALLED ^run services update demo-web .*--memory=256Mi( |$)
 CALLED ^run services update demo-web .*aleogr-environment=dev
 NOT_CALLED --image
 NOT_CALLED ^run deploy
-NOT_CALLED ^run services update .*--iap
+NOT_CALLED ^run services update .*(--iap|--invoker-iam-check)
 NOT_CALLED --allow-unauthenticated|allUsers|--no-iap
+NOT_CALLED --ingress|--no-invoker-iam-check|--no-iap|--allow-unauthenticated( |$)
 CALLED ^run services add-iam-policy-binding demo-web .*--member=serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com( |$)
 CALLED ^run services add-iam-policy-binding demo-web .*--role=roles/run.invoker( |$)
 CALLED ^run services add-iam-policy-binding demo-web .*--role=roles/run.developer( |$)
@@ -18,3 +19,6 @@ OUTPUT "status": "updated"
 OUTPUT "updated": \[ ?"web" ?\]
 OUTPUT "created": \[ ?\]
 OUTPUT "asDeclared": true
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

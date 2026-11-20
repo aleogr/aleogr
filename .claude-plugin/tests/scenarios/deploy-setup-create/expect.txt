@@ -1,4 +1,4 @@
-# Nothing exists. Per component: account, then the service in one command behind the login, then the bindings.
+# Nothing exists. Per component: account, its binding (the gate), then the service in one command behind the login, then the rest.
 CALLED ^iam service-accounts create demo-web .*--project=aleogr-dev-demo-ab12
 CALLED ^iam service-accounts create demo-api .*--project=aleogr-dev-demo-ab12
 CALLED ^run deploy demo-web .*--image=us-docker.pkg.dev/cloudrun/container/hello:latest( |$)
@@ -13,6 +13,10 @@ CALLED ^run deploy demo-web .*--cpu-throttling( |$)
 CALLED ^run deploy demo-web .*--labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=web( |$)
 CALLED ^run deploy demo-web .*--region=us-central1( |$)
 CALLED ^run deploy demo-web .*--project=aleogr-dev-demo-ab12( |$)
+# The creating deploy is ONE command carrying the login flags and the account together.
+CALLED ^run deploy demo-web (.* )?--no-allow-unauthenticated --iap --service-account=demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com( |$)
+CALLED ^run deploy demo-api (.* )?--no-allow-unauthenticated --iap --service-account=demo-api@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com( |$)
+NOT_CALLED --ingress|--no-invoker-iam-check|--no-iap|--allow-unauthenticated( |$)
 CALLED ^run deploy demo-api .*--no-allow-unauthenticated( |$)
 CALLED ^run deploy demo-api .*--iap( |$)
 CALLED ^run deploy demo-api .*--labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=api( |$)
@@ -39,7 +43,10 @@ CALLED ^iap web add-iam-policy-binding .*--member=user:demo-user@example.com( |$
 CALLED ^iap web add-iam-policy-binding .*--role=roles/iap.httpsResourceAccessor( |$)
 ORDER ^iam service-accounts create demo-web >> ^run deploy demo-web
 ORDER ^run deploy demo-web >> ^run services add-iam-policy-binding demo-web
-ORDER ^run deploy demo-web >> ^iam service-accounts add-iam-policy-binding demo-web@
+# The binding on the new account comes first: it proves the account is visible before the deploy uses it.
+ORDER ^iam service-accounts create demo-web >> ^iam service-accounts add-iam-policy-binding demo-web@
+ORDER ^iam service-accounts add-iam-policy-binding demo-web@ >> ^run deploy demo-web
+ORDER ^iam service-accounts add-iam-policy-binding demo-api@ >> ^run deploy demo-api
 ORDER ^iam service-accounts create demo-api >> ^run deploy demo-api
 ORDER ^run deploy demo-api >> ^run services add-iam-policy-binding demo-api
 OUTPUT "status": "created"
@@ -47,3 +54,6 @@ OUTPUT "created": \[ ?"web", ?"api" ?\]
 OUTPUT "web": "https://demo-web-123456789012.us-central1.run.app"
 OUTPUT "waiting": \[ ?"web", ?"api" ?\]
 RESULT_NOT demo-user@example\.com
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

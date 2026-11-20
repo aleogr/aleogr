@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "members": [
+        "serviceAccount:deployer@aleogr-dev-demo-ab12.iam.gserviceaccount.com"
+      ],
+      "role": "roles/iap.httpsResourceAccessor"
+    }
+  ],
+  "etag": "BwYxxxxxxxx="
+}

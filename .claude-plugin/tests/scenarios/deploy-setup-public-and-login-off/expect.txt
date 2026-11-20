@@ -1,0 +1,17 @@
+# Public AND without the login, with a scaling difference: the public member goes first, then the
+# login alone, then the rest in an update that carries no security flag.
+CALLED ^run services remove-iam-policy-binding demo-web .*--member=allUsers( |$)
+CALLED ^run services update demo-web --iap --region=us-central1 --project=aleogr-dev-demo-ab12 --quiet$
+CALLED ^run services update demo-web .*--max=2( |$)
+ORDER ^run services remove-iam-policy-binding demo-web >> ^run services update demo-web
+ORDER ^run services update demo-web --iap >> ^run services update demo-web .*--max=2
+NOT_CALLED ^run services update .*--max=.*--iap|^run services update .*--iap.*--max=
+NOT_CALLED ^run services add-iam-policy-binding .*gcp-sa-iap
+NOT_CALLED --image
+NOT_CALLED ^run deploy
+NOT_CALLED --no-iap|--allow-unauthenticated( |$)|--no-invoker-iam-check
+OUTPUT "status": "updated"
+OUTPUT "asDeclared": true
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

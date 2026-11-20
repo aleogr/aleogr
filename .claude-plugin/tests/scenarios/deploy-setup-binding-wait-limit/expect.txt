@@ -1,10 +1,15 @@
-# Refused ten times: ten tries, nine waits, then the skill stops, keeps what it made and leaves the
-# binding pending. An eleventh try would be accepted, so a run that tried more ends with nothing pending.
+# Refused ten times: ten tries, nine waits, then the skill stops, keeps the account and leaves the
+# binding and the service pending. An eleventh try would be accepted, so a run that tried more ends with nothing pending.
 COUNT 10 ^iam service-accounts add-iam-policy-binding demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com
 COUNT 9 ^sleep 30$
 NOT_CALLED ^sleep ([^3]|3[^0]|30.)
 NOT_CALLED delete
+# The binding is the gate: without it the service is never created.
+NOT_CALLED ^run deploy
 OUTPUT "status": "created"
 OUTPUT "item": "web
 OUTPUT "how": ".*mode=apply
 OUTPUT_NOT NOT_FOUND
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

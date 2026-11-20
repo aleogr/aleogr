@@ -8,3 +8,6 @@ OUTPUT "created": \[ ?\]
 OUTPUT "updated": \[ ?\]
 OUTPUT "api": "https://demo-api-123456789012.us-central1.run.app"
 RESULT_NOT demo-user@example\.com
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

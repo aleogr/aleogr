@@ -1,0 +1,8 @@
+# The active account is a service account: its member is serviceAccount:, never user:.
+CALLED ^iap web add-iam-policy-binding .*--member=serviceAccount:deployer@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com( |$)
+NOT_CALLED --member=user:
+NOT_CALLED ^run deploy|^run services update
+OUTPUT "status": "updated"
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @
