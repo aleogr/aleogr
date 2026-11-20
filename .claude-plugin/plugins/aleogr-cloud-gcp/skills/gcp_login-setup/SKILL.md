@@ -105,7 +105,7 @@ On an organization whose login was never prepared, even its administrator may no
 
 8. The read after the change (`apply`, only when the first read did not answer), the same command as in step 5:
 
-   - Exit 0 and a client: the login is prepared. Print no list and end with `updated`.
+   - Exit 0 and a client: the login is prepared (someone set it before this run; the read could not see it until the change). Print no list and no command, and end with `updated`, `prepared` true, `steps` `[]` and an empty `pending`: nothing is left to the owner.
    - Exit 0 with anything else, or a non-zero exit whose text contains `NOT_FOUND`: not prepared. Go to step 9.
    - A non-zero exit whose text contains `SERVICE_DISABLED`: never polled. Say `The organization's login setting could not be read: the IAP API is not on in <projectId> yet.`, print no list, and end with `updated` and the item `login` "not read" (below).
    - A non-zero exit whose text contains `PERMISSION_DENIED` (which `IAM_PERMISSION_DENIED` also contains), when this run granted the role: the grant has not reached the read yet, and waiting cures it. Poll: wait 30 seconds, then run the same read again, alone; while it is refused that same way, wait and try again; at most 10 reads after the grant in all, the first one included (so at most 9 waits, about 5 minutes). Any other answer ends the poll and is read as this step says. When the tenth read is still refused, say `The role was granted, but the organization's login setting could not be read yet.`, print no list, and end with `updated` and the item `login` "not read". Never an eleventh read.

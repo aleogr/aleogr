@@ -1,6 +1,6 @@
 # Reference project, stage 4b-1: checklist for the real run
 
-For the owner, in Google Cloud Shell ([`cloud-shell.md`](../cloud-shell.md)). It proves three things: the platform's plan reads the login of the organization as `prepared`; a second Google account gets into a service after **one** command; and the spike of 2026-11-19 is removed, leaving `pilot` with `nothing to do`. Nothing here costs money, and nothing new is created in Google Cloud.
+For the owner, in Google Cloud Shell ([`cloud-shell.md`](../cloud-shell.md)). It proves three things: the platform's plan reads the login of the organization as `prepared`; a second Google account gets into a service after **one** command; and the spike of 2026-11-19 is removed, leaving `pilot` with `nothing to do`. Nothing here costs money, and nothing new is created in Google Cloud (step 2 may turn on the IAP API of the shared project, which is free).
 
 Source of truth: [`2026-11-19-pilot-stage-4b-design.md`](2026-11-19-pilot-stage-4b-design.md) (part 4b-1) and [`DESIGN.md`](../DESIGN.md) sections 6.3, 6.8 and 10.4.
 
@@ -50,9 +50,10 @@ cd ~/aleogr && claude
 
 Allow the `gcloud` reads it shows (`organizations list`, `iap settings get`, and the others); the read of `defaults.json` is **"Yes, but ask again next time"**.
 
-Expected: `status` `unchanged`, the line `nothing to do`, and the last row `login` `prepared` / `none` (the other rows as before: `shared project` `ready`, `services` `all enabled`, `budget alert` `exists`, `database switch` `ready`, `database instance` `exists, stopped`). The setting the read shows holds the client's id: do not paste it.
+Expected: the other rows as before (`shared project` `ready`, `services` `all enabled`, `budget alert` `exists`, `database switch` `ready`, `database instance` `exists, stopped`), and one of two answers. The setting the read shows holds the client's id: do not paste it.
 
-If `login` is `not prepared` or `not checked` instead: run `/aleogr:platform-apply confirm=yes`. If its answer has a `Login` section, stop and send the answer (the login was set during the spikes, so the plan should see it).
+- `status` `unchanged`, the line `nothing to do`, and the last row `login` `prepared` / `none`.
+- Or the last row `login` `not prepared` / `prepare` (or `not checked` / `prepare`), status `would-update`. This is possible: the login was set by hand during the spikes, but the plan's read of it is counted against the shared project, whose IAP API may be off. When `login` is the only row with an action, run `/aleogr:platform-apply confirm=yes`: it turns the IAP API on (and grants your account the role `roles/iap.settingsAdmin` when it lacks it; both free), reads the login again, finds it, and ends with the row `login` `prepared` and the line `nothing to do`. There is nothing to click. If its answer has a `Login` section, or if another row also has an action, stop and send the answer.
 
 `/exit` when done.
 
@@ -125,7 +126,7 @@ Stop at that step and send its whole answer (or the terminal's text), with every
 |---|---|---|
 | Ready | 4b-1 merged; `gcloud` and `gh` signed in; a second account; `spike-iap` and `spike-iap2` listed | |
 | 1. Plugins | the six versions above | |
-| 2. Platform plan | `unchanged`, `nothing to do`, `login` `prepared` / `none` | |
+| 2. Platform plan | `unchanged`, `nothing to do`, `login` `prepared` / `none`; or `login` `not prepared`, then `platform-apply confirm=yes` ends with `login` `prepared`, no `Login` section | |
 | 3.1 Address | one `.run.app` address | |
 | 3.2 Before the grant | "You don't have access"; any other screen first? | |
 | 3.3 The grant | the policy printed | |

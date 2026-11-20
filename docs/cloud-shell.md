@@ -89,7 +89,7 @@ Every service of every project is behind Google's login. The organization is own
 3. Paste the list's one command in the Cloud Shell terminal, **outside Claude Code**. It asks for the client's id and then, without showing it, the secret: type them there. **Never paste the secret, or the client's id, in the conversation with Claude**: no skill needs it, and the command is the only place it goes. Google keeps it; nothing else does.
 4. Run `/aleogr:platform-apply confirm=yes` again: the row `login` says `prepared` (and, when nothing else is missing, the run says `nothing to do`).
 
-On the owner's organization this was done by hand on 2026-11-19, during the spikes of stage 4b, so the row already reads `prepared`.
+On the owner's organization this was done by hand on 2026-11-19, during the spikes of stage 4b. The plan's read of the login is counted against the shared project, whose IAP API may still be off: the row `login` can then read `not prepared` / `prepare`. In that case `/aleogr:platform-apply confirm=yes` turns that API on (and grants your account the role when it lacks it; both free), reads the login again, finds it, and ends with `login` `prepared` and no `Login` section: there is nothing to click. The run of stage 4b-1 checks which of the two the owner sees.
 
 ## Working in a project folder
 
