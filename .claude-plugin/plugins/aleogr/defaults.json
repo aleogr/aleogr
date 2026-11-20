@@ -4,8 +4,8 @@
   "domain": "aleogr.dev",
   "repo": { "provider": "github", "visibility": "private", "settings": { "mergeCommit": true, "squash": true, "rebase": false, "deleteBranchOnMerge": true, "issues": true, "wiki": false, "projects": false } },
   "stacks": { "go": { "version": "1.27" } },
-  "ci": { "workflowsRepository": "aleogr/aleogr" },
-  "project": { "services": ["cloudresourcemanager.googleapis.com", "artifactregistry.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com"], "registry": { "keep": 5 } },
+  "ci": { "workflowsRepository": "aleogr/aleogr", "deployWorkflow": "deploy-cloud-run.yml" },
+  "project": { "services": ["cloudresourcemanager.googleapis.com", "artifactregistry.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "run.googleapis.com", "iap.googleapis.com"], "registry": { "keep": 5 }, "deploy": { "maxInstances": 2, "cpu": "1", "memory": "512Mi", "placeholderImage": "us-docker.pkg.dev/cloudrun/container/hello:latest" } },
   "platform": {
     "shared": { "project": "shared", "services": ["cloudresourcemanager.googleapis.com", "billingbudgets.googleapis.com", "sqladmin.googleapis.com", "cloudscheduler.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com"] },
     "budget": { "displayName": "aleogr", "amount": 100, "currency": "BRL", "thresholds": [0.5, 0.9, 1.0] },
