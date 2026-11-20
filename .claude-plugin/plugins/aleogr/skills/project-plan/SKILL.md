@@ -295,7 +295,9 @@ When another skill invoked this one (an orchestrator, such as `aleogr:project-pl
     "environment": null,
     "repositoryEnvironments": [],
     "ciVariables": null,
-    "urls": null
+    "urls": null,
+    "ciDeploy": null,
+    "defaultBranch": null
   },
   "cost": { "fixed": false, "notes": "read-only plan" },
   "pending": []
@@ -311,7 +313,7 @@ Write each item of `outputs.items` on one line, as in the example.
   - `would-create`: the repository is to create (`repository` is `missing` / `create`); a `create` on any other row is `would-update`.
   - `would-update`: some action is `create`, `update`, `send`, `propose`, `generate`, `repair`, `enable`, `configure`, `grant` or `set`.
   - `pending`: the only actions other than `none` are `merge it`, `fix the folder`, `fix by hand` or `prepare the login`.
-- `outputs` has the same twelve keys in every ending:
+- `outputs` has the same fourteen keys in every ending:
   - `project`: the declaration's `name`; `repository`: `<repo.owner>/<repo.name>`; `visibility`: the declared `repo.visibility`. All three `null` when the declaration is missing or invalid.
   - `exposes`: `true` when the plan would create a public repository (repository missing and `repo.visibility` `public`) or make one public (`visibility` `differs` and `repo.visibility` `public`); `false` otherwise, always `false` while the `declaration` action is `merge it`, `update`, `fix the folder` or `propose`, and always `false` on `failed`.
   - `items`: the five items in order, or the seven with components, followed by the four of the environment when the declaration has `environments`, and by `services` and `ci variables` when it has both components and `environments`; `[]` on `failed`.
@@ -322,6 +324,7 @@ Write each item of `outputs.items` on one line, as in the example.
   - `repositoryEnvironments`: the names of the environments the repository's copy of the declaration has (the keys of its `environments`, sorted), as step 5 noted them, on one line: `[]` when that copy has none, when the repository has no declaration, or when the repository does not exist (step 4: `exists` false); `null` when it is not known (the copy could not be read as JSON, or the plan ended `failed` before step 5 decided it). `project-apply` reads it to know whether a proposal adds an environment.
   - `ciVariables`: the five CI variables, on one line: `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER` and `GCP_CI_ACCOUNT` as `outputs.ciVariables` of step 11 gave them, then `GCP_REGION` (`cloud.region`) and `GCP_IMAGE_PATH` (`imagePath` of step 10). Set only when step 11 gave its `ciVariables` (the CI identity exists as declared) and step 10 gave an `imagePath`; `null` otherwise, when step 11 was not run, and on `failed`. No other key of the block holds these values.
   - `urls`: `null` when step 13 did not run, and on `failed`. Otherwise, on one line, an object whose keys are the components whose service exists and has an address, in the order of the components, each with that address (`url` of step 13): `{ "api": "https://demo-api-<n>.us-central1.run.app", "web": "https://demo-web-<n>.us-central1.run.app" }`; `{}` when none does.
+  - `ciDeploy`: `true` when step 15 invoked `github_ci-setup` with `deploy=dev project=<name>` (by the rule of the deploy jobs), `false` when it invoked it without, `null` when step 15 did not run. `defaultBranch`: the `defaultBranch` passed to `github_ci-setup` in step 15, `null` when step 15 did not run. `project-apply` passes exactly these two to `github_ci-setup … mode=apply`, so the file it writes is the file the next plan expects.
 - `pending` holds the items of every case below that applies, in the order of the items:
   - `declaration` action `merge it`: exactly one item `{ "item": "pull request #<n> is open", "reason": "manual", "how": "merge <url>, then run /aleogr:project-apply confirm=yes" }`, with the `number` and `url` of `openPullRequest`.
   - `declaration` action `fix the folder`: exactly one item, the `this folder needs attention` item of the skill that reported it, as it gave it (`item`, `reason` `manual`, `how`): the checkout's when its state is `needs-attention`, otherwise the pull request skill's.
