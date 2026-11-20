@@ -13,3 +13,7 @@ OUTPUT "status": "created"
 OUTPUT "dockerfile": "written"
 OUTPUT "written": true
 NOT_CALLED ^gh
+FILE web/Dockerfile ^WORKDIR /src$
+FILE web/Dockerfile ^RUN go mod download$
+FILE web/Dockerfile ^COPY \. \.$
+FILE web/Dockerfile ^COPY --from=build /out/app /app$

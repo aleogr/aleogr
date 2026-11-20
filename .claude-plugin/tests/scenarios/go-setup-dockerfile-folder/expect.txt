@@ -1,0 +1,6 @@
+# A folder named Dockerfile: failed, nothing written.
+FILE web/Dockerfile/notes.txt ^kept$
+NO_FILE web/go.mod
+NO_FILE web/main.go
+NO_FILE web/main_test.go
+OUTPUT "status": "failed"
