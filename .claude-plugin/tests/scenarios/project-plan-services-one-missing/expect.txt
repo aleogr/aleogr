@@ -1,7 +1,10 @@
-# A version 2 file (with deploy jobs) while the service of api does not exist: the file is judged
-# without deploy, so ci differs and is to generate (project-apply creates the service first and
-# plans again, which then finds the services and expects the deploy jobs).
+# Two components, a version 2 file with deploy jobs for both, and the service of api missing:
+# the deploy list holds web only, so the file is judged with deploy jobs for web alone and ci
+# differs (project-apply creates the service of api first and plans again, which then lists both).
 OUTPUT "item": "ci", "state": "differs", "action": "generate"
+OUTPUT "ciDeployComponents": \["web"\]
+OUTPUT `?ci\.yml`? is generated with the deploy jobs of dev for web
+OUTPUT [Tt]he deploy job of api comes once its service exists
 ORDER ^run services describe >> ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
 CALLED ^run services describe demo-api
 CALLED ^run services describe demo-web

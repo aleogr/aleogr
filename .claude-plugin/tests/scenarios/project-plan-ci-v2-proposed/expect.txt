@@ -1,11 +1,11 @@
-# A version 2 ci.yml (deploy jobs) while a component is added: the declaration is being proposed,
-# so the services are not read. The deploy jobs that are there are kept: github_ci-setup is asked
-# with deploy=, and ci differs only because of the new component; the file is not rewritten as
-# version 1.
+# A version 2 ci.yml with a deploy job for api, and the declaration adding the component web,
+# being proposed: the services are not read. The deploy job of api is kept, and web gets none
+# until its service exists: a deploy job never runs for a service that does not exist.
 OUTPUT "item": "declaration", "state": "changed here", "action": "propose"
-OUTPUT "item": "components", "state": "to generate: worker", "action": "generate"
 OUTPUT "item": "ci", "state": "differs", "action": "generate"
-OUTPUT `?ci\.yml`? is generated with the deploy jobs of dev
+OUTPUT "ciDeployComponents": \["api"\]
+OUTPUT `?ci\.yml`? is generated with the deploy jobs of dev for api
+OUTPUT [Tt]he deploy job of web comes once its service exists
 OUTPUT_NOT generated without deploy jobs
 OUTPUT "item": "services", "state": "not checked until the change is merged", "action": "none"
 CALLED ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml

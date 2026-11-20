@@ -4,7 +4,7 @@ CALLED ^run services describe demo-api
 CALLED ^run services describe demo-web
 OUTPUT "item": "services", "state": "waiting for the first deploy: api, web", "action": "none"
 OUTPUT "item": "ci variables", "state": "as declared", "action": "none"
-OUTPUT merge the pull request.*run the workflow again
+OUTPUT [Mm]erge the pull request.*run the workflow again
 OUTPUT nothing to do
 OUTPUT "status": "unchanged"
 NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
