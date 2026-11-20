@@ -33,6 +33,8 @@ Show each command before running it. Other skills end with their own `aleogr-res
 
 If step 4, 5, 6 or 7 returns `failed`, stop and report it: no later item is guessed. A switch result `pending` (step 6: a role, pool or provider exists but differs, which no command fixes) is treated the same way: stop there, run no instance describe, and carry the switch's `pending[].how` (the manual fix).
 
+After the last invocation of these steps (the instance describe of step 7, or the step that stopped the plan), the invocations are over. Now write this skill's answer, and nothing before it: not the lines or the block of `gcp-cloud-sql_instance-describe`, `gcp-cloud-sql_instance-switch-setup`, `gcp_budget-alert-setup`, `gcp_services-enable` or `gcp_login-describe`. Start with the table's header row, and end with this skill's block.
+
 ## Items
 
 | Item | State and action |
