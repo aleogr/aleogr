@@ -213,7 +213,7 @@ Show each command before running it. Run only the commands below, in this order,
       gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=<service> --region=<region> --project=<projectId> --member="<me>" --role="roles/iap.httpsResourceAccessor" --condition=None --quiet
       ```
 
-      A refusal does not stop the run: say `The active gcloud account could not be given access to the service <service> through the login.`, and go on with the next component; every other piece of work stands. The result then carries, once however many grants were refused, the `pending` item `{ "item": "access", "reason": "manual", "how": "/aleogr:project-access person=<e-mail>" }`, with `<e-mail>` written exactly so, as a placeholder: never an address.
+      A refusal does not stop the run: say `The active gcloud account could not be given access to the service <service> through the login.`, and go on with the next component; every other piece of work stands. The result then carries, once however many grants were refused, the `pending` item `{ "item": "access", "reason": "manual", "how": "/aleogr:project-access person=<e-mail>" }`, with `<e-mail>` written exactly so, as a placeholder: never an address. The item stays whatever a later read of the login policy shows: a grant refused in this run is carried.
 
    A failure of any other command of 6 stops the work at once: no later command of 6, for this component or the next ones, and no retry other than the poll of b. What was made stays (nothing is removed). Then step 7 runs, so that every service that exists is reported as it is.
 
