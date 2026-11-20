@@ -99,7 +99,7 @@ If the answer also carries the item `access` (your own access to the services wa
 
 Then open each address in your browser, signed in as yourself: **Google's sample page, "It's running!"**. Then open one of them in a **private window**, not signed in: **Google's sign-in page**, not the page. Close the private window.
 
-**Stop and send the answer** if the run stopped before the pull request, if it names a service "still open to anyone" or "still without the login", or if a page opens without the sign-in.
+**Stop and send the answer** if the run stopped before the pull request, if it names a service as still open or still without the login, or if a page opens without the sign-in.
 
 ## 4. Before merging: check the table of step 3
 
@@ -116,12 +116,14 @@ On GitHub, the pull request of step 3: its checks `ci / ci` green (the deploy jo
 **First thing after the merge: confirm that the deploy's log shows no identifier.** GitHub masks a secret in every log, so neither the project's id nor its number should appear; this run is the proof. When the run of `ci` on `main` has ended (the repository's **Actions** tab; the two deploy jobs take a few minutes), in the terminal (it prints only a count):
 
 ```bash
-R=$(gh run list --repo aleogr-sandbox/pilot --branch main --limit 1 --json databaseId --jq '.[0].databaseId')
+R=$(gh run list --repo aleogr-sandbox/pilot --workflow ci --branch main --limit 1 --json databaseId --jq '.[0].databaseId')
 N=$(gcloud projects describe "$P" --format="value(projectNumber)")
-gh run view "$R" --repo aleogr-sandbox/pilot --log | grep -c -e "$P" -e "$N"
+gh run view "$R" --repo aleogr-sandbox/pilot --log > /tmp/deploy.log
+[ -n "$P" ] && [ -n "$N" ] && [ -s /tmp/deploy.log ] && { wc -l < /tmp/deploy.log; grep -c -e "$P" -e "$N" /tmp/deploy.log; } || echo "the check could not run"
+rm -f /tmp/deploy.log
 ```
 
-Expected: `0` (`***` is where they were masked). Anything else: **stop**, say so (without the value), and delete that run's logs at once: on the run's page, the `···` menu, **Delete all logs**; or `gh run delete "$R" --repo aleogr-sandbox/pilot`.
+Expected: two numbers, the log's line count (above 0) and then `0` (`***` is where they were masked). `the check could not run` means the run has not ended, or Cloud Shell reconnected and `P` is empty: set `P` again ("What to have ready") and repeat; it is not a result. Anything else: **stop**, say so (without the value), and delete that run's logs at once: on the run's page, the `···` menu, **Delete all logs**; or `gh run delete "$R" --repo aleogr-sandbox/pilot`.
 
 Then, on that run: `changes`, `admin / go`, `status / go`, `deploy-admin-dev / deploy`, `deploy-status-dev / deploy`, `ci`, all green.
 

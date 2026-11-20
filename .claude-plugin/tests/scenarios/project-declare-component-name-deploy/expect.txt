@@ -1,0 +1,6 @@
+# A component may not be named like a deploy job of the CI file.
+OUTPUT "status": "failed"
+FILE .aleogr/project.json "name": "web", "stack": "go", "path": "web", "version": "1\.27"
+FILE_NOT .aleogr/project.json deploy-tool
+OUTPUT deploy-
+NOT_CALLED .

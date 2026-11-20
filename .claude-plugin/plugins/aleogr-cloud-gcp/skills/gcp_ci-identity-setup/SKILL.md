@@ -125,7 +125,7 @@ A command whose result decides a step is run alone: not piped into another comma
 
 6. Status of `apply`: `created` (something was created, the binding included, whether or not the provider was also updated), `updated` (only the provider was updated), `unchanged` (no change command ran and nothing is missing or differs), `failed`. `created` and `updated` keep their name when `pending` has items: something was changed.
 
-Then answer in a few lines: each part's state, the condition (as declared, missing, or differs), what this run changed, when `otherMembers` is not 0, one sentence saying that that number of other members may also act as the account and that this skill does not remove them (their number only, never their text), and, when every part exists as declared, the three CI variables with their values (they are identifiers, not secrets; another skill writes them to the repository). The answer prints no identifier other than the project id, `<account>` and `<provider name>`.
+Then answer in a few lines: each part's state, the condition (as declared, missing, or differs), what this run changed, when `otherMembers` is not 0, one sentence saying that that number of other members may also act as the account and that this skill does not remove them (their number only, never their text), and, when every part exists as declared, the three CI values (they are identifiers, not credentials; another skill stores them in the repository). The answer prints no identifier other than the project id, `<account>` and `<provider name>`.
 
 ## Result block
 

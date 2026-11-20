@@ -110,7 +110,7 @@ End with exactly one fenced block tagged `aleogr-result`:
     { "type": "repository", "id": "<owner>/<name>", "name": "<name>" }
   ],
   "outputs": {
-    "set": ["GCP_IMAGE_PATH", "GCP_REGION"],
+    "set": ["GCP_IMAGE_PATH", "GCP_PROJECT_ID"],
     "already": ["GCP_CI_ACCOUNT", "GCP_PROJECT_ID", "GCP_WIF_PROVIDER"]
   },
   "cost": { "fixed": false, "notes": "no cost" },
