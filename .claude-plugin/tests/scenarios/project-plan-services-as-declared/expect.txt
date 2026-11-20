@@ -1,29 +1,31 @@
 # Stage 4b-2 complete: the login is prepared, both services run an image CI deployed and are as
-# declared, and the five Actions variables hold their values. Thirteen rows, nothing to do.
+# declared, and the four Actions secrets exist. Thirteen rows, nothing to do.
 CALLED ^iam workload-identity-pools providers describe github
 CALLED ^iap settings get --organization=111111111111 --billing-project=aleogr-dev-demo-ab12
 CALLED ^run services describe demo-api --project=aleogr-dev-demo-ab12 --region=us-central1
 CALLED ^run services describe demo-web --project=aleogr-dev-demo-ab12 --region=us-central1
-CALLED ^gh variable list --repo example-org/demo
+CALLED ^gh secret list --repo example-org/demo --json name$
 # The reads that can end the plan early come first; the login decides whether services are read.
 ORDER ^iam workload-identity-pools providers describe >> ^iap settings get
 ORDER ^iap settings get >> ^run services describe
-ORDER ^run services describe >> ^gh variable list
+ORDER ^run services describe >> ^gh secret list
 # github_ci-setup is invoked once, last, after the services' read (its deploy jobs depend on it).
-ORDER ^gh variable list >> ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+ORDER ^gh secret list >> ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
 OUTPUT "item": "components", "state": "as declared", "action": "none"
 OUTPUT "item": "ci", "state": "as declared", "action": "none"
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT "item": "services", "state": "as declared", "action": "none"
-OUTPUT "item": "ci variables", "state": "as declared", "action": "none" \}\s*$
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none" \}\s*$
 OUTPUT "web": "https://demo-web-123456789012\.us-central1\.run\.app"
 OUTPUT "api": "https://demo-api-123456789012\.us-central1\.run\.app"
-OUTPUT "GCP_REGION": "us-central1"
+OUTPUT_NOT "GCP_REGION"
+OUTPUT_NOT compared by name only
+NOT_CALLED ^gh variable
 OUTPUT "GCP_IMAGE_PATH": "us-central1-docker\.pkg\.dev/aleogr-dev-demo-ab12/demo"
 OUTPUT nothing to do
 OUTPUT "status": "unchanged"
 OUTPUT_NOT waiting for the first deploy
-NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
 # The nested skills' blocks are input only: the answer holds this skill's block alone.
 OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"
 OUTPUT "ciDeployComponents": \["api", "web"\]

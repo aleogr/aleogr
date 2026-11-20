@@ -138,7 +138,7 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
 2. Read `.aleogr/project.json` in the current folder.
    - It does not exist: this is a new declaration. Go to step 3.
    - It exists: check it against every rule of "The declaration's rules" (the canonical form is not a rule: a valid file in another layout is accepted). If it is not valid JSON or breaks a rule: `failed`, one sentence saying which rule the file breaks (for example, that it is not valid JSON), and the file untouched. Otherwise go to step 3.
-3. Check the arguments. Each failure is `failed`, with one sentence per problem, and nothing written:
+3. Check the arguments. Each failure is `failed`, with one sentence per problem, and nothing written. Where a check below gives a sentence in quotes, that sentence is written word for word, with only its placeholders filled (never reworded, shortened or explained in other words), and it is all the answer says about that problem:
    - Every argument is one of the table. An unknown argument fails, and so does an argument given twice.
    - New declaration: `name`, `owner` and `description` are all given; the sentence names every one that is missing.
    - Each given value follows the rule of its key in "The declaration's rules": `name` (including the reserved names), `owner`, `repoName`, `visibility`, `description`. Each of the seven settings is exactly `true` or `false`.
@@ -170,7 +170,7 @@ Use only the Read tool and the Write tool. Run no shell command at all (no `ls`,
 
 ## Answer
 
-On `created`, `updated` or `unchanged`: one sentence saying what happened and which keys changed (`outputs.changes`), then the declaration in a fenced `json` block, exactly as the file now holds it (for `unchanged`, the file as it is). Only when the file is created with `repo.visibility` `public`, or when this run changes `repo.visibility` to `public`, add: `The declaration only states the visibility: nothing is public until project-apply runs with confirmVisibility=public.`; in every other case (including an edit of another key of a declaration that is already `public`, and `unchanged`) do not write that sentence. On `failed`: the sentence(s) of the failed check, and no file.
+On `created`, `updated` or `unchanged`: one sentence saying what happened and which keys changed (`outputs.changes`), then the declaration in a fenced `json` block, exactly as the file now holds it (for `unchanged`, the file as it is). Only when the file is created with `repo.visibility` `public`, or when this run changes `repo.visibility` to `public`, add: `The declaration only states the visibility: nothing is public until project-apply runs with confirmVisibility=public.`; in every other case (including an edit of another key of a declaration that is already `public`, and `unchanged`) do not write that sentence. On `failed`: the sentence(s) of the failed check, each written word for word as step 3 gives it (only its placeholders filled), and nothing else about the failure: no paraphrase, no advice of your own, and no file.
 
 Then the result block. The answer ends with exactly one block.
 

@@ -10,10 +10,10 @@ CALLED ^run services describe demo-api
 CALLED ^run services describe demo-web
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT "item": "services", "state": "missing: api", "action": "create"
-OUTPUT "item": "ci variables", "state": "as declared", "action": "none"
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none"
 OUTPUT "web": "https://demo-web-
 OUTPUT_NOT "api": "https://
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
-NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
 OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

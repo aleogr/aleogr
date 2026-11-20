@@ -9,7 +9,7 @@ OUTPUT [Tt]he deploy job of web comes once its service exists
 OUTPUT_NOT generated without deploy jobs
 OUTPUT "item": "services", "state": "not checked until the change is merged", "action": "none"
 CALLED ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
-NOT_CALLED ^run services|^iap settings get|^gh variable
+NOT_CALLED ^run services|^iap settings get|^gh (variable|secret)
 OUTPUT "status": "would-update"
-NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc
 OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

@@ -4,8 +4,8 @@ CALLED ^iap settings get
 NOT_CALLED ^run services
 OUTPUT "item": "services", "state": "waits for the login", "action": "prepare the login"
 OUTPUT "item": "ci", "state": "as declared", "action": "none"
-OUTPUT "item": "ci variables", "state": "as declared", "action": "none"
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none"
 OUTPUT "status": "pending"
 OUTPUT_NOT nothing to do
-NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc
 OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"
