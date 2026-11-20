@@ -1,0 +1,16 @@
+# A version 2 file (with deploy jobs) while the service of api does not exist: the file is judged
+# without deploy, so ci differs and is to generate (project-apply creates the service first and
+# plans again, which then finds the services and expects the deploy jobs).
+OUTPUT "item": "ci", "state": "differs", "action": "generate"
+ORDER ^run services describe >> ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+CALLED ^run services describe demo-api
+CALLED ^run services describe demo-web
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT "item": "services", "state": "missing: api", "action": "create"
+OUTPUT "item": "ci variables", "state": "as declared", "action": "none"
+OUTPUT "web": "https://demo-web-
+OUTPUT_NOT "api": "https://
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

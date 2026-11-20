@@ -1,0 +1,11 @@
+# The repository's default branch is trunk: github_ci-setup gets defaultBranch=trunk from the
+# repository's read, so a file whose marker carries branch=trunk is as declared.
+CALLED ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+ORDER ^gh api repos/example-org/demo$ >> ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+OUTPUT "item": "ci", "state": "as declared", "action": "none"
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT "item": "services", "state": "as declared", "action": "none"
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"
+NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

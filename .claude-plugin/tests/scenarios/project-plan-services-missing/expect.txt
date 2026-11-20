@@ -1,4 +1,9 @@
-# The service of api does not exist: the row services is missing: api, to create.
+# The service of api does not exist: the row services is missing: api, to create. No deploy job
+# for a service that does not exist: github_ci-setup is invoked without deploy, after the
+# services' read, and the version 1 file in the folder is as declared.
+OUTPUT "item": "ci", "state": "as declared", "action": "none"
+CALLED ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+ORDER ^run services describe >> ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
 CALLED ^run services describe demo-api
 CALLED ^run services describe demo-web
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
