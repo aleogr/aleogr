@@ -1,0 +1,9 @@
+# Above the limits of what a service may cost: failed before any command, one sentence per argument.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT maxInstances must be
+OUTPUT cpu must be
+OUTPUT memory must be
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

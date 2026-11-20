@@ -8,7 +8,7 @@ OUTPUT "web": 2
 OUTPUT "api": 2
 OUTPUT "item": "access"
 OUTPUT "how": "gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=allUsers .*--role=roles/iap.httpsResourceAccessor
-OUTPUT [Aa]nyone
+OUTPUT [Aa]nyone on the internet who signs in with any Google account
 OUTPUT until-2027
 OUTPUT serviceAccount:demo-ci@
 RESULT_NOT @example\.com

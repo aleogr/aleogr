@@ -40,7 +40,7 @@
             "resources": {
               "limits": {
                 "cpu": "2000m",
-                "memory": "512Mi"
+                "memory": "1Gi"
               }
             }
           }

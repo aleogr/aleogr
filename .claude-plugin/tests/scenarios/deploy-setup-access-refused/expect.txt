@@ -1,0 +1,13 @@
+# The grant of access on web is refused: the run goes on (api is still created and granted), and the
+# result carries the item access, with the shortcut and the e-mail as a placeholder.
+CALLED ^iap web add-iam-policy-binding .*--service=demo-web( |$)
+CALLED ^run deploy demo-api
+CALLED ^iap web add-iam-policy-binding .*--service=demo-api( |$)
+ORDER ^iap web add-iam-policy-binding .*--service=demo-web >> ^run deploy demo-api
+OUTPUT "status": "created"
+OUTPUT "created": \[ ?"web", ?"api" ?\]
+OUTPUT "item": "access", "reason": "manual", "how": "/aleogr:project-access person=<e-mail>"
+OUTPUT_NOT FAILED_PRECONDITION
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

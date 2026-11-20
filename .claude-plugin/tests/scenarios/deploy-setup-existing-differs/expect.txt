@@ -2,7 +2,7 @@
 # One update with only those settings, never the image; then the two missing bindings.
 CALLED ^run services update demo-web .*--max=2( |$)
 CALLED ^run services update demo-web .*--cpu=1( |$)
-CALLED ^run services update demo-web .*--memory=256Mi( |$)
+CALLED ^run services update demo-web .*--memory=512Mi( |$)
 CALLED ^run services update demo-web .*aleogr-environment=dev
 NOT_CALLED --image
 NOT_CALLED ^run deploy

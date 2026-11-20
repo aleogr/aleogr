@@ -8,7 +8,9 @@ CALLED ^run deploy demo-web .*--service-account=demo-web@aleogr-dev-demo-ab12.ia
 CALLED ^run deploy demo-web .*--min=0( |$)
 CALLED ^run deploy demo-web .*--max=2( |$)
 CALLED ^run deploy demo-web .*--cpu=1( |$)
-CALLED ^run deploy demo-web .*--memory=256Mi( |$)
+CALLED ^run deploy demo-web .*--memory=512Mi( |$)
+# The cost limits given as arguments reach the creating command as given.
+CALLED ^run deploy demo-api .*--min=0 --max=2 --cpu=1 --memory=512Mi --cpu-throttling( |$)
 CALLED ^run deploy demo-web .*--cpu-throttling( |$)
 CALLED ^run deploy demo-web .*--labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=web( |$)
 CALLED ^run deploy demo-web .*--region=us-central1( |$)

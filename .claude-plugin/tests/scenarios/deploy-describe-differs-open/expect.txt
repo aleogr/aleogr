@@ -1,0 +1,7 @@
+# allAuthenticatedUsers on the service's login policy: the service is open, and nothing is changed.
+CALLED ^iap web get-iam-policy .*--service=demo-web( |$)
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "differences": \[ ?"open" ?\]
+OUTPUT "differing": \[ ?"web" ?\]
+OUTPUT [Aa]nyone on the internet who signs in with any Google account
