@@ -175,10 +175,10 @@ Write nothing between the invocations of steps 8 to 16 and the table: no summary
 
 Steps 15 and 16 run only with components.
 
-15. Invoke `aleogr-repo-github:github_ci-setup owner=<repo.owner> name=<repo.name> components=<components> workflows=<ci.workflowsRepository> defaultBranch=<defaultBranch> mode=plan`, with `defaultBranch` of step 4, and with `deploy=dev project=<name>` added by **the rule of the deploy jobs**, the only place this skill decides it:
-   - The declaration has no `environments`: never.
-   - Step 13 ran in this plan (the services were read): exactly when its `outputs.missing` is empty (every service exists: the row `services` is `as declared`, `differs: <names>` or `waiting for the first deploy: <names>`). A service missing: without `deploy`, because a deploy job never runs for a service that does not exist; `project-apply` creates the service first and plans again.
-   - Step 13 did not run (the declaration is being proposed, the environment or its APIs are not ready, the login could not be read or is not prepared): exactly when the first line of the local `ci.yml` read in step 3 starts with `# aleogr-ci 2 ` (deploy jobs that are already there are kept, never dropped); otherwise (no local file, or a file of version 1) without.
+15. Invoke `aleogr-repo-github:github_ci-setup owner=<repo.owner> name=<repo.name> components=<components> workflows=<ci.workflowsRepository> defaultBranch=<defaultBranch> mode=plan`, with `defaultBranch` of step 4, and, when **the deploy list** is not empty, with `deploy=dev deployComponents=<the deploy list, joined by ,> project=<name>` added; when it is empty, without `deploy`, `deployComponents` and `project` (the version 1 file). The deploy list, the components that get a deploy job, is decided here and nowhere else, sorted by name:
+   - The declaration has no `environments`: empty.
+   - Step 13 ran in this plan (the services were read): the declared components whose service is not in its `outputs.missing`. A deploy job never runs for a service that does not exist; `project-apply` creates the missing services first and plans again, which then lists them.
+   - Step 13 did not run (the declaration is being proposed, the environment or its APIs are not ready, the login could not be read or is not prepared): when the first line of the local `ci.yml` read in step 3 starts with `# aleogr-ci 2 `, the names after `deploy=dev:` in it (separated by `+`) that are still components of the declaration: deploy jobs that are there are kept, and a component added since gets none until its service exists. Otherwise (no local file, or a file of version 1): empty.
 
    So a new project's first proposal carries the version 1 file; the deploy jobs come in the proposal made after the services exist. In `plan` it writes nothing; it reads the local `.github/workflows/ci.yml` and the repository's copy.
    - `status` `failed`: stop with `failed` and its cause. Invoke nothing else. Your next output is the sentence of the failure; write nothing before it.
@@ -255,7 +255,7 @@ Print the table (item, state, action). Under the table, these lines when they ap
 - `declaration` has action `merge it` or `fix the folder`: the `how` of the `pending` item (below), and that `project-apply` stops until it is done.
 - `components` has action `fix the folder`: the `how` of each of its `pending` items, and that `project-apply` stops until it is done.
 - `components` or `ci` has action `generate`: that `project-apply` writes the files in this folder and proposes them, with the declaration, in one pull request.
-- `ci` has action `generate`, with `environments`: `ci.yml is generated with the deploy jobs of dev.` when step 15 was invoked with `deploy`, and `ci.yml is generated without deploy jobs: they come once the services exist.` otherwise.
+- `ci` has action `generate`, with `environments`: `ci.yml is generated with the deploy jobs of dev for <names>.` (the deploy list of step 15, joined by `, `), or `ci.yml is generated without deploy jobs.` when that list is empty; then, when a declared component is not in the list, `The deploy job of <names> comes once its service exists.` (those components, joined by `, `).
 - `registry` or `ci identity` has action `fix by hand`: the `how` of its `pending` item, and that the owner does it by hand: `project-apply` does not.
 - `services` has action `prepare the login`: `The services wait for the login of the organization: /aleogr:platform-plan shows what preparing it makes and what it costs. project-apply creates no service until it is prepared.` Name no other command for it.
 - `services` is `waiting for the first deploy: <names>`: `The services of <names> still run the placeholder image until CI deploys them: merge the pull request that carries the deploy jobs, or, once it is merged, run the workflow again.` (with the names of the row).
@@ -296,7 +296,7 @@ When another skill invoked this one (an orchestrator, such as `aleogr:project-pl
     "repositoryEnvironments": [],
     "ciVariables": null,
     "urls": null,
-    "ciDeploy": null,
+    "ciDeployComponents": null,
     "defaultBranch": null
   },
   "cost": { "fixed": false, "notes": "read-only plan" },
@@ -324,7 +324,7 @@ Write each item of `outputs.items` on one line, as in the example.
   - `repositoryEnvironments`: the names of the environments the repository's copy of the declaration has (the keys of its `environments`, sorted), as step 5 noted them, on one line: `[]` when that copy has none, when the repository has no declaration, or when the repository does not exist (step 4: `exists` false); `null` when it is not known (the copy could not be read as JSON, or the plan ended `failed` before step 5 decided it). `project-apply` reads it to know whether a proposal adds an environment.
   - `ciVariables`: the five CI variables, on one line: `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER` and `GCP_CI_ACCOUNT` as `outputs.ciVariables` of step 11 gave them, then `GCP_REGION` (`cloud.region`) and `GCP_IMAGE_PATH` (`imagePath` of step 10). Set only when step 11 gave its `ciVariables` (the CI identity exists as declared) and step 10 gave an `imagePath`; `null` otherwise, when step 11 was not run, and on `failed`. No other key of the block holds these values.
   - `urls`: `null` when step 13 did not run, and on `failed`. Otherwise, on one line, an object whose keys are the components whose service exists and has an address, in the order of the components, each with that address (`url` of step 13): `{ "api": "https://demo-api-<n>.us-central1.run.app", "web": "https://demo-web-<n>.us-central1.run.app" }`; `{}` when none does.
-  - `ciDeploy`: `true` when step 15 invoked `github_ci-setup` with `deploy=dev project=<name>` (by the rule of the deploy jobs), `false` when it invoked it without, `null` when step 15 did not run. `defaultBranch`: the `defaultBranch` passed to `github_ci-setup` in step 15, `null` when step 15 did not run. `project-apply` passes exactly these two to `github_ci-setup … mode=apply`, so the file it writes is the file the next plan expects.
+  - `ciDeployComponents`: the deploy list of step 15 (the components given to `github_ci-setup` in `deployComponents`), sorted, on one line: `[]` when it was invoked without `deploy` (the version 1 file), `null` when step 15 did not run. `defaultBranch`: the `defaultBranch` passed to `github_ci-setup` in step 15, `null` when step 15 did not run. `project-apply` passes exactly these (`deploy=dev deployComponents=<list> project=<name>` when the list is not empty, and `defaultBranch`) to `github_ci-setup … mode=apply`, so the file it writes is the file the next plan expects.
 - `pending` holds the items of every case below that applies, in the order of the items:
   - `declaration` action `merge it`: exactly one item `{ "item": "pull request #<n> is open", "reason": "manual", "how": "merge <url>, then run /aleogr:project-apply confirm=yes" }`, with the `number` and `url` of `openPullRequest`.
   - `declaration` action `fix the folder`: exactly one item, the `this folder needs attention` item of the skill that reported it, as it gave it (`item`, `reason` `manual`, `how`): the checkout's when its state is `needs-attention`, otherwise the pull request skill's.
