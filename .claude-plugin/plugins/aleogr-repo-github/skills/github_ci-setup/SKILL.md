@@ -38,7 +38,7 @@ Free text after the skill name, as `key=value` pairs.
   - `version` matches `^[0-9]+\.[0-9]+$` (for example `1.27`).
 - `ref`, when given, is `keep` or `latest`.
 - `defaultBranch`, when given, has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`, does not start with `-` or `/`, does not end with `/` or `.`, and has no `..` and no `//`.
-- `deploy`, when not empty, is one or more entries separated by `,`, with no empty entry; each entry has 1 to 20 characters of `a-z` and `0-9` and starts with a letter. More than one entry fails with exactly the sentence `deploy names more than one environment; this version deploys to exactly one, because the Actions variables the deploy job reads would clash.` (no command).
+- `deploy`, when not empty, is one or more entries separated by `,`, with no empty entry; each entry has 1 to 20 characters of `a-z` and `0-9` and starts with a letter. More than one entry fails with exactly the sentence `deploy names more than one environment; this version deploys to exactly one, because the repository secrets the deploy job reads would clash.` (no command).
 - `deploy` not empty and `region` not given (or empty): the run fails with exactly the sentence `deploy needs region=<region>: the deploy jobs write the services' region, which is never guessed.` and no command. Never take a region from anywhere else.
 - `region`, when `deploy` is not empty, has 1 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`.
 - `project`, when `deploy` is not empty, has 1 to 14 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`.
