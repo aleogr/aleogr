@@ -59,6 +59,8 @@ From `settings.activationPolicy` and `state` of the describe JSON:
 
 ## Result block
 
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill's lines and its block are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). Its answer never contains this block and never ends with it.
+
 End with exactly one fenced block tagged `aleogr-result`:
 
 ```aleogr-result
