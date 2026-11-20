@@ -1,0 +1,10 @@
+CALLED ^gh api repos/example-org/example-repo/contents/\.github/workflows/ci\.yml
+NOT_CALLED commits/main
+NO_FILE .github/workflows/ci.yml
+OUTPUT "status": "would-create"
+OUTPUT "local": "missing"
+OUTPUT "inRepository": true
+OUTPUT "repositoryAsDeclared": false
+OUTPUT "marker": "# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev"
+OUTPUT "written": false
+NOT_CALLED ^git (add|commit|push|-c credential)

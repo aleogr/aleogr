@@ -1,0 +1,31 @@
+CALLED ^gh api repos/example-org/example-repo/contents/\.github/workflows/ci\.yml
+CALLED ^gh api repos/example-org/tooling/commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev$
+FILE .github/workflows/ci.yml ^  pull_request:$
+FILE .github/workflows/ci.yml ^    branches: \[main\]$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@2{40}$
+FILE .github/workflows/ci.yml ^  deploy-api-dev:$
+FILE .github/workflows/ci.yml ^  deploy-web-dev:$
+FILE .github/workflows/ci.yml ^    needs: \[api\]$
+FILE .github/workflows/ci.yml ^    needs: \[web\]$
+FILE .github/workflows/ci.yml ^    if: github\.event_name == 'push' && github\.ref == 'refs/heads/main' && needs\.api\.result == 'success'$
+FILE .github/workflows/ci.yml ^    if: github\.event_name == 'push' && github\.ref == 'refs/heads/main' && needs\.web\.result == 'success'$
+FILE .github/workflows/ci.yml ^      id-token: write$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/deploy-cloud-run\.yml@2{40}$
+FILE .github/workflows/ci.yml ^      service: "demo-api"$
+FILE .github/workflows/ci.yml ^      service: "demo-web"$
+FILE .github/workflows/ci.yml ^      working-directory: "services/api"$
+FILE .github/workflows/ci.yml ^      region: \$\{\{ vars\.GCP_REGION \}\}$
+FILE .github/workflows/ci.yml ^      image: \$\{\{ vars\.GCP_IMAGE_PATH \}\}/web$
+FILE .github/workflows/ci.yml ^      project-id: \$\{\{ vars\.GCP_PROJECT_ID \}\}$
+FILE .github/workflows/ci.yml ^      workload-identity-provider: \$\{\{ vars\.GCP_WIF_PROVIDER \}\}$
+FILE .github/workflows/ci.yml ^      service-account: \$\{\{ vars\.GCP_CI_ACCOUNT \}\}$
+FILE .github/workflows/ci.yml ^    needs: \[changes, api, web\]$
+FILE .github/workflows/ci.yml ^          RESULTS: \$\{\{ needs\.api\.result \}\} \$\{\{ needs\.web\.result \}\}$
+# The harness has no FILE_NOT: the answer, which reports what was written, never names these triggers.
+OUTPUT_NOT pull_request_target|workflow_run
+OUTPUT "status": "created"
+OUTPUT "checks": \["ci"\]
+OUTPUT "deploy": \["dev"\]
+NOT_CALLED ^git (add|commit|push|-c credential)
+NOT_CALLED ^gh (pr|repo|variable)

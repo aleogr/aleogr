@@ -1,0 +1,5 @@
+CALLED ^gh variable list --repo example-org/example-repo --json name,value
+NOT_CALLED ^gh variable (set|delete)
+OUTPUT "status": "unchanged"
+OUTPUT "set": \[\]
+RESULT_NOT aleogr-dev-demo-ab12|123456789012|us-central1

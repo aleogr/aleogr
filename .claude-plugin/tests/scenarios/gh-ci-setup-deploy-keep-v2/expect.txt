@@ -1,0 +1,9 @@
+NOT_CALLED commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@3{40}$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/deploy-cloud-run\.yml@3{40}$
+FILE .github/workflows/ci.yml ^  deploy-api-dev:$
+OUTPUT "local": "differs"
+OUTPUT "status": "updated"
+OUTPUT "ref": "3{40}"
+NOT_CALLED ^git (add|commit|push|-c credential)

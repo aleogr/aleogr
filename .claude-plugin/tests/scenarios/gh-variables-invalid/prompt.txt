@@ -1,0 +1,1 @@
+/aleogr-repo-github:github_variables-set owner=example-org name=example-repo variables=GCP_REGION=us-central1,gcp_project_id=aleogr-dev-demo-ab12 mode=apply
