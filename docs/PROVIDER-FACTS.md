@@ -102,7 +102,7 @@ A recent organization comes with a set of security policies already enforced. Se
 
 **From Google's help, not yet seen in a real run:**
 
-- With only the basic sign-in scopes (`openid`, `email`, `profile`), as IAP asks, an application in testing needs no publishing and no list of test users, shows no warning, and its authorizations do not expire; the cap of test users and the verification apply to sensitive scopes. Whether a second Google account gets in that way is what the run of stage 4b-1 checks.
+- With only the basic sign-in scopes (`openid`, `email`, `profile`), as IAP asks, an application in testing needs no publishing and no list of test users, shows no warning, and its authorizations do not expire; the cap of test users and the verification apply to sensitive scopes. Seen in the run of stage 4b-1 (2026-11-20): a second Google account, created for the test and on no list of test users, got in; no warning was reported.
 - Uploading a logo to the consent screen starts Google's verification of the brand: no logo is uploaded.
 - Google offers no command that creates a consent screen or an OAuth client: the `gcloud iap oauth-brands` and `oauth-clients` commands were discontinued, so both are made in the console (Google Auth Platform: Branding, Clients).
 
@@ -113,7 +113,6 @@ A recent organization comes with a set of security policies already enforced. Se
 - Whether the server, given no update mask, replaces the other settings stored on the organization when `gcloud iap settings set` sends a file that holds only `oauthSettings`.
 - The exact permission names in the refusals of `get` and `set` at the organization (the SDK names only `iap.projects.getSettings`).
 - What `get` answers on an organization with no setting: an object with only `name`, an empty one, or `NOT_FOUND`.
-- That a second Google account gets in after one `add-iam-policy-binding`, with no other step: the run checklist of stage 4b-1 proves it or not.
 
 ## Cloudflare
 
