@@ -1,10 +1,10 @@
 ---
-description: Google Cloud (GCP) CI identity setup. Use to create, in the GCP project of an aleogr project and environment, the keyless identity through which one GitHub repository's CI reaches that project - a service account `<project>-ci`, a workload identity federation pool `github` and provider `github` that accept only tokens of the declared repository (by name and by GitHub's numeric ids) on its default branch, and the binding that lets those tokens act as the account. Updates a provider whose condition, issuer or mapping differs; refuses a deleted or disabled pool or provider, and a pool that holds another provider. Grants the account no project role. Idempotent; plan by default.
+description: Google Cloud (GCP) CI identity setup. Use to create, in the GCP project of an aleogr project and environment, the keyless identity through which one GitHub repository's CI reaches that project - a service account `<project>-ci`, a workload identity federation pool `github` and provider `github` that accept only tokens of the declared repository (by name and by GitHub's numeric ids) on its default branch from a job of the declared reusable deploy workflow, and the binding that lets those tokens act as the account. Updates in place a provider whose condition, issuer or mapping differs (one made before the workflow clause existed included); refuses a deleted or disabled pool or provider, and a pool that holds another provider. Grants the account no project role. Idempotent; plan by default.
 ---
 
 # gcp_ci-identity-setup
 
-Sets up the identity GitHub Actions of one repository use to reach one GCP project, with no key: a service account (`<project>-ci`), a workload identity federation pool (`github`) with an OIDC provider (`github`) whose condition accepts only tokens of the declared repository, checked by its name, its numeric id and its owner's numeric id (a repository deleted and recreated under the same name does not pass), on the declared branch, and the binding that lets those tokens act as the account. It grants the account no role on the project: what the account may do is granted elsewhere, on each resource. It never creates a GCP project, never creates a service account key, and writes nothing to GitHub. There is no cost: service accounts and workload identity federation are free.
+Sets up the identity GitHub Actions of one repository use to reach one GCP project, with no key: a service account (`<project>-ci`), a workload identity federation pool (`github`) with an OIDC provider (`github`) whose condition accepts only tokens of the declared repository, checked by its name, its numeric id and its owner's numeric id (a repository deleted and recreated under the same name does not pass), on the declared branch, and only in a job that runs the declared reusable workflow (another workflow of the same repository and branch does not pass), and the binding that lets those tokens act as the account. It grants the account no role on the project: what the account may do is granted elsewhere, on each resource. It never creates a GCP project, never creates a service account key, and writes nothing to GitHub. There is no cost: service accounts and workload identity federation are free.
 
 ## Arguments
 
@@ -18,6 +18,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 | `repositoryId=<digits>` | GitHub's numeric id of that repository (`id` of `github_repo-describe`). |
 | `ownerId=<digits>` | GitHub's numeric id of its owner (`ownerId` of `github_repo-describe`). |
 | `branch=<name>` | The only branch whose runs are accepted: the repository's default branch. |
+| `workflow=<owner>/<name>/.github/workflows/<file>.yml` | The reusable workflow whose jobs alone may act as the account: the deploy workflow, without `@` and what follows it. |
 | `mode=plan\|apply` | `plan` (default) reports and changes nothing; `apply` executes. |
 
 ## Validate first
@@ -29,6 +30,7 @@ Before any command, check the arguments. A missing required argument, or any oth
 - `repository` is `<owner>/<name>` with exactly one `/`: `owner` has 1 to 39 characters of `A-Z`, `a-z`, `0-9` and `-`, not starting or ending with `-`; `name` has 1 to 100 characters of `A-Z`, `a-z`, `0-9`, `.`, `_` and `-`, and is not `.` or `..`.
 - `repositoryId` and `ownerId` each match `^[1-9][0-9]{0,19}$` (1 to 20 digits, not starting with `0`).
 - `branch` has 1 to 255 characters of `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`, does not start or end with `/` and does not contain `..` (so no space and no quote can reach the condition).
+- `workflow` is `<owner>/<name>/.github/workflows/<file>.yml`: `<owner>` and `<name>` follow the rules of `repository` above, `<file>` has 1 to 60 characters of `a-z`, `0-9`, `-` and `_`, and nothing else is allowed (no `@`, no ref, no space, no quote).
 - `mode` is `plan` or `apply`.
 
 ## Names
@@ -40,10 +42,11 @@ Before any command, check the arguments. A missing required argument, or any oth
 - `<condition>` is exactly, with the arguments in place and nothing added or removed:
 
   ```
-  assertion.repository=='<repository>' && assertion.repository_id=='<repositoryId>' && assertion.repository_owner_id=='<ownerId>' && assertion.ref=='refs/heads/<branch>'
+  assertion.repository=='<repository>' && assertion.repository_id=='<repositoryId>' && assertion.repository_owner_id=='<ownerId>' && assertion.ref=='refs/heads/<branch>' && assertion.job_workflow_ref.startsWith('<workflow>@')
   ```
 
-- `<mapping>` is exactly `google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref`: three keys, `google.subject` → `assertion.sub`, `attribute.repository` → `assertion.repository`, `attribute.ref` → `assertion.ref`.
+  The last clause accepts only a token of a job that runs the reusable workflow `<workflow>`: GitHub sets `job_workflow_ref` to `<workflow>@<ref>`, and the clause stops at `@` because the form of `<ref>` for a workflow pinned by commit is not documented.
+- `<mapping>` is exactly `google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.job_workflow_ref=assertion.job_workflow_ref`: six keys, `google.subject` → `assertion.sub`, `attribute.repository` → `assertion.repository`, `attribute.ref` → `assertion.ref`, `attribute.repository_id` → `assertion.repository_id`, `attribute.repository_owner_id` → `assertion.repository_owner_id`, `attribute.job_workflow_ref` → `assertion.job_workflow_ref` (every field the condition tests has its key).
 - `<issuer>` is exactly `https://token.actions.githubusercontent.com`.
 
 ## The parts
@@ -57,7 +60,7 @@ Four parts, in this order. A part is read only when the part it depends on exist
 | 3 | `provider` | the provider exists, its state is `ACTIVE`, it is not disabled, and its attribute condition, its issuer and its attribute mapping are exactly the declared ones | `pool` |
 | 4 | `binding` | the account's policy has a binding of `roles/iam.workloadIdentityUser` whose members include `<member>` | `account` |
 
-The provider "differs" when any of these three is not exactly the declared value: `attributeCondition` is not exactly `<condition>` (another repository, another id, another branch, a missing or extra clause: anything but the exact text; spaces at the ends of the line do not count); `oidc.issuerUri` is not exactly `<issuer>`; `attributeMapping`, compared key by key, does not have exactly the three keys of `<mapping>` with their values (a missing key, an extra key or another value). `condition` (an output) is `missing` when the provider does not exist, `as-declared` when none of the three differs, and `differs` otherwise.
+The provider "differs" when any of these three is not exactly the declared value: `attributeCondition` is not exactly `<condition>` (another repository, another id, another branch, a missing or extra clause: anything but the exact text; spaces at the ends of the line do not count); `oidc.issuerUri` is not exactly `<issuer>`; `attributeMapping`, compared key by key, does not have exactly the six keys of `<mapping>` with their values (a missing key, an extra key or another value). A provider made before the argument `workflow` existed (its condition without the last clause, its mapping of three keys) differs, and is updated in place like any other. `condition` (an output) is `missing` when the provider does not exist, `as-declared` when none of the three differs, and `differs` otherwise.
 
 These end the skill with `failed`, in `plan` and in `apply`, after the reads of step 2 and before any change, with one sentence each; no command here changes them, and the owner runs this skill again once they are fixed:
 
@@ -108,7 +111,7 @@ A command whose result decides a step is run alone: not piped into another comma
    gcloud iam service-accounts add-iam-policy-binding <account> --project=<projectId> --member="<member>" --role="roles/iam.workloadIdentityUser" --quiet
    ```
 
-   - `create-oidc` is for a missing provider; `update-oidc` is for a provider that differs (its condition, its issuer or its mapping), always with `<issuer>`, the whole `<mapping>` and the whole `<condition>`, never a part of it. A provider is never deleted.
+   - `create-oidc` is for a missing provider; `update-oidc` is for a provider that differs (its condition, its issuer or its mapping), always with `<issuer>`, the whole `<mapping>` and the whole `<condition>`, never a part of it. A provider that exists is only ever updated, once per run: never deleted, never created again, and the update changes nothing else (not the account, the pool or the binding).
    - The binding made right after this same run created the account can be refused for a while (seconds to minutes) while the new account is not yet visible: only then, a non-zero exit of the binding whose text says the account does not exist (`does not exist` or `NOT_FOUND`), or is `PERMISSION_DENIED` (the answer the `gcloud` reference gives for an account that does not exist), is the refusal that waiting cures, and the binding is polled: wait 30 seconds, then run the same binding command again, alone; while it is refused that same way, wait and try again; at most 10 tries in all, the first one included (so at most 9 waits, about 5 minutes). `PERMISSION_DENIED` is polled too in this one case, so a real permission error right after this run created the account waits up to 5 minutes and then ends as the tenth refusal does (`created`, with the binding pending). A binding that was not made right after this run created the account is never polled. Any other non-zero exit of the binding, on any try, ends the poll at once, with no further wait and no further try. The tenth refusal stops the skill. Never explain which text decided a wait or the end of the poll, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only that the binding was refused, and after how many tries.
    - The wait is the command `sleep 30`, the one command of this skill that is not `gcloud`. Show it, then run it with the Bash tool in the background (`run_in_background`: Claude Code refuses a `sleep` in the foreground), run nothing else while it runs, and when its completion notice arrives go on with the next try in this same run. A pending wait is part of the run: while one is pending, never end the answer, never give the result block, and never tell the owner to run anything. A wait that cannot be run, or whose completion notice never comes, counts as the refusal that ends the poll: the skill ends as after the tenth refusal, never loops and never leaves the answer unfinished.
    - A failure of any other change command stops the skill at once, with no retry and no later command.
