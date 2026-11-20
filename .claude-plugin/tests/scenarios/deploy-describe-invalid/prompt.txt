@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_deploy-describe projectId=aleogr-dev-demo-ab12 project=demo region=us-central1 components=web- maxInstances=2 cpu=1 memory=256Mi ciAccount=demo-user@example.com

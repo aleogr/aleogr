@@ -1,0 +1,49 @@
+# Nothing exists. Per component: account, then the service in one command behind the login, then the bindings.
+CALLED ^iam service-accounts create demo-web .*--project=aleogr-dev-demo-ab12
+CALLED ^iam service-accounts create demo-api .*--project=aleogr-dev-demo-ab12
+CALLED ^run deploy demo-web .*--image=us-docker.pkg.dev/cloudrun/container/hello:latest( |$)
+CALLED ^run deploy demo-web .*--no-allow-unauthenticated( |$)
+CALLED ^run deploy demo-web .*--iap( |$)
+CALLED ^run deploy demo-web .*--service-account=demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com( |$)
+CALLED ^run deploy demo-web .*--min=0( |$)
+CALLED ^run deploy demo-web .*--max=2( |$)
+CALLED ^run deploy demo-web .*--cpu=1( |$)
+CALLED ^run deploy demo-web .*--memory=256Mi( |$)
+CALLED ^run deploy demo-web .*--cpu-throttling( |$)
+CALLED ^run deploy demo-web .*--labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=web( |$)
+CALLED ^run deploy demo-web .*--region=us-central1( |$)
+CALLED ^run deploy demo-web .*--project=aleogr-dev-demo-ab12( |$)
+CALLED ^run deploy demo-api .*--no-allow-unauthenticated( |$)
+CALLED ^run deploy demo-api .*--iap( |$)
+CALLED ^run deploy demo-api .*--labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=api( |$)
+# Review Focus 1: never public, never without the login.
+NOT_CALLED --allow-unauthenticated|allUsers|allAuthenticatedUsers|--no-iap|--min-instances|--min=[1-9]
+# Review Focus 2: CI gets roles on the service and on the service's account only.
+CALLED ^run services add-iam-policy-binding demo-web .*--member=serviceAccount:demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com( |$)
+CALLED ^run services add-iam-policy-binding demo-web .*--role=roles/run.developer( |$)
+CALLED ^run services add-iam-policy-binding demo-api .*--role=roles/run.developer( |$)
+CALLED ^iam service-accounts add-iam-policy-binding demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com .*--member=serviceAccount:demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com( |$)
+CALLED ^iam service-accounts add-iam-policy-binding demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com .*--role=roles/iam.serviceAccountUser( |$)
+CALLED ^iam service-accounts add-iam-policy-binding demo-api@aleogr-dev-demo-ab12.iam.gserviceaccount.com .*--role=roles/iam.serviceAccountUser( |$)
+NOT_CALLED ^projects add-iam-policy-binding
+NOT_CALLED set-iam-policy
+NOT_CALLED ^run services update
+NOT_CALLED --role=roles/(run\.admin|editor|owner|iam\.serviceAccountAdmin)
+# The login's agent is bound by --iap itself.
+NOT_CALLED ^run services add-iam-policy-binding .*gcp-sa-iap
+# The person running it may get in, as a member only.
+CALLED ^config get-value account
+CALLED ^iap web add-iam-policy-binding .*--resource-type=cloud-run( |$)
+CALLED ^iap web add-iam-policy-binding .*--service=demo-web( |$)
+CALLED ^iap web add-iam-policy-binding .*--member=user:demo-user@example.com( |$)
+CALLED ^iap web add-iam-policy-binding .*--role=roles/iap.httpsResourceAccessor( |$)
+ORDER ^iam service-accounts create demo-web >> ^run deploy demo-web
+ORDER ^run deploy demo-web >> ^run services add-iam-policy-binding demo-web
+ORDER ^run deploy demo-web >> ^iam service-accounts add-iam-policy-binding demo-web@
+ORDER ^iam service-accounts create demo-api >> ^run deploy demo-api
+ORDER ^run deploy demo-api >> ^run services add-iam-policy-binding demo-api
+OUTPUT "status": "created"
+OUTPUT "created": \[ ?"web", ?"api" ?\]
+OUTPUT "web": "https://demo-web-123456789012.us-central1.run.app"
+OUTPUT "waiting": \[ ?"web", ?"api" ?\]
+RESULT_NOT demo-user@example\.com

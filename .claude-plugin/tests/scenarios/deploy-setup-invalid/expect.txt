@@ -1,0 +1,5 @@
+# reference-proj-administration-ui has 32 characters (at most 30), and web- ends with "-": failed before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT reference-proj-administration-ui
+OUTPUT web-

@@ -1,0 +1,8 @@
+# The binding on the account this run just created is refused twice, then accepted: two waits.
+COUNT 3 ^iam service-accounts add-iam-policy-binding demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com
+COUNT 2 ^sleep 30$
+ORDER ^iam service-accounts create demo-web >> ^sleep 30$
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)
+OUTPUT "status": "created"
+OUTPUT "pending": \[ ?\]
+OUTPUT_NOT NOT_FOUND

@@ -1,0 +1,12 @@
+# The service is as declared and already runs an image CI built: not waiting.
+CALLED ^run services describe demo-web .*--region=us-central1
+CALLED ^run services get-iam-policy demo-web
+CALLED ^iam service-accounts get-iam-policy demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "asDeclared": true
+OUTPUT "placeholder": false
+OUTPUT "differences": \[ ?\]
+OUTPUT "differing": \[ ?\]
+OUTPUT "waiting": \[ ?\]
+OUTPUT https://demo-web-123456789012.us-central1.run.app

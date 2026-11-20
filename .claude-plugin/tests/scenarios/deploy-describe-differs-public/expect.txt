@@ -1,0 +1,6 @@
+# allUsers may invoke the service: it differs (public), and nothing is changed.
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "asDeclared": false
+OUTPUT "differences": \[[^]]*"public"
+OUTPUT "differing": \[ ?"web" ?\]

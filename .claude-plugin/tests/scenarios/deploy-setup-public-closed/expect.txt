@@ -1,0 +1,11 @@
+# allUsers may invoke an existing service: that binding is removed, nothing else changes.
+CALLED ^run services remove-iam-policy-binding demo-web .*--member=allUsers( |$)
+CALLED ^run services remove-iam-policy-binding demo-web .*--role=roles/run.invoker( |$)
+NOT_CALLED ^run services update
+NOT_CALLED ^run deploy
+NOT_CALLED add-iam-policy-binding .*all(Authenticated)?Users
+NOT_CALLED --allow-unauthenticated|--no-iap
+NOT_CALLED set-iam-policy
+OUTPUT "status": "updated"
+OUTPUT "updated": \[ ?"web" ?\]
+OUTPUT "asDeclared": true
