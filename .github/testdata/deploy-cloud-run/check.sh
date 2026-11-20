@@ -7,10 +7,12 @@
 #   - has `workflow_call` as its only trigger;
 #   - contains none of the forbidden strings (another trigger that runs with
 #     the base repository's rights, a create or a change of access on the
-#     service, a secret);
+#     service, `secrets: inherit`);
+#   - references no secret but the four identifiers, and has none of them as
+#     an input;
 #   - pins every `uses:` by a full 40-character commit SHA;
 #   - masks the project id, the project number and the service account in the
-#     first step of its one job;
+#     first step of its one job, which reads them from `secrets`;
 #   - puts no `${{ }}` expression inside a script;
 #   - replaces the image by digest only, refusing a digest that is not sha256.
 
@@ -52,9 +54,35 @@ fi
 
 # 2. Forbidden strings.
 for forbidden in pull_request_target workflow_run 'run deploy' '--iap' \
-  allow-unauthenticated add-iam-policy-binding 'secrets.' 'secrets:'; do
+  allow-unauthenticated add-iam-policy-binding 'secrets: inherit' 'secrets['; do
   if grep -qF -e "$forbidden" "$file"; then
     fail "contains the forbidden string '$forbidden'"
+  fi
+done
+
+# 2b. Only the four identifiers are secrets, and none of them is an input.
+identifiers=" project-id workload-identity-provider service-account image-path "
+while IFS= read -r ref; do
+  if [[ "$identifiers" != *" ${ref#secrets.} "* ]]; then
+    fail "references a secret that is not one of the four identifiers: $ref"
+  fi
+done < <(grep -oE 'secrets\.[A-Za-z0-9_-]+' "$file")
+in_inputs=0
+while IFS= read -r line; do
+  if [ "$in_inputs" = 1 ]; then
+    [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+    [[ "$line" =~ ^\ {0,4}[^[:space:]] ]] && break
+    if [[ "$line" =~ ^\ {6}([A-Za-z0-9_-]+): ]] &&
+      [[ "$identifiers" == *" ${BASH_REMATCH[1]} "* ]]; then
+      fail "the identifier ${BASH_REMATCH[1]} is declared as an input"
+    fi
+  elif [ "$line" = "    inputs:" ]; then
+    in_inputs=1
+  fi
+done <"$file"
+for name in $identifiers; do
+  if grep -qF "inputs.$name" "$file"; then
+    fail "the identifier $name is read from inputs"
   fi
 done
 
@@ -105,9 +133,9 @@ else
   if grep -qE '^[[:space:]]+(-[[:space:]]+)?uses:' <<<"$first_step"; then
     fail "the first step is an action, not the masking script"
   fi
-  for input in project-id service-account workload-identity-provider; do
-    if ! grep -qF "\${{ inputs.$input }}" <<<"$first_step"; then
-      fail "the first step does not receive inputs.$input"
+  for name in project-id service-account workload-identity-provider; do
+    if ! grep -qF "\${{ secrets.$name }}" <<<"$first_step"; then
+      fail "the first step does not receive secrets.$name"
     fi
   done
 fi

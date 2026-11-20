@@ -6,9 +6,13 @@ name: deploy-cloud-run
 # Called by a project's ci.yml, pinned by commit SHA, from a job that runs only
 # on push to the default branch and grants `contents: read` and
 # `id-token: write`. Authenticates by workload identity federation (no key).
-# Logs are public: the first step masks the project id, the project number and
-# the service account before anything else runs; no step prints an input.
-# Inputs reach the scripts only through `env`.
+# Logs are public: the identifiers arrive as secrets, which the runner masks
+# from the job's start; the first step also masks the project number, read
+# from the provider path, before anything else runs. No step prints a value.
+# Values reach the scripts only through `env`.
+# The build context is the component's folder, never the repository root (a
+# component's path cannot be `.`), so the credentials file that `auth` writes
+# at the workspace root is outside it.
 
 on:
   workflow_call:
@@ -25,21 +29,22 @@ on:
         description: Region of the service and of the Artifact Registry repository (for example us-central1)
         type: string
         required: true
-      image:
-        description: Image path without tag, <region>-docker.pkg.dev/<project>/<repository>/<component>
+      image-name:
+        description: Name of the component's image; the image is <image-path>/<image-name>
         type: string
         required: true
+    secrets:
       project-id:
         description: Google Cloud project id
-        type: string
         required: true
       workload-identity-provider:
         description: Full path of the provider, projects/<number>/locations/global/workloadIdentityPools/<pool>/providers/<provider>
-        type: string
         required: true
       service-account:
         description: E-mail of the CI service account
-        type: string
+        required: true
+      image-path:
+        description: Registry path without the component, <region>-docker.pkg.dev/<project>/<repository>
         required: true
 
 permissions:
@@ -56,12 +61,13 @@ jobs:
     steps:
       - name: Mask the identifiers
         env:
-          PROJECT_ID: ${{ inputs.project-id }}
-          SERVICE_ACCOUNT: ${{ inputs.service-account }}
-          WIF_PROVIDER: ${{ inputs.workload-identity-provider }}
+          PROJECT_ID: ${{ secrets.project-id }}
+          SERVICE_ACCOUNT: ${{ secrets.service-account }}
+          WIF_PROVIDER: ${{ secrets.workload-identity-provider }}
+          IMAGE_PATH: ${{ secrets.image-path }}
         run: |
-          if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ACCOUNT" ] || [ -z "$WIF_PROVIDER" ]; then
-            echo "::error::An identifier input is empty."
+          if [ -z "$PROJECT_ID" ] || [ -z "$SERVICE_ACCOUNT" ] || [ -z "$WIF_PROVIDER" ] || [ -z "$IMAGE_PATH" ]; then
+            echo "::error::An identifier is empty."
             exit 1
           fi
           echo "::add-mask::$PROJECT_ID"
@@ -85,8 +91,8 @@ jobs:
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
         with:
           token_format: access_token
-          workload_identity_provider: ${{ inputs.workload-identity-provider }}
-          service_account: ${{ inputs.service-account }}
+          workload_identity_provider: ${{ secrets.workload-identity-provider }}
+          service_account: ${{ secrets.service-account }}
 
       - name: Log in to Artifact Registry
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
@@ -106,7 +112,7 @@ jobs:
           push: true
           provenance: false
           sbom: false
-          tags: ${{ inputs.image }}:${{ github.sha }}
+          tags: ${{ secrets.image-path }}/${{ inputs.image-name }}:${{ github.sha }}
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
@@ -114,9 +120,9 @@ jobs:
       - name: Replace the image of the service
         env:
           SERVICE: ${{ inputs.service }}
-          PROJECT: ${{ inputs.project-id }}
+          PROJECT: ${{ secrets.project-id }}
           REGION: ${{ inputs.region }}
-          IMAGE: ${{ inputs.image }}
+          IMAGE: ${{ secrets.image-path }}/${{ inputs.image-name }}
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
