@@ -46,6 +46,8 @@ Before any command, check the arguments. A missing required argument, or any oth
   ```
 
   The last clause accepts only a token of a job that runs the reusable workflow `<workflow>`: GitHub sets `job_workflow_ref` to `<workflow>@<ref>`, and the clause stops at `@` because the form of `<ref>` for a workflow pinned by commit is not documented.
+
+  What the clause stops, and what it does not: it stops another workflow file of the same repository and branch (a second workflow, or a job written in `ci.yml` itself) from acting as CI. It does not stop someone who can change the default branch: they can edit the calling workflow, or point it at another commit of the workflows repository, and its jobs still pass. The protection of the default branch is what guards that.
 - `<mapping>` is exactly `google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.job_workflow_ref=assertion.job_workflow_ref`: six keys, `google.subject` → `assertion.sub`, `attribute.repository` → `assertion.repository`, `attribute.ref` → `assertion.ref`, `attribute.repository_id` → `assertion.repository_id`, `attribute.repository_owner_id` → `assertion.repository_owner_id`, `attribute.job_workflow_ref` → `assertion.job_workflow_ref` (every field the condition tests has its key).
 - `<issuer>` is exactly `https://token.actions.githubusercontent.com`.
 
