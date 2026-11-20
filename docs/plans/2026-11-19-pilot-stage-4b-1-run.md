@@ -132,15 +132,17 @@ Stop at that step and send its whole answer (or the terminal's text), with every
 
 ## Results
 
+Run by the owner on 2026-11-20.
+
 | Step | Expected | Result |
 |---|---|---|
-| Ready | 4b-1 merged; `gcloud` and `gh` signed in; a second account; `spike-iap` and `spike-iap2` listed | |
-| 1. Plugins | the six versions above | |
-| 2. Platform plan | `unchanged`, `nothing to do`, `login` `prepared` / `none`; or `login` `not prepared`, then `platform-apply confirm=yes` ends with `login` `prepared`, no `Login` section | |
-| 3.1 Address | one `.run.app` address | |
-| 3.2 Before the grant | "You don't have access"; any other screen first? | |
-| 3.3 The grant | the policy printed | |
-| 3.4 After the grant | the service's page, no warning; minutes it took | |
-| 4. Services and account | three deletes; no service listed | |
-| 4. Console | the client of the project of `pilot` deleted; the shared project untouched | |
-| 5. Project plan | `unchanged`, `nothing to do`, eleven rows `none` | |
+| Ready | 4b-1 merged; `gcloud` and `gh` signed in; a second account; `spike-iap` and `spike-iap2` listed | as expected; the second account was created for the test |
+| 1. Plugins | the six versions above | as expected, all six enabled |
+| 2. Platform plan | `unchanged`, `nothing to do`, `login` `prepared` / `none`; or `login` `not prepared`, then `platform-apply confirm=yes` ends with `login` `prepared`, no `Login` section | first form: `unchanged`, `nothing to do`, `login` `prepared` / `none`; no apply was needed; one table and one block |
+| 3.1 Address | one `.run.app` address | as expected |
+| 3.2 Before the grant | "You don't have access"; any other screen first? | not observed: the owner reported Google's sign-in only |
+| 3.3 The grant | the policy printed | as expected |
+| 3.4 After the grant | the service's page, no warning; minutes it took | the service's page ("It's running!") as the second account; quick, not timed; no warning reported |
+| 4. Services and account | three deletes; no service listed | as expected (`Listed 0 items`) |
+| 4. Console | the client of the project of `pilot` deleted; the shared project untouched | deleted; the list of the project of `pilot` is empty; the organization's setting still names its own client, a different one |
+| 5. Project plan | `unchanged`, `nothing to do`, eleven rows `none` | as expected; one table and one block |
