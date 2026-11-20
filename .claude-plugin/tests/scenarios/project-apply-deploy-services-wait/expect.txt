@@ -7,7 +7,7 @@ COUNT 3 ^run services describe demo-api
 ORDER ^services enable >> ^sleep 30
 ORDER ^sleep 30 >> ^iam workload-identity-pools providers update-oidc
 CALLED ^run deploy demo-api .*--no-allow-unauthenticated .*--iap
-CALLED ^gh variable set GCP_PROJECT_ID
+CALLED ^gh secret set GCP_PROJECT_ID
 CALLED ^gh pr create --repo example-org/demo
 OUTPUT "status": "updated"
 OUTPUT "item": "pull request #7 is open"

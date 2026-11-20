@@ -8,5 +8,5 @@ OUTPUT https://demo-api-123456789012\.us-central1\.run\.app
 OUTPUT https://demo-web-123456789012\.us-central1\.run\.app
 OUTPUT placeholder
 OUTPUT "pending": \[\]
-NOT_CALLED --method|^gh pr create|^gh variable set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|services enable|^run (deploy|services (update|delete))
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|services enable|^run (deploy|services (update|delete))
 OUTPUT_NOT "action": "(project-plan|deploy-describe|deploy-setup|variables-set)"

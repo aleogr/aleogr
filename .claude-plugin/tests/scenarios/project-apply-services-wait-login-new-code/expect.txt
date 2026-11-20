@@ -1,0 +1,19 @@
+# Finding 4: a project whose ground is made, whose login is not prepared, and that has no code and no
+# CI file yet (the ci row is missing). The login holds no file: the confirmed run writes the Go
+# starting points, the Dockerfiles and a version 1 ci.yml (no deploy job: no service exists) and
+# proposes them; it creates no service, and the item login stays.
+OUTPUT "item": "services", "state": "waits for the login", "action": "prepare the login"
+FILE web/go.mod ^module github\.com/example-org/demo/web$
+FILE services/api/Dockerfile ^FROM golang:1\.27 AS build$
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 api:services/api:go:1\.27,web:web:go:1\.27$
+FILE_NOT .github/workflows/ci.yml deploy-
+CALLED ^git add -- .*web/go\.mod
+CALLED ^git add -- .*web/Dockerfile
+CALLED ^gh pr create --repo example-org/demo
+NOT_CALLED ^run (deploy|services (update|add-iam-policy-binding))|^iam service-accounts create|^iap web add-iam-policy-binding|^gh (variable|secret) set
+NOT_CALLED --method|^git .*push .*origin main
+OUTPUT "item": "pull request #7 is open", "reason": "manual"
+OUTPUT "item": "login", "reason": "manual", "how": "[^"]*/aleogr:platform-plan
+OUTPUT "status": "updated"
+OUTPUT_NOT nothing to do
+OUTPUT_NOT paths=

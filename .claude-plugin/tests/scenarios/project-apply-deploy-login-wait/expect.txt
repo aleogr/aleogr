@@ -1,0 +1,16 @@
+# Minor 9: a project of stage 4a; the run enables Cloud Run and IAP, and the plan made right after it
+# is refused the login's read twice by the just-enabled IAP API. That plan ends failed with the item
+# services (not waits for the login), and the bounded wait polls it (two waits); the third try reads
+# the login as prepared, and the run goes on to the services and the proposal.
+COUNT 2 ^sleep 30$
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)
+COUNT 3 ^iap settings get --organization=111111111111 --billing-project=aleogr-dev-demo-ab12
+ORDER ^services enable >> ^sleep 30
+ORDER ^sleep 30 >> ^iam workload-identity-pools providers update-oidc
+CALLED ^run deploy demo-api .*--no-allow-unauthenticated .*--iap
+CALLED ^gh pr create --repo example-org/demo
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"
+OUTPUT_NOT "item": "(apis|verify|services|login)", "reason"
+OUTPUT_NOT waits for the login
+OUTPUT_NOT PERMISSION_DENIED|SERVICE_DISABLED|has not been used

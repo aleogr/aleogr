@@ -1,0 +1,6 @@
+{
+  "bindings": [
+    { "members": ["serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com"], "role": "roles/run.invoker" }
+  ],
+  "etag": "BwYxxxxxxxx="
+}

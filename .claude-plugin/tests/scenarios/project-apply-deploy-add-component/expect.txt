@@ -9,7 +9,7 @@ FILE web/Dockerfile ^FROM golang:1\.27 AS build$
 FILE web/go.mod ^module github\.com/example-org/demo/web$
 FILE .github/workflows/ci.yml ^  deploy-web-dev:$
 FILE .github/workflows/ci.yml ^  deploy-api-dev:$
-FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main$
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main region=us-central1$
 CALLED ^gh pr create --repo example-org/demo
 OUTPUT "status": "updated"
 OUTPUT "item": "pull request #7 is open"
