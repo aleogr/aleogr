@@ -1,0 +1,11 @@
+# One of the four Actions secrets (GCP_IMAGE_PATH) does not exist: ci secrets, missing, to set. The
+# plan only reads their names: a secret's value cannot be read back, and it says so under the table.
+CALLED ^gh secret list --repo example-org/demo --json name$
+OUTPUT "item": "ci secrets", "state": "missing: GCP_IMAGE_PATH", "action": "set"
+OUTPUT compared by name only
+NOT_CALLED ^gh variable
+OUTPUT_NOT "GCP_REGION"
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

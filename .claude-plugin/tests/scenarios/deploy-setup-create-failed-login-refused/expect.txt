@@ -1,0 +1,11 @@
+# The create fails after creating a service without the login, and turning the login on is refused:
+# the run ends failed (something is left without the login), names the service, and makes nothing else.
+CALLED ^run deploy demo-web
+CALLED ^run services update demo-web .*--iap( |$)
+NOT_CALLED ^run services add-iam-policy-binding|^iap web add
+OUTPUT "status": "failed"
+OUTPUT demo-web
+OUTPUT without the login
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

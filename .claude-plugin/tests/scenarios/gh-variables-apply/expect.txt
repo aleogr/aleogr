@@ -1,0 +1,12 @@
+CALLED ^gh variable list --repo example-org/example-repo --json name,value
+ORDER ^gh variable list >> ^gh variable set
+CALLED ^gh variable set GCP_REGION --repo example-org/example-repo --body us-central1$
+CALLED ^gh variable set GCP_IMAGE_PATH --repo example-org/example-repo --body us-central1-docker\.pkg\.dev/aleogr-dev-demo-ab12/demo$
+NOT_CALLED ^gh variable set (GCP_PROJECT_ID|GCP_WIF_PROVIDER|GCP_CI_ACCOUNT|LEGACY_FLAG)
+NOT_CALLED ^gh variable delete
+OUTPUT "status": "updated"
+OUTPUT "set": \["GCP_IMAGE_PATH", "GCP_REGION"\]
+RESULT_NOT aleogr-dev-demo-ab12
+RESULT_NOT 123456789012|us-central1
+NOT_CALLED ^git (add|commit|push)
+RESULT_NOT LEGACY_FLAG

@@ -1,0 +1,8 @@
+# The service of web does not exist yet: nothing is granted, and the answer says to run
+# project-apply first, never a nested skill.
+CALLED ^run services describe demo-web
+NOT_CALLED add-iam-policy-binding
+OUTPUT "status": "failed"
+OUTPUT /aleogr:project-apply confirm=yes first
+OUTPUT_NOT create it first with gcp_deploy-setup|"how": "[^"]*gcp_
+RESULT_NOT demo-user@example\.com

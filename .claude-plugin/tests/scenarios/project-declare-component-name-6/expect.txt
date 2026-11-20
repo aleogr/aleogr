@@ -1,0 +1,4 @@
+# With an environment, abc-de has exactly 6 characters: accepted.
+OUTPUT "status": "updated"
+FILE .aleogr/project.json "name": "de", "stack": "go", "path": "de", "version": "1\.27"
+NOT_CALLED .

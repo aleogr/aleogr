@@ -1,0 +1,7 @@
+# As declared and still the hello sample: waiting for the first deploy.
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "asDeclared": true
+OUTPUT "placeholder": true
+OUTPUT "waiting": \[ ?"web" ?\]
+OUTPUT "differing": \[ ?\]

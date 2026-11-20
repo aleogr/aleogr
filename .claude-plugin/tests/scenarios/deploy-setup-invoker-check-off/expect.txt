@@ -1,0 +1,10 @@
+# The invoker check is off: it is turned back on alone, and nothing else is updated.
+CALLED ^run services update demo-web .*--invoker-iam-check( |$)
+NOT_CALLED ^run services update .*(--max|--min|--cpu|--memory|--labels|--update-labels|--service-account|--iap)
+NOT_CALLED --image|--no-invoker-iam-check|--allow-unauthenticated( |$)
+NOT_CALLED ^run deploy
+OUTPUT "status": "updated"
+OUTPUT "asDeclared": true
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

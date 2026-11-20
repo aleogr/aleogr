@@ -1,0 +1,14 @@
+# The security pass covers every service before anything is made. web's login is refused; api's
+# public member is still removed; then the run ends failed and makes nothing (admin is not created).
+CALLED ^run services update demo-web .*--iap( |$)
+CALLED ^run services remove-iam-policy-binding demo-api .*--member=allUsers( |$)
+NOT_CALLED service-accounts create|run deploy
+NOT_CALLED ^run services add-iam-policy-binding|^iam service-accounts add-iam-policy-binding|^iap web add
+NOT_CALLED --image
+OUTPUT "status": "failed"
+OUTPUT demo-web
+OUTPUT without the login
+OUTPUT_NOT PERMISSION_DENIED|run\.services\.update
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

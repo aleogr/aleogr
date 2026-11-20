@@ -81,6 +81,15 @@ while IFS= read -r line || [ -n "$line" ]; do
     NO_FILE)
       [ ! -e "$work/cwd/$arg" ] || ok=0
       ;;
+    FILE_NOT)
+      # FILE_NOT <relative path> <regex>: the file is absent, or no line of it matches.
+      f="${arg%% *}"; re="${arg#* }"
+      if [ "$kind" = "$line" ] || [ "$re" = "$arg" ] || [ -z "$re" ]; then
+        echo "bad expect line (FILE_NOT needs a path and a regex): $line" >&2; ok=0
+      else
+        { [ -f "$work/cwd/$f" ] && grep -Eq -- "$re" "$work/cwd/$f"; } && ok=0
+      fi
+      ;;
     ORDER)
       first="${arg%% >> *}"; second="${arg#* >> }"
       a="$(grep -En -- "$first" "$log" | head -n1 | cut -d: -f1)"

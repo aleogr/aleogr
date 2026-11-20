@@ -1,0 +1,11 @@
+# The removal of the login policy's allUsers is refused: the pass still runs to its end, then the run
+# ends failed, makes nothing, and says in plain words that the service is still open.
+CALLED ^iap web remove-iam-policy-binding .*--service=demo-web( |$)
+NOT_CALLED service-accounts create|run deploy|^run services add-iam-policy-binding|^iam service-accounts add-iam-policy-binding|^iap web add
+OUTPUT "status": "failed"
+OUTPUT demo-web
+OUTPUT still open
+OUTPUT_NOT PERMISSION_DENIED
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

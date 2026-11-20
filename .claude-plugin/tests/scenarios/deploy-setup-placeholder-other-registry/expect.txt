@@ -1,0 +1,7 @@
+# Only Google's hello sample is a placeholder: any other image is refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT placeholderImage
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

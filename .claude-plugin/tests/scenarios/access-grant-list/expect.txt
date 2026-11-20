@@ -1,0 +1,12 @@
+# list=yes reads and changes nothing: the block holds how many people each service lets in,
+# never who; the answer names them and gives the one command that removes a person.
+CALLED ^iap web get-iam-policy --resource-type=cloud-run --service=demo-web
+CALLED ^iap web get-iam-policy --resource-type=cloud-run --service=demo-api
+NOT_CALLED add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy
+OUTPUT "status": "unchanged"
+OUTPUT "web": 1
+OUTPUT "api": 2
+OUTPUT remove-iam-policy-binding
+OUTPUT owner@example.com
+RESULT_NOT @example.com
+OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-(web|api) --region=us-central1 --project=aleogr-dev-demo-ab12 --member=.?user:.* --role=.?roles/iap.httpsResourceAccessor

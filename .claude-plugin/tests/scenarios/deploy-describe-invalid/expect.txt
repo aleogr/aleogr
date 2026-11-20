@@ -1,0 +1,5 @@
+# A component ending with "-" and a CI account that is a person's e-mail: failed before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT ciAccount
+OUTPUT web-

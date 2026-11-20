@@ -1,0 +1,12 @@
+# plan: web is missing, api is public. Reads only.
+CALLED ^run services describe demo-web
+CALLED ^run services describe demo-api
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "would-create"
+OUTPUT "missing": \[ ?"web" ?\]
+OUTPUT "differing": \[ ?"api" ?\]
+OUTPUT "created": \[ ?\]
+RESULT_NOT demo-user@example\.com
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

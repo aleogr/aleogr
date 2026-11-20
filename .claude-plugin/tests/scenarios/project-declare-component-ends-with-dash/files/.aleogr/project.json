@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/aleogr/aleogr/main/.claude-plugin/schemas/project.schema.json",
+  "version": 1,
+  "name": "demo",
+  "environments": {
+    "dev": {}
+  },
+  "cloud": {
+    "root": "tst",
+    "region": "us-central1",
+    "provider": "gcp"
+  },
+  "repo": {
+    "provider": "github",
+    "owner": "example-org",
+    "name": "demo",
+    "visibility": "private",
+    "description": "Demo project",
+    "topics": ["sample"],
+    "settings": {
+      "mergeCommit": true,
+      "squash": true,
+      "rebase": false,
+      "deleteBranchOnMerge": true,
+      "issues": true,
+      "wiki": false,
+      "projects": false
+    }
+  },
+  "components": [
+    { "name": "web", "stack": "go", "path": "web", "version": "1.27" }
+  ]
+}

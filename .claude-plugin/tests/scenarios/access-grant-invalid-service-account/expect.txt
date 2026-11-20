@@ -1,0 +1,5 @@
+# A service account's address is not a person: refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT person
+OUTPUT e-mail address of one person

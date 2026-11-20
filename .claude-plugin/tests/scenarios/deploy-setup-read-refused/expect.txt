@@ -1,0 +1,8 @@
+# The service's policy cannot be read: failed, nothing changed, no raw error text.
+CALLED ^run services get-iam-policy demo-web
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "failed"
+OUTPUT_NOT PERMISSION_DENIED|getIamPolicy
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

@@ -6,3 +6,4 @@ FILE web/main_test.go httptest
 OUTPUT "status": "created"
 OUTPUT "working-directory": "web"
 NOT_CALLED ^gh
+OUTPUT "dockerfile": "not-asked"

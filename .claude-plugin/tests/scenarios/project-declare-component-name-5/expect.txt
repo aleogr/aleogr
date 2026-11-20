@@ -1,0 +1,10 @@
+# With an environment, abc-d has 5 characters: a service's name has at least 6. Refused, nothing
+# written.
+OUTPUT "status": "failed"
+OUTPUT_NOT "status": "(updated|created)"
+FILE_NOT .aleogr/project.json "name": "d"
+FILE .aleogr/project.json ^  "environments": \{$
+# Words of the prescribed sentence.
+OUTPUT abc-d
+OUTPUT choose another component name
+NOT_CALLED .

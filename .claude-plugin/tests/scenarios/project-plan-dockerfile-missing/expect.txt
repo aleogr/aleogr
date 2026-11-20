@@ -1,0 +1,8 @@
+# The module of web exists but its Dockerfile does not: with an environment, web is to generate.
+OUTPUT "item": "components", "state": "to generate: web", "action": "generate"
+OUTPUT "generate": true
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NO_FILE web/Dockerfile
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

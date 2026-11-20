@@ -1,0 +1,24 @@
+# An existing service that runs CI's image differs in scaling, size, labels, the agent and CI's role.
+# One update with only those settings, never the image; then the two missing bindings.
+CALLED ^run services update demo-web .*--max=2( |$)
+CALLED ^run services update demo-web .*--cpu=1( |$)
+CALLED ^run services update demo-web .*--memory=512Mi( |$)
+CALLED ^run services update demo-web .*aleogr-environment=dev
+NOT_CALLED --image
+NOT_CALLED ^run deploy
+NOT_CALLED ^run services update .*(--iap|--invoker-iam-check)
+NOT_CALLED --allow-unauthenticated|allUsers|--no-iap
+NOT_CALLED --ingress|--no-invoker-iam-check|--no-iap|--allow-unauthenticated( |$)
+CALLED ^run services add-iam-policy-binding demo-web .*--member=serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com( |$)
+CALLED ^run services add-iam-policy-binding demo-web .*--role=roles/run.invoker( |$)
+CALLED ^run services add-iam-policy-binding demo-web .*--role=roles/run.developer( |$)
+NOT_CALLED ^iam service-accounts (create|add-iam-policy-binding)
+NOT_CALLED ^iap web add-iam-policy-binding
+NOT_CALLED ^projects add-iam-policy-binding
+OUTPUT "status": "updated"
+OUTPUT "updated": \[ ?"web" ?\]
+OUTPUT "created": \[ ?\]
+OUTPUT "asDeclared": true
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

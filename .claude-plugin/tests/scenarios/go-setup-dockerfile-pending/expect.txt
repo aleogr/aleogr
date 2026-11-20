@@ -1,0 +1,7 @@
+# Go files without go.mod: pending, and the Dockerfile is not written either.
+NO_FILE web/Dockerfile
+NO_FILE web/go.mod
+NO_FILE web/main.go
+FILE web/handler.go ^package main$
+OUTPUT "status": "pending"
+OUTPUT "dockerfile": "would-write"

@@ -1,0 +1,10 @@
+# The grant is refused: failed with the prescribed sentence, no word of gcloud's answer, no
+# wait and no other way around it.
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web
+NOT_CALLED ^sleep
+NOT_CALLED ^(projects|run services) add-iam-policy-binding|set-iam-policy
+OUTPUT "status": "failed"
+OUTPUT_NOT PERMISSION_DENIED
+OUTPUT_NOT does not have permission
+RESULT_NOT demo-user@example.com
+OUTPUT could not be let in

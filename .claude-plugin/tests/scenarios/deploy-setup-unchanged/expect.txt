@@ -1,0 +1,13 @@
+# Both services as declared and the person running it already gets in: reads only.
+CALLED ^run services describe demo-web
+CALLED ^run services describe demo-api
+CALLED ^iap web get-iam-policy
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "created": \[ ?\]
+OUTPUT "updated": \[ ?\]
+OUTPUT "api": "https://demo-api-123456789012.us-central1.run.app"
+RESULT_NOT demo-user@example\.com
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

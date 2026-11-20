@@ -1,0 +1,5 @@
+# The declaration has no environments: failed, one sentence, no command.
+NOT_CALLED ^([a-fi-z-]|g[^hi])
+OUTPUT "status": "failed"
+OUTPUT environment
+RESULT_NOT demo-user@example\.com

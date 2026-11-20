@@ -1,0 +1,9 @@
+NOT_CALLED commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 web:web:go:1\.27 deploy=dev:web project=demo branch=main region=us-central1$
+FILE .github/workflows/ci.yml ^      region: "us-central1"$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/deploy-cloud-run\.yml@3{40}$
+FILE_NOT .github/workflows/ci.yml europe-west1|vars\.
+OUTPUT "local": "differs"
+OUTPUT "repositoryAsDeclared": false
+OUTPUT "status": "updated"
+NOT_CALLED ^git (add|commit|push|-c credential)

@@ -1,0 +1,8 @@
+CALLED ^gh variable set GCP_IMAGE_PATH --repo example-org/example-repo --body us-central1-docker\.pkg\.dev/aleogr-dev-demo-ab12/demo$
+CALLED ^gh variable set GCP_REGION
+NOT_CALLED ^gh variable delete
+OUTPUT "status": "updated"
+OUTPUT "item": "variables"
+OUTPUT "set": \["GCP_IMAGE_PATH"\]
+OUTPUT_NOT us-central1|aleogr-dev-demo-ab12|Resource not accessible
+RESULT_NOT LEGACY_FLAG

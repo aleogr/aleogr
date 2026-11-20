@@ -1,6 +1,6 @@
 # The provider accepts another branch: apply updates it with the whole declared condition.
 CALLED ^iam workload-identity-pools providers update-oidc github .*--workload-identity-pool=github
-CALLED ^iam workload-identity-pools providers update-oidc github .*--attribute-condition=assertion.repository=='example-org/example-repo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main'( |$)
+CALLED ^iam workload-identity-pools providers update-oidc github .*--attribute-condition=assertion.repository=='example-org/example-repo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main' && assertion.job_workflow_ref.startsWith\('aleogr/aleogr/\.github/workflows/deploy-cloud-run\.yml@'\)( |$)
 NOT_CALLED (create|add-iam-policy-binding)
 NOT_CALLED providers delete
 COUNT 2 ^iam workload-identity-pools providers describe github

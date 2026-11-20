@@ -1,0 +1,28 @@
+name: self-test-deploy-cloud-run
+
+# Runs the static check in .github/testdata/deploy-cloud-run/check.sh on the
+# reusable deploy-cloud-run.yml, on pull requests that change the workflow,
+# this file or the check. The deploy itself needs a cloud and is not run here.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/deploy-cloud-run.yml
+      - .github/workflows/self-test-deploy-cloud-run.yml
+      - .github/testdata/deploy-cloud-run/**
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check deploy-cloud-run.yml
+        run: bash .github/testdata/deploy-cloud-run/check.sh .github/workflows/deploy-cloud-run.yml

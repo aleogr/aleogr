@@ -1,0 +1,8 @@
+CALLED ^gh api repos/example-org/tooling/commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main region=us-central1$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@2{40}$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/deploy-cloud-run\.yml@2{40}$
+FILE_NOT .github/workflows/ci.yml @(3{40}|4{40})
+OUTPUT "status": "updated"
+OUTPUT "ref": "2{40}"
+NOT_CALLED ^git (add|commit|push|-c credential)

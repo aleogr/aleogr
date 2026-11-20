@@ -1,0 +1,15 @@
+# Open through the login (allUsers) and public on the access policy: the login policy's member goes
+# first, then the access policy's, each alone; nothing else changes.
+CALLED ^iap web remove-iam-policy-binding .*--service=demo-web( |$)
+CALLED ^iap web remove-iam-policy-binding .*--member=allUsers( |$)
+CALLED ^iap web remove-iam-policy-binding .*--role=roles/iap.httpsResourceAccessor( |$)
+CALLED ^iap web remove-iam-policy-binding .*--all( |$)
+CALLED ^run services remove-iam-policy-binding demo-web .*--member=allUsers( |$)
+ORDER ^iap web remove-iam-policy-binding >> ^run services remove-iam-policy-binding
+NOT_CALLED add-iam-policy-binding .*all(Authenticated)?Users
+NOT_CALLED ^run services update|^run deploy|--image
+OUTPUT "status": "updated"
+OUTPUT "asDeclared": true
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

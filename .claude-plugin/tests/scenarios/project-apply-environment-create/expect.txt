@@ -13,7 +13,7 @@ CALLED ^services enable .*sts\.googleapis\.com
 NOT_CALLED ^services enable .*logging\.googleapis\.com
 CALLED ^artifacts repositories create demo .*--location=us-central1
 CALLED ^artifacts repositories set-cleanup-policies demo .*--policy=.*/files/cleanup-policy\.json
-CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-condition=assertion.repository=='example-org/demo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main'( |$)
+CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-condition=assertion.repository=='example-org/demo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main' && assertion.job_workflow_ref.startsWith\('aleogr/aleogr/.github/workflows/deploy-cloud-run.yml@'\)( |$)
 CALLED ^artifacts repositories add-iam-policy-binding demo .*--member=serviceAccount:demo-ci@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com
 ORDER ^billing projects link >> ^services enable
 ORDER ^services enable >> ^artifacts repositories create
@@ -28,7 +28,9 @@ OUTPUT "item": "environment dev", "state": "exists", "action": "none"
 OUTPUT "item": "registry", "state": "as declared", "action": "none"
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
-OUTPUT [Nn]othing is deployed yet
+# Services already as declared: none is created; what is left is nothing.
+NOT_CALLED ^run deploy
+OUTPUT https://demo-web-123456789012\.us-central1\.run\.app
 OUTPUT "status": "updated"
 OUTPUT "pending": \[\]
 # The blocks of the skills project-apply invokes in apply are input only: never printed.

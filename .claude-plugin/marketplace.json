@@ -6,14 +6,14 @@
     {
       "name": "aleogr",
       "source": "./.claude-plugin/plugins/aleogr",
-      "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch) and prepares the login of the organization as far as a command can, and declares, plans and applies a project's GitHub repository, proposes a change to it by pull request, generates its Go components and CI file, makes the check ci required once that file is merged, and creates the ground of the environment dev on Google Cloud: its GCP project and APIs, the Docker image repository with its cleanup policy, and a keyless CI identity that may push images to it.",
+      "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch) and prepares the login of the organization as far as a command can, and declares, plans and applies a project's GitHub repository, proposes a change to it by pull request, generates its Go components and CI file, makes the check ci required once that file is merged, and creates the ground of the environment dev on Google Cloud: its GCP project and APIs, the Docker image repository with its cleanup policy, and a keyless CI identity that may push images to it and deploy; with components, creates each component's Cloud Run service behind the login (no instance always on, billed by request) and the repository's CI secrets before it proposes the Dockerfiles and the CI file with its deploy jobs, and lets a person in to the services through the login (project-access).",
       "category": "orchestrator",
       "displayName": "aleogr (orchestrator)"
     },
     {
       "name": "aleogr-cloud-gcp",
       "source": "./.claude-plugin/plugins/aleogr-cloud-gcp",
-      "description": "Google Cloud family: project environments, services, budget alerts, the CI identity and the login of the organization.",
+      "description": "Google Cloud family: project environments, APIs, budget alerts, the CI identity bound to the deploy workflow, the login of the organization, the Cloud Run services of a project's components and who may get in to them.",
       "category": "cloud",
       "displayName": "Google Cloud (cloud)"
     },
@@ -34,14 +34,14 @@
     {
       "name": "aleogr-repo-github",
       "source": "./.claude-plugin/plugins/aleogr-repo-github",
-      "description": "GitHub family: repositories, their settings, branch protection, the checkout that sends the first content, and the pull requests that propose changes.",
+      "description": "GitHub family: repositories, their settings, branch protection, the checkout that sends the first content, the pull requests that propose changes, the CI file with its deploy jobs, and the Actions variables and secrets they read.",
       "category": "repo",
       "displayName": "GitHub (repository)"
     },
     {
       "name": "aleogr-stack-go",
       "source": "./.claude-plugin/plugins/aleogr-stack-go",
-      "description": "Go stack: the starting point of a Go component.",
+      "description": "Go stack: the starting point of a Go component and its Dockerfile.",
       "category": "stack",
       "displayName": "Go (stack)"
     }

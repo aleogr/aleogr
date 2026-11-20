@@ -1,0 +1,11 @@
+# As project-apply-deploy-services-wait, but the services' read is refused ten times: the wait's
+# limit passes (nine waits) and the run stops with the item apis. The eleventh response would
+# accept: a run that tries more than ten times would go on and fail the NOT_CALLED line.
+COUNT 9 ^sleep 30$
+COUNT 10 ^run services describe demo-api
+NOT_CALLED ^run deploy|update-oidc|^gh (variable|secret) set|^gh pr create|^git (switch|add|commit)
+OUTPUT still refused after 10 tries
+OUTPUT "item": "apis", "reason": "manual", "how": "[^"]*minute
+OUTPUT "status": "updated"
+OUTPUT_NOT nothing to do
+OUTPUT_NOT PERMISSION_DENIED|has not been used

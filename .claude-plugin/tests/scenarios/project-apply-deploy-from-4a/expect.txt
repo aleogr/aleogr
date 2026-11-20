@@ -1,0 +1,39 @@
+# Review Focus 7: a project of stage 4a (marker version 1, no Dockerfile, a provider without the
+# workflow clause, five APIs) reaches "merge this pull request" in one confirmed run, and the pull
+# request carries everything the merge needs.
+CALLED ^services enable .*run\.googleapis\.com
+CALLED ^services enable .*iap\.googleapis\.com
+NOT_CALLED ^iam workload-identity-pools providers (create-oidc|delete)
+CALLED ^iam workload-identity-pools providers update-oidc github .*assertion\.job_workflow_ref\.startsWith\('aleogr/aleogr/\.github/workflows/deploy-cloud-run\.yml@'\)
+# Three secrets exist; the identity is updated in this run, so all four are set again (replace=yes).
+CALLED ^gh secret set GCP_IMAGE_PATH --repo example-org/demo --body "?us-central1-docker\.pkg\.dev/aleogr-dev-demo-ab12/demo"?$
+CALLED ^gh secret set GCP_PROJECT_ID --repo example-org/demo
+CALLED ^gh secret set GCP_CI_ACCOUNT --repo example-org/demo
+NOT_CALLED ^gh (variable set|secret set GCP_REGION)
+CALLED ^gh secret set GCP_WIF_PROVIDER --repo example-org/demo --body "?projects/123456789012/locations/global/workloadIdentityPools/github/providers/github"?$
+FILE web/Dockerfile ^FROM golang:1\.27 AS build$
+FILE services/api/Dockerfile ^USER nonroot:nonroot$
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main region=us-central1$
+FILE .github/workflows/ci.yml deploy-cloud-run\.yml@3333333333333333333333333333333333333333
+CALLED ^git add -- .*services/api/Dockerfile
+CALLED ^git add -- .*web/Dockerfile
+CALLED ^git add -- .*\.github/workflows/ci\.yml
+# The cloud before the proposal, with the cost limits.
+ORDER ^run deploy demo-api >> ^gh pr create
+ORDER ^run deploy demo-web >> ^git add
+ORDER ^gh secret set >> ^git add
+CALLED ^run deploy demo-api .*--min=0( |$)
+CALLED ^run deploy demo-api .*--max=2( |$)
+CALLED ^run deploy demo-api .*--cpu=1( |$)
+CALLED ^run deploy demo-api .*--memory=512Mi( |$)
+CALLED ^run deploy demo-api .*--cpu-throttling( |$)
+CALLED ^run deploy demo-web .*--min=0( |$)
+CALLED ^run deploy demo-web .*--max=2( |$)
+CALLED ^run deploy demo-web .*--cpu=1( |$)
+CALLED ^run deploy demo-web .*--memory=512Mi( |$)
+CALLED ^run deploy demo-web .*--cpu-throttling( |$)
+CALLED ^gh pr create --repo example-org/demo
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"
+OUTPUT_NOT nothing to do
+NOT_CALLED ^git .*push .*origin main

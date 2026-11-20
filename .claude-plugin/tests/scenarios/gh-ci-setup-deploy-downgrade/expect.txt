@@ -1,0 +1,8 @@
+NOT_CALLED commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 web:web:go:1\.27$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@3{40}$
+FILE_NOT .github/workflows/ci.yml deploy-|secrets:|vars\.
+OUTPUT "local": "differs"
+OUTPUT "status": "updated"
+OUTPUT "deploy": \[\]
+NOT_CALLED ^git (add|commit|push|-c credential)

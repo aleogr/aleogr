@@ -1,0 +1,5 @@
+# With an environment, demoproject123-notifications-a has exactly 30 characters: accepted.
+OUTPUT "status": "updated"
+FILE .aleogr/project.json "name": "notifications-a", "stack": "go", "path": "notifications-a", "version": "1\.27"
+OUTPUT components\.notifications-a
+NOT_CALLED .

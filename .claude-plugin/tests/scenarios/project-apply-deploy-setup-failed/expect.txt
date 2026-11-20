@@ -1,0 +1,19 @@
+# The security pass of gcp_deploy-setup cannot remove allUsers from demo-web: the setup ends
+# failed. The run stops there: no service created, no secret set, no file written, no proposal;
+# the answer repeats what is still open, and never says "apply again" on a guess.
+CALLED ^run services remove-iam-policy-binding demo-web .*--member=allUsers
+NOT_CALLED ^run deploy|^iam service-accounts create|^gh (variable|secret) set|^gh pr create|^git (switch|add|commit|-c credential)
+NO_FILE web/Dockerfile
+NO_FILE services/api/Dockerfile
+OUTPUT still open
+OUTPUT "item": "services", "reason": "manual"
+OUTPUT "status": "failed"
+OUTPUT_NOT "how": "[^"]*(/aleogr:project-apply confirm=yes"|apply again)
+OUTPUT_NOT PERMISSION_DENIED
+OUTPUT_NOT "action": "(deploy-setup|project-plan)"
+# Only the item services, whose how runs the plan first, guesses no cause and is not that skill's
+# advice; no item for the rows the plan still lists.
+OUTPUT "item": "services", "reason": "manual", "how": "[^"]*/aleogr:project-plan
+OUTPUT_NOT "item": "(components|ci|ci secrets|ci variables|confirm)", "reason"
+OUTPUT_NOT "how": "[^"]*active gcloud account
+OUTPUT_NOT [Rr]un this (same )?skill again|gcp_deploy-setup again

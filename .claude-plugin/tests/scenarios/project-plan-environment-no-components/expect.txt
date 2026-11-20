@@ -1,0 +1,14 @@
+# Environments without components: nine rows, no services and no CI secrets rows. The CI
+# identity still gets workflow= from defaults.json (its provider, with the workflow clause, is as
+# declared only then).
+CALLED ^iam workload-identity-pools providers describe github
+OUTPUT "item": "protection", "state": "protected", "action": "none"
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none" \}\s*$
+OUTPUT_NOT "item": "(services|ci secrets|ci variables|components|ci)"
+OUTPUT "GCP_IMAGE_PATH": "us-central1-docker\.pkg\.dev/aleogr-dev-demo-ab12/demo"
+OUTPUT "urls": null
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"
+NOT_CALLED ^run services|^iap settings get|^gh (variable|secret)|^gh api repos/example-org/demo/contents/\.github
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|update-oidc|set-cleanup-policies|services enable
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

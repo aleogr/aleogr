@@ -1,0 +1,8 @@
+CALLED ^gh secret list --repo example-org/example-repo --json name
+NOT_CALLED ^gh variable
+NOT_CALLED ^gh secret (delete|remove)
+NOT_CALLED ^gh secret set OTHER_TOKEN
+RESULT_NOT aleogr-dev-demo-ab12|123456789012|us-central1|demo-ci@|OTHER_TOKEN
+NOT_CALLED ^gh secret set
+OUTPUT "status": "unchanged"
+OUTPUT "set": \[\]

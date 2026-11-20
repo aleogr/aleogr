@@ -1,0 +1,7 @@
+# Plan of a module without a Dockerfile: would-create, nothing written.
+NO_FILE web/Dockerfile
+NO_FILE web/main_test.go
+FILE web/go.mod ^module example\.com/kept$
+OUTPUT "status": "would-create"
+OUTPUT "dockerfile": "would-write"
+OUTPUT "written": false

@@ -1,0 +1,8 @@
+# dockerfile is yes or no: anything else fails before any command.
+NO_FILE web/Dockerfile
+NO_FILE web/go.mod
+NO_FILE web/main.go
+NO_FILE web/main_test.go
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT "dockerfile": null

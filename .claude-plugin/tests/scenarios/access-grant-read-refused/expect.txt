@@ -1,0 +1,6 @@
+# The first read is refused (not "missing"): failed with step 1's own sentence, nothing granted.
+CALLED ^run services describe demo-web
+NOT_CALLED add-iam-policy-binding|set-iam-policy|^run deploy
+OUTPUT "status": "failed"
+OUTPUT could not be read
+OUTPUT_NOT PERMISSION_DENIED|run\.services\.get

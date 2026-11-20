@@ -1,0 +1,16 @@
+{
+  "attributeCondition": "assertion.repository=='example-org/demo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/trunk' && assertion.job_workflow_ref.startsWith('aleogr/aleogr/.github/workflows/deploy-cloud-run.yml@')",
+  "attributeMapping": {
+    "attribute.job_workflow_ref": "assertion.job_workflow_ref",
+    "attribute.ref": "assertion.ref",
+    "attribute.repository": "assertion.repository",
+    "attribute.repository_id": "assertion.repository_id",
+    "attribute.repository_owner_id": "assertion.repository_owner_id",
+    "google.subject": "assertion.sub"
+  },
+  "name": "projects/123456789012/locations/global/workloadIdentityPools/github/providers/github",
+  "oidc": {
+    "issuerUri": "https://token.actions.githubusercontent.com"
+  },
+  "state": "ACTIVE"
+}

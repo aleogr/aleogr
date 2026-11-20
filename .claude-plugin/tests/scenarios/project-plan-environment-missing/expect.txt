@@ -13,3 +13,7 @@ OUTPUT "ciVariables": null
 OUTPUT "status": "would-update"
 OUTPUT_NOT nothing to do
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+# The two rows of stage 4b-2 follow the environment, and neither the login nor a service is read.
+OUTPUT "item": "services", "state": "follows the environment", "action": "none"
+OUTPUT "item": "ci secrets", "state": "follows the environment", "action": "none"
+NOT_CALLED ^run services|^iap settings get

@@ -1,0 +1,14 @@
+# web lets everyone with a Google account in (allUsers): flagged in the block and the answer,
+# with its own remove command as a pending item; the skill never removes it itself. api has a
+# service account (listed apart) and a conditional binding (not counted, listed apart).
+NOT_CALLED add-iam-policy-binding|remove-iam-policy-binding|set-iam-policy
+OUTPUT "status": "unchanged"
+OUTPUT "open": \["web"\]
+OUTPUT "web": 2
+OUTPUT "api": 2
+OUTPUT "item": "access"
+OUTPUT "how": "gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=allUsers .*--role=roles/iap.httpsResourceAccessor
+OUTPUT [Aa]nyone on the internet who signs in with any Google account
+OUTPUT until-2027
+OUTPUT serviceAccount:demo-ci@
+RESULT_NOT @example\.com

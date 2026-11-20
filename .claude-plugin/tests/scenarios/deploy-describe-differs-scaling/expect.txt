@@ -1,0 +1,5 @@
+# One instance always on and a maximum of 10: scaling differs, nothing else does (cpu 1000m is cpu 1).
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "differences": \[ ?"scaling" ?\]
+OUTPUT "differing": \[ ?"web" ?\]

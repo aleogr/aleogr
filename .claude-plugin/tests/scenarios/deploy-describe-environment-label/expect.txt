@@ -1,0 +1,5 @@
+# environment= given: the label must equal it. The service is labelled dev: labels differ, nothing else.
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "differences": \[ ?"labels" ?\]
+OUTPUT "differing": \[ ?"web" ?\]

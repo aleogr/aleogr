@@ -1,0 +1,11 @@
+# Everything as declared, the services deployed: nothing to do, and the answer gives each
+# service's address (never in a how, never in the result block).
+OUTPUT "item": "services", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT "status": "unchanged"
+OUTPUT https://demo-api-123456789012\.us-central1\.run\.app
+OUTPUT https://demo-web-123456789012\.us-central1\.run\.app
+RESULT_NOT run\.app
+OUTPUT_NOT placeholder
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(project-plan|deploy-describe|variables-set)"

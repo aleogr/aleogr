@@ -1,0 +1,10 @@
+# The service of web (the first) does not exist: every component is still read, then the run
+# fails naming web, reads no login policy and grants nothing.
+CALLED ^run services describe demo-web
+CALLED ^run services describe demo-api
+NOT_CALLED ^iap web|add-iam-policy-binding|set-iam-policy|^run deploy|create
+OUTPUT "status": "failed"
+OUTPUT web
+OUTPUT gcp_deploy-setup
+OUTPUT_NOT Cannot find
+RESULT_NOT demo-user@example.com

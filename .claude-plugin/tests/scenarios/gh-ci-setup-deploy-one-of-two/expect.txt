@@ -1,0 +1,9 @@
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api project=demo branch=main region=us-central1$
+FILE .github/workflows/ci.yml ^  deploy-api-dev:$
+FILE .github/workflows/ci.yml ^      service: "demo-api"$
+FILE .github/workflows/ci.yml ^  web:$
+FILE_NOT .github/workflows/ci.yml deploy-web-dev|demo-web|image-name: "web"
+FILE .github/workflows/ci.yml ^    needs: \[changes, api, web\]$
+OUTPUT "status": "created"
+OUTPUT "deployComponents": \["api"\]
+NOT_CALLED ^git (add|commit|push|-c credential)

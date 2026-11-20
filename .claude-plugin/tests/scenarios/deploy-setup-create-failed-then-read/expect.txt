@@ -1,0 +1,20 @@
+# The create fails after creating a service without the login. The skill reads the service once,
+# turns the login on before anything else, then finishes the service and says so.
+CALLED ^run deploy demo-web .*--no-allow-unauthenticated( |$)
+COUNT 2 ^run services describe demo-web
+CALLED ^run services update demo-web .*--iap( |$)
+ORDER ^run deploy demo-web >> ^run services update demo-web
+ORDER ^run services update demo-web >> ^run services add-iam-policy-binding demo-web
+ORDER ^run services update demo-web >> ^iap web add-iam-policy-binding
+CALLED ^run services add-iam-policy-binding demo-web .*--role=roles/run.developer( |$)
+NOT_CALLED --image=.*update|update .*--image
+NOT_CALLED --allow-unauthenticated|allUsers|--no-iap
+NOT_CALLED ^projects add-iam-policy-binding
+OUTPUT "status": "created"
+OUTPUT "created": \[ ?"web" ?\]
+OUTPUT "web": "https://demo-web-123456789012.us-central1.run.app"
+OUTPUT_NOT Setting IAM permissions failed
+RESULT_NOT demo-user@example\.com
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

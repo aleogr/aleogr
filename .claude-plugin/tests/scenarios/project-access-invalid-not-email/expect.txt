@@ -1,0 +1,4 @@
+# person is not one person's address: failed before any skill, no command.
+NOT_CALLED ^([a-fi-z-]|g[^hi])
+OUTPUT person must be the e-mail address of one person
+OUTPUT "status": "failed"

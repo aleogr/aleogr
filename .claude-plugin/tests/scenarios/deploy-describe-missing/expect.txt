@@ -1,0 +1,11 @@
+# Neither service exists: not a failure. Only the services are read (no policy of a missing service).
+CALLED ^run services describe demo-web .*--format=json
+CALLED ^run services describe demo-api .*--format=json
+NOT_CALLED ^run services get-iam-policy
+NOT_CALLED ^iap web
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "exists": false
+OUTPUT "missing": \[ ?"web", ?"api" ?\]
+OUTPUT "differing": \[ ?\]
+OUTPUT_NOT Cannot find

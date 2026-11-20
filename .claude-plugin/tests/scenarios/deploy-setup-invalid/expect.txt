@@ -1,0 +1,8 @@
+# reference-proj-administration-ui has 32 characters (at most 30), and web- ends with "-": failed before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT reference-proj-administration-ui
+OUTPUT web-
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

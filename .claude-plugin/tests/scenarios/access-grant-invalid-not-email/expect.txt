@@ -1,0 +1,5 @@
+# A person that is not an e-mail address (no @) is refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT person
+OUTPUT e-mail address of one person

@@ -1,0 +1,9 @@
+# The module exists and has no Dockerfile: only the Dockerfile is written.
+FILE web/Dockerfile ^FROM golang:1\.26 AS build$
+FILE web/Dockerfile ^USER nonroot:nonroot$
+FILE web/go.mod ^module example\.com/kept$
+FILE web/main.go kept
+NO_FILE web/main_test.go
+OUTPUT "status": "created"
+OUTPUT "dockerfile": "written"
+OUTPUT "written": false

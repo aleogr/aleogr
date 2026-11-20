@@ -1,0 +1,6 @@
+# The login is off (no IAP annotation) and the IAP agent may not invoke: login and agent.
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "differences": \[[^]]*"login"
+OUTPUT "differences": \[[^]]*"agent"
+OUTPUT "differing": \[ ?"web" ?\]

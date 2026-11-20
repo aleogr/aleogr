@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_deploy-setup projectId=aleogr-dev-demo-ab12 project=demo region=us-central1 components=web maxInstances=2 cpu=1 memory=512Mi ciAccount=demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com environment=dev placeholderImage=us-central1-docker.pkg.dev/aleogr-dev-demo-ab12/demo/hello:latest mode=apply

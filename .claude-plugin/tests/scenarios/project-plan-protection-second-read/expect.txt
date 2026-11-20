@@ -1,0 +1,13 @@
+# The folder has ci.yml but the repository's default branch does not (the fake git shows no change,
+# so the declaration is in the repository: the protection is judged). Step 4 guessed checks=ci
+# from the local file; github_ci-setup finds the file is not on the default branch, so the
+# repository is read a second time without checks: the ruleset that requires ci differs.
+CALLED ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+COUNT 2 ^gh api repos/example-org/demo/rulesets/123$
+OUTPUT "item": "ci", "state": "as declared", "action": "none"
+OUTPUT "item": "protection", "state": "differs", "action": "update"
+OUTPUT_NOT requires ci
+OUTPUT "checks": "none"
+OUTPUT "status": "would-update"
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+OUTPUT_NOT "action": "(tools-check|repo-describe|checkout-setup|pull-request-open|setup|ci-setup)"

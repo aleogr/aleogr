@@ -1,0 +1,9 @@
+# The declaration has an environment: the service demo-web- would end with a hyphen. Adding the
+# component fails and writes nothing.
+OUTPUT "status": "failed"
+OUTPUT_NOT "status": "(updated|created)"
+FILE_NOT .aleogr/project.json "web-"
+FILE .aleogr/project.json ^  "environments": \{$
+# A word of the prescribed sentence: the service's name.
+OUTPUT demo-web-
+NOT_CALLED .

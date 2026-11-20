@@ -1,0 +1,35 @@
+CALLED ^gh api repos/example-org/example-repo/contents/\.github/workflows/ci\.yml
+CALLED ^gh api repos/example-org/tooling/commits/main
+FILE .github/workflows/ci.yml ^# aleogr-ci 2 api:services/api:go:1\.27,web:web:go:1\.27 deploy=dev:api\+web project=demo branch=main region=us-central1$
+FILE .github/workflows/ci.yml ^  pull_request:$
+FILE .github/workflows/ci.yml ^    branches: \[main\]$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/ci-go\.yml@2{40}$
+FILE .github/workflows/ci.yml ^  deploy-api-dev:$
+FILE .github/workflows/ci.yml ^  deploy-web-dev:$
+FILE .github/workflows/ci.yml ^    needs: \[api\]$
+FILE .github/workflows/ci.yml ^    needs: \[web\]$
+FILE .github/workflows/ci.yml ^    if: github\.event_name == 'push' && github\.ref == 'refs/heads/main' && needs\.api\.result == 'success'$
+FILE .github/workflows/ci.yml ^    if: github\.event_name == 'push' && github\.ref == 'refs/heads/main' && needs\.web\.result == 'success'$
+FILE .github/workflows/ci.yml ^      id-token: write$
+FILE .github/workflows/ci.yml ^    uses: example-org/tooling/\.github/workflows/deploy-cloud-run\.yml@2{40}$
+FILE .github/workflows/ci.yml ^      service: "demo-api"$
+FILE .github/workflows/ci.yml ^      service: "demo-web"$
+FILE .github/workflows/ci.yml ^      working-directory: "services/api"$
+FILE .github/workflows/ci.yml ^      image-name: "api"$
+FILE .github/workflows/ci.yml ^      image-name: "web"$
+FILE .github/workflows/ci.yml ^      region: "us-central1"$
+FILE .github/workflows/ci.yml ^    secrets:$
+FILE .github/workflows/ci.yml ^      project-id: \$\{\{ secrets\.GCP_PROJECT_ID \}\}$
+FILE .github/workflows/ci.yml ^      workload-identity-provider: \$\{\{ secrets\.GCP_WIF_PROVIDER \}\}$
+FILE .github/workflows/ci.yml ^      service-account: \$\{\{ secrets\.GCP_CI_ACCOUNT \}\}$
+FILE .github/workflows/ci.yml ^      image-path: \$\{\{ secrets\.GCP_IMAGE_PATH \}\}$
+FILE .github/workflows/ci.yml ^    needs: \[changes, api, web\]$
+FILE .github/workflows/ci.yml ^          RESULTS: \$\{\{ needs\.api\.result \}\} \$\{\{ needs\.web\.result \}\}$
+FILE_NOT .github/workflows/ci.yml pull_request_target|workflow_run|secrets: *inherit
+OUTPUT "status": "created"
+OUTPUT "checks": \["ci"\]
+OUTPUT "deploy": \["dev"\]
+NOT_CALLED ^git (add|commit|push|-c credential)
+NOT_CALLED ^gh (pr|repo|variable)
+OUTPUT "deployComponents": \["api", "web"\]
+FILE_NOT .github/workflows/ci.yml vars\.

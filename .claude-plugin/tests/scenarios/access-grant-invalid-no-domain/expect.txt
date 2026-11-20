@@ -1,0 +1,5 @@
+# A domain of one part is not an e-mail address: refused before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT person
+OUTPUT e-mail address of one person

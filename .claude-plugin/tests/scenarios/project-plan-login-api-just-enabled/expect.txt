@@ -1,0 +1,13 @@
+# The IAP API is enabled in the GCP project of dev, but the login's read is still refused because
+# the API is off: it was enabled a moment ago. The plan does not report waits for the login: it
+# ends failed with the item services (project-apply waits for this refusal after it enabled APIs).
+CALLED ^iap settings get --organization=111111111111 --billing-project=aleogr-dev-demo-ab12
+OUTPUT "status": "failed"
+OUTPUT "item": "services", "reason": "manual"
+OUTPUT just enabled
+OUTPUT_NOT waits for the login
+OUTPUT_NOT "item": "login"
+NOT_CALLED ^run services describe
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT SERVICE_DISABLED|PERMISSION_DENIED
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

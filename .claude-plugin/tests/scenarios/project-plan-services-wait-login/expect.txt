@@ -1,0 +1,16 @@
+# Review Focus 8: the organization's login is not prepared. No service is read, the row waits for
+# the login, and the answer names the platform's plan.
+CALLED ^iap settings get --organization=111111111111
+NOT_CALLED ^run services
+OUTPUT "item": "services", "state": "waits for the login", "action": "prepare the login"
+# The login not prepared: the CI file is judged without deploy (version 1): as declared.
+OUTPUT "item": "ci", "state": "as declared", "action": "none"
+ORDER ^iap settings get >> ^gh api repos/example-org/demo/contents/\.github/workflows/ci\.yml
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none"
+OUTPUT /aleogr:platform-plan
+OUTPUT_NOT /aleogr:platform-apply
+OUTPUT "item": "login", "reason": "manual"
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

@@ -1,0 +1,16 @@
+# Review Focus 8: the login of the organization is not prepared. The confirmed run sets the CI
+# secret that is missing (nothing of the project, registry or identity changed: no replace), creates no service and no service account, and leaves the item login, whose
+# how names the platform's plan.
+CALLED ^gh secret set GCP_IMAGE_PATH --repo example-org/demo
+NOT_CALLED ^gh secret set GCP_(PROJECT_ID|WIF_PROVIDER|CI_ACCOUNT|REGION)|^gh variable set
+NOT_CALLED ^run (deploy|services (update|add-iam-policy-binding))|^iam service-accounts create|^iap web add-iam-policy-binding
+OUTPUT "item": "services", "state": "waits for the login", "action": "prepare the login"
+OUTPUT "item": "login", "reason": "manual", "how": "[^"]*/aleogr:platform-plan
+OUTPUT "status": "updated"
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
+# The Dockerfiles are missing too, but no file is proposed while the services wait for the login:
+# the files come with the services.
+NO_FILE web/Dockerfile
+NOT_CALLED pr create
+OUTPUT_NOT "item": "(components|ci)", "reason"

@@ -1,0 +1,6 @@
+# The read of the service is refused: failed, one sentence, no raw error text, nothing changed.
+CALLED ^run services describe demo-web
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "failed"
+OUTPUT_NOT PERMISSION_DENIED
+OUTPUT_NOT run\.services\.get

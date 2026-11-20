@@ -1,5 +1,5 @@
 # Everything, on GitHub and in the dev environment, is as declared: nothing to do, and the CI
-# variables are known.
+# secrets are known.
 CALLED ^projects list .*labels\.aleogr-environment=dev
 CALLED ^artifacts repositories describe demo --location=us-central1 --project=aleogr-dev-demo-ab12
 CALLED ^iam workload-identity-pools providers describe github
@@ -8,7 +8,9 @@ OUTPUT "item": "protection", "state": "protected, requires ci", "action": "none"
 OUTPUT "item": "environment dev", "state": "exists", "action": "none"
 OUTPUT "item": "apis", "state": "enabled", "action": "none"
 OUTPUT "item": "registry", "state": "as declared", "action": "none"
-OUTPUT "item": "ci identity", "state": "as declared", "action": "none" \}\s*$
+OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
+OUTPUT "item": "services", "state": "as declared", "action": "none"
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none" \}\s*$
 OUTPUT "environment": \{ "name": "dev", "projectId": "aleogr-dev-demo-ab12" \}
 OUTPUT "GCP_PROJECT_ID": "aleogr-dev-demo-ab12"
 OUTPUT "GCP_WIF_PROVIDER": "projects/123456789012/locations/global/workloadIdentityPools/github/providers/github"
@@ -17,4 +19,6 @@ OUTPUT nothing to do
 OUTPUT "status": "unchanged"
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|update-oidc|set-cleanup-policies|services enable
 # The nested skills' blocks are input only: the answer holds this skill's block alone.
-OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup)"
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set)"
+CALLED ^run services describe demo-api
+CALLED ^run services describe demo-web

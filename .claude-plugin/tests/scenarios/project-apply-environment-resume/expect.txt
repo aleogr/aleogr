@@ -7,7 +7,7 @@ CALLED ^artifacts repositories add-iam-policy-binding demo .*--role=roles/artifa
 ORDER ^artifacts repositories create >> ^artifacts repositories set-cleanup-policies
 ORDER ^artifacts repositories set-cleanup-policies >> ^iam service-accounts create
 ORDER ^iam service-accounts add-iam-policy-binding >> ^artifacts repositories add-iam-policy-binding
-NOT_CALLED ^(projects create|billing projects link|services enable|organizations list|resource-manager)
+NOT_CALLED ^(projects create|billing projects link|services enable|resource-manager)
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT "item": "ci identity", "state": "as declared", "action": "none"
 OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$

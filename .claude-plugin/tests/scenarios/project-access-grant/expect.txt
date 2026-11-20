@@ -1,0 +1,14 @@
+# One person is let in to both services, through the login, on each service only. The address is
+# never in the result block. The service web lets anyone who signs in with any Google account through: the answer says so.
+CALLED ^projects list .*labels\.aleogr-project=demo AND labels\.aleogr-environment=dev
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-api .*--member="?user:demo-user@example\.com"?
+CALLED ^iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member="?user:demo-user@example\.com"?
+NOT_CALLED ^projects add-iam-policy-binding|^run services add-iam-policy-binding|set-iam-policy|remove-iam-policy-binding
+OUTPUT "status": "updated"
+OUTPUT [Aa]nyone on the internet who signs in
+OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-web .*--member=allAuthenticatedUsers
+RESULT_NOT demo-user@example\.com
+OUTPUT_NOT "action": "(environment-describe|access-grant)"
+# The undo command's template, with the placeholder, and where the addresses are.
+OUTPUT remove-iam-policy-binding --resource-type=cloud-run --service=demo-(api|web|<component>) --region=us-central1 --project=aleogr-dev-demo-ab12 --member="?user:<e-mail>"? --role="?roles/iap\.httpsResourceAccessor"? --condition=None
+OUTPUT addresses are in the answer of /aleogr:project-plan

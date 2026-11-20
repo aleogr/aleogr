@@ -3,8 +3,8 @@ CALLED ^iam service-accounts create demo-ci .*--project=aleogr-dev-demo-ab12
 CALLED ^iam workload-identity-pools create github .*--location=global
 CALLED ^iam workload-identity-pools providers create-oidc github .*--workload-identity-pool=github
 CALLED ^iam workload-identity-pools providers create-oidc github .*--issuer-uri=https://token.actions.githubusercontent.com( |$)
-CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref( |$)
-CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-condition=assertion.repository=='example-org/example-repo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main'( |$)
+CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-mapping=google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.ref=assertion.ref,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id,attribute.job_workflow_ref=assertion.job_workflow_ref( |$)
+CALLED ^iam workload-identity-pools providers create-oidc github .*--attribute-condition=assertion.repository=='example-org/example-repo' && assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && assertion.ref=='refs/heads/main' && assertion.job_workflow_ref.startsWith\('aleogr/aleogr/\.github/workflows/deploy-cloud-run\.yml@'\)( |$)
 CALLED ^iam service-accounts add-iam-policy-binding demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com .*--member=principalSet://iam.googleapis.com/projects/123456789012/locations/global/workloadIdentityPools/github/attribute.repository/example-org/example-repo( |$)
 CALLED ^iam service-accounts add-iam-policy-binding .*--role=roles/iam.workloadIdentityUser( |$)
 # The CI identity gets no project role here.
