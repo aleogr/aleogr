@@ -11,3 +11,5 @@ OUTPUT "prepared": false
 OUTPUT "item": "login"
 OUTPUT read -r -s -p
 OUTPUT_NOT PERMISSION_DENIED
+# Every wait is exactly sleep 30 (COUNT is "at least"; this keeps other lengths out).
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)

@@ -9,3 +9,5 @@ OUTPUT "status": "failed"
 OUTPUT push access could not be granted
 OUTPUT_NOT "status": "updated"
 OUTPUT_NOT INVALID_ARGUMENT
+# Every wait is exactly sleep 30 (COUNT is "at least"; this keeps other lengths out).
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)

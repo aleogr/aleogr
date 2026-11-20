@@ -23,3 +23,5 @@ OUTPUT_NOT nothing to do
 OUTPUT_NOT PERMISSION_DENIED|has not been used
 NOT_CALLED --method|^gh pr create|^git (switch|add|commit|-c credential)
 OUTPUT still refused after 10 tries
+# Every wait is exactly sleep 30 (COUNT is "at least"; this keeps other lengths out).
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)

@@ -21,3 +21,5 @@ OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "updated"
 OUTPUT_NOT "item": "(apis|verify)", "reason"
 OUTPUT_NOT PERMISSION_DENIED|has not been used
+# Every wait is exactly sleep 30 (COUNT is "at least"; this keeps other lengths out).
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)

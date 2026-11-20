@@ -1,1 +1,1 @@
-/aleogr-cloud-gcp:gcp_environment-create project=pilot environment=dev root=tst mode=apply
+/aleogr-cloud-gcp:gcp_environment-create project=demo environment=dev root=tst mode=apply

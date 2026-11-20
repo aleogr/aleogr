@@ -12,3 +12,5 @@ OUTPUT "how": ".*mode=apply
 OUTPUT_NOT NOT_FOUND
 OUTPUT_NOT "status": "updated"
 OUTPUT "ciVariables": null
+# Every wait is exactly sleep 30 (COUNT is "at least"; this keeps other lengths out).
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)
