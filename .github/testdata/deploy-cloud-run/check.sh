@@ -20,8 +20,10 @@
 #     checkout, auth, login, Buildx, build and push, setup-gcloud, the update;
 #     each action is the expected one pinned by a 40-character SHA with its
 #     version in a comment; no step has `if`, `continue-on-error` or `shell`;
-#   - the build writes no summary, uploads no build record, makes no
-#     annotation; Buildx is not cached;
+#   - every action step's `id`, `with` and `env` are exactly the reviewed
+#     ones (no other key, no other expression): so the build writes no
+#     summary, uploads no build record, makes no annotation, and Buildx is
+#     not cached;
 #   - no `run:` script holds `${{`, a line continuation or an `add-mask` with
 #     no value; all scripts together invoke `gcloud` once;
 #   - `secrets` is read only as one of the four names;
@@ -261,6 +263,45 @@ if build_with.get("tags") != "${{ secrets.image-path }}/${{ inputs.image-name }}
 if (steps[1].get("with") or {}).get("persist-credentials") is not False:
     fail("checkout must have persist-credentials: false")
 
+# Every action step's `id`, `with` and `env` exactly as reviewed: no other key,
+# no other expression (the login's registry and password, auth's identity,
+# the build's context and tags all hold or reach the credential).
+ACTION_STEPS = {
+    1: (None, {"persist-credentials": False}, None),
+    2: ("auth", {
+        "token_format": "access_token",
+        "workload_identity_provider": "${{ secrets.workload-identity-provider }}",
+        "service_account": "${{ secrets.service-account }}",
+    }, None),
+    3: (None, {
+        "registry": "${{ inputs.region }}-docker.pkg.dev",
+        "username": "oauth2accesstoken",
+        "password": "${{ steps.auth.outputs.access_token }}",
+    }, None),
+    4: (None, {"cache-binary": False}, None),
+    5: ("build", {
+        "context": "${{ inputs.working-directory }}",
+        "push": True,
+        "provenance": False,
+        "sbom": False,
+        "tags": "${{ secrets.image-path }}/${{ inputs.image-name }}:${{ github.sha }}",
+    }, {
+        "DOCKER_BUILD_SUMMARY": False,
+        "DOCKER_BUILD_RECORD_UPLOAD": False,
+        "DOCKER_BUILD_CHECKS_ANNOTATIONS": False,
+    }),
+    6: (None, None, None),
+}
+for index, (step_id, step_with, step_env) in ACTION_STEPS.items():
+    step = steps[index]
+    label = f"step {index + 1} ({EXPECTED_USES[index]})"
+    if step.get("id") != step_id:
+        fail(f"{label}: id is {step.get('id')!r}, expected {step_id!r}")
+    if step.get("with") != step_with:
+        fail(f"{label}: 'with' is not exactly the reviewed one")
+    if step.get("env") != step_env:
+        fail(f"{label}: 'env' is not exactly the reviewed one")
+
 # 7. Scripts.
 scripts = [step["run"] for step in steps if isinstance(step, dict) and isinstance(step.get("run"), str)]
 gcloud_count = 0
@@ -315,7 +356,7 @@ if [[ ! "$IMAGE_NAME" =~ ^[a-z][a-z0-9-]{0,48}$ ]]; then
   echo "::error::The input image-name is not a valid name."
   exit 1
 fi
-if [[ ! "$REGION" =~ ^[a-z]+-[a-z]+[0-9]$ ]]; then
+if [[ ! "$REGION" =~ ^[a-z]+-[a-z]+[0-9]{1,2}$ ]]; then
   echo "::error::The input region is not a valid region."
   exit 1
 fi

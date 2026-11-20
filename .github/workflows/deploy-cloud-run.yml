@@ -103,7 +103,7 @@ jobs:
             echo "::error::The input image-name is not a valid name."
             exit 1
           fi
-          if [[ ! "$REGION" =~ ^[a-z]+-[a-z]+[0-9]$ ]]; then
+          if [[ ! "$REGION" =~ ^[a-z]+-[a-z]+[0-9]{1,2}$ ]]; then
             echo "::error::The input region is not a valid region."
             exit 1
           fi
