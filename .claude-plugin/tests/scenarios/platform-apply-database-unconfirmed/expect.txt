@@ -1,3 +1,9 @@
-NOT_CALLED (create|patch|add-iam-policy-binding)
+# No confirm=yes, the instance to create: the run shows the plan with the cost line, asks
+# nothing, changes nothing, and ends pending with the one command that confirms.
+NOT_CALLED (create|patch|enable|link|add-iam-policy-binding|update|delete)( |$)
+NOT_CALLED ^sleep
 OUTPUT about R\$ 50 per month while stopped
 OUTPUT "status": "pending"
+OUTPUT "item": "confirm"
+OUTPUT "how": "/aleogr:platform-apply confirm=yes"
+OUTPUT_NOT \?[[:space:]*]*$
