@@ -1,0 +1,7 @@
+# Plan of a new component with dockerfile=yes: nothing written.
+NO_FILE web/Dockerfile
+NO_FILE web/go.mod
+NO_FILE web/main.go
+OUTPUT "status": "would-create"
+OUTPUT "dockerfile": "would-write"
+OUTPUT web/Dockerfile

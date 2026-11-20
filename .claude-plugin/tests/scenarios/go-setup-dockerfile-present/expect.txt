@@ -1,0 +1,7 @@
+# A Dockerfile with other content is never overwritten: present, nothing written.
+FILE web/Dockerfile ^# kept by the owner$
+FILE web/Dockerfile ^FROM scratch$
+FILE web/go.mod ^module example\.com/kept$
+NO_FILE web/main_test.go
+OUTPUT "status": "unchanged"
+OUTPUT "dockerfile": "present"
