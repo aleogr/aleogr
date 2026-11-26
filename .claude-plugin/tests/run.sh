@@ -8,6 +8,7 @@ if [ $# -ne 1 ]; then echo "usage: run.sh <scenario>" >&2; exit 2; fi
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 plugins="$(cd "$here/../plugins" && pwd)"
+repo="$(cd "$here/../.." && pwd)"
 scenario="$here/scenarios/$1"
 if [ ! -f "$scenario/prompt.txt" ] || [ ! -f "$scenario/expect.txt" ]; then
   echo "scenario '$1' not found or incomplete: $scenario" >&2
@@ -76,6 +77,16 @@ while IFS= read -r line || [ -n "$line" ]; do
         echo "bad expect line (FILE needs a path and a regex): $line" >&2; ok=0
       else
         { [ -f "$work/cwd/$f" ] && grep -Eq -- "$re" "$work/cwd/$f"; } || ok=0
+      fi
+      ;;
+    SAME_FILE)
+      # SAME_FILE <relative path> <repository path>: the file exists and is byte for byte
+      # the repository's file (cmp), such as a template the skill copies unchanged.
+      f="${arg%% *}"; ref="${arg#* }"
+      if [ "$kind" = "$line" ] || [ "$ref" = "$arg" ] || [ -z "$ref" ]; then
+        echo "bad expect line (SAME_FILE needs a path and a repository path): $line" >&2; ok=0
+      else
+        { [ -f "$work/cwd/$f" ] && [ -f "$repo/$ref" ] && cmp -s -- "$work/cwd/$f" "$repo/$ref"; } || ok=0
       fi
       ;;
     NO_FILE)

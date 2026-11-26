@@ -49,7 +49,11 @@ after a leading `-C <dir>`, otherwise the current folder. So
 `responses/go_-C_web_get.files/go.mod` and `.../go.sum` become `web/go.mod` and `web/go.sum`
 after `go -C web get ...` (`go-setup-database-go-line-moved` uses this to move the `go`
 line). A call that fails copies nothing, and a call with no such folder changes no file.
-The fake never runs a real Go command and never reaches the network.
+The fake never runs a real Go command and never reaches the network. `mktemp`, `cp` and
+`rm` are not faked and not logged: a skill's copies and their putting back (`go_setup`
+step 6) run for real, `mktemp -d` making its folder under the system's temporary folder, and
+the `FILE` lines on `go.mod` and `go.sum` prove the result (`go-setup-database-toolchain-line`
+pins the first and the last line of a multi-line `go.sum` put back).
 
 ## Adding a scenario
 
@@ -118,6 +122,7 @@ Create `scenarios/<name>/` with:
 | `OUTPUT_NOT <regex>` | Claude's final answer does not match (keeps raw error text out of the answer) |
 | `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |
 | `FILE <relative path> <regex>` | the file exists in the working folder after the run and some line of it matches (the regex is required: a `FILE` line with a path only is a bad expect line and fails) |
+| `SAME_FILE <relative path> <repository path>` | the file exists in the working folder after the run and is byte for byte (`cmp`) the file at `<repository path>`, relative to the repository's root (pins a template written unchanged: `SAME_FILE web/db.go .claude-plugin/plugins/aleogr-stack-go/files/db.go.tmpl`) |
 | `NO_FILE <relative path>` | the file does not exist in the working folder after the run |
 | `FILE_NOT <relative path> <regex>` | the file does not exist in the working folder after the run, or no line of it matches (the regex is required, as for `FILE`; pins that a written file lacks something) |
 | `ORDER <regex1> >> <regex2>` | the first call matching regex1 comes before the first matching regex2 |
