@@ -19,8 +19,8 @@ const dbTimeout = 5 * time.Second
 // dbCheck answers GET /db: whether the component reaches its database.
 // DB_INSTANCE is the instance's connection name (project:region:instance),
 // DB_NAME the database and DB_USER the service account's database user.
-// The connection uses automatic IAM database authentication: there is no
-// password. The cause of a failure goes to the log, never to the page.
+// The connection uses automatic IAM database authentication as the service's
+// own account. The cause of a failure goes to the log, never to the page.
 func dbCheck(w http.ResponseWriter, r *http.Request) {
 	instance := os.Getenv("DB_INSTANCE")
 	name := os.Getenv("DB_NAME")
