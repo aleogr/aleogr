@@ -41,7 +41,7 @@
     {
       "name": "aleogr-stack-go",
       "source": "./.claude-plugin/plugins/aleogr-stack-go",
-      "description": "Go stack: the starting point of a Go component and its Dockerfile.",
+      "description": "Go stack: the starting point of a Go component, its Dockerfile and its database check.",
       "category": "stack",
       "displayName": "Go (stack)"
     }

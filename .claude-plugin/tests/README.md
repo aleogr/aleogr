@@ -4,7 +4,7 @@ A headless harness that runs the real skills of `plugins/aleogr`,
 `plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql`,
 `plugins/aleogr-registry-gcp-artifact-registry`, `plugins/aleogr-repo-github` and
 `plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
-`gh`, a fake `git` and a fake `sleep`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
+`gh`, a fake `git`, a fake `go` and a fake `sleep`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
 
 ```
 bash .claude-plugin/tests/run.sh <scenario>
@@ -20,10 +20,10 @@ Tests are run by hand; no workflow runs them.
 ## How it works
 
 `run.sh` runs Claude from an empty temporary directory with `tests/bin` first on
-`PATH`, so the skill's `gcloud`, `gh` and `git` calls reach `bin/gcloud`, `bin/gh` and `bin/git`, three
-wrappers of `bin/fake-cli`. The fake appends one line per call to a log and
-prints a canned response. The `gcloud` line is its arguments; the `gh` and `git` lines are
-`gh <arguments>` and `git <arguments>`, and when the arguments contain `--input <file>` it ends with
+`PATH`, so the skill's `gcloud`, `gh`, `git` and `go` calls reach `bin/gcloud`, `bin/gh`, `bin/git` and
+`bin/go`, four wrappers of `bin/fake-cli`. The fake appends one line per call to a log and
+prints a canned response. The `gcloud` line is its arguments; the `gh`, `git` and `go` lines are
+`gh <arguments>`, `git <arguments>` and `go <arguments>`, and when the arguments contain `--input <file>` it ends with
 ` <<< ` and the file's content with all whitespace removed (so a body file can be
 checked: `CALLED ... --input .* <<< \{"name":"main"\}$`). The working folder starts with the content of the scenario's `files/` folder, if it has one. The
 temporary directory, the log and Claude's output are removed afterwards.
@@ -37,16 +37,31 @@ returns at once, and the run goes on when its completion notice arrives. A `slee
 starts with `s`, so `NOT_CALLED ^([a-fi-z-]|g[^hi])` (below) also holds that the skill
 did not wait.
 
+`bin/go` is a fake Go command. It logs and answers through `bin/fake-cli` like the fake `gh`
+and `git` (response names start with `go_`, with spaces and `/` written as `_`:
+`go_version.txt` answers `go version`, `go_version.txt.exit127` makes Go absent,
+`go_-C_web_get.txt.exit1` makes `go -C web get ...` fail). A real `go get` or `go mod tidy`
+rewrites `go.mod` and `go.sum`; the fake does the same from a folder of the scenario's
+`responses/`: when a call succeeds (exit 0) and `responses/<prefix>.files/` exists with
+`<prefix>` a prefix of the call's response name (the longest wins), each file in that folder
+is copied over the file of the same name in the call's working folder, which is the folder
+after a leading `-C <dir>`, otherwise the current folder. So
+`responses/go_-C_web_get.files/go.mod` and `.../go.sum` become `web/go.mod` and `web/go.sum`
+after `go -C web get ...` (`go-setup-database-go-line-moved` uses this to move the `go`
+line). A call that fails copies nothing, and a call with no such folder changes no file.
+The fake never runs a real Go command and never reaches the network.
+
 ## Adding a scenario
 
 Create `scenarios/<name>/` with:
 
 - `prompt.txt`: what the user types, for example `/aleogr-cloud-gcp:gcp_environment-describe project=demo environment=dev`.
 - `files/` (optional): copied, dotfiles included, into the working folder before Claude starts (`files/.aleogr/project.json` becomes `<cwd>/.aleogr/project.json`).
-- `responses/`: the canned output of the fake `gcloud`, `gh` and `git`. A file answers a call
+- `responses/`: the canned output of the fake `gcloud`, `gh`, `git` and `go`, and the
+  `<prefix>.files/` folders of the fake `go` (above). A file answers a call
   when its name, without extension, is a prefix of the arguments with spaces
-  written as `_` (`projects_list.txt` answers `projects list ...`). For `gh` and `git`
-  the name starts with `gh_` or `git_` and `/` is also written as `_`
+  written as `_` (`projects_list.txt` answers `projects list ...`). For `gh`, `git` and `go`
+  the name starts with `gh_`, `git_` or `go_` and `/` is also written as `_`
   (`gh_api_repos_example-org_example-repo.txt` answers
   `gh api repos/example-org/example-repo ...`). When several names are a
   prefix, the longest wins (`gh_api_repos_example-org_example-repo_rulesets.txt`
@@ -96,7 +111,7 @@ Create `scenarios/<name>/` with:
 
 | Line | Holds when |
 |---|---|
-| `CALLED <regex>` | some logged call matches (a `gcloud` line has the arguments only, without `gcloud`; a `gh` line starts with `gh `, a `git` line with `git `) |
+| `CALLED <regex>` | some logged call matches (a `gcloud` line has the arguments only, without `gcloud`; a `gh` line starts with `gh `, a `git` line with `git `, a `go` line with `go `) |
 | `NOT_CALLED <regex>` | no logged call matches |
 | `COUNT <n> <regex>` | at least `<n>` logged calls match (pins a repeated call, such as a check before and after a change) |
 | `OUTPUT <regex>` | Claude's final answer matches |
@@ -111,6 +126,7 @@ Regexes are `grep -E`. Use fictitious values only: the repository is public.
 
 Claude Code itself runs `git ... ls-files --error-unmatch -- :(icase).claude/settings.local.json` through `PATH` during a run. `run.sh` drops the lines of that exact call from the call log before the checks, so `NOT_CALLED .` holds when the skill ran nothing. Pinning the subcommand remains good practice (`NOT_CALLED ^git (add|commit|push)` rather than a bare `NOT_CALLED ^git`): Claude Code may run other commands in a later version.
 
-A `gcloud` line has no word `gcloud` in it, so `NOT_CALLED ^gcloud` holds whatever ran. To pin that a skill ran no `gcloud` command, pin the subcommands instead: `NOT_CALLED ^(projects|services|artifacts|iam)( |$)`, or, to cover every `gcloud` line while letting `gh` and `git` through, `NOT_CALLED ^([a-fi-z-]|g[^hi])` (as `project-plan-nothing-to-do` does).
+A `gcloud` line has no word `gcloud` in it, so `NOT_CALLED ^gcloud` holds whatever ran. To pin that a skill ran no `gcloud` command, pin the subcommands instead: `NOT_CALLED ^(projects|services|artifacts|iam)( |$)`, or, to cover every `gcloud` line while letting `gh` and `git` through, `NOT_CALLED ^([a-fi-z-]|g[^hi])` (as `project-plan-nothing-to-do` does). That pattern also
+matches a `go` line (`go ` is `g` then `o`), so it holds that no `go` command ran either.
 
-`scenarios/harness-selftest`, `scenarios/harness-selftest-gh`, `scenarios/harness-selftest-files`, `scenarios/harness-selftest-state` and `scenarios/harness-selftest-sleep` check the harness itself.
+`scenarios/harness-selftest`, `scenarios/harness-selftest-gh`, `scenarios/harness-selftest-files`, `scenarios/harness-selftest-state`, `scenarios/harness-selftest-sleep` and `scenarios/harness-selftest-go` check the harness itself.
