@@ -1,0 +1,11 @@
+# The create fails, but the database may exist: one list decides, never the error's text. Here it
+# exists: created, and the create is not run again.
+COUNT 2 ^sql databases list
+ORDER ^sql databases list >> ^sql databases create
+OUTPUT "status": "created"
+OUTPUT_NOT [Tt]imed out waiting
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

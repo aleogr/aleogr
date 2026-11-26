@@ -1,0 +1,22 @@
+# A stopped instance: the roles are granted all the same (they live on the project); the user is
+# not read and not created; updated, with the item instance.
+CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.client( |$)
+CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.instanceUser( |$)
+COUNT 2 ^projects add-iam-policy-binding aleogr-shared-ab12 .*--condition=None( |$)
+# Review Focus 7: only the two roles, only on the shared project, only to the account.
+NOT_CALLED roles/(owner|editor|viewer|cloudsql\.admin|cloudsql\.editor|cloudsql\.viewer|iam\.)
+NOT_CALLED ^projects add-iam-policy-binding aleogr-dev
+NOT_CALLED ^(iam service-accounts|run services|sql instances|resource-manager) add-iam-policy-binding
+NOT_CALLED set-iam-policy|remove-iam-policy-binding
+NOT_CALLED --member=(user|group|domain):|allUsers|allAuthenticatedUsers
+NOT_CALLED ^sql users
+NOT_CALLED ^sql operations list
+OUTPUT "status": "updated"
+OUTPUT "user": null
+OUTPUT "item": "instance"
+OUTPUT "how": "/aleogr:project-apply confirm=yes"
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

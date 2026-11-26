@@ -1,0 +1,13 @@
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+CALLED ^sql users list .*--instance=aleogr-shared .*--project=aleogr-shared-ab12
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^sql users create
+OUTPUT "status": "would-update"
+OUTPUT "user": false
+OUTPUT "roles/cloudsql.client"
+OUTPUT "roles/cloudsql.instanceUser"
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

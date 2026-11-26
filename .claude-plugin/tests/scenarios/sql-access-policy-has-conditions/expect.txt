@@ -1,0 +1,17 @@
+# The policy holds an unrelated conditional binding: the one missing role is granted, still with
+# --condition=None (gcloud refuses a grant without it on such a policy), and no condition is added.
+CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.client .*--condition=None( |$)
+NOT_CALLED --condition=[^N]|--condition-from-file
+NOT_CALLED roles/cloudsql\.instanceUser
+OUTPUT "status": "updated"
+# Review Focus 7: only the two roles, only on the shared project, only to the account.
+NOT_CALLED roles/(owner|editor|viewer|cloudsql\.admin|cloudsql\.editor|cloudsql\.viewer|iam\.)
+NOT_CALLED ^projects add-iam-policy-binding aleogr-dev
+NOT_CALLED ^(iam service-accounts|run services|sql instances|resource-manager) add-iam-policy-binding
+NOT_CALLED set-iam-policy|remove-iam-policy-binding
+NOT_CALLED --member=(user|group|domain):|allUsers|allAuthenticatedUsers
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

@@ -1,0 +1,12 @@
+# The role client is bound to the account under a condition: a binding with or without a condition
+# counts as granted, so nothing is run.
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^sql users create
+OUTPUT "status": "unchanged"
+OUTPUT "client": true
+OUTPUT "granted": \[ ?\]
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

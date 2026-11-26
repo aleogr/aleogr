@@ -1,0 +1,2 @@
+Creating Cloud SQL database...done.
+Created database [demo_dev].

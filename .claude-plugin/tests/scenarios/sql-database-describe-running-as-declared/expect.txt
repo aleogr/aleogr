@@ -1,0 +1,19 @@
+# Running, the database exists, both accounts are users with both roles: read, unchanged.
+CALLED ^sql instances describe aleogr-shared .*--project=aleogr-shared-ab12
+CALLED ^sql operations list .*--instance=aleogr-shared
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+CALLED ^sql databases list .*--instance=aleogr-shared .*--project=aleogr-shared-ab12
+CALLED ^sql users list .*--instance=aleogr-shared .*--project=aleogr-shared-ab12
+NOT_CALLED create|add-iam-policy-binding|set-iam-policy
+OUTPUT "status": "unchanged"
+OUTPUT "instanceState": "running"
+OUTPUT "database": "demo_dev"
+OUTPUT "databaseExists": true
+OUTPUT "read": true
+OUTPUT "account": 1, "user": true, "client": true, "instanceUser": true
+OUTPUT "account": 2, "user": true, "client": true, "instanceUser": true
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

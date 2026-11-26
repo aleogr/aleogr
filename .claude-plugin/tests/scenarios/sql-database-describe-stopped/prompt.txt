@@ -1,0 +1,1 @@
+/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_database-describe sharedProjectId=aleogr-shared-ab12 instance=aleogr-shared project=demo environment=dev accounts=demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com,demo-api@aleogr-dev-demo-ab12.iam.gserviceaccount.com

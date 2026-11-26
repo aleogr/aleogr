@@ -1,0 +1,2 @@
+ERROR: Policy modification failed. For a binding with condition, run "gcloud alpha iam policies lint-condition" to identify issues in condition.
+ERROR: (gcloud.projects.add-iam-policy-binding) INVALID_ARGUMENT: Service account demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com does not exist.

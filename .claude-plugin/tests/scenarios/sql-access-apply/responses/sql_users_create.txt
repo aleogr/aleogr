@@ -1,0 +1,2 @@
+Creating Cloud SQL user...done.
+Created user [demo-web@aleogr-dev-demo-ab12.iam].

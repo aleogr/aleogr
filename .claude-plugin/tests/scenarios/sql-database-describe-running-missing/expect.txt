@@ -1,0 +1,15 @@
+# Running: no database, api is not a user and lacks the role instanceUser (another role does not
+# count). A describe only reads: unchanged, never failed.
+CALLED ^sql databases list
+CALLED ^sql users list
+NOT_CALLED create|add-iam-policy-binding|set-iam-policy
+OUTPUT "status": "unchanged"
+OUTPUT "databaseExists": false
+OUTPUT "read": true
+OUTPUT "account": 1, "user": true, "client": true, "instanceUser": true
+OUTPUT "account": 2, "user": false, "client": true, "instanceUser": false
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

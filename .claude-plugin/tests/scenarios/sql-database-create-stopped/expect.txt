@@ -1,0 +1,13 @@
+# A stopped instance: pending, the item instance names project-apply, and no other command (the
+# skill never starts the instance, and does not try the Admin API on it).
+CALLED ^sql instances describe aleogr-shared
+NOT_CALLED ^sql databases
+NOT_CALLED instances patch
+OUTPUT "status": "pending"
+OUTPUT "item": "instance"
+OUTPUT "how": "/aleogr:project-apply confirm=yes"
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

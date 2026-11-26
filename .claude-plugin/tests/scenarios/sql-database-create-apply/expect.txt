@@ -1,0 +1,14 @@
+# Missing on a running instance: one create (defaults only, waits for its operation), then one list.
+CALLED ^sql databases create demo_dev .*--instance=aleogr-shared .*--project=aleogr-shared-ab12
+NOT_CALLED ^sql databases create .*--(async|charset|collation)
+COUNT 2 ^sql databases list
+ORDER ^sql databases list >> ^sql databases create
+NOT_CALLED ^sql users|add-iam-policy-binding
+OUTPUT "status": "created"
+OUTPUT "database": "demo_dev"
+OUTPUT "pending": \[ ?\]
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

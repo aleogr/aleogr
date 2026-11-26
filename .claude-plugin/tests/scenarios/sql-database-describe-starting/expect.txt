@@ -1,0 +1,15 @@
+# RUNNABLE with an unfinished UPDATE operation is starting (the rule of instance-describe): not
+# read, not failed.
+CALLED ^sql operations list .*--instance=aleogr-shared
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+NOT_CALLED ^sql (databases|users)
+OUTPUT "status": "unchanged"
+OUTPUT "instanceState": "starting"
+OUTPUT "read": false
+OUTPUT "account": 1, "user": null, "client": true, "instanceUser": false
+OUTPUT "account": 2, "user": null, "client": false, "instanceUser": false
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

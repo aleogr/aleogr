@@ -1,0 +1,15 @@
+# Refused ten times: ten tries, nine waits, then the run stops at its first change: failed, and no
+# later command. An eleventh try would be accepted, so a run that tried more would grant the second
+# role.
+COUNT 10 ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.client( |$)
+COUNT 9 ^sleep 30$
+NOT_CALLED ^sleep ([^3]|3[^0]|30.)
+NOT_CALLED roles/cloudsql\.instanceUser
+NOT_CALLED ^sql users create
+OUTPUT "status": "failed"
+OUTPUT_NOT INVALID_ARGUMENT|lint-condition
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

@@ -1,0 +1,3 @@
+postgres
+demo-web@aleogr-dev-demo-ab12.iam
+demo-api@aleogr-dev-demo-ab12.iam
