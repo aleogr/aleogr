@@ -75,7 +75,8 @@ A component gains one optional key, `"database": true` (absent or `false`: no da
 |---|---|---|
 | Database | `<project>_<environment>`, hyphens of the project's name written as `_` (`pilot_dev`) | the shared instance |
 | Database user of a component | the component's service account, as Cloud SQL names an IAM service account user (`<project>-<component>@<project id>.iam`) | the shared instance |
-| Connection roles of that account | `roles/cloudsql.client` and `roles/cloudsql.instanceUser`, with a condition that limits them to the shared instance where Cloud SQL supports one | the shared project |
+| API | `sqladmin.googleapis.com`, added to the APIs of the project's own GCP project only when a component declares the database (the connector calls the Cloud SQL Admin API as the service's account, counted against that project) | the project's GCP project |
+| Connection roles of that account | `roles/cloudsql.client` and `roles/cloudsql.instanceUser`, with a condition that limits them to the shared instance where Cloud SQL supports one; a binding with or without the condition counts as granted, so the row never reads `differs` over the form | the shared project |
 | Settings of the service | `DB_INSTANCE` (the instance's connection name), `DB_NAME`, `DB_USER` | the Cloud Run service |
 | Code | `<path>/db.go` (the check), the route `GET /db` in `main.go`, two requirements in `go.mod` | the project's repository |
 
@@ -91,7 +92,7 @@ One database per project and environment, shared by the project's components tha
 - `go_setup` gains `database=yes`:
   - a new component gets the starting files with the route already there, plus `db.go`;
   - an existing component gets `db.go` when it is missing; its `main.go` is replaced by the variant with the route **only when it is byte for byte the file the tooling wrote**; otherwise `main.go` is left alone and the result carries the item `route`, whose `how` is the one line to add;
-  - the two requirements are added to `go.mod` with `go get <module>@<version>` (versions pinned in `defaults.json`), which also writes `go.sum`. This needs Go where the skill runs; without it the skill ends `failed` with one sentence.
+  - the two requirements are added to `go.mod` with `go get <module>@<version>` (versions pinned in `defaults.json`), which also writes `go.sum`, run with the local toolchain only (`GOTOOLCHAIN=local`). After it the skill checks that the `go` line of `go.mod` is still the declared version and that no `toolchain` line appeared: if either changed, it restores `go.mod` and `go.sum` and ends `failed` with one sentence (the pinned modules must not need a newer Go than the component declares). This needs Go, at least the component's version, where the skill runs; without it the skill ends `failed` with one sentence.
 - `tools-check` gains `command=go`.
 
 ### The check
@@ -104,10 +105,10 @@ One database per project and environment, shared by the project's components tha
 
 ### The plan and the run
 
-- `project-plan`, when a component declares the database, gains the row `database` after `services`: `follows the services`; `missing: <what>` / `create`; `differs: <what>` / `update`; `as declared` / `none`. "As declared" is: each such service has the three settings, each account has the two roles, and, when the instance is running, the database exists and each account is a user. With the instance stopped and the settings and roles right, the row is `as declared` and a line under the table says the database itself was not read because the instance is stopped. The settings are written last by the run, so they mark that the rest was made.
+- `project-plan`, when a component declares the database, counts `sqladmin.googleapis.com` among the APIs of the row `apis` (the existing wait for a just-enabled API covers it), and gains the row `database` after `services`: `follows the services`; `missing: <what>` / `create`; `differs: <what>` / `update`; `as declared` / `none`. "As declared" is: each such service has the three settings, each account has the two roles, and, when the instance is running, the database exists and each account is a user. With the instance stopped and the settings and roles right, the row is `as declared` and a line under the table says the database itself was not read because the instance is stopped. The settings are written last by the run, so they mark that the rest was made.
 - When the row has `create` or `update` and the instance is stopped, a line under the table says that `project-apply` starts the instance, that it then runs, charged by the hour, until the night stop, and that the start takes about twelve minutes.
 - `components` shows `to generate` while `db.go` is missing; `ci` and `ci secrets` are unchanged.
-- `project-apply confirm=yes`, after the services exist: when the instance is stopped, `gcp-cloud-sql_instance-start`, then a bounded wait until it accepts the Admin API's calls (30 seconds a try, at most 30 tries: the start was measured at 11.5 minutes, so this one wait is longer than the usual ten tries); then `database-create`, `access-grant` for each component, `gcp_deploy-setup` with the settings; then the plan; then `go_setup database=yes` and the pull request. The answer says, when the run started the instance, that it is running until the night stop and how to stop it sooner.
+- `project-apply confirm=yes`, after the services exist: when the instance is stopped, `gcp-cloud-sql_instance-start`, then a bounded wait (30 seconds a try, at most 30 tries: the start was measured at 11.5 minutes, so this one wait is longer than the usual ten tries) until the start's operation is done and a list of the instance's databases answers: the instance's own state reads as running from the first moment, so it is not the signal; then `database-create`, `access-grant` for each component, `gcp_deploy-setup` with the settings; then the plan; then `go_setup database=yes` and the pull request. The answer says, when the run started the instance, that it is running until the night stop and how to stop it sooner.
 - After the merge CI deploys the component with the check, as any change.
 
 ### The owner's run, on `pilot`
@@ -120,7 +121,7 @@ No new fixed cost. The instance already costs its disk and address while stopped
 
 ## What stays open (recorded in `DESIGN.md` section 18)
 
-- **Inside the shared instance, a project's user can connect to another project's database.** PostgreSQL lets any user connect to any database unless that is revoked with a statement, and no command here runs SQL. With no table anywhere this exposes nothing; it must be closed in the stage that creates the first table (with migrations, which need a way to run SQL anyway).
+- **Inside the shared instance, a project's user can connect to another project's database.** PostgreSQL lets any user connect to any database unless that is revoked with a statement, and no command here runs SQL. Users created through the API may also belong to Cloud SQL's administrative role, which would let them do more than connect (to be read in the reference by the builder and recorded). With no table anywhere this exposes nothing; it must be closed in the stage that creates the first table (with migrations, which need a way to run SQL anyway).
 - The user has no permission to create anything in its own database yet: same stage.
 - A long wait (the instance's start) in a terminal that can expire: the answer of the run is lost if the session drops, as seen in stage 4b-2.
 
@@ -131,7 +132,9 @@ No new fixed cost. The instance already costs its disk and address while stopped
 - `go_setup` writes the check; it replaces `main.go` only while it is still the file the tooling wrote.
 - `project-apply` starts a stopped instance by itself, says so, and leaves it running until the night stop.
 - The connection roles are on the shared project (Cloud SQL has no narrower place), limited to the instance by a condition where one is supported.
-- The settings of a service are the marker that its database was made, so a plan is useful with the instance stopped.
+- The settings of a service are the marker that its database was made, so a plan is useful with the instance stopped. A database deleted by hand while the instance is stopped is therefore not seen until the instance runs: accepted.
+- The Cloud SQL Admin API is enabled in a project's own GCP project only when one of its components uses the database.
+- The roles on the shared project are granted by whoever runs `project-apply` (the owner, who owns the shared project); a refusal ends the step with one sentence, as every grant does.
 - The wait for the instance's start is up to 15 minutes, the one wait longer than the rule's five.
 - Isolation between projects inside the instance is left open, stated, until the first table.
 
