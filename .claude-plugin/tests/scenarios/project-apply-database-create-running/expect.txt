@@ -1,0 +1,28 @@
+# The instance runs; the database, web's user, its roles and its settings are missing, and so is
+# web's check. One confirmed run makes them, in this order, with the settings last, then proposes
+# the check from the plan made after them. The instance is not started: it runs.
+ORDER ^sql databases create demo_dev --instance=aleogr-shared --project=aleogr-shared-ab12 >> ^projects add-iam-policy-binding aleogr-shared-ab12
+ORDER ^projects add-iam-policy-binding aleogr-shared-ab12 >> ^sql users create demo-web@aleogr-dev-demo-ab12\.iam
+ORDER ^sql users create >> ^run services update demo-web
+ORDER ^run services update demo-web >> ^go -C web get
+ORDER ^go -C web get >> ^gh pr create
+CALLED ^run services update demo-web --update-env-vars=\^##\^DB_INSTANCE=aleogr-shared-ab12:us-central1:aleogr-shared##DB_NAME=demo_dev##DB_USER=demo-web@aleogr-dev-demo-ab12\.iam
+NOT_CALLED instances patch
+NOT_CALLED ^sleep
+NOT_CALLED ^run (deploy|services update demo-api)|^gh (variable|secret) set
+FILE web/db.go ^func dbCheck\(
+FILE web/main.go ^	mux\.HandleFunc\("GET /db", dbCheck\)$
+CALLED ^git add -- .*web/db\.go
+CALLED ^git add -- .*web/db_test\.go
+CALLED ^git add -- .*web/go\.sum
+CALLED ^gh pr create .*Add the database check of web
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"
+OUTPUT_NOT This run started the shared database instance
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only; no e-mail of a component nor the shared project id
+# in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

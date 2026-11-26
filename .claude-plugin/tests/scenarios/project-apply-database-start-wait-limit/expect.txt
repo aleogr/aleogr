@@ -1,0 +1,19 @@
+# The instance is started and stays starting for 30 tries (a 31st try would find it running): the
+# run stops at the limit, says it started the instance, and makes nothing after it.
+CALLED ^sql instances patch aleogr-shared --project=aleogr-shared-ab12 --activation-policy=ALWAYS
+COUNT 30 ^sql operations list
+COUNT 29 ^sleep 30$
+NOT_CALLED ^sql (databases|users) (list|create)
+NOT_CALLED add-iam-policy-binding|^run services update|^gh pr create|^go -C|^gh (variable|secret) set
+OUTPUT This run started the shared database instance: it runs, charged by the hour, until the night stop\. To stop it sooner: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop, or the workflow self-shared-database of aleogr/aleogr \(action stop\)\.
+OUTPUT The shared instance started in this run did not accept calls after 30 tries, about 15 minutes of waits; nothing after it was made\.
+OUTPUT "item": "database", "reason": "manual", "how": "[^"]*/aleogr:project-plan
+OUTPUT_NOT "item": "(components|ci|services|ci secrets|instance|apis)", "reason"
+OUTPUT "status": "updated"
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only; no e-mail of a component nor the shared project id
+# in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"
