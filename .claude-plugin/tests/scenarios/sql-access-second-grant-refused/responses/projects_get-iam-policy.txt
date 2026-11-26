@@ -1,0 +1,7 @@
+{
+  "bindings": [
+    { "members": ["user:owner@example.com"], "role": "roles/owner" }
+  ],
+  "etag": "BwYxxxxxxxx=",
+  "version": 1
+}

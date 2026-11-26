@@ -1,7 +1,7 @@
 # An entry that is not a service account's address: failed before any command.
 NOT_CALLED .
 OUTPUT "status": "failed"
-OUTPUT service account
+OUTPUT is not the address of a service account
 # Every scenario of the database skills: the instance is never started, stopped or changed,
 # and the result block holds no e-mail at all (no account address, no user name).
 NOT_CALLED ^sql instances (patch|restart|delete|create)

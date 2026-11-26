@@ -1,7 +1,7 @@
 # Running, but the databases cannot be read: failed, with the skill's own sentence.
 CALLED ^sql databases list
 OUTPUT "status": "failed"
-OUTPUT could not be read
+OUTPUT could not be read although it is running
 OUTPUT_NOT HTTPError|403|not authorized
 # Every scenario of the database skills: the instance is never started, stopped or changed,
 # and the result block holds no e-mail at all (no account address, no user name).

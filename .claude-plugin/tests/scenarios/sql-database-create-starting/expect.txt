@@ -1,0 +1,12 @@
+# A starting instance: pending, no other command, and the item tells to wait and plan again.
+CALLED ^sql operations list
+NOT_CALLED ^sql databases
+OUTPUT "status": "pending"
+OUTPUT "item": "instance"
+OUTPUT "how": "Wait a few minutes, then /aleogr:project-plan\.?"
+OUTPUT_NOT "how": "/aleogr:project-apply
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @
