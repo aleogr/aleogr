@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Fake go for the skill tests: logs "go <arguments>" and prints a canned response,
+# through fake-cli, like the fake gh and git (response key "go_" + the arguments with
+# spaces and "/" written as "_"; numbered, +after+, .exit1 and .exit127 files work).
+# Then, when the call succeeded (exit 0) and FAKE_RESPONSES holds a folder
+# <prefix>.files/ whose <prefix> is a prefix of the key (the longest wins), each file
+# in that folder is copied over the file of the same name in the call's working
+# folder: the folder after a leading "-C <dir>", otherwise the current folder. So
+# responses/go_-C_web_get.files/go.mod rewrites web/go.mod after "go -C web get ...",
+# as the real go get rewrites go.mod and go.sum. A failed call copies nothing.
+here="$(dirname "${BASH_SOURCE[0]}")"
+"$here/fake-cli" go "$@"
+status=$?
+dir="${FAKE_RESPONSES:-}"
+if [ "$status" -eq 0 ] && [ -d "$dir" ]; then
+  key="$*"
+  key="${key// /_}"
+  key="go_${key//\//_}"
+  work="."
+  if [ "${1:-}" = "-C" ] && [ -n "${2:-}" ]; then work="$2"; fi
+  best="" ; best_len=0
+  for d in "$dir"/*.files; do
+    [ -d "$d" ] || continue
+    name="$(basename "$d")"
+    name="${name%.files}"
+    case "$key" in
+      "$name"*) if [ "${#name}" -gt "$best_len" ]; then best="$d"; best_len=${#name}; fi ;;
+    esac
+  done
+  if [ -n "$best" ] && [ -d "$work" ]; then
+    for f in "$best"/* "$best"/.[!.]*; do
+      [ -f "$f" ] || continue
+      cp -- "$f" "$work/$(basename "$f")"
+    done
+  fi
+fi
+exit "$status"
