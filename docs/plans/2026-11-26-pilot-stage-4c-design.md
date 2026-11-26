@@ -1,6 +1,6 @@
 # Reference project, stage 4c: design of a project's database
 
-Status: waiting for the owner's approval. Source of truth after approval: [`DESIGN.md`](../DESIGN.md) and [`CONTRACTS.md`](../CONTRACTS.md); this document is what the implementation plan is written from. It replaces the outline of part 4c in [`2026-11-19-pilot-stage-4-design.md`](2026-11-19-pilot-stage-4-design.md). The owner asked the designer to decide everything: every decision here is the designer's, listed at the end for the owner to check.
+Status: approved by the owner on 2026-11-26. Source of truth after approval: [`DESIGN.md`](../DESIGN.md) and [`CONTRACTS.md`](../CONTRACTS.md); this document is what the implementation plan is written from. It replaces the outline of part 4c in [`2026-11-19-pilot-stage-4-design.md`](2026-11-19-pilot-stage-4-design.md). The owner asked the designer to decide everything: every decision here is the designer's, listed at the end for the owner to check.
 
 ## Intent
 
@@ -76,7 +76,7 @@ A component gains one optional key, `"database": true` (absent or `false`: no da
 | Database | `<project>_<environment>`, hyphens of the project's name written as `_` (`pilot_dev`) | the shared instance |
 | Database user of a component | the component's service account, as Cloud SQL names an IAM service account user (`<project>-<component>@<project id>.iam`) | the shared instance |
 | API | `sqladmin.googleapis.com`, added to the APIs of the project's own GCP project only when a component declares the database (the connector calls the Cloud SQL Admin API as the service's account, counted against that project) | the project's GCP project |
-| Connection roles of that account | `roles/cloudsql.client` and `roles/cloudsql.instanceUser`, with a condition that limits them to the shared instance where Cloud SQL supports one; a binding with or without the condition counts as granted, so the row never reads `differs` over the form | the shared project |
+| Connection roles of that account | `roles/cloudsql.client` and `roles/cloudsql.instanceUser`, without a condition in this stage: Google documents a condition only for one of the two roles, and an untested condition could stop the connector. A binding with or without a condition counts as granted, so narrowing it later never makes the row read `differs` | the shared project |
 | Settings of the service | `DB_INSTANCE` (the instance's connection name), `DB_NAME`, `DB_USER` | the Cloud Run service |
 | Code | `<path>/db.go` (the check), the route `GET /db` in `main.go`, two requirements in `go.mod` | the project's repository |
 
@@ -92,7 +92,7 @@ One database per project and environment, shared by the project's components tha
 - `go_setup` gains `database=yes`:
   - a new component gets the starting files with the route already there, plus `db.go`;
   - an existing component gets `db.go` when it is missing; its `main.go` is replaced by the variant with the route **only when it is byte for byte the file the tooling wrote**; otherwise `main.go` is left alone and the result carries the item `route`, whose `how` is the one line to add;
-  - the two requirements are added to `go.mod` with `go get <module>@<version>` (versions pinned in `defaults.json`), which also writes `go.sum`, run with the local toolchain only (`GOTOOLCHAIN=local`). After it the skill checks that the `go` line of `go.mod` is still the declared version and that no `toolchain` line appeared: if either changed, it restores `go.mod` and `go.sum` and ends `failed` with one sentence (the pinned modules must not need a newer Go than the component declares). This needs Go, at least the component's version, where the skill runs; without it the skill ends `failed` with one sentence.
+  - the two requirements are added to `go.mod` with `go get <module>@<version>` (versions pinned in `defaults.json`), which also writes `go.sum`, followed by `go mod tidy` (the build needs it). The pinned connector needs Go 1.26, so a component that uses the database declares Go 1.26 or later (a rule of the declaration), and the Go command may download that toolchain where the skill runs. After it the skill checks that the `go` line of `go.mod` is still the declared version and that no `toolchain` line appeared: if either changed, it restores `go.mod` and `go.sum` and ends `failed` with one sentence (the pinned modules must not need a newer Go than the component declares). This needs Go, at least the component's version, where the skill runs; without it the skill ends `failed` with one sentence.
 - `tools-check` gains `command=go`.
 
 ### The check
@@ -121,7 +121,7 @@ No new fixed cost. The instance already costs its disk and address while stopped
 
 ## What stays open (recorded in `DESIGN.md` section 18)
 
-- **Inside the shared instance, a project's user can connect to another project's database.** PostgreSQL lets any user connect to any database unless that is revoked with a statement, and no command here runs SQL. Users created through the API may also belong to Cloud SQL's administrative role, which would let them do more than connect (to be read in the reference by the builder and recorded). With no table anywhere this exposes nothing; it must be closed in the stage that creates the first table (with migrations, which need a way to run SQL anyway).
+- **Inside the shared instance, a project's user can connect to another project's database.** PostgreSQL lets any user connect to any database unless that is revoked with a statement, and no command here runs SQL. By Google's documentation a service account's user gets no role by default (the administrative role goes only to built-in users), so connecting is all it can do. With no table anywhere this exposes nothing; it must be closed in the stage that creates the first table (with migrations, which need a way to run SQL anyway).
 - The user has no permission to create anything in its own database yet: same stage.
 - A long wait (the instance's start) in a terminal that can expire: the answer of the run is lost if the session drops, as seen in stage 4b-2.
 
@@ -131,7 +131,7 @@ No new fixed cost. The instance already costs its disk and address while stopped
 - No password: Google's connector with IAM authentication.
 - `go_setup` writes the check; it replaces `main.go` only while it is still the file the tooling wrote.
 - `project-apply` starts a stopped instance by itself, says so, and leaves it running until the night stop.
-- The connection roles are on the shared project (Cloud SQL has no narrower place), limited to the instance by a condition where one is supported.
+- The connection roles are on the shared project (Cloud SQL has no narrower place), without a condition for now; the shared project has one instance. Narrowing them by a condition is an open item.
 - The settings of a service are the marker that its database was made, so a plan is useful with the instance stopped. A database deleted by hand while the instance is stopped is therefore not seen until the instance runs: accepted.
 - The Cloud SQL Admin API is enabled in a project's own GCP project only when one of its components uses the database.
 - The roles on the shared project are granted by whoever runs `project-apply` (the owner, who owns the shared project); a refusal ends the step with one sentence, as every grant does.
