@@ -1,0 +1,24 @@
+# web is as declared except its three settings (it holds LOG_LEVEL, which it was not given).
+# One update sets the three, in the delimiter form a value with ":" and "@" needs, alone.
+CALLED ^run services update demo-web --update-env-vars=\^##\^DB_INSTANCE=aleogr-shared-ab12:us-central1:aleogr-shared##DB_NAME=demo_dev##DB_USER=demo-web@aleogr-dev-demo-ab12\.iam --region=us-central1 --project=aleogr-dev-demo-ab12 --quiet$
+COUNT 1 ^run services update demo-web --update-env-vars=
+NOT_CALLED ^run services update demo-web --update-env-vars=.*--update-env-vars
+NOT_CALLED ^run services update .*(--iap|--invoker-iam-check|--service-account|--min|--max|--cpu|--memory|--update-labels|--scaling)
+NOT_CALLED --image
+NOT_CALLED ^run deploy
+NOT_CALLED --(set|remove|clear)-env-vars|--env-vars-file|--update-secrets|--set-secrets
+NOT_CALLED LOG_LEVEL
+NOT_CALLED --ingress|--no-invoker-iam-check|--no-iap|--allow-unauthenticated( |$)
+NOT_CALLED ^(run services (add|remove)-iam-policy-binding|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove))
+COUNT 2 ^run services describe demo-web
+OUTPUT "status": "updated"
+OUTPUT "updated": \[ ?"web" ?\]
+OUTPUT "created": \[ ?\]
+OUTPUT "asDeclared": true
+OUTPUT "envSet": \{ ?"web": \[ ?"DB_INSTANCE", ?"DB_NAME", ?"DB_USER" ?\] ?\}
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo_dev|LOG_LEVEL
+OUTPUT_NOT LOG_LEVEL
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

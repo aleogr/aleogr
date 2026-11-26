@@ -1,0 +1,10 @@
+# web already holds the three settings (and LOG_LEVEL): reads only.
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "updated": \[ ?\]
+OUTPUT "envSet": \{ ?\}
+RESULT_NOT aleogr-shared-ab12|demo_dev|LOG_LEVEL
+OUTPUT_NOT LOG_LEVEL
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

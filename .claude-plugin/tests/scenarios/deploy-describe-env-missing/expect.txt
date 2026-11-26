@@ -1,0 +1,9 @@
+# DB_USER is given but the template lacks it: env differs, nothing else does.
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "asDeclared": false
+OUTPUT "differences": \[ ?"env" ?\]
+OUTPUT "differing": \[ ?"web" ?\]
+OUTPUT DB_USER
+RESULT_NOT aleogr-shared-ab12|demo_dev|@
+OUTPUT_NOT aleogr-shared-ab12:|demo-web@aleogr-dev-demo-ab12\.iam( |$|[^.])

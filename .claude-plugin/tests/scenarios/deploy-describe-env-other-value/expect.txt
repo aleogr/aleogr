@@ -1,0 +1,8 @@
+# DB_NAME holds another value, and the maximum is 10: scaling and env differ, env last.
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "differences": \[ ?"scaling", ?"env" ?\]
+OUTPUT "differing": \[ ?"web" ?\]
+OUTPUT DB_NAME
+RESULT_NOT aleogr-shared-ab12|demo_dev|demo_hom|@
+OUTPUT_NOT demo_hom|demo_dev

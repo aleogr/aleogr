@@ -1,0 +1,9 @@
+# The three settings given for web are in its template with exactly those values: as declared.
+CALLED ^run services describe demo-web .*--format=json
+NOT_CALLED ^(run deploy|run services (update|add-iam-policy-binding|remove-iam-policy-binding|delete)|iam service-accounts (create|add-iam-policy-binding)|iap web (add|remove|set)|projects add-iam-policy-binding)
+OUTPUT "status": "unchanged"
+OUTPUT "asDeclared": true
+OUTPUT "differences": \[ ?\]
+OUTPUT "differing": \[ ?\]
+# A setting's value is never in the block (a connection name and an account's address are values).
+RESULT_NOT aleogr-shared-ab12|demo_dev|@

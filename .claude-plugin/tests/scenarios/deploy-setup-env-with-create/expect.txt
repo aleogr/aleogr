@@ -1,0 +1,21 @@
+# Nothing exists; settings are given for web only. web is created as without settings, then, after its
+# bindings and access, one update sets its settings. api gets no update.
+CALLED ^run deploy demo-web (.* )?--no-allow-unauthenticated --iap --service-account=demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com( |$)
+CALLED ^run deploy demo-api (.* )?--no-allow-unauthenticated --iap --service-account=demo-api@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com( |$)
+NOT_CALLED ^run deploy .*(env|DB_)
+CALLED ^run services update demo-web --update-env-vars=\^##\^DB_INSTANCE=aleogr-shared-ab12:us-central1:aleogr-shared##DB_NAME=demo_dev##DB_USER=demo-web@aleogr-dev-demo-ab12\.iam --region=us-central1 --project=aleogr-dev-demo-ab12 --quiet$
+NOT_CALLED ^run services update demo-api
+NOT_CALLED ^run services update .*(--iap|--invoker-iam-check|--service-account|--min|--max|--cpu|--memory|--update-labels|--scaling)
+ORDER ^run deploy demo-web >> ^run services update demo-web --update-env-vars
+ORDER ^run services add-iam-policy-binding demo-web >> ^run services update demo-web --update-env-vars
+ORDER ^iap web add-iam-policy-binding .*--service=demo-web >> ^run services update demo-web --update-env-vars
+NOT_CALLED ^run services update .*--image
+NOT_CALLED --(set|remove|clear)-env-vars|--env-vars-file|--update-secrets|--set-secrets
+NOT_CALLED --ingress|--no-invoker-iam-check|--no-iap|--allow-unauthenticated( |$)
+OUTPUT "status": "created"
+OUTPUT "created": \[ ?"web", ?"api" ?\]
+OUTPUT "envSet": \{ ?"web": \[ ?"DB_INSTANCE", ?"DB_NAME", ?"DB_USER" ?\] ?\}
+RESULT_NOT aleogr-shared-ab12|demo_dev
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @
