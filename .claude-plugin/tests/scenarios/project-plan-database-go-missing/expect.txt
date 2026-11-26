@@ -1,0 +1,21 @@
+# web uses the database and its go.mod lacks the modules, which project-apply adds with Go:
+# Go is checked first (tools-check command=go) and is missing: the row components is fix by hand.
+CALLED ^go version$
+NOT_CALLED ^go (-C [^ ]+ )?(get|mod)
+OUTPUT "item": "components", "state": "needs Go on this machine", "action": "fix by hand"
+OUTPUT Cloud Shell
+OUTPUT "item": "go", "reason": "manual"
+OUTPUT go\.dev/doc/install
+OUTPUT "item": "database", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "generate": false
+OUTPUT "status": "pending"
+OUTPUT_NOT command not found
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

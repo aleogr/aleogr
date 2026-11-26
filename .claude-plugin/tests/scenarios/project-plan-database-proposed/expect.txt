@@ -1,0 +1,16 @@
+# The declaration adds the database but is not in the repository yet: the row is not checked
+# until the change is merged, and neither the shared project nor the instance is read.
+OUTPUT "item": "declaration", "state": "changed here", "action": "propose"
+OUTPUT "item": "database", "state": "not checked until the change is merged", "action": "none" \},\s*$
+NOT_CALLED ^sql 
+NOT_CALLED aleogr-platform=shared|^projects get-iam-policy
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

@@ -1,0 +1,19 @@
+# web uses the database but its main.go was changed by hand and lacks the route: the plan carries
+# the line to add and the item route; for the tooling there is nothing to do.
+OUTPUT The route GET /db is not in web/main\.go
+OUTPUT "item": "route", "reason": "manual"
+OUTPUT "item": "components", "state": "as declared", "action": "none"
+OUTPUT "item": "database", "state": "as declared", "action": "none" \},\s*$
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"
+FILE web/main.go Changed by the owner
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

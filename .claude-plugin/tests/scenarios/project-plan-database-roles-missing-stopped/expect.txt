@@ -1,0 +1,16 @@
+# Stopped instance, the settings right but the roles of web missing: its user is not known and
+# must be made, so project-apply would start the instance: start true, the cost line.
+OUTPUT "item": "database", "state": "missing: roles", "action": "create" \},\s*$
+OUTPUT project-apply starts the shared instance \(about twelve minutes\); it then runs, charged by the hour, until the night stop\.
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": "stopped", "start": true, "components": \["web"\] \}
+OUTPUT "status": "would-update"
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

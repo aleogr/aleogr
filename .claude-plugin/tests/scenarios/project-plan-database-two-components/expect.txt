@@ -1,0 +1,18 @@
+# Both components use the database; everything is made but the DB_USER setting of api holds
+# another value: differs: settings, both components in the output, the services as declared.
+CALLED ^sql users list --instance=aleogr-shared --project=aleogr-shared-ab12
+OUTPUT "item": "services", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "database", "state": "differs: settings", "action": "update" \},\s*$
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": "running", "start": false, "components": \["api", "web"\] \}
+OUTPUT_NOT charged by the hour|demo-other
+OUTPUT "status": "would-update"
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"
