@@ -16,6 +16,8 @@ OUTPUT "status": "created"
 OUTPUT "created": \[ ?"web", ?"api" ?\]
 OUTPUT "envSet": \{ ?"web": \[ ?"DB_INSTANCE", ?"DB_NAME", ?"DB_USER" ?\] ?\}
 RESULT_NOT aleogr-shared-ab12|demo_dev
+# A setting's value is never in the answer (outside the commands shown before running them).
+OUTPUT_NOT aleogr-shared-ab12:us-central1:aleogr-shared|demo-web@aleogr-dev-demo-ab12\.iam( |$|[^.])
 # Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
 NOT_CALLED ^projects add-iam-policy-binding
 RESULT_NOT @
