@@ -35,7 +35,7 @@ Before any command, check every argument, and never ask for anything. Each argum
 
 - `<database>` is `<project>_<environment>` with every `-` of the project's name written `_` (`my-app` and `dev` give `my_app_dev`; `pilot` and `dev` give `pilot_dev`). It has at most 18 characters (`project` has at most 14, `environment` 3), so it always fits PostgreSQL's limit of 63.
 - For each entry `<account>` of `accounts`, its `<user>` is `<account>` without the ending `.gserviceaccount.com` (`<id>@<project id>.iam`): the name Cloud SQL gives an IAM service-account user on PostgreSQL. Its `<member>` is `serviceAccount:<account>`. Neither is ever written in the result block.
-- In the shared project's policy, an account holds a role when a binding whose `role` is exactly that role lists its `<member>` in `members` (compared without regard to case), **with or without a `condition`**: a binding narrowed by a condition still counts as granted. A binding of another role does not count.
+- In the shared project's policy, an account holds a role when a binding whose `role` is exactly that role lists its `<member>` in `members` (compared without regard to case), **with or without a `condition`**: a binding narrowed by a condition still counts as granted. A binding of another role does not count. A role held only under a condition counts as held: when that condition does not cover the shared instance, the connection is refused, and this skill does not see it.
 
 ## Steps
 

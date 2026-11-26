@@ -6,7 +6,7 @@ description: Google Cloud SQL (gcp-cloud-sql) database create. Use to make an al
 
 Makes the database `<project>_<environment>` on the shared Cloud SQL instance when it is missing, with the instance's defaults (no character set, no collation given). A database that exists is left alone. It creates no user and no password, and grants nothing: `gcp-cloud-sql_access-grant` makes each component's user.
 
-It never starts, stops or changes the instance. A database is made through the Cloud SQL Admin API, which needs the instance running, and what that API answers on a stopped instance is not documented: so on an instance that is not running this skill runs no other command and ends `pending`, naming `/aleogr:project-apply confirm=yes`, which starts the instance when something must be made in it. A database costs nothing of its own: only the instance's running hours cost.
+It never starts, stops or changes the instance. A database is made through the Cloud SQL Admin API, which needs the instance running, and what that API answers on a stopped instance is not documented: so on an instance that is not running this skill runs no other command and ends `pending`, naming what to do by the state: on a stopped one, `/aleogr:project-apply confirm=yes`, which starts the instance when something must be made in it. A database costs nothing of its own: only the instance's running hours cost.
 
 ## Arguments
 
@@ -63,7 +63,15 @@ Show each command before running it. Run only the commands below, in this order,
 
    Cloud SQL shows an instance as `RUNNABLE` as soon as a start is accepted, minutes before it accepts connections; the unfinished operation is what tells the two apart. If any printed line has the operation type `UPDATE`, the state is `starting`; otherwise it is `running`. If this command alone fails, keep `running`, say in one sentence that pending operations could not be checked, and go on.
 
-2. The state is not `running` (both modes): run nothing else. Say `The shared instance is <state>: the database is made only while it runs; /aleogr:project-apply confirm=yes starts it.` and end with `pending` and the item `{ "item": "instance", "reason": "The shared instance is <state>: the database is made only while it runs.", "how": "/aleogr:project-apply confirm=yes" }`. Nothing was changed.
+2. The state is not `running` (both modes): run nothing else. End with `pending` and the item `{ "item": "instance", "reason": "The shared instance is <state>: the database is made only while it runs.", "how": "<how>" }`, with `<how>` and the answer's sentence by the state:
+
+   | State | `how` of the item `instance` | The answer's sentence |
+   |---|---|---|
+   | `stopped` | `/aleogr:project-apply confirm=yes` | `The shared instance is stopped: the database is made only while it runs; /aleogr:project-apply confirm=yes starts it.` |
+   | `starting` or `creating` | `Wait a few minutes, then /aleogr:project-plan.` | `The shared instance is <state>: the database is made once it runs. Wait a few minutes, then run /aleogr:project-plan.` |
+   | `unknown` | `/aleogr:platform-plan` | `The state of the shared instance is not one this skill knows: the database is made only while it runs. Run /aleogr:platform-plan.` |
+
+   Nothing was changed.
 
 3. The state is `running`: the databases (both modes):
 
