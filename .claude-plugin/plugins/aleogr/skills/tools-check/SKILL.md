@@ -1,18 +1,18 @@
 ---
-description: aleogr tools check. Use before planning or applying platform changes, to confirm the Google Cloud CLI (gcloud) is installed and authenticated and to see where Claude is running. With the opt-in argument command=gh it checks the GitHub CLI (gh) instead, for the GitHub repository skills. Read-only.
+description: aleogr tools check. Use before planning or applying platform changes, to confirm the Google Cloud CLI (gcloud) is installed and authenticated and to see where Claude is running. With the opt-in argument command=gh it checks the GitHub CLI (gh) instead, for the GitHub repository skills, and with command=go the Go command (go), for the Go stack's database check. Read-only.
 ---
 
 # tools-check
 
-Checks that the command-line tools aleogr needs are ready, and where this session runs. It changes nothing and has no cost. By default the only tool it checks is `gcloud`. The opt-in `command=gh` checks the GitHub CLI (`gh`) instead. Other skills run it first and stop if it reports a problem.
+Checks that the command-line tools aleogr needs are ready, and where this session runs. It changes nothing and has no cost. By default the only tool it checks is `gcloud`. The opt-in `command=gh` checks the GitHub CLI (`gh`) instead, and the opt-in `command=go` the Go command (`go`). Other skills run it first and stop if it reports a problem.
 
 ## Arguments
 
-`command` (optional): `gcloud` (default) or `gh`. Without it the skill checks `gcloud`, exactly as before. Any other value: end with `failed`, one sentence, and run no command.
+`command` (optional): `gcloud` (default), `gh` or `go`. Without it the skill checks `gcloud`, exactly as before. Any other value: end with `failed`, one sentence, and run no command.
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order. With `command=gh`, step 1 is the same, then follow "With `command=gh`" below instead of steps 2 and 3.
+Show each command before running it. Run only the commands below, in this order. With `command=gh`, step 1 is the same, then follow "With `command=gh`" below instead of steps 2 and 3; with `command=go`, step 1 is the same, then follow "With `command=go`" below instead of steps 2 and 3.
 
 1. Where it runs. Check the environment variables `CLAUDE_CODE_REMOTE` and `CODESPACES` (use whatever means works in the current shell). Then set `where`:
 
@@ -83,11 +83,29 @@ After step 1:
 
 `outputs.tools` has the one entry `{ "name": "gh", "command": "gh", "state": "...", "fix": "..." }`; `status` is `unchanged` when `ok`, otherwise `failed`. Answer with one line for `gh` and one for where it runs. If it is not `ok`, say that the GitHub repository skills cannot run until it is fixed.
 
+## With `command=go`
+
+After step 1, one check, the only command run:
+
+1. Does `go` run:
+
+   ```
+   go version
+   ```
+
+   - Exit 0 and the output starts with `go version go`: state `ok`, `fix` `null`.
+   - Command not found (`command not found` or exit code 127 in bash, `not recognized` in PowerShell): state `missing`, `fix` is the official install instructions at https://go.dev/doc/install.
+   - Any other answer (another non-zero exit, or an output that does not start with `go version go`): state `missing`, the same `fix`.
+
+   In no case show the raw error text, and never repeat what `go version` printed beyond saying that Go runs.
+
+`outputs.tools` has the one entry `{ "name": "go", "command": "go", "state": "...", "fix": "..." }`; `status` is `unchanged` when `ok`, otherwise `failed`. Answer with one line for `go` and one for where it runs. If it is not `ok`, say that the database check of a Go component (`go_setup` with `database=yes`) cannot be written until it is fixed.
+
 ## Answer
 
 One line per tool: its name and `ok`, `missing` or `not authenticated`, and the fix when it is not ok. In the default check, if the command name is `gcloud.cmd`, say that every `gcloud` command must be run as `gcloud.cmd`. Then one line with where it runs.
 
-- If any tool is not `ok`, say what cannot be done until it is fixed: in the default check, every platform skill needs `gcloud`; with `command=gh`, the GitHub skills.
+- If any tool is not `ok`, say what cannot be done until it is fixed: in the default check, every platform skill needs `gcloud`; with `command=gh`, the GitHub skills; with `command=go`, the database check of a Go component.
 - If `where` is `cloud-session`, add one sentence: infrastructure setup is done from the local app, where the CLIs are authenticated. Still report what was found.
 
 Then the result block.
@@ -120,5 +138,5 @@ End with exactly one fenced block tagged `aleogr-result`:
 
 - `mode` is always `plan`. `status` is `unchanged` when every tool is `ok`, otherwise `failed`.
 - `state` is `ok`, `missing` or `not-authenticated`. `fix` is a command or a URL, or `null` when `ok`.
-- `command` is the command name to run the tool with. In the default check: `gcloud.cmd` when only `gcloud.cmd --version` worked, otherwise `gcloud`. With `command=gh`: `gh`.
+- `command` is the command name to run the tool with. In the default check: `gcloud.cmd` when only `gcloud.cmd --version` worked, otherwise `gcloud`. With `command=gh`: `gh`. With `command=go`: `go`.
 - `resources` is empty. The block never contains an account e-mail.
