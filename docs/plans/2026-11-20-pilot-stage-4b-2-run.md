@@ -118,12 +118,11 @@ On GitHub, the pull request of step 3: its checks `ci / ci` green (the deploy jo
 ```bash
 R=$(gh run list --repo aleogr-sandbox/pilot --workflow ci --branch main --limit 1 --json databaseId --jq '.[0].databaseId')
 N=$(gcloud projects describe "$P" --format="value(projectNumber)")
-gh run view "$R" --repo aleogr-sandbox/pilot --log > /tmp/deploy.log
-[ -n "$P" ] && [ -n "$N" ] && [ -s /tmp/deploy.log ] && { wc -l < /tmp/deploy.log; grep -c -e "$P" -e "$N" /tmp/deploy.log; } || echo "the check could not run"
-rm -f /tmp/deploy.log
+gh run view "$R" --repo aleogr-sandbox/pilot
+gh run view "$R" --repo aleogr-sandbox/pilot --log > /tmp/deploy.log; wc -l < /tmp/deploy.log; grep -c -e "$P" -e "$N" /tmp/deploy.log; rm -f /tmp/deploy.log
 ```
 
-Expected: two numbers, the log's line count (above 0) and then `0` (`***` is where they were masked). `the check could not run` means the run has not ended, or Cloud Shell reconnected and `P` is empty: set `P` again ("What to have ready") and repeat; it is not a result. Anything else: **stop**, say so (without the value), and delete that run's logs at once: on the run's page, the `···` menu, **Delete all logs**; or `gh run delete "$R" --repo aleogr-sandbox/pilot`.
+Expected: first the run's summary, which must say `Triggered via push` a few minutes ago and list `deploy-admin-dev` and `deploy-status-dev` (if it shows an older run or no deploy job, the pull request is not merged or the run has not ended: wait and repeat); then two numbers, the log's line count (some thousands) and `0` (`***` is where they were masked). An empty `P` or `N` (Cloud Shell reconnected) makes the second number equal the first: set them again and repeat; it is not a result. Anything else: **stop**, say so (without the value), and delete that run's logs at once: on the run's page, the `···` menu, **Delete all logs**; or `gh run delete "$R" --repo aleogr-sandbox/pilot`.
 
 Then, on that run: `changes`, `admin / go`, `status / go`, `deploy-admin-dev / deploy`, `deploy-status-dev / deploy`, `ci`, all green.
 
@@ -189,16 +188,18 @@ Stop at that step and send its whole answer (or the terminal's text), with every
 
 ## Results
 
+Run by the owner on 2026-11-21 (steps 2 to 7 and 10) and 2026-11-26 (steps 6 and 8).
+
 | Step | Expected | Result |
 |---|---|---|
-| Ready | 4b-2 merged, its self-test green; `gcloud` and `gh` signed in, `workflow` scope; `~/pilot` clean on `main` | |
-| 1. Plugins | the six versions above | |
-| 2. Plan | thirteen rows, form A or B; `services` not `waits for the login` | |
-| 3. Apply | `updated`; services created; four secrets set; one pull request; two addresses; "It's running!" signed in; sign-in page in a private window | |
-| 4. Table of step 3 | `ci identity` `as declared`; `services` `waiting for the first deploy: admin, status`; `ci secrets` `as declared`; four secret names | |
-| 5. Merge and log | the count `0` (no id or number in the run's log); all jobs green | |
-| 6. Pages | `admin: ok`, `status: ok` | |
-| 7. Nothing to do | `updated` then `unchanged`, `nothing to do`, `services` `as declared` | |
-| 8. One component | no deploy on the pull request; only `deploy-status-dev` after the merge | |
-| 9. Second person | "You don't have access", then `admin: ok` (or skipped) | |
-| 10. Cost | two services; maximum 2, 512Mi, minimum 0, billing by request | |
+| Ready | 4b-2 merged, its self-test green; `gcloud` and `gh` signed in, `workflow` scope; `~/pilot` clean on `main` | as expected; the self-test was green on its first run (PyYAML is on the runner) |
+| 1. Plugins | the six versions above | not captured; the plan's new rows show the stage's plugins were in use |
+| 2. Plan | thirteen rows, form A or B; `services` not `waits for the login` | form A, exactly; one table and one block |
+| 3. Apply | `updated`; services created; four secrets set; one pull request; two addresses; "It's running!" signed in; sign-in page in a private window | the Cloud Shell session expired during the run and its answer was lost; the run had finished (pull request #6 open). Checked by direct reads: both services exist with the login on and 512Mi, no public member, the identity's condition holds the workflow clause, four secret names, three files in the pull request, its checks green with both deploy jobs skipped. Both addresses showed "It's running!" signed in; a private window got the sign-in page of `aleogr` |
+| 4. Table of step 3 | `ci identity` `as declared`; `services` `waiting for the first deploy: admin, status`; `ci secrets` `as declared`; four secret names | the table was lost with the session; the four secret names were listed; `ci identity` was read `as declared` in step 7 |
+| 5. Merge and log | the count `0` (no id or number in the run's log); all jobs green | all six jobs green on the first run (deploys in 1m4s and 57s); 3295 log lines, `0` with the id or the number. The check as first written printed `the check could not run` on a clean log and was once run before the merge, on an older run: the command above is the corrected one |
+| 6. Pages | `admin: ok`, `status: ok` | as expected |
+| 7. Nothing to do | `updated` then `unchanged`, `nothing to do`, `services` `as declared` | `updated` (the folder), `nothing to do`, thirteen rows `none`, `ci identity`, `services` and `ci secrets` `as declared`; it took 9m43s. The second, bare run was not made |
+| 8. One component | no deploy on the pull request; only `deploy-status-dev` after the merge | as expected, with a file added under `status/`: on the pull request both deploy jobs and `admin` skipped; after the merge `status / go` and `deploy-status-dev` green, `admin` and `deploy-admin-dev` skipped |
+| 9. Second person | "You don't have access", then `admin: ok` (or skipped) | skipped |
+| 10. Cost | two services; maximum 2, 512Mi, minimum 0, billing by request | maximum 2, no minimum, 1 CPU, 512Mi on both; the billing mode was not read |
