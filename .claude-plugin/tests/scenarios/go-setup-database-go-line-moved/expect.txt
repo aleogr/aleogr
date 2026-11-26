@@ -7,3 +7,4 @@ FILE_NOT web/go.mod cloudsqlconn
 NO_FILE web/go.sum
 OUTPUT "status": "failed"
 OUTPUT 1\.27
+OUTPUT does not build until the modules are added

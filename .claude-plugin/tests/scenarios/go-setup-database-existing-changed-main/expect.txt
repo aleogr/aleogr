@@ -10,3 +10,4 @@ OUTPUT add the line mux\.HandleFunc\(\\"GET /db\\", dbCheck\) to the router in w
 OUTPUT "route": "manual"
 OUTPUT "database": "written"
 OUTPUT "status": "created"
+OUTPUT tests of web/db_test\.go, which expect the route, fail

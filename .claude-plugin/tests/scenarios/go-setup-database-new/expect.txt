@@ -26,3 +26,6 @@ OUTPUT "database": "written"
 OUTPUT "route": "added"
 OUTPUT "modules": "added"
 OUTPUT "dockerfile": "not-asked"
+# db.go and db_test.go are the templates byte for byte.
+SAME_FILE web/db.go .claude-plugin/plugins/aleogr-stack-go/files/db.go.tmpl
+SAME_FILE web/db_test.go .claude-plugin/plugins/aleogr-stack-go/files/db_test.go.tmpl

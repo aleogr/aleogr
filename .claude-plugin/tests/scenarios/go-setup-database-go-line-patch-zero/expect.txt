@@ -1,0 +1,12 @@
+# version 1.26, the allowed minimum: the Go command rewrites "go 1.26" as "go 1.26.0" when it adds
+# the connector (seen with the real go get). That is not a moved line: the run ends created.
+CALLED ^go -C web get
+CALLED ^go -C web mod tidy$
+FILE web/go.mod ^go 1\.26\.0$
+FILE web/go.mod cloudsqlconn v1\.27\.1
+FILE web/go.sum cloudsqlconn
+FILE web/db.go ^func dbCheck\(
+FILE web/main.go ^	mux\.HandleFunc\("GET /db", dbCheck\)$
+OUTPUT "status": "created"
+OUTPUT "modules": "added"
+OUTPUT "go-version": "1\.26"

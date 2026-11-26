@@ -5,3 +5,5 @@ OUTPUT "route": "present"
 OUTPUT "modules": "present"
 NOT_CALLED ^go (-C [^ ]+ )?(get|mod)
 FILE web/go.sum selftestFakeHashForTheScenarioOnly0000000000
+# No go command is needed, so Go is not even checked.
+NOT_CALLED ^go

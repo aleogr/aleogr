@@ -6,3 +6,8 @@ FILE_NOT web/go.mod require
 NO_FILE web/go.sum
 OUTPUT "status": "failed"
 OUTPUT_NOT selftest-raw-error
+# The folder's state after the failure: the check and the route are there, go.mod has no requirement.
+FILE web/db.go ^func dbCheck\(
+FILE web/main.go ^	mux\.HandleFunc\("GET /db", dbCheck\)$
+OUTPUT does not build until the modules are added
+OUTPUT running this skill again repairs it
