@@ -1,0 +1,21 @@
+# The instance is stopped and web has neither the roles nor the settings (Review Focus 2): the
+# plan never starts the instance; it says project-apply will, and what it costs.
+CALLED ^sql instances describe aleogr-shared --project=aleogr-shared-ab12
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+NOT_CALLED ^sql (databases|users|operations) list
+OUTPUT "item": "services", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "database", "state": "missing: roles, settings", "action": "create" \},\s*$
+OUTPUT project-apply starts the shared instance \(about twelve minutes\); it then runs, charged by the hour, until the night stop\.
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": "stopped", "start": true, "components": \["web"\] \}
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do|was not read
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

@@ -1,0 +1,11 @@
+{
+  "labels": {
+    "aleogr-environment": "dev",
+    "aleogr-project": "demolongname1"
+  },
+  "lifecycleState": "ACTIVE",
+  "name": "demolongname1-dev",
+  "parent": { "id": "222222222222", "type": "folder" },
+  "projectId": "aleogr-dev-demolongname1-ab12",
+  "projectNumber": "123456789012"
+}

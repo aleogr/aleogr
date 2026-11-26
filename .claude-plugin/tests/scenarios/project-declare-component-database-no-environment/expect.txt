@@ -1,0 +1,7 @@
+# A database lives in an environment: database=yes on a declaration without environments fails
+# with its sentence, and the file is left as it was.
+OUTPUT "status": "failed"
+OUTPUT database=yes. needs an environment
+FILE_NOT .aleogr/project.json database
+FILE .aleogr/project.json "name": "web", "stack": "go", "path": "web", "version": "1\.27" \}$
+NOT_CALLED .

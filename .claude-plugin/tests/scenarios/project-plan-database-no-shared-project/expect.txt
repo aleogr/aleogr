@@ -1,0 +1,18 @@
+# The shared project is not found by its labels: the row needs the shared platform and names
+# the platform plan; nothing of the instance is read.
+CALLED ^projects list --filter=labels.aleogr-project=shared AND labels.aleogr-platform=shared
+OUTPUT "item": "database", "state": "needs the shared platform", "action": "none" \},\s*$
+OUTPUT /aleogr:platform-plan
+NOT_CALLED ^sql 
+NOT_CALLED ^projects get-iam-policy
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": null, "start": false, "components": \["web"\] \}
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

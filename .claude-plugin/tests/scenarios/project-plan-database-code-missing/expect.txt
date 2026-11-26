@@ -1,0 +1,17 @@
+# web uses the database but has no db.go yet: go_setup in plan says the check is to write, so
+# the row components is to generate; the cloud is as declared.
+OUTPUT "item": "components", "state": "to generate: web", "action": "generate"
+OUTPUT "item": "database", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "generate": true
+NO_FILE web/db.go
+OUTPUT "status": "would-update"
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

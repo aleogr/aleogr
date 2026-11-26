@@ -1,0 +1,22 @@
+# The instance is stopped (Review Focus 8): the roles and the settings are right, so the row is
+# as declared, with the line that the database itself was not read; the plan is still useful.
+CALLED ^sql instances describe aleogr-shared --project=aleogr-shared-ab12
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+NOT_CALLED ^sql (databases|users|operations) list
+OUTPUT "item": "services", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "database", "state": "as declared", "action": "none" \},\s*$
+OUTPUT The database itself was not read: the shared instance is stopped\.
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": "stopped", "start": false, "components": \["web"\] \}
+OUTPUT_NOT charged by the hour
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

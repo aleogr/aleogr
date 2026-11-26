@@ -1,0 +1,9 @@
+{
+  "bindings": [
+    { "members": ["serviceAccount:other-webdatabasecheck@aleogr-dev-other-cd34.iam.gserviceaccount.com", "serviceAccount:demolongname1-webdatabasecheck@aleogr-dev-demolongname1-ab12.iam.gserviceaccount.com"], "role": "roles/cloudsql.client" },
+    { "members": ["serviceAccount:other-webdatabasecheck@aleogr-dev-other-cd34.iam.gserviceaccount.com", "serviceAccount:demolongname1-webdatabasecheck@aleogr-dev-demolongname1-ab12.iam.gserviceaccount.com"], "role": "roles/cloudsql.instanceUser" },
+    { "members": ["user:owner@example.com"], "role": "roles/owner" }
+  ],
+  "etag": "BwYxxxxxxxx=",
+  "version": 1
+}

@@ -1,0 +1,28 @@
+# web uses the database: the instance runs, the database exists, web is its user with both
+# roles, and its service holds the three settings. Fourteen rows, nothing to do.
+CALLED ^projects list --filter=labels.aleogr-project=shared AND labels.aleogr-platform=shared
+CALLED ^sql instances describe aleogr-shared --project=aleogr-shared-ab12
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+CALLED ^sql databases list --instance=aleogr-shared --project=aleogr-shared-ab12
+CALLED ^sql users list --instance=aleogr-shared --project=aleogr-shared-ab12
+ORDER ^run services describe >> ^sql instances describe
+ORDER ^sql users list >> ^gh secret list
+OUTPUT "item": "apis", "state": "enabled", "action": "none"
+OUTPUT "item": "components", "state": "as declared", "action": "none"
+OUTPUT "item": "services", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "database", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none" \}\s*$
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": "running", "start": false, "components": \["web"\] \}
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"
+OUTPUT_NOT not read|charged by the hour
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"
