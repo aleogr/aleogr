@@ -1,0 +1,14 @@
+# A new component with database=yes and dockerfile=yes: every starting file and the Dockerfile.
+FILE web/go.mod ^go 1\.27$
+FILE web/main.go ^	mux\.HandleFunc\("GET /db", dbCheck\)$
+FILE web/main_test.go httptest
+FILE web/db.go ^func dbCheck\(
+FILE web/db_test.go ^func TestDBNotConfigured\(
+FILE web/Dockerfile ^FROM golang:1\.27 AS build$
+FILE web/Dockerfile ^COPY go\.mod go\.sum\* \./$
+CALLED ^go -C web get
+CALLED ^go -C web mod tidy$
+OUTPUT "status": "created"
+OUTPUT "dockerfile": "written"
+OUTPUT "database": "written"
+OUTPUT "modules": "added"

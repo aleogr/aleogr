@@ -1,0 +1,8 @@
+# go mod tidy wrote a toolchain line: go.mod and go.sum are put back as they were; the run fails.
+CALLED ^go -C web mod tidy$
+FILE web/go.mod ^go 1\.27$
+FILE_NOT web/go.mod ^toolchain
+FILE_NOT web/go.mod cloudsqlconn
+FILE web/go.sum ^example\.com/other v1\.0\.0 h1:keptFakeHashForTheScenarioOnly22222222222222=$
+FILE_NOT web/go.sum selftestFakeHash
+OUTPUT "status": "failed"

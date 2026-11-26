@@ -1,0 +1,7 @@
+# version 1.25 is below minVersion 1.26: failed, nothing written, nothing run.
+NOT_CALLED ^go
+NO_FILE web/go.mod
+NO_FILE web/main.go
+NO_FILE web/db.go
+OUTPUT "status": "failed"
+OUTPUT 1\.26

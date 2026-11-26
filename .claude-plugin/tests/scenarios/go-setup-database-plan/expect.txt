@@ -1,0 +1,12 @@
+# plan: reads only. Nothing written, no go command that changes the module.
+NOT_CALLED ^go (-C [^ ]+ )?(get|mod)
+NO_FILE web/db.go
+NO_FILE web/db_test.go
+NO_FILE web/go.sum
+FILE_NOT web/main.go GET /db
+FILE_NOT web/go.mod require
+OUTPUT "mode": "plan"
+OUTPUT "status": "would-create"
+OUTPUT "database": "would-write"
+OUTPUT "route": "would-add"
+OUTPUT "modules": "would-add"

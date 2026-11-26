@@ -1,0 +1,8 @@
+# go get fails: no go mod tidy, go.mod as it was, the run fails without the raw error.
+CALLED ^go -C web get
+NOT_CALLED ^go (-C [^ ]+ )?mod
+FILE web/go.mod ^go 1\.27$
+FILE_NOT web/go.mod require
+NO_FILE web/go.sum
+OUTPUT "status": "failed"
+OUTPUT_NOT selftest-raw-error
