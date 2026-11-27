@@ -37,7 +37,7 @@ In the commands below, `<paths>` is the list of `paths` separated by spaces, in 
 
 ## mode=plan: the command
 
-When `mode` is `plan` or absent, do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
+When `mode` is anything but `apply` (absent, `plan` or any other value), do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
 Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 

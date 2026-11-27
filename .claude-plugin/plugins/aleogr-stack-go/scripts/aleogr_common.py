@@ -180,8 +180,11 @@ def _gh_api(rest):
                 method = value.upper()
             if flag in _GH_API_BODY_FLAGS:
                 body = True
-        elif a.startswith("-"):
+        elif a.startswith("--") or a == "-i":
             pass  # a boolean flag: --paginate, --slurp, -i, --silent, --verbose
+        elif a.startswith("-"):
+            # Short flags written together (-iXPOST, -if a=b) can hide a method or a body.
+            return "short flags written together"
         elif endpoint is None:
             endpoint = a
         i += 1
@@ -194,6 +197,12 @@ def _gh_api(rest):
     if body and method != "GET":
         return "a body without an explicit GET is a POST"
     return None
+
+
+def _no_arguments(rest):
+    """Accepts the command only with nothing after it (`gh auth status -t` prints the token,
+    also when `-t` is written together with another short flag)."""
+    return "arguments are not accepted here" if rest else None
 
 
 def _no_flags(*refused):
@@ -294,7 +303,7 @@ READS = {
     ],
     "gh": [
         ("--version",),
-        ("auth", "status", _no_flags("--show-token", "-t")),
+        ("auth", "status", _no_arguments),
         ("api", _gh_api),
         ("repo", "view"),
         ("pr", "list"),
@@ -310,7 +319,6 @@ READS = {
         ("status",),
         ("rev-parse",),
         ("rev-list",),
-        ("ls-remote",),
         ("ls-files",),
         ("diff", _GIT_NO_OUTPUT),
         ("log", _GIT_NO_OUTPUT),

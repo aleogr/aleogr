@@ -228,7 +228,9 @@ def imports_any(path, modules):
     """The one Grep of step 5: a quoted import path, in a *.go file of <path> or a
     subfolder, that is a module of `modules` or starts with one followed by `/`."""
     pattern = re.compile(r'"(%s)(/[^"]*)?"' % "|".join(re.escape(m) for m in modules))
-    for top, _dirs, files in os.walk(path):
+    for top, dirs, files in os.walk(path):
+        # Hidden folders are not searched, as the search of the prose skill does not.
+        dirs[:] = [d for d in dirs if not d.startswith(".")]
         for f in files:
             if not f.endswith(".go"):
                 continue

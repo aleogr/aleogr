@@ -96,6 +96,15 @@ UNTRUSTED = ("The exit code of gh could not be trusted: it reported success next
 _GH_ERROR_LINE = re.compile(r"^gh: .*\(HTTP [0-9]{3}\)\s*$", re.M)
 
 
+def _gh_error_line(c):
+    """gh's own error line: anywhere in stderr, or as the first line of stdout. Never
+    further down stdout, which may be a file of the repository read raw."""
+    if _GH_ERROR_LINE.search(c.err or ""):
+        return True
+    first = (c.out or "").lstrip().split("\n", 1)[0]
+    return bool(_GH_ERROR_LINE.search(first))
+
+
 class Reader(object):
     """Runs the reads of a skill through ctx.read (always the read-only runner) and
     keeps the sentences that the answer adds (an exit code that could not be trusted)."""
@@ -106,7 +115,7 @@ class Reader(object):
 
     def gh(self, argv):
         c = self.ctx.read(argv)
-        if c.ok and _GH_ERROR_LINE.search(c.text or ""):
+        if c.ok and _gh_error_line(c):
             # The text decides: an exit 0 next to an error line is that error.
             if UNTRUSTED not in self.notes:
                 self.notes.append(UNTRUSTED)

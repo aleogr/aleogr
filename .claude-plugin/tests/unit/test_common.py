@@ -68,6 +68,13 @@ class TestCopies(unittest.TestCase):
 
 
 WRITES = [
+    "gh api -iXPOST repos/o/n",
+    "gh api -iX DELETE repos/o/n",
+    "gh api -if title=x repos/o/n",
+    "gh auth status -at",
+    "gh auth status -t",
+    "git ls-remote origin",
+    "git ls-remote --upload-pack=x .",
     "gcloud projects create aleogr-dev-demo-ab12",
     "gcloud sql instances patch aleogr-shared --activation-policy=ALWAYS",
     "gcloud sql instances create aleogr-shared",
@@ -180,7 +187,6 @@ READS = [
     "git status --porcelain -- a",
     "git rev-parse --is-inside-work-tree",
     "git rev-parse HEAD",
-    "git ls-remote origin",
     "git diff --name-only origin/main HEAD",
     "git log -1 --format=%ae HEAD",
     "git ls-files --error-unmatch a",
