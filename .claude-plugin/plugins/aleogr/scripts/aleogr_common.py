@@ -2683,11 +2683,18 @@ class Context(object):
       wait that passed its limit.
     - ctx.continue_run(line, carry, ...): the Result of a command that ends `continue`:
       `line`, `next: <command>`, and the block; `carry` (a small JSON object) is saved
-      for the next command.
+      for the next command, with `digest=` when what the digest is made of changed
+      during this command (otherwise the one given to carried()).
+    - ctx.refuse_carry(why): the module refuses the content carried() gave; the run
+      goes on as a new one (carry_refusal, carry_lost_sentence) and that file is not
+      removed.
     - ctx.on_abort(lines): the lines that the result of an aborted run (aborted_result:
       the time limit, an unexpected error) prints, from now on, after what the run
       wrote: what may now cost or need doing. Each call replaces the lines given
-      before; an empty list clears them.
+      before; an empty list clears them. For a module that calls other commands
+      (CONTINUES or CALLS_OTHERS), they stand for what its run made: with none, the
+      result says that earlier steps may have been made (REFUSED_UNKNOWN), never that
+      nothing was written.
     - ctx.result(...), ctx.failed(...): build a Result with the module's FAMILY,
       PROVIDER and ACTION.
     - ctx.plugin_path(*parts), ctx.defaults(): files of this plugin.
@@ -2720,6 +2727,10 @@ class Context(object):
         self.time_limit = False
         # A run in more than one command (begin_run, carried, continue_run).
         self.continues = bool(getattr(module, "CONTINUES", False))
+        # A module that calls other commands (CONTINUES, or CALLS_OTHERS = True): what
+        # its run made is written by the commands it calls, never in its own writes_run,
+        # so a refusal or an abort never says that nothing was written (_written_lines).
+        self.calls_others = self.continues or bool(getattr(module, "CALLS_OTHERS", False))
         self.given_args = list(args.items()) if isinstance(args, dict) else []
         self.run_given = None  # the `run=` value given to this command
         self.run_id = None  # the id of this run's carried file, once known to be its own
@@ -2765,6 +2776,18 @@ class Context(object):
             return None
         return json.loads(json.dumps(self._record["carry"]))
 
+    def refuse_carry(self, why="invalid"):
+        """The module refuses what carried() gave (its content is not one it writes):
+        the run goes on as a new one, as for a file refused by the dispatcher (`why`, a
+        key of CARRY_REFUSALS). The file is not this run's own any more: it is not
+        removed (the sweep removes it after a day)."""
+        if why not in CARRY_REFUSALS:
+            why = "invalid"
+        self._record = None
+        self.run_id = None
+        self.commands = 1
+        self.carry_refusal = why
+
     def carry_lost_sentence(self):
         """CARRY_LOST_SENTENCE for carry_refusal, or None when nothing was refused."""
         if self.carry_refusal is None:
@@ -2786,12 +2809,15 @@ class Context(object):
         return " ".join(words)
 
     def continue_run(self, line, carry, outputs=None, resources=(), pending=(), cost=None,
-                     **extra):
+                     digest=None, **extra):
         """The Result of a command that ends `continue`: the answer is `line`, then
         `next: <next_command>`, then the block (status `continue`). `carry`, a dict of
-        JSON values, is saved for the next command with the digest given to carried()
-        and the count of commands. Call carried() first and continue only when
-        may_continue(); CarryNotSaved when the file cannot be saved."""
+        JSON values, is saved for the next command with `digest` (a string: what the
+        next command's carried() must give; by default the digest given to carried() in
+        this command) and the count of commands. A module whose run changes what its
+        digest is made of (project-apply's update of the folder rewrites the declaration)
+        computes it again right before this call. Call carried() first and continue only
+        when may_continue(); CarryNotSaved when the file cannot be saved."""
         if not self.continues:
             raise CarryNotSaved("%s does not declare CONTINUES" % self.skill)
         if not self._digest_given:
@@ -2800,8 +2826,11 @@ class Context(object):
             raise CarryNotSaved("this run may not continue")
         if not isinstance(carry, dict):
             raise CarryNotSaved("the carry is not a dict")
+        if digest is not None and not isinstance(digest, str):
+            raise CarryNotSaved("the digest is not a string")
         record = {"aleogr-run": 1, "plugin": self.plugin, "skill": self.skill,
-                  "digest": self._digest, "commands": self.commands,
+                  "digest": self._digest if digest is None else digest,
+                  "commands": self.commands,
                   "carry": json.loads(json.dumps(carry))}
         if self.run_id is not None:
             saved = save_carry(self.run_id, record, replace=True)
@@ -2957,10 +2986,26 @@ def _written_line(ctx):
     return REFUSED_WRITTEN.format(writes=", ".join("`%s`" % w for w in written))
 
 
+def _written_lines(ctx):
+    """What this run had already made, as lines: for a module that calls other commands
+    (ctx.calls_others), whose own writes_run is always empty, the lines it registered
+    (ctx.on_abort: what its run made so far), or REFUSED_UNKNOWN when it registered
+    none; for any other module, the one sentence of _written_line and then the lines it
+    registered."""
+    registered = list(getattr(ctx, "abort_lines", None) or ())
+    if getattr(ctx, "calls_others", False):
+        return registered or [REFUSED_UNKNOWN]
+    return [_written_line(ctx)] + registered
+
+
 def refused_result(ctx):
     """The result printed when a read or a write was refused (ReadRefused,
     WriteRefused): `failed`, REFUSED_SENTENCE, then what this run had already written
-    (ctx.writes_run), and never the refused command itself."""
+    (ctx.writes_run; for a module that calls other commands, _written_lines), and never
+    the refused command itself."""
+    if getattr(ctx, "calls_others", False):
+        return ctx.result("failed", {}, cost=dict(REFUSED_COST),
+                          lines=[REFUSED_SENTENCE] + _written_lines(ctx))
     return ctx.result("failed", {}, cost=dict(REFUSED_COST),
                       lines=[REFUSED_SENTENCE, _written_line(ctx)])
 
@@ -2976,8 +3021,10 @@ def aborted_result(ctx, sentence):
     """The result printed when a run was aborted (TimeLimit, or any unexpected
     exception): `failed`, `sentence` (TIME_LIMIT_SENTENCE or UNEXPECTED_SENTENCE), what
     this run had already written, the lines the module registered (ctx.on_abort), then
-    READ_STATE_SENTENCE. Nothing of the exception's text: it may hold values."""
-    lines = [sentence, _written_line(ctx)] + list(getattr(ctx, "abort_lines", None) or ())
+    READ_STATE_SENTENCE. For a module that calls other commands, never that nothing was
+    written: the lines it registered, or REFUSED_UNKNOWN (_written_lines). Nothing of
+    the exception's text: it may hold values."""
+    lines = [sentence] + _written_lines(ctx)
     lines.append(READ_STATE_SENTENCE)
     return ctx.result("failed", {}, cost=dict(ABORTED_COST), lines=lines)
 
@@ -3070,17 +3117,16 @@ CONTINUE_UNEXPECTED = "ended continue without ctx.continue_run"
 
 def _end_run(ctx, result, code, plugin, stderr):
     """The end of a command and its carried file: a `continue` is accepted only from
-    ctx.continue_run; any other status removes the run's file. The file `run=` named is
-    removed too unless it is the one this command saved."""
+    ctx.continue_run; any other status removes the run's file. Only this run's own file
+    is ever removed: the one this command accepted (ctx.run_id after carried() took it)
+    or created. A file `run=` named that was refused (another run's, by its digest, or
+    one the module refused) is left to the sweep (sweep_carries)."""
     if result.status == "continue" and not getattr(ctx, "continued", False):
         stderr.write("%s: %s: %s\n" % (plugin, ctx.skill, CONTINUE_UNEXPECTED))
         stderr.flush()
         result, code = aborted_result(ctx, UNEXPECTED_SENTENCE), EXIT_SOFTWARE
-    if ctx.continues:
-        if ctx.run_given is not None and ctx.run_given != ctx.run_id:
-            remove_carry(ctx.run_given)
-        if result.status != "continue" and ctx.run_id is not None:
-            remove_carry(ctx.run_id)
+    if ctx.continues and result.status != "continue" and ctx.run_id is not None:
+        remove_carry(ctx.run_id)
     return result, code
 
 

@@ -1,6 +1,6 @@
 {
   "name": "aleogr-repo-github",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "GitHub family: repositories, their settings, branch protection, the checkout that sends the first content, the pull requests that propose changes, the CI file with its deploy jobs, and the Actions variables and secrets they read.",
   "author": { "name": "aleogr" }
 }

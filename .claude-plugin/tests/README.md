@@ -65,12 +65,19 @@ only under these fakes; it only adds to the clock, so it can only shorten a run)
 seconds per wait reach the step limit of four minutes after eight waits, so such a scenario
 continues over several commands, as a real run would. A `clock` file with any other content
 is a bad scenario (exit 2). The loop and the `clock` file are tested on a copy of the
-harness with stand-in commands (`unit/test_continue.py`). Three scenarios have a `clock`
+harness with stand-in commands (`unit/test_continue.py`). Four scenarios have a `clock`
 file, all of `project-apply`, each made from a one-command scenario whose final answer it
 pins: `project-apply-continue-start-wait-limit` (the instance's wait over three commands, to
 its limit of thirty tries), `project-apply-continue-create-stopped` (the instance started in
-the first command and ready in the second) and `project-apply-continue-already-starting`
-(an instance someone else started, never started by the run). `project-apply`'s own wait is
+the first command and ready in the second), `project-apply-continue-already-starting`
+(an instance someone else started, never started by the run) and
+`project-apply-continue-after-merge` (the run after a merge: the folder updated, an API
+enabled and its wait, the instance started in the first command and ready in the second; the
+last answer keeps every line of the first command, the start's sentence and its cost). The
+fake `git` cannot rewrite the declaration on the pull, so the digest taken after the update
+of the folder is tested by a unit test (`TestDigestAfterTheUpdate` in
+`unit/test_project_apply.py`, through the real dispatcher with a declaration that a call
+rewrites). `project-apply`'s own wait is
 bounded by the clock's limit for waits, not by the step limit, so its commands make thirteen
 waits each.
 
@@ -84,7 +91,8 @@ of part 2a of step 2, `passed 357, failed 0, not converted 316`; at the end of p
 `passed 556, failed 0, not converted 117`; at the end of part 3a of step 3 it prints
 `passed 635, failed 0, not converted 41` (the 76 scenarios of `project-apply` and the three
 `project-apply-continue-*` pass; the 41 are the 35 scenarios of the three orchestrators still
-prose and the 6 `harness-selftest*`).
+prose and the 6 `harness-selftest*`); after the fixes of its final review, `passed 636`, with
+the fourth `project-apply-continue-*`.
 
 A scenario of a command that writes runs in the scenario's working folder, a copy of its
 `files/`, so the `FILE`, `SAME_FILE`, `NO_FILE` and `FILE_NOT` lines check what the command

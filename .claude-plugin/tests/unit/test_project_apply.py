@@ -367,7 +367,9 @@ class TestStartGates(unittest.TestCase):
 
     def test_start_registers_the_aborted_runs_lines(self):
         h = Harness([FakePlan(**START_PLAN), FakePlan()], start_answers()).run()
-        self.assertEqual(h.ctx.abort, [skill.START_SENTENCE])
+        # The lines of what the run made, then the start's sentence (I2).
+        self.assertEqual(h.ctx.abort[-1], skill.START_SENTENCE)
+        self.assertEqual(h.ctx.abort[:-1], h.carry["made"])
         self.assertIn(skill.START_SENTENCE, h.lines)
         self.assertEqual(h.block["cost"], skill.STARTED_COST)
 
@@ -534,11 +536,12 @@ class TestContinue(unittest.TestCase):
         self.assertEqual(h.plan_calls[0], {"projectId": PID, "readCloud": "yes"})
         self.assertIn(skill.CREATES_LINE, h.lines)
 
-    def test_carry_values_of_another_type_are_ignored(self):
-        c = skill._valid_carry({"made": "x", "instanceTries": "3", "startedInstance": True,
-                                "project": {"id": 5}})
-        self.assertEqual((c["made"], c["instanceTries"], c["startedInstance"], c["project"]),
-                         ([], 0, True, None))
+    def test_carry_values_of_another_type_are_refused(self):
+        # A carry is taken whole or not at all (M1): one value of another type refuses it.
+        c = dict(skill.new_carry(), made="x", instanceTries="3", startedInstance=True,
+                 project={"id": 5})
+        self.assertIsNone(skill._valid_carry(c))
+        self.assertEqual(skill._valid_carry(skill.new_carry()), skill.new_carry())
 
     def test_the_digest_holds_the_declaration_and_the_arguments(self):
         a = common.carry_digest(b"{}", {"confirm": "yes"})
@@ -655,6 +658,572 @@ class TestPathsNoScenarioCovers(unittest.TestCase):
             text = f.read()
         for word in ("ctx.write(", "ctx.run(", "ctx.read(", "subprocess"):
             self.assertNotIn(word, text)
+
+
+
+# ---------------------------------------------------------------------------
+# The review of part 3a: a run that takes more than one command
+
+import io  # noqa: E402
+import json  # noqa: E402
+import shlex  # noqa: E402
+import shutil  # noqa: E402
+import tempfile  # noqa: E402
+
+PATCH = "gcloud sql instances patch aleogr-shared --project=%s --activation-policy=ALWAYS" % SHARED
+
+
+def aborted(written=True, sentence=common.TIME_LIMIT_SENTENCE):
+    """A called command aborted by its deadline, as call_plugin returns it."""
+    wrote = (common.REFUSED_WRITTEN.format(writes="`%s`" % PATCH) if written
+             else common.REFUSED_NOTHING_WRITTEN)
+    return res("failed", answer=[sentence, wrote, common.READ_STATE_SENTENCE],
+               data={"timeLimit": True})
+
+
+def block_of(out):
+    return json.loads(out.split("```aleogr-result\n", 1)[1].split("\n```", 1)[0])
+
+
+def next_words(out):
+    lines = [l for l in out.splitlines() if l.startswith("next: ")]
+    return shlex.split(lines[-1][len("next: "):]) if lines else None
+
+
+class RealRun(object):
+    """Commands of project-apply through the real dispatcher (run_command: the carried
+    file, its digest, the aborted result), with fake plans and invocations: the module's
+    Apply is replaced, for the time of a command, by a TestApply given this object's plan
+    and call functions. The folder holds a declaration whose bytes a call may change."""
+
+    def __init__(self, test, plans, answers, waits=None, on_call=None):
+        self.test = test
+        self.plans = list(plans)
+        self.answers = answers
+        self.waits = list(waits or [])
+        self.on_call = on_call or {}
+        self.calls = []
+        self.plan_calls = []
+        self.applies = []
+        self.top = tempfile.mkdtemp()
+        self.folder = os.path.join(self.top, "work")
+        os.makedirs(os.path.join(self.folder, ".aleogr"))
+        self.write_declaration(json.dumps(DECL))
+        os.makedirs(os.path.join(self.top, "tmp"))
+        common.set_carry_folder(os.path.join(self.top, "tmp"))
+        common.set_clock(lambda: 1000.0)
+        self.cwd = os.getcwd()
+        os.chdir(self.folder)
+        test.addCleanup(self.close)
+
+    def close(self):
+        os.chdir(self.cwd)
+        common.set_carry_folder()
+        common.set_clock()
+        shutil.rmtree(self.top)
+
+    def write_declaration(self, text):
+        with open(os.path.join(self.folder, skill.DECLARATION), "w") as f:
+            f.write(text)
+
+    def carried_files(self):
+        folder = common.carry_folder_path()
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+    def plan(self, a):
+        self.plan_calls.append(dict(a))
+        return self.plans.pop(0) if len(self.plans) > 1 else self.plans[0]
+
+    def call(self, command, name, a, read_only):
+        self.calls.append((name, dict(a), read_only))
+        r = self.answers.get(name, res())
+        if isinstance(r, list):
+            r = r.pop(0) if len(r) > 1 else r[0]
+        if name in self.on_call:
+            self.on_call[name]()
+        if isinstance(r, Exception):
+            raise r
+        return copy.deepcopy(r)
+
+    def wait(self, counted=True):
+        return self.waits.pop(0) if self.waits else True
+
+    def command(self, words):
+        run = self
+
+        class Patched(TestApply):
+            def __init__(self, args, ctx, carry, lost=None):
+                ctx.wait = run.wait
+                TestApply.__init__(self, args, ctx, carry, plan_fn=run.plan,
+                                   call_fn=run.call, lost=lost)
+                run.applies.append(self)
+
+        inv = common.parse_command_line(words)
+        out, err = io.StringIO(), io.StringIO()
+        saved = skill.Apply
+        skill.Apply = Patched
+        try:
+            code = common.run_command("aleogr", ROOT, inv, skill, "apply", out, err,
+                                      environ={})
+        finally:
+            skill.Apply = saved
+        return code, out.getvalue()
+
+    def whole_run(self, words, limit=8):
+        """The command, then each `next:` command: the (code, out) of each."""
+        got = []
+        while len(got) < limit:
+            code, out = self.command(words)
+            got.append((code, out))
+            if code != 0 or block_of(out)["status"] != "continue":
+                break
+            words = next_words(out)[1:]
+        return got
+
+    def called(self, name):
+        return [c for c in self.calls if c[0] == name]
+
+
+# After a merge: the folder is updated (the pull rewrites the declaration), then the
+# database is made on a stopped instance, which accepts calls only in the next command.
+UPDATE_PLAN = dict(rows=rows(declaration=("behind", "update"),
+                             database=("missing: roles, settings", "create")),
+                   database=START_PLAN["database"])
+STARTING_DB = {"name": "demo_dev", "instanceState": "starting", "start": False,
+               "components": ["web"]}
+RUNNING_DB = dict(STARTING_DB, instanceState="running")
+
+
+class TestDigestAfterTheUpdate(unittest.TestCase):
+    """C1: the update of the folder rewrites the declaration; the carry saved at the end of
+    that command holds the digest of the declaration as it is then."""
+
+    def after_merge(self, edit_between=None):
+        run = RealRun(self, [FakePlan(**UPDATE_PLAN), FakePlan(**START_PLAN),
+                             FakePlan(rows=rows(database=("missing: roles", "create")),
+                                      database=STARTING_DB), FakePlan()],
+                      dict(start_answers(**{
+                          "github_checkout-setup": res("updated"),
+                          "gcp-cloud-sql_database-describe": [NOT_READ, NOT_READ, READY]})),
+                      waits=[True, False],  # the clock ends the wait on try 2
+                      on_call={"github_checkout-setup": lambda: run.write_declaration(
+                          json.dumps(DECL, indent=2) + "\n")})
+        code, out = run.command(["project-apply", "confirm=yes"])
+        self.assertEqual((code, block_of(out)["status"]), (0, "continue"))
+        if edit_between:
+            run.write_declaration(edit_between)
+        code, out = run.command(next_words(out)[1:])
+        return run, code, out
+
+    def test_the_carry_survives_the_update_of_the_folder(self):
+        run, code, out = self.after_merge()
+        self.assertEqual(code, 0)
+        lines = out.split("```aleogr-result")[0].splitlines()
+        self.assertNotIn("could not be recalled", out)
+        for line in ("github_checkout-setup: updated", "gcp-cloud-sql_instance-start: updated",
+                     "gcp-cloud-sql_database-create: created", skill.START_SENTENCE):
+            self.assertEqual(lines.count(line), 1, line)
+        self.assertNotIn(skill.ALREADY_STARTING, out)
+        self.assertEqual(block_of(out)["cost"], skill.STARTED_COST)
+        self.assertEqual(block_of(out)["status"], "updated")
+        self.assertEqual(len(run.called("gcp-cloud-sql_instance-start")), 1)
+        self.assertEqual(len(run.called("github_checkout-setup")), 1)
+        self.assertEqual(len(run.called("gcp-cloud-sql_database-describe")), 3)
+        self.assertEqual(run.carried_files(), [])
+
+    def test_a_declaration_changed_by_hand_between_commands_is_still_refused(self):
+        run, code, out = self.after_merge(edit_between=json.dumps(DECL) + " ")
+        self.assertIn(common.CARRY_LOST_SENTENCE.format(
+            why=common.CARRY_REFUSALS["mismatch"]), out)
+        self.assertNotIn(skill.START_SENTENCE, out)  # the new run started nothing
+
+
+class TestStartCutByTheDeadline(unittest.TestCase):
+    """C2: the start is invoked, and a limit of the run ends it before its result."""
+
+    def cut(self, **ctx_kw):
+        ctx = FakeCtx(**ctx_kw)
+        h = Harness([FakePlan(**START_PLAN)], start_answers(
+            **{"gcp-cloud-sql_instance-start": aborted()}), ctx=ctx).run()
+        return h
+
+    def test_the_start_asked_is_carried_and_costs(self):
+        h = self.cut()
+        self.assertEqual(h.block["status"], "continue")
+        carry = h.ctx.continued[1]
+        self.assertTrue(carry["startAsked"])
+        self.assertFalse(carry["startedInstance"])
+        self.assertEqual(carry["made"], ["gcp-cloud-sql_instance-start: failed"])
+        self.assertEqual(h.block["cost"], skill.START_UNKNOWN_COST)
+        self.assertEqual(h.ctx.abort[-1], skill.START_SENTENCE)
+
+    def test_on_the_eighth_command_the_answer_says_the_state_is_not_known(self):
+        h = self.cut(may_continue=False)
+        self.assertIn(skill.START_FAILURES[2], h.lines)
+        self.assertNotIn(skill.START_SENTENCE, h.lines)
+        self.assertEqual(h.block["cost"], skill.START_UNKNOWN_COST)
+
+    def test_registered_before_the_start_is_invoked(self):
+        seen = []
+        ctx = FakeCtx()
+        h = Harness([FakePlan(**START_PLAN)], start_answers(), ctx=ctx)
+        call = h.call
+
+        def spy(command, name, a, read_only):
+            if name == "gcp-cloud-sql_instance-start":
+                seen.append((list(ctx.abort), h.apply.carry["startAsked"]))
+            return call(command, name, a, read_only)
+
+        h.call = spy
+        h.run()
+        self.assertEqual(seen, [([skill.START_SENTENCE], True)])
+
+    def test_a_start_cut_before_its_write_was_not_asked(self):
+        h = Harness([FakePlan(**START_PLAN)], start_answers(
+            **{"gcp-cloud-sql_instance-start": aborted(written=False)})).run()
+        carry = h.ctx.continued[1]
+        self.assertFalse(carry["startAsked"])
+        self.assertEqual(carry["made"], [])
+        self.assertEqual(h.block["cost"], skill.NO_COST)
+
+    def next_command(self, db, rows_db=("missing: roles", "create"), **answers):
+        carry = self.cut().ctx.continued[1]
+        plan = FakePlan(rows=rows(database=rows_db), database=db)
+        return Harness([plan, FakePlan()], start_answers(**answers), carry=carry).run()
+
+    def test_the_next_command_finds_it_starting(self):
+        h = self.next_command(STARTING_DB)
+        self.assertEqual(h.called("gcp-cloud-sql_instance-start"), [])
+        self.assertEqual(h.called("gcp-cloud-sql_instance-switch-setup"), [])
+        self.assertNotIn(skill.ALREADY_STARTING, h.lines)
+        self.assertIn(skill.START_SENTENCE, h.lines)
+        self.assertNotIn(skill.START_FAILURES[2], h.lines)
+        self.assertIn("gcp-cloud-sql_instance-start: updated", h.lines)
+        self.assertNotIn("gcp-cloud-sql_instance-start: failed", h.lines)
+        self.assertEqual(h.block["cost"], skill.STARTED_COST)
+        self.assertEqual(len(h.called("gcp-cloud-sql_database-create")), 1)
+
+    def test_the_next_command_finds_it_running(self):
+        h = self.next_command(RUNNING_DB)
+        self.assertEqual(h.called("gcp-cloud-sql_instance-start"), [])
+        self.assertEqual(h.called("gcp-cloud-sql_database-describe"), [])
+        self.assertIn(skill.START_SENTENCE, h.lines)
+        self.assertNotIn(skill.ALREADY_STARTING, h.lines)
+        self.assertEqual(h.block["cost"], skill.STARTED_COST)
+
+    def test_the_next_command_finds_it_stopped(self):
+        # The start did not take effect: as a failed start whose read shows the instance
+        # stopped, the run stops; it never starts the instance a second time.
+        h = self.next_command(START_PLAN["database"])
+        self.assertEqual(h.called("gcp-cloud-sql_instance-start"), [])
+        self.assertEqual(h.called("gcp-cloud-sql_instance-switch-setup"), [])
+        self.assertEqual(h.called("gcp-cloud-sql_database-create"), [])
+        self.assertIn(skill.START_FAILURES[0], h.lines)
+        self.assertNotIn(skill.START_SENTENCE, h.lines)
+        self.assertNotIn(skill.START_FAILURES[2], h.lines)
+        self.assertEqual(h.block["cost"], skill.NO_COST)
+        self.assertIn(skill.item("database", skill.START_FAILED_HOW), h.block["pending"])
+
+    def test_the_next_command_cannot_read_it(self):
+        carry = self.cut().ctx.continued[1]
+        plan = FakePlan(rows=rows(database=("missing: roles", "create")),
+                        database=dict(STARTING_DB, instanceState="unknown"))
+        h = Harness([plan], start_answers(), carry=carry).run()
+        self.assertEqual(h.called("gcp-cloud-sql_instance-start"), [])
+        self.assertIn(skill.START_FAILURES[2], h.lines)
+        self.assertEqual(h.block["cost"], skill.START_UNKNOWN_COST)
+        self.assertNotIn(skill.ALREADY_STARTING, h.lines)
+
+
+VIS_DECL = dict(DECL, repo=dict(DECL["repo"], visibility="public"), components=[],
+                environments={})
+PRIV_DECL = dict(DECL, components=[], environments={})
+REPO_ROWS = ROWS[:7]
+
+
+def repo_rows(**changes):
+    return [(n, changes.get(n.replace(" ", "_"), (st, act))[0],
+             changes.get(n.replace(" ", "_"), (st, act))[1]) for n, st, act in REPO_ROWS]
+
+
+class TestVisibilityAppliedEarlier(unittest.TestCase):
+    """I1: a run confirmed with confirmVisibility=<value> that applied it in an earlier
+    command goes on in the next one."""
+
+    def test_public_at_birth(self):
+        birth = FakePlan(rows=repo_rows(repository=("missing", "create")), exposes=True,
+                         visibility="public", decl=VIS_DECL)
+        ctx = FakeCtx(step=[True, False])  # the step limit right after the creation
+        h = Harness([birth], {"github_repo-create": res("created")}, ctx=ctx,
+                    args={"confirmVisibility": "public"}).run()
+        self.assertEqual(h.block["status"], "continue")
+        carry = h.ctx.continued[1]
+        self.assertEqual(carry["visibilityApplied"], "public")
+        later = FakePlan(rows=repo_rows(settings=("differs", "update"),
+                                        declaration=("not sent", "send"),
+                                        protection=("missing", "create")),
+                         visibility="public", decl=VIS_DECL)
+        h2 = Harness([later, FakePlan(rows=REPO_ROWS, decl=VIS_DECL)],
+                     {"github_repo-configure": res("updated"),
+                      "github_checkout-setup": res("created"),
+                      "github_branch-protect": res("created")},
+                     carry=carry, args={"confirmVisibility": "public"}).run()
+        self.assertNotIn(skill.CONFIRM_VISIBILITY_NOT_NEEDED % "public", h2.lines)
+        self.assertEqual(names(h2), ["github_repo-configure", "github_checkout-setup",
+                                     "github_branch-protect"])
+        self.assertEqual(h2.block["status"], "created")
+
+    def test_private(self):
+        change = FakePlan(rows=repo_rows(visibility=("differs", "update"),
+                                         protection=("protected", "update")),
+                          visibility="private", decl=PRIV_DECL)
+        ctx = FakeCtx(step=[True, False])
+        h = Harness([change], {"github_repo-configure": res("updated")}, ctx=ctx,
+                    args={"confirmVisibility": "private"}).run()
+        carry = h.ctx.continued[1]
+        self.assertEqual(carry["visibilityApplied"], "private")
+        self.assertEqual(h.called("github_repo-configure")[0][1]["confirmVisibility"],
+                         "private")
+        later = FakePlan(rows=repo_rows(protection=("protected", "update")),
+                         visibility="private", decl=PRIV_DECL)
+        h2 = Harness([later, FakePlan(rows=REPO_ROWS, decl=PRIV_DECL)],
+                     {"github_branch-protect": res("updated")}, carry=carry,
+                     args={"confirmVisibility": "private"}).run()
+        self.assertEqual(names(h2), ["github_branch-protect"])
+        self.assertEqual(h2.block["status"], "updated")
+        # Everything made: nothing to do, not a failure.
+        h3 = Harness([FakePlan(rows=REPO_ROWS, decl=PRIV_DECL)], {}, carry=carry,
+                     args={"confirmVisibility": "private"}).run()
+        self.assertEqual(h3.block["status"], "updated")
+        self.assertNotIn(skill.CONFIRM_VISIBILITY_NOT_NEEDED % "private", h3.lines)
+
+    def test_the_flag_confirms_nothing_by_itself(self):
+        carry = skill.new_carry()
+        carry.update(visibilityApplied="public", changed=True)
+        # Another change of visibility: its own confirmation, as before.
+        private = FakePlan(rows=repo_rows(visibility=("differs", "update")),
+                           visibility="private", decl=PRIV_DECL)
+        h = Harness([private], {}, carry=copy.deepcopy(carry),
+                    args={"confirmVisibility": "public"}).run()
+        self.assertEqual(h.calls, [])
+        self.assertEqual(h.block["pending"][0]["item"], "confirm visibility private")
+        # An exposure without confirmVisibility=public in this command's arguments.
+        public = FakePlan(rows=repo_rows(visibility=("differs", "update")), exposes=True,
+                          visibility="public", decl=VIS_DECL)
+        h = Harness([public], {}, carry=copy.deepcopy(carry), args={"confirm": "yes"}).run()
+        self.assertEqual(h.calls, [])
+        self.assertEqual(h.block["pending"][0]["item"], "confirm visibility public")
+        # A visibility applied by this run, but another one named: the check holds.
+        h = Harness([FakePlan(rows=REPO_ROWS, decl=PRIV_DECL)], {},
+                    carry=copy.deepcopy(carry), args={"confirmVisibility": "private"}).run()
+        self.assertIn(skill.CONFIRM_VISIBILITY_NOT_NEEDED % "private", h.lines)
+        # The start needs confirm=yes itself, whatever the flag.
+        start = FakePlan(**START_PLAN)
+        h = Harness([start], start_answers(), carry=copy.deepcopy(carry),
+                    args={"confirmVisibility": "public"}).run()
+        self.assertEqual(h.called("gcp-cloud-sql_instance-start"), [])
+
+
+class TestAbortedOrchestrator(unittest.TestCase):
+    """I2: the aborted answer of a run that calls other commands never says that nothing
+    was written."""
+
+    def test_the_lines_made_so_far(self):
+        run = RealRun(self, [FakePlan(**UPDATE_PLAN), FakePlan(**START_PLAN)],
+                      start_answers(**{
+                          "github_checkout-setup": res("updated"),
+                          "gcp-cloud-sql_database-create": common.TimeLimit(["gcloud"])}))
+        code, out = run.command(["project-apply", "confirm=yes"])
+        self.assertEqual(code, common.EXIT_SOFTWARE)
+        lines = out.split("\n\n")[0].splitlines()
+        self.assertEqual(lines, [common.TIME_LIMIT_SENTENCE, "github_checkout-setup: updated",
+                                 "gcp-cloud-sql_instance-start: updated",
+                                 skill.START_SENTENCE, common.READ_STATE_SENTENCE])
+        self.assertNotIn(common.REFUSED_NOTHING_WRITTEN, out)
+
+    def test_nothing_made_yet_says_it_is_not_known(self):
+        run = RealRun(self, [FakePlan(**UPDATE_PLAN)],
+                      {"github_checkout-setup": ValueError("x")})
+        code, out = run.command(["project-apply", "confirm=yes"])
+        self.assertEqual(code, common.EXIT_SOFTWARE)
+        self.assertEqual(out.split("\n\n")[0].splitlines(),
+                         [common.UNEXPECTED_SENTENCE, common.REFUSED_UNKNOWN,
+                          common.READ_STATE_SENTENCE])
+
+    def test_the_lines_are_registered_as_each_is_added(self):
+        h = Harness([FakePlan(**UPDATE_PLAN), FakePlan(**START_PLAN), FakePlan()],
+                    start_answers(**{"github_checkout-setup": res("updated")})).run()
+        self.assertEqual(h.ctx.abort, h.carry["made"] + [skill.START_SENTENCE])
+
+
+class TestCarryContent(unittest.TestCase):
+    """M1: a carried file is taken only as this module writes it."""
+
+    def valid(self, **over):
+        c = skill.new_carry()
+        c.update(made=["github_checkout-setup: updated", "go_setup component=web: created",
+                       "github_branch-protect checks=ci: updated"],
+                 project={"id": PID, "how": "created"}, instanceTries=30, apisTries=10,
+                 apisAnswered=["gcp_ci-identity-setup", 3], visibilityApplied="private",
+                 access=dict(skill.ACCESS_ITEM),
+                 route=[{"item": "route", "reason": "manual",
+                         "how": "add the line mux.HandleFunc(\"GET /db\", dbCheck) to the "
+                                "router in web/main.go; until then the tests of "
+                                "web/db_test.go, which expect the route, fail"}])
+        c.update(over)
+        return c
+
+    def test_what_this_module_writes_is_taken(self):
+        c = self.valid()
+        self.assertEqual(skill._valid_carry(c), c)
+
+    def test_each_value_out_of_range_refuses_it(self):
+        bad = {
+            "instanceTries": [31, -1, True, 1.0], "apisTries": [11, -1, False],
+            "startAsked": [1, "true", None], "startedInstance": [0], "changed": ["yes"],
+            "project": [{"id": "Bad_Id", "how": "created"}, {"id": PID, "how": "made"},
+                        {"id": PID}, {"id": PID, "how": "found", "x": 1}, "x",
+                        {"id": "ab", "how": "found"}],
+            "made": [["rm -rf: updated"], ["github_repo-create: deleted"],
+                     ["github_repo-create created"], ["go_setup component=Web: created"],
+                     ["github_repo-create checks=ci: created"],
+                     ["github_repo-create: created", "github_repo-create: created"],
+                     [5], "github_repo-create: created"],
+            "apisAnswered": [["gcp_x", 3], ["aleogr:project-plan", 1],
+                             ["aleogr:project-plan", 11], "aleogr:project-plan"],
+            "visibilityApplied": ["internal", True],
+            "access": [{"item": "access", "reason": "manual", "how": "rm -rf /"},
+                       dict(skill.ACCESS_ITEM, extra=1)],
+            "route": [[{"item": "route", "reason": "manual", "how": "x"}],
+                      [dict(skill.ACCESS_ITEM)], {"item": "route"}],
+        }
+        for key, values in bad.items():
+            for v in values:
+                with self.subTest(key=key, value=v):
+                    self.assertIsNone(skill._valid_carry(self.valid(**{key: v})))
+
+    def test_a_key_more_or_less_refuses_it(self):
+        c = self.valid()
+        c["extra"] = 1
+        self.assertIsNone(skill._valid_carry(c))
+        c = self.valid()
+        del c["made"]
+        self.assertIsNone(skill._valid_carry(c))
+
+    def test_a_file_edited_by_hand_goes_on_as_a_new_run(self):
+        run = RealRun(self, [FakePlan(**START_PLAN), FakePlan()], start_answers(
+            **{"gcp-cloud-sql_database-describe": [NOT_READ, READY]}), waits=[False])
+        code, out = run.command(["project-apply", "confirm=yes"])
+        self.assertEqual(block_of(out)["status"], "continue")
+        words = next_words(out)[1:]
+        name = run.carried_files()[0]
+        path = os.path.join(common.carry_folder_path(), name)
+        with open(path) as f:
+            record = json.load(f)
+        record["carry"]["instanceTries"] = 31
+        with open(path, "w") as f:
+            json.dump(record, f)
+        code, out = run.command(words)
+        self.assertIn(common.CARRY_LOST_SENTENCE.format(
+            why=common.CARRY_REFUSALS["invalid"]), out)
+        fresh = run.applies[-1].carry  # nothing of the edited file is taken
+        self.assertEqual((fresh["instanceTries"], fresh["startedInstance"], fresh["made"]),
+                         (0, False, []))
+        self.assertIn(name, run.carried_files())  # not this run's own: left to the sweep
+
+
+class TestApiTriesAcrossCommands(unittest.TestCase):
+    """M2: the ten tries of the wait for just-enabled APIs are the run's, and its sentence
+    is said once."""
+
+    REGISTRY = dict(rows=rows(apis=("missing: run.googleapis.com", "enable"),
+                              registry=("missing", "create")))
+
+    REFUSED = FakePlan(failure=PP.Failure("refused", "registry", "x"),
+                       pending=[skill.item("registry", "x")])
+
+    def first_command(self):
+        # Sub-step 7's plan is refused after the enable: tries 1 to 3, and the clock ends
+        # the third wait.
+        ctx = FakeCtx(waits=[True, True, False])
+        h = Harness([FakePlan(**self.REGISTRY), self.REFUSED],
+                    {"gcp_services-enable": res("updated")}, ctx=ctx).run()
+        self.assertEqual(h.block["status"], "continue")
+        self.assertEqual(ctx.continued[0], skill.APIS_CONTINUE % (3, 10))
+        return ctx.continued[1]
+
+    def test_the_tries_go_on_from_the_carry(self):
+        carry = self.first_command()
+        self.assertEqual((carry["apisTries"], carry["apisPolled"]), (3, True))
+        h = Harness([self.REFUSED], {}, carry=carry).run()
+        self.assertEqual(len(h.plan_calls), 7)  # tries 4 to 10
+        self.assertIn(skill.APIS_LIMIT, h.lines)
+
+    def test_the_sentence_is_said_once(self):
+        carry = self.first_command()
+        later = FakePlan(rows=rows(registry=("missing", "create")))
+        h = Harness([later, FakePlan()], {
+            "gcp-artifact-registry_repository-create": [res("failed", answer=["x"]),
+                                                        res("created")]},
+            carry=carry).run()
+        said = [l for l in h.lines if l.startswith("Waited for the APIs")]
+        self.assertEqual(said, [skill.APIS_WAITED % ("aleogr:project-plan", 4)])
+        # The poll of the run was used: the registry's failure is a stop, not a new poll.
+        self.assertEqual(len(h.called("gcp-artifact-registry_repository-create")), 1)
+
+    def test_a_sentence_of_an_earlier_command_is_in_the_last_answer(self):
+        carry = skill.new_carry()
+        carry.update(apisEnabled=True, apisPolled=True, changed=True,
+                     apisAnswered=["gcp_ci-identity-setup", 3])
+        h = Harness([FakePlan()], {}, carry=carry).run()
+        self.assertEqual([l for l in h.lines if l.startswith("Waited")],
+                         [skill.APIS_WAITED % ("gcp_ci-identity-setup", 3)])
+
+
+class TestLineOfACutCommand(unittest.TestCase):
+    """M4: a called command that made something and was then ended by a limit leaves its
+    line, once."""
+
+    PLAN = dict(rows=rows(services=("missing: web", "create"),
+                          database=(PP.FOLLOWS_SERVICES, "none")))
+
+    def test_its_status_then_unchanged(self):
+        ctx = FakeCtx()
+        h = Harness([FakePlan(**self.PLAN)], {"gcp_deploy-setup": res(
+            "created", data={"waitRefused": True})}, ctx=ctx).run()
+        carry = ctx.continued[1]
+        self.assertEqual(carry["made"], ["gcp_deploy-setup: created"])
+        h = Harness([FakePlan(**self.PLAN), FakePlan()],
+                    {"gcp_deploy-setup": res("unchanged")}, carry=carry).run()
+        self.assertEqual(h.lines.count("gcp_deploy-setup: created"), 1)
+        self.assertNotIn("gcp_deploy-setup: unchanged", h.lines)
+
+    def test_an_aborted_command_that_had_written(self):
+        ctx = FakeCtx()
+        h = Harness([FakePlan(**self.PLAN)], {"gcp_deploy-setup": aborted()}, ctx=ctx).run()
+        carry = ctx.continued[1]
+        self.assertEqual(carry["made"], ["gcp_deploy-setup: failed"])
+        self.assertTrue(carry["cloudChanged"])
+        h = Harness([FakePlan(**self.PLAN), FakePlan()],
+                    {"gcp_deploy-setup": res("created")}, carry=carry).run()
+        self.assertEqual([l for l in h.lines if l.startswith("gcp_deploy-setup")],
+                         ["gcp_deploy-setup: created"])
+
+    def test_an_aborted_command_that_had_written_nothing(self):
+        ctx = FakeCtx()
+        Harness([FakePlan(**self.PLAN)], {"gcp_deploy-setup": aborted(written=False)},
+                ctx=ctx).run()
+        self.assertEqual(ctx.continued[1]["made"], [])
+        self.assertFalse(ctx.continued[1]["changed"])
+
+    def test_its_line_has_the_name_of_its_line(self):
+        plan = FakePlan(rows=rows(components=("to generate: web", "generate"),
+                                  declaration=("changed here", "propose")),
+                        generate=True)
+        ctx = FakeCtx()
+        Harness([plan], {"go_setup": res("created", data={"waitRefused": True})},
+                ctx=ctx).run()
+        self.assertEqual(ctx.continued[1]["made"], ["go_setup component=web: created"])
 
 
 if __name__ == "__main__":

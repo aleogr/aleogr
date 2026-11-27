@@ -27,6 +27,7 @@ is carried is only what the answer needs and cannot be read again (Carry).
 
 import importlib.util
 import os
+import re
 import sys
 
 import aleogr_common as common
@@ -329,28 +330,107 @@ def new_carry():
         "project": None,  # {"id", "how": created|found}: the GCP project of this run
         "apisEnabled": False,  # sub-step 6 ended updated in this run
         "apisTries": 0,  # tries of an unfinished wait for just-enabled APIs
+        "apisPolled": False,  # the one poll of sub-steps 7 to 11 was used in this run
+        "apisAnswered": None,  # [skill, try] of APIS_WAITED, once the wait ended
+        "startAsked": False,  # gcp-cloud-sql_instance-start was invoked in this run
         "startedInstance": False,
         "instanceTries": 0,
         "alreadyStarting": False,  # this run waited for an instance someone else started
         "wroteCode": False,  # step 0a of sub-step 12a wrote files
+        "visibilityApplied": None,  # the confirmVisibility this run applied (I1)
         "access": None,  # the item access of gcp_deploy-setup, as it gave it
         "route": [],  # the items route of go_setup in this run
     }
 
 
+# What a carried file may hold (_valid_carry): exactly what this module writes.
+PROJECT_ID_RE = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")  # as the skills require it
+LINE_STATUSES = ("created", "updated", "pending", "failed")
+# Every skill this module calls, by the name its line gives it.
+CALLED_SKILLS = (
+    "github_checkout-setup", "github_repo-create", "github_repo-configure",
+    "github_branch-protect", "github_ci-setup", "github_pull-request-open",
+    "github_repo-describe", "github_variables-set", "go_setup",
+    "gcp_environment-create", "gcp_services-enable", "gcp_ci-identity-setup",
+    "gcp_deploy-setup", "gcp_environment-describe",
+    "gcp-artifact-registry_repository-create", "gcp-artifact-registry_cleanup-configure",
+    "gcp-artifact-registry_access-grant", "gcp-cloud-sql_instance-switch-setup",
+    "gcp-cloud-sql_instance-start", "gcp-cloud-sql_database-describe",
+    "gcp-cloud-sql_database-create", "gcp-cloud-sql_access-grant",
+)
+# The one key=value a line may name, by skill.
+LINE_QUALIFIERS = {"go_setup": re.compile(r"component=[a-z][a-z0-9-]{0,62}"),
+                   "github_branch-protect": re.compile(r"checks=ci")}
+LINE_RE = re.compile(r"([a-z0-9_-]+)(?: ([A-Za-z]+=[^ :]+))?: ([a-z]+)")
+ACCESS_ITEM = {"item": "access", "reason": "manual",
+               "how": "/aleogr:project-access person=<e-mail>"}
+ROUTE_HOW_RE = re.compile(
+    r'add the line mux\.HandleFunc\("GET /db", dbCheck\) to the router in '
+    r"([A-Za-z0-9._/-]{1,200})/main\.go; until then the tests of \1/db_test\.go, which "
+    r"expect the route, fail")
+MAX_CARRIED_LINES = 64
+
+
+def valid_line(line):
+    """True for a line `<skill>[ <key>=<value>]: <status>` of a skill this module calls,
+    with a status a called skill gives."""
+    if not isinstance(line, str):
+        return False
+    m = LINE_RE.fullmatch(line)
+    if not m or m.group(1) not in CALLED_SKILLS or m.group(3) not in LINE_STATUSES:
+        return False
+    qualifier = LINE_QUALIFIERS.get(m.group(1))
+    if m.group(2) is None:
+        return True
+    return qualifier is not None and qualifier.fullmatch(m.group(2)) is not None
+
+
+def _is_int(v, low, high):
+    return type(v) is int and low <= v <= high
+
+
 def _valid_carry(c):
+    """The carry as this module wrote it, or None when anything in it is not what this
+    module writes (a file edited by hand): then the run goes on as a new one. Exactly the
+    keys of new_carry, each of its type and within its range."""
     base = new_carry()
-    if not isinstance(c, dict):
-        return base
-    for k, v in base.items():
-        if k in c and type(c[k]) is type(v):
-            base[k] = c[k]
-    if isinstance(c.get("project"), dict) and isinstance(c["project"].get("id"), str):
-        base["project"] = {"id": c["project"]["id"],
-                           "how": "found" if c["project"].get("how") == "found" else "created"}
-    if isinstance(c.get("access"), dict):
-        base["access"] = c["access"]
-    return base
+    if not isinstance(c, dict) or set(c) != set(base):
+        return None
+    flags = ("repositoryCreated", "changed", "cloudChanged", "apisEnabled", "apisPolled",
+             "startAsked", "startedInstance", "alreadyStarting", "wroteCode")
+    if any(type(c[k]) is not bool for k in flags):
+        return None
+    if not _is_int(c["instanceTries"], 0, INSTANCE_TRIES) \
+            or not _is_int(c["apisTries"], 0, API_TRIES):
+        return None
+    made = c["made"]
+    if not isinstance(made, list) or len(made) > MAX_CARRIED_LINES \
+            or not all(valid_line(l) for l in made) or len(set(made)) != len(made):
+        return None
+    project = c["project"]
+    if project is not None and not (
+            isinstance(project, dict) and set(project) == {"id", "how"}
+            and isinstance(project["id"], str) and PROJECT_ID_RE.fullmatch(project["id"])
+            and project["how"] in ("created", "found")):
+        return None
+    answered = c["apisAnswered"]
+    if answered is not None and not (
+            isinstance(answered, list) and len(answered) == 2
+            and answered[0] in CALLED_SKILLS + ("aleogr:project-plan",)
+            and _is_int(answered[1], 2, API_TRIES)):
+        return None
+    if c["visibilityApplied"] not in (None, "public", "private"):
+        return None
+    if c["access"] is not None and c["access"] != ACCESS_ITEM:
+        return None
+    route = c["route"]
+    if not isinstance(route, list) or len(route) > MAX_CARRIED_LINES or not all(
+            isinstance(x, dict) and set(x) == {"item", "reason", "how"}
+            and x["item"] == "route" and x["reason"] == "manual"
+            and isinstance(x["how"], str) and ROUTE_HOW_RE.fullmatch(x["how"])
+            for x in route):
+        return None
+    return dict(c)
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +492,9 @@ class Apply(object):
         self.written = []  # files written in this folder in this run
         self.github_unchanged_only = True  # every step of step 4 ended unchanged
         self.values = {}
+        if carry["apisAnswered"]:
+            self.sentences.append(APIS_WAITED % tuple(carry["apisAnswered"]))
+        self.register_abort()
 
     # -- small helpers --------------------------------------------------------
 
@@ -433,8 +516,49 @@ class Apply(object):
             self.carry["cloudChanged"] = True
 
     def add_line(self, line):
-        if line not in self.made:
+        """A line `<skill>: <status>`, once. A line `<skill>: failed` that a limit of the
+        run left (cut) gives way to the same skill's `created` or `updated` that a later
+        command of the run found."""
+        if line in self.made:
+            return
+        name, _, st = line.rpartition(": ")
+        if st in ("created", "updated") and "%s: failed" % name in self.made:
+            self.made[self.made.index("%s: failed" % name)] = line
+        else:
             self.made.append(line)
+        self.register_abort()
+
+    def register_abort(self):
+        """What an aborted run (the time limit, an unexpected error) says this run made:
+        the lines of the skills, the creation's line, and the start's sentence once the
+        start was asked for (ctx.on_abort; the shared module prints them in place of its
+        own sentence of what was written)."""
+        lines = list(self.made)
+        if self.project and self.project["how"] == "created":
+            lines.append(CREATES_LINE)
+        if self.carry["startedInstance"] or self.carry["startAsked"]:
+            lines.append(START_SENTENCE)
+        self.ctx.on_abort(lines)
+
+    def start_unknown_now(self):
+        """The start was asked for in this run and its outcome is not known (the start
+        was cut by a limit of the run, and no later read told)."""
+        return self.carry["startAsked"] and not self.carry["startedInstance"]
+
+    def start_took(self):
+        """The instance this run asked to start is found starting or running: it is this
+        run's start."""
+        self.carry["startedInstance"] = True
+        self.mark_changed(cloud=True)
+        self.add_line("gcp-cloud-sql_instance-start: updated")
+        self.register_abort()
+
+    def visibility_applied_earlier(self):
+        """confirmVisibility=<value> names the visibility this run already applied (an
+        earlier command of it): its check against the plan is then skipped. It confirms
+        nothing by itself: the run goes on under the same confirmVisibility it was given."""
+        return bool(self.visibility_arg) \
+            and self.carry["visibilityApplied"] == self.visibility_arg
 
     def decl(self):
         return self.first.reads.decl if self.first is not None else None
@@ -449,6 +573,10 @@ class Apply(object):
         self.last = p
         if p.failure is None and p.outputs.get("urls") is not None:
             self.urls_plan = p
+        if self.start_unknown_now() and p.failure is None and (
+                (p.outputs.get("database") or {}).get("instanceState")
+                in ("starting", "running")):
+            self.start_took()
         return p
 
     def plan_args(self):
@@ -464,19 +592,34 @@ class Apply(object):
             return
         raise Continue(CONTINUE_LINE % what, lambda: self.commands_limit(what))
 
-    def call(self, command, skill, a, read_only=False, what=None, step=True):
+    def call(self, command, skill, a, read_only=False, what=None, step=True, line=None,
+             on_cut=None):
         """Invoke a skill (another plugin's command); a limit of the run that ended it
         ends this command `continue`. `step`: the step limit is checked first (not for
-        the tries of a wait, which only the clock ends)."""
+        the tries of a wait, which only the clock ends). `line`: the name of its line
+        (default the skill's name). `on_cut(result)`: called when a limit ended it."""
         if step:
             self.check_step(what or skill)
         r = self._call_fn(command, skill, a, read_only)
         if common.ended_by_limit(r):
-            if _status(r) in ("created", "updated"):
-                self.mark_changed(cloud=command != GH and command != GO)
+            self.cut_line(line or skill, r, cloud=command != GH and command != GO)
+            if on_cut is not None:
+                on_cut(r)
             raise Continue(CONTINUE_LINE % (what or skill),
                            lambda: self.commands_limit(what or skill))
         return r
+
+    def cut_line(self, name, r, cloud):
+        """A called command that a limit of the run ended, having changed something (its
+        status `created` or `updated`, or the writes it had already run before it was
+        aborted): its line, with the status it gave, once."""
+        st = _status(r)
+        if st in ("created", "updated"):
+            self.add_line("%s: %s" % (name, st))
+            self.mark_changed(cloud=cloud)
+        elif wrote_before_abort(r):
+            self.add_line("%s: %s" % (name, st if st in LINE_STATUSES else "failed"))
+            self.mark_changed(cloud=cloud)
 
     def note(self, name, result):
         """The answer's line of a skill of step 4 that changed something."""
@@ -532,7 +675,7 @@ class Apply(object):
     def cost(self):
         if self.carry["startedInstance"]:
             return dict(STARTED_COST)
-        if self.start_unknown:
+        if self.start_unknown or self.start_unknown_now():
             return dict(START_UNKNOWN_COST)
         return dict(NO_COST)
 
@@ -595,7 +738,10 @@ class Apply(object):
             lines.append("")
         lines += self.table_lines(plan)
         said = list(self.sentences) + list(sentences)
-        if self.carry["alreadyStarting"] and not self.carry["startedInstance"]:
+        if self.start_unknown_now():
+            said.append(START_FAILURES[2])
+        if self.carry["alreadyStarting"] and not self.carry["startedInstance"] \
+                and not self.carry["startAsked"]:
             said.append(ALREADY_STARTING)
         out = []
         for s in said:
@@ -647,7 +793,7 @@ class Apply(object):
                 and all(row[2] == NONE for row in others):
             self.end("pending", p.pending)
         if all(row[2] == NONE for row in p.items):
-            if self.visibility_arg:
+            if self.visibility_arg and not self.visibility_applied_earlier():
                 self.visibility_not_needed(p)
             self.end("unchanged", p.pending)
         acting = [row for row in p.items if row[2] != NONE]
@@ -713,7 +859,8 @@ class Apply(object):
         p = self.plan
         cv = self.visibility_arg
         if cv and not ((cv == "public" and self.exposes(p))
-                       or (cv == "private" and self.to_private(p))):
+                       or (cv == "private" and self.to_private(p))) \
+                and not self.visibility_applied_earlier():
             self.visibility_not_needed(p)
         if self.exposes(p) and cv != "public":
             self.end("pending", [item("confirm visibility public", CONFIRM_PUBLIC_HOW)],
@@ -903,7 +1050,8 @@ class Apply(object):
     def go_setup(self, c):
         """One go_setup in mode=apply; (result, ok). The files it wrote are added to
         self.written."""
-        r = self.call(GO, "go_setup", self.go_setup_args(c), what="go_setup of %s" % c["name"])
+        r = self.call(GO, "go_setup", self.go_setup_args(c), what="go_setup of %s" % c["name"],
+                      line="go_setup component=%s" % c["name"])
         self.go_done.add(c["name"])
         o = _out(r)
         files = o.get("files") or []
@@ -1148,6 +1296,19 @@ class Apply(object):
         st = _status(r) if _status(r) in ("failed", "pending") else "failed"
         self.end(st, items, sentences=[cause], table=self.first)
 
+    def visibility_done(self, value):
+        """This run applied the visibility `value` it was confirmed with."""
+        if value and value == self.visibility_arg:
+            self.carry["visibilityApplied"] = value
+
+    def visibility_cut(self, r, value):
+        """A limit of the run ended the skill that applies the visibility after it
+        changed something: the visibility may be applied. The next command's plan reads
+        it: still to change, the check of step 3 holds as before; applied, the check is
+        skipped for this run's own change (visibility_applied_earlier)."""
+        if _status(r) in ("created", "updated") or wrote_before_abort(r):
+            self.visibility_done(value)
+
     def repository_steps(self, p):
         d = self.decl()
         topics = ",".join(sorted(set(d.declared_topics)))
@@ -1160,9 +1321,13 @@ class Apply(object):
             if d.visibility == "public":
                 a["confirmVisibility"] = "public"
             a["mode"] = "apply"
-            r = self.call(GH, "github_repo-create", a)
+            public = a.get("confirmVisibility") == "public"
+            r = self.call(GH, "github_repo-create", a,
+                          on_cut=lambda r: self.visibility_cut(r, "public" if public else None))
             if _status(r) != "created" or _pending(r):
                 self.repository_stop("repository", "github_repo-create", r)
+            if public:
+                self.visibility_done("public")
             self.note("github_repo-create", r)
             self.carry["repositoryCreated"] = True
             self.mark_changed()
@@ -1177,10 +1342,14 @@ class Apply(object):
                 a["visibility"] = d.visibility
                 a["confirmVisibility"] = d.visibility
             a["mode"] = "apply"
-            r = self.call(GH, "github_repo-configure", a)
+            given = a.get("confirmVisibility")
+            r = self.call(GH, "github_repo-configure", a,
+                          on_cut=lambda r: self.visibility_cut(r, given))
             if _status(r) not in ("updated", "unchanged") or _pending(r):
                 self.repository_stop("settings", "github_repo-configure", r)
             self.note("github_repo-configure", r)
+            if _status(r) == "updated" and given:
+                self.visibility_done(given)
             if _status(r) == "updated":
                 self.mark_changed()
                 if action(p, "visibility") == "update" and d.visibility == "public":
@@ -1202,7 +1371,7 @@ class Apply(object):
                 a["checks"] = "ci"
                 name = "github_branch-protect checks=ci"
             a["mode"] = "apply"
-            r = self.call(GH, "github_branch-protect", a)
+            r = self.call(GH, "github_branch-protect", a, line=name)
             limit = (d.visibility == "private" and _status(r) == "pending"
                      and all(x.get("reason") == "plan-limit" for x in _pending(r))
                      and _pending(r))
@@ -1233,7 +1402,6 @@ class Apply(object):
         self.ran_environment = True
 
     env_updated = False
-    apis_polled = False  # the one poll of a run (sub-step 7 or 8 to 11) was used
 
     def cloud_stop(self, what, name, r, items=None, sentences=None, step5=True):
         """A stop in sub-steps 5 to 13: step 5 runs when something was changed."""
@@ -1267,6 +1435,7 @@ class Apply(object):
             self.carry["project"] = {"id": pid,
                                      "how": "created" if st in ("created", "pending")
                                      else "found"}
+            self.register_abort()
         if st in ("created", "updated") or (st == "pending" and self.project):
             self.mark_changed(cloud=True)
         if st in ("created", "updated", "unchanged") and not _pending(r):
@@ -1327,10 +1496,16 @@ class Apply(object):
             self.api_wait(tries)
             tries += 1
             plan = self.make_plan(args, "the plan", step=False)
-        if tries > 1:
-            self.sentences.append(APIS_WAITED % ("aleogr:project-plan", tries))
-        self.carry["apisTries"] = 0
+        self.apis_answered("aleogr:project-plan", tries)
         return plan
+
+    def apis_answered(self, skill, tries):
+        """The wait for just-enabled APIs is over: its tries are spent, and its sentence,
+        when it waited, is said once in the run (carried to the run's last answer)."""
+        self.carry["apisTries"] = 0
+        if tries > 1 and self.carry["apisAnswered"] is None:
+            self.carry["apisAnswered"] = [skill, tries]
+            self.sentences.append(APIS_WAITED % (skill, tries))
 
     def api_wait(self, tries):
         if not self.ctx.wait():
@@ -1344,8 +1519,8 @@ class Apply(object):
     def poll_call(self, command, skill, args, what):
         """A Google Cloud skill of sub-steps 8 to 11: the first one after an enable is
         polled while it ends failed having changed nothing."""
-        polled = self.carry["apisEnabled"] and not self.apis_polled
-        self.apis_polled = True
+        polled = self.carry["apisEnabled"] and not self.carry["apisPolled"]
+        self.carry["apisPolled"] = True
         r = self.call(command, skill, args, what=what)
         if not polled:
             return r
@@ -1358,14 +1533,12 @@ class Apply(object):
             self.api_wait(tries)
             tries += 1
             r = self.call(command, skill, args, what=what, step=False)
-        self.carry["apisTries"] = 0
-        if tries > 1:
-            self.sentences.append(APIS_WAITED % (skill, tries))
+        self.apis_answered(skill, tries)
         return r
 
     def substep_7(self):
         args = self.plan_args()
-        self.apis_polled = True
+        self.carry["apisPolled"] = True
         p = self.make_plan(args, "the plan")
         if self.carry["apisEnabled"]:
             p = self.poll_plan(p, args)
@@ -1564,13 +1737,22 @@ class Apply(object):
             self.database_stop(None, sentence=START_NEEDS_CONFIRM,
                                one=item("confirm", CONFIRM_START_HOW % self.visibility_arg),
                                status="pending")
+        if row == "start" and self.start_unknown_now():
+            # This run asked for the start (an earlier command, cut by a limit) and the
+            # instance is still stopped: the start did not take effect. As a failed start
+            # whose read shows it stopped: stop, and never start it a second time.
+            self.carry["startAsked"] = False
+            self.register_abort()
+            self.database_stop(None, sentence=START_FAILURES[0],
+                               one=item("database", START_FAILED_HOW))
         if row == "other":
             st = db.get("instanceState")
             how = (INSTANCE_UNKNOWN_HOW if st == "unknown" or st is None
                    else INSTANCE_STATE_HOW % (st, st))
             self.database_stop(None, sentence=None, one=item("database", how),
                                status="pending", how_only=True)
-        if row == "starting" and not self.carry["startedInstance"]:
+        if row == "starting" and not self.carry["startedInstance"] \
+                and not self.carry["startAsked"]:
             self.carry["alreadyStarting"] = True
         for step in steps:
             getattr(self, "database_" + step)()
@@ -1646,17 +1828,26 @@ class Apply(object):
             self.database_stop(None, sentence=START_NEEDS_CONFIRM,
                                one=item("confirm", CONFIRM_START_HOW % self.visibility_arg),
                                status="pending")
+        # Before the start is invoked: from now on, until a read tells, this run may have
+        # started the instance (the cost, the aborted run's lines, and never "already
+        # starting" for the instance it finds starting later).
+        self.check_step("the start of the shared instance")
+        self.carry["startAsked"] = True
+        self.register_abort()
         r = self.call(DB, "gcp-cloud-sql_instance-start",
                       {"projectId": self.shared_project_id,
                        "instance": self.first.reads.values["instance"]},
-                      what="the start of the shared instance")
+                      what="the start of the shared instance", step=False,
+                      on_cut=self.start_cut)
         st = _status(r)
+        self.carry["startAsked"] = st == "updated"  # its outcome is known from here
         if st == "updated":
             self.carry["startedInstance"] = True
             self.mark_changed(cloud=True)
-            self.ctx.on_abort([START_SENTENCE])
             self.note("gcp-cloud-sql_instance-start", r)
+            self.register_abort()
             return
+        self.register_abort()
         if st == "unchanged":
             return
         if _out(r).get("state") == "unknown":
@@ -1667,6 +1858,16 @@ class Apply(object):
             if _out(r).get("state") is None and sentence == START_FAILURES[2]:
                 self.start_unknown = True
         self.database_stop(r, sentence=sentence, one=item("database", START_FAILED_HOW))
+
+    def start_cut(self, r):
+        """The start was ended by a limit of the run. When it ran no write (its aborted
+        result says nothing had been written) the instance was not asked to start: the
+        next command plans again, and the start's every gate runs again. Otherwise its
+        outcome is not known until a plan reads the instance."""
+        if common.REFUSED_NOTHING_WRITTEN in _answer(r) and _status(r) not in (
+                "created", "updated"):
+            self.carry["startAsked"] = False
+            self.register_abort()
 
     def database_b(self):
         """The wait for the shared instance: thirty tries for the whole run."""
@@ -1888,7 +2089,12 @@ class Apply(object):
             return e.result
         except Continue as c:
             if self.ctx.may_continue():
-                return self.ctx.continue_run(c.line, self.carry, cost=self.cost())
+                # The digest of the declaration as it is now (the update of the folder
+                # may have rewritten it in this command), and of the arguments: what the
+                # next command reads at its start.
+                digest = common.carry_digest(read_declaration_bytes(), self.args)
+                return self.ctx.continue_run(c.line, self.carry, cost=self.cost(),
+                                             digest=digest)
             try:
                 c.limit()
             except End as e:
@@ -1935,6 +2141,15 @@ START_FAILURES = (
     "The instance does not exist, so it was not started.",
 )
 
+WROTE_PREFIX = common.REFUSED_WRITTEN.split("{writes}")[0]
+
+
+def wrote_before_abort(result):
+    """True when a called command's aborted (or refused) result says it had already run
+    writes before it stopped."""
+    return any(l.startswith(WROTE_PREFIX) for l in _answer(result))
+
+
 def _skill_name(result):
     """The skill name of a called skill's result, for its line (`gcp-cloud-sql_access-grant`,
     `gcp_deploy-setup`, ...)."""
@@ -1976,10 +2191,14 @@ def _capital(s):
 def run(args, ctx):
     raw = read_declaration_bytes()
     carried = ctx.carried(common.carry_digest(raw, args))
+    carry = new_carry()
+    if carried is not None:
+        valid = _valid_carry(carried)
+        if valid is None:
+            ctx.refuse_carry("invalid")  # a carry this module did not write: a new run
+        else:
+            carry = valid
     lost = ctx.carry_lost_sentence()
-    carry = _valid_carry(carried) if carried is not None else new_carry()
-    if carry["startedInstance"]:
-        ctx.on_abort([START_SENTENCE])
     problem = validate_args(args)
     if problem:
         return ctx.result("failed", {"project": None, "repository": None, "url": None,

@@ -210,7 +210,7 @@ class TestContinue(CarryCase):
         self.assertEqual(len(self.files()), 1)
 
         def run(args, ctx):
-            ctx.carried("x")
+            ctx.carried(common.carry_digest(b"{}", args))  # this run's own file
             raise common.TimeLimit(["gcloud", "sql", "instances", "describe", "x"])
 
         m = types.SimpleNamespace(FAMILY="orchestrator", PROVIDER="aleogr",
@@ -378,10 +378,11 @@ class TestCarryRefusals(CarryCase):
         m, words, path = self.first(orchestrator(total=9, declaration=declaration))
         declaration["bytes"] = b'{"name": "other"}'
         out = self.refused(m, words, "mismatch")
-        # A new run under a new id; the file of the old one is removed.
+        # A new run under a new id; the file `run=` named is another run's (its digest
+        # differs): it is never removed by this one, only by the sweep.
         self.assertNotEqual(next_words(out)[-1], words[-1])
-        self.assertFalse(os.path.exists(path))
-        self.assertEqual(len(self.files()), 1)
+        self.assertTrue(os.path.exists(path))
+        self.assertEqual(len(self.files()), 2)
 
     def test_a_file_of_another_skill(self):
         m, words, path = self.first()
@@ -391,6 +392,88 @@ class TestCarryRefusals(CarryCase):
         with open(path, "w") as f:
             json.dump(record, f)
         self.refused(m, words, "mismatch")
+
+
+class TestTheReviewOfPart3a(CarryCase):
+    """The shared module's part of the review's findings: the digest saved at the end of
+    a command (C1), only this run's own file removed (M3), a carry the module refuses
+    (M1), and the aborted answer of a module that calls others (I2)."""
+
+    def test_the_digest_given_to_continue_run_is_the_one_saved(self):
+        declaration = {"bytes": b"before"}
+
+        def run(args, ctx):
+            carry = ctx.carried(common.carry_digest(declaration["bytes"], args))
+            if carry is None:
+                declaration["bytes"] = b"after"  # the command rewrites what it is made of
+                return ctx.continue_run("Waiting.", {"n": 1}, digest=common.carry_digest(
+                    declaration["bytes"], args))
+            return ctx.result("updated", {}, lines=["carried %d" % carry["n"]])
+
+        m = types.SimpleNamespace(FAMILY="orchestrator", PROVIDER="aleogr",
+                                  ACTION="project-apply", DEFAULT_MODE="apply",
+                                  RESULT_MODE="apply", CONTINUES=True, run=run)
+        got = self.whole_run(m, ["project-apply", "confirm=yes"])
+        self.assertEqual(len(got), 2)
+        self.assertTrue(got[-1][1].startswith("carried 1\n"))
+        self.assertEqual(self.files(), [])
+
+    def test_a_carry_the_module_refuses_goes_on_as_a_new_run_and_is_kept(self):
+        seen = []
+
+        def run(args, ctx):
+            carry = ctx.carried(common.carry_digest(b"{}", args))
+            if carry is not None and carry.get("tries") != 1:
+                ctx.refuse_carry("invalid")
+                carry = None
+            seen.append((ctx.carry_refusal, ctx.commands, ctx.carry_lost_sentence()))
+            if carry is None and ctx.carry_refusal is None:
+                return ctx.continue_run("Waiting.", {"tries": 1})
+            return ctx.result("updated", {}, lines=["done"])
+
+        m = types.SimpleNamespace(FAMILY="orchestrator", PROVIDER="aleogr",
+                                  ACTION="project-apply", DEFAULT_MODE="apply",
+                                  RESULT_MODE="apply", CONTINUES=True, run=run)
+        _, out, _ = self.command(m, ["project-apply"])
+        words = next_words(out)
+        path = os.path.join(self.folder, words[-1][len("run="):] + ".json")
+        with open(path) as f:
+            record = json.load(f)
+        record["carry"]["tries"] = 99  # edited by hand
+        with open(path, "w") as f:
+            json.dump(record, f)
+        self.command(m, words[1:])
+        self.assertEqual(seen[-1], ("invalid", 1, common.CARRY_LOST_SENTENCE.format(
+            why=common.CARRY_REFUSALS["invalid"])))
+        self.assertTrue(os.path.isfile(path), "a refused file is not this run's: kept")
+
+    def test_an_accepted_file_is_removed_and_a_refused_one_kept(self):
+        m, words, path = TestCarryRefusals.first(self, orchestrator(total=4))
+        self.command(m, words)  # accepted, and the run ends
+        self.assertFalse(os.path.exists(path))
+
+    def test_an_aborted_module_that_calls_others_never_says_nothing_was_written(self):
+        class Orchestrator(object):
+            FAMILY, PROVIDER, ACTION, CONTINUES = "orchestrator", "aleogr", "project-apply", True
+
+        class Caller(object):
+            FAMILY, PROVIDER, ACTION, CALLS_OTHERS = "x", "aleogr", "x", True
+
+        for module in (Orchestrator, Caller):
+            with self.subTest(module=module.__name__):
+                ctx = common.Context("aleogr", "/x", "project-apply", module, "apply", {})
+                self.assertEqual(common.aborted_result(ctx, common.TIME_LIMIT_SENTENCE).lines,
+                                 [common.TIME_LIMIT_SENTENCE, common.REFUSED_UNKNOWN,
+                                  common.READ_STATE_SENTENCE])
+                self.assertEqual(common.refused_result(ctx).lines,
+                                 [common.REFUSED_SENTENCE, common.REFUSED_UNKNOWN])
+                ctx.on_abort(["github_repo-create: created", "This run started it."])
+                self.assertEqual(common.aborted_result(ctx, common.UNEXPECTED_SENTENCE).lines,
+                                 [common.UNEXPECTED_SENTENCE, "github_repo-create: created",
+                                  "This run started it.", common.READ_STATE_SENTENCE])
+                self.assertEqual(common.refused_result(ctx).lines,
+                                 [common.REFUSED_SENTENCE, "github_repo-create: created",
+                                  "This run started it."])
 
 
 class TestTheClockAcrossCommands(unittest.TestCase):
