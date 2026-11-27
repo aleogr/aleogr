@@ -1,5 +1,6 @@
 ---
 description: Google Cloud (GCP) login describe. Use to learn whether the login of the organization is prepared - whether the organization's Identity-Aware Proxy (IAP) setting names a custom OAuth client, which the services of a standalone organization owned by a personal Google account need to let anyone in. Read-only; the platform's plan calls it.
+allowed-tools: Bash(aleogr-cloud-gcp gcp_login-describe), Bash(aleogr-cloud-gcp gcp_login-describe *)
 ---
 
 # gcp_login-describe
@@ -14,54 +15,26 @@ Free text after the skill name, as `key=value` pairs.
 |---|---|
 | `projectId=<id>` | Optional. The shared platform project: the read is counted against it (`--billing-project`), so that its IAP API, which `gcp_login-setup` enables, is the one used. The platform's plan passes it. Without it, the read is counted against the terminal's current project. |
 
-Validate before any command, and never ask for anything. When `projectId` is given and does not match `^[a-z][a-z0-9-]{4,28}[a-z0-9]$` (6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter, not ending with `-`), end with the result block, `status` `failed`, the one sentence `projectId is not a valid GCP project id.` and no `gcloud` call. Any other argument is ignored.
+The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
-## Steps
+## Run
 
-Show each command before running it. Run only the commands below, in this order, each one alone (its exit code and its text decide the next step). On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 
-1. Organization:
+```
+aleogr-cloud-gcp gcp_login-describe <arguments>
+```
 
-   ```
-   gcloud organizations list --format="value(name)"
-   ```
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
-   `gcloud` returns the name as `organizations/<id>`; `<organizationId>` is the bare id, the part after the slash.
+It prints two kinds of lines:
 
-   - Exit 0 and one line: that is the organization; `organization` is true. Go to step 2.
-   - A non-zero exit, or empty output: say exactly `No organization was found. Check that the active gcloud account is signed in and belongs to an organization.` Run nothing else and end with `status` `failed`, `organization` false.
-   - More than one line: say exactly `<n> organizations were found and none was picked.`, with `<n>` the number of lines and no identifier. Do not pick one. Run nothing else and end with `status` `failed`, `organization` false.
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
 
-2. The organization's IAP setting:
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
 
-   ```
-   gcloud iap settings get --organization=<organizationId> --format=json
-   ```
-
-   With `projectId`, the same command with `--billing-project=<projectId>`, and nothing else changed:
-
-   ```
-   gcloud iap settings get --organization=<organizationId> --billing-project=<projectId> --format=json
-   ```
-
-   - Exit 0: read the JSON. `prepared` is true when `accessSettings.oauthSettings.clientId` is a non-empty string, and false otherwise: an object with only `name`, an empty object, an empty output, settings without `accessSettings`, without `oauthSettings` or without `clientId` (for example only `loginHint`, or only `reauthSettings`) are all "not prepared", a normal answer, not a failure.
-   - A non-zero exit: read its whole text, every line of it (the status on the first line and the `reason:` lines of the details below it), then decide with these four rules, in this order; the first that matches decides, and no other rule is read after it:
-     1. The text contains `SERVICE_DISABLED` anywhere (whatever else it contains: this refusal also starts with `PERMISSION_DENIED`): the IAP API is off in the project the read is counted against (`projectId` when given; a shared project made before the login has it off). `gcp_login-setup` enables it, so this is not a failure: `prepared` false, `readable` false, `status` `unchanged`. Say exactly `The login of the organization could not be read: the IAP API is off in the project the read is counted against; /aleogr:platform-plan shows what preparing it would make and what it costs.`
-     2. Otherwise, the text contains `PERMISSION_DENIED` (which `IAM_PERMISSION_DENIED` also contains): the active account may not read the setting yet. On an organization whose login was never prepared that is the expected answer, because the role that reads it, `roles/iap.settingsAdmin`, is granted by `gcp_login-setup`. Not a failure: `prepared` false, `readable` false, `status` `unchanged`. Say exactly `The login of the organization could not be read yet; /aleogr:platform-plan shows what preparing it would make and what it costs.`
-     3. Otherwise, the text contains `NOT_FOUND`: the organization has no setting stored. Not a failure: `prepared` false, `readable` true, `status` `unchanged`.
-     4. Otherwise (`gcloud` not signed in, a network error, anything else): a failure of the read, never "not prepared". Say exactly `The organization's login setting could not be read. Check that the active gcloud account is signed in and may read the organization's IAP settings.` End with `status` `failed`, `organization` true, `prepared` `null`, `readable` `null`.
-
-     Whichever rule decides, never explain which text decided it, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only the rule's sentence about the read.
-
-   A refusal is decided by the exit code together with the text: a text without a non-zero exit is never a refusal.
-
-Then answer in a few lines: whether the login of the organization is prepared, or could not be read yet (when it is not prepared, that `/aleogr:platform-plan` shows what preparing it would make and what it costs), and the result block. The one command this answer names is `/aleogr:platform-plan`: never `/aleogr:platform-apply` (the plan states the platform's cost before anything is made). The answer prints no organization id, no client id and no hash of a secret: not in the prose and not in the result block.
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
-
-End with exactly one fenced block tagged `aleogr-result`:
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` followed by this block, and nothing else:
 
 ```aleogr-result
 {
@@ -70,19 +43,14 @@ End with exactly one fenced block tagged `aleogr-result`:
   "provider": "gcp",
   "action": "login-describe",
   "mode": "plan",
-  "status": "unchanged",
+  "status": "failed",
   "resources": [],
-  "outputs": {
-    "prepared": true,
-    "readable": true,
-    "organization": true
-  },
-  "cost": { "fixed": false, "notes": "read-only" },
-  "pending": []
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-cloud-gcp, then try again" } ]
 }
 ```
 
-- `mode` is always `plan`: the skill only reads. `resources` is always empty.
-- `status` is `unchanged` whenever the setting was read, prepared or not (`NOT_FOUND` included), and when the read was refused for lack of permission or because the IAP API is off (`prepared` false, `readable` false). It is `failed` when `projectId` is invalid or no single organization was found (`prepared` `null`, `readable` `null`, `organization` false) or the read failed for any other reason (`prepared` `null`, `readable` `null`, `organization` true).
-- `readable` is false only when the read was refused for lack of permission or because the IAP API is off, `null` on `failed`, and true in every other case.
-- `pending` is always empty.
+## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

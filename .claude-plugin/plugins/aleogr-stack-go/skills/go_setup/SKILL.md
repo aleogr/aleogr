@@ -1,5 +1,6 @@
 ---
 description: Go stack setup. Use to write the minimal starting point of a Go component in its folder - go.mod, main.go (an HTTP server with GET / and GET /healthz on the port in PORT, default 8080) and main_test.go - from templates the plugin ships, once and only when the folder has no go.mod and no Go file; with dockerfile=yes it also writes the component's Dockerfile (a static binary built with the component's Go version, on a distroless base, as a non-root user) when it is missing, also for a component whose module already exists; with database=yes it also writes the component's database check (db.go and db_test.go when missing, and the route GET /db in main.go only while main.go is still byte for byte the plugin's own file) and adds the pinned Cloud SQL connector and pgx modules with go get and go mod tidy, which needs Go. Otherwise it never overwrites anything and needs no Go toolchain. Returns the component's Go CI parameters (the reusable workflow ci-go.yml and its inputs). Plan by default.
+allowed-tools: Bash(aleogr-stack-go go_setup), Bash(aleogr-stack-go go_setup *)
 ---
 
 # go_setup
@@ -36,6 +37,44 @@ A missing required argument is never asked for: the run ends with the result blo
 - `modules` is one or more `<module>@<version>` separated by `,`, with no space and no empty element. Each `<module>` has only `A-Z`, `a-z`, `0-9`, `.`, `_`, `~`, `-` and `/`, starts with a letter or a digit, and has no empty part between `/` (no `//`, no `/` at either end); each `<version>` matches `^v[0-9]+\.[0-9]+\.[0-9]+$` (`v1.27.1`). The modules are exactly `cloud.google.com/go/cloudsqlconn` and `github.com/jackc/pgx/v5`, each once, in any order: the two that `db.go` imports.
 - `minVersion` matches `^[0-9]+\.[0-9]+$`, and `version` is `minVersion` or later, compared as numbers. An earlier `version` fails with exactly `Go <version> is earlier than <minVersion>, the earliest version of a component that uses the database; nothing was written.`
 - `mode`, when given, is `plan` or `apply`.
+
+## mode=plan: the command
+
+When `mode` is anything but `apply` (absent, `plan` or any other value), do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
+
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
+
+```
+aleogr-stack-go go_setup <arguments>
+```
+
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
+
+It prints two kinds of lines:
+
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
+
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
+
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-stack-go could not be run: update the plugin aleogr-stack-go, then try again.` followed by this block, and nothing else:
+
+```aleogr-result
+{
+  "aleogr-result": 1,
+  "family": "stack",
+  "provider": "go",
+  "action": "setup",
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-stack-go, then try again" } ]
+}
+```
+
+Everything below is for `mode=apply` only, except the first paragraph of "Result block", which holds in both modes.
 
 ## Steps
 

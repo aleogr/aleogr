@@ -1,0 +1,33 @@
+name: self-test-skills
+
+# Runs the unit tests of the plugins' commands and, in the direct mode of
+# .claude-plugin/tests/run.sh (no model: the command against the fake CLIs), every
+# scenario of a converted skill, on pull requests that change a plugin, a test or this
+# file. It needs no secret and no cloud.
+
+on:
+  pull_request:
+    paths:
+      - .claude-plugin/**
+      - .github/workflows/self-test-skills.yml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s .claude-plugin/tests/unit -v
+
+      - name: Scenarios in the direct mode
+        run: bash .claude-plugin/tests/run-direct.sh

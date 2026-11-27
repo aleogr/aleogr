@@ -1,5 +1,6 @@
 ---
 description: GitHub pull request open, with the gh and git CLIs. Use, in a folder that is a checkout of a GitHub repository, to propose named files by pull request - commits only those files on a new branch aleogr/change-<random>, pushes that branch, opens the pull request and returns the folder to the default branch - or, in plan mode, to learn whether a tooling pull request is already open, whether the folder is fit for a proposal and which of the named files changed. Never commits on or pushes to the default branch, never merges; one open tooling pull request per repository; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
+allowed-tools: Bash(aleogr-repo-github github_pull-request-open), Bash(aleogr-repo-github github_pull-request-open *)
 ---
 
 # github_pull-request-open
@@ -33,6 +34,44 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 - `mode`, when given, is `plan` or `apply`.
 
 In the commands below, `<paths>` is the list of `paths` separated by spaces, in the order given, `<full body>` is `<body>` alone, or, when `note` is given, `<body>`, one space and `<note>`, and `<changed>` is the list `changed` of step 7, separated by spaces, in the same order.
+
+## mode=plan: the command
+
+When `mode` is anything but `apply` (absent, `plan` or any other value), do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
+
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
+
+```
+aleogr-repo-github github_pull-request-open <arguments>
+```
+
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
+
+It prints two kinds of lines:
+
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
+
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
+
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` followed by this block, and nothing else:
+
+```aleogr-result
+{
+  "aleogr-result": 1,
+  "family": "repo",
+  "provider": "github",
+  "action": "pull-request-open",
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-repo-github, then try again" } ]
+}
+```
+
+Everything below is for `mode=apply` only, except the first paragraph of "Result block", which holds in both modes.
 
 ## Steps
 
