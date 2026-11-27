@@ -3,6 +3,12 @@
 CALLED ^projects list --filter=labels.aleogr-project=shared AND labels.aleogr-platform=shared
 OUTPUT "item": "database", "state": "needs the shared platform", "action": "none" \},\s*$
 OUTPUT /aleogr:platform-plan
+# Never nothing to do: the plan ends pending with the item database (the review's I6).
+OUTPUT_NOT nothing to do
+OUTPUT Nothing can be made for the database until the shared platform is ready\.
+OUTPUT "status": "pending"
+OUTPUT "item": "database", "reason": "manual", "how": "the database of web needs the shared platform: /aleogr:platform-plan shows what it makes and what it costs; then run /aleogr:project-plan"
+OUTPUT_NOT If parts of the database are missing
 NOT_CALLED ^sql 
 NOT_CALLED ^projects get-iam-policy
 OUTPUT "database": \{ "name": "demo_dev", "instanceState": null, "start": false, "components": \["web"\] \}

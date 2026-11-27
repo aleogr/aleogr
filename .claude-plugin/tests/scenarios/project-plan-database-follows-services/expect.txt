@@ -6,7 +6,9 @@ NOT_CALLED ^sql
 NOT_CALLED ^projects get-iam-policy
 OUTPUT "database": \{ "name": "demo_dev", "instanceState": null, "start": false, "components": \["web"\] \}
 OUTPUT "status": "would-update"
-OUTPUT_NOT charged by the hour|was not read
+OUTPUT_NOT was not read|starts the shared instance \(about
+# The notice before every start (the instance was not read), character for character.
+OUTPUT ^If parts of the database are missing and the shared instance is stopped, project-apply starts it: it then runs, charged by the hour, until the night stop\.$
 # Every database scenario of the plan: the instance is never started or changed, nothing is
 # created, the nested blocks are input only, and no e-mail of a component nor the shared
 # project id reaches the result block.

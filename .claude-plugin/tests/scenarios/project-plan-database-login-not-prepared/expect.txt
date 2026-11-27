@@ -1,6 +1,8 @@
 # The login of the organization is not prepared, so no service is read: the row follows the
 # services, and neither the shared project nor the instance is read.
 OUTPUT "item": "services", "state": "waits for the login", "action": "prepare the login"
+# The notice before every start (the instance was not read), character for character.
+OUTPUT ^If parts of the database are missing and the shared instance is stopped, project-apply starts it: it then runs, charged by the hour, until the night stop\.$
 OUTPUT "item": "database", "state": "follows the services", "action": "none" \},\s*$
 NOT_CALLED ^sql 
 NOT_CALLED aleogr-platform=shared|^projects get-iam-policy|^run services describe

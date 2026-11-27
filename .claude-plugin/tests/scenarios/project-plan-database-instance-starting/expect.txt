@@ -1,9 +1,9 @@
 # The instance is starting (an UPDATE operation is unfinished) and the roles of web are missing:
-# the database and users are not read; the plan says to wait and plan again, and starts nothing.
+# the database and users are not read; the plan says that project-apply waits for it, and starts nothing.
 CALLED ^sql operations list --instance=aleogr-shared
 NOT_CALLED ^sql (databases|users) list
 OUTPUT "item": "database", "state": "missing: roles", "action": "create" \},\s*$
-OUTPUT The shared instance is starting: wait some minutes, then run /aleogr:project-plan again\.
+OUTPUT The shared instance is starting: project-apply confirm=yes waits until it accepts calls, then makes what is missing\.
 OUTPUT "database": \{ "name": "demo_dev", "instanceState": "starting", "start": false, "components": \["web"\] \}
 OUTPUT_NOT charged by the hour
 # Every database scenario of the plan: the instance is never started or changed, nothing is

@@ -1,0 +1,25 @@
+# The shared project is found with its Cloud SQL Admin API on, but its instance does not exist
+# (platform-apply creates it only when confirmed): the database's read of the instance fails, the
+# plan reads the instance once more to learn that it does not exist, and the row needs the shared
+# platform, as when the shared project is missing (the review's M7): a pending plan, not a failed one.
+COUNT 2 ^sql instances describe aleogr-shared --project=aleogr-shared-ab12
+AT_MOST 2 ^sql instances describe
+NOT_CALLED ^sql (databases|users) list
+OUTPUT "item": "database", "state": "needs the shared platform", "action": "none" \},\s*$
+OUTPUT /aleogr:platform-plan shows what it makes and what it costs
+OUTPUT Nothing can be made for the database until the shared platform is ready\.
+OUTPUT "item": "database", "reason": "manual", "how": "the database of web needs the shared platform: /aleogr:platform-plan shows what it makes and what it costs; then run /aleogr:project-plan"
+OUTPUT "status": "pending"
+OUTPUT_NOT nothing to do|could not be read|HTTPError|404|does not exist|If parts of the database
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": null, "start": false, "components": \["web"\] \}
+# Every database scenario of the plan: the instance is never started or changed, nothing is
+# created, the nested blocks are input only, and no e-mail of a component nor the shared
+# project id reaches the result block.
+NOT_CALLED instances patch
+NOT_CALLED ^sql (instances (patch|restart|create|delete)|databases create|users create)
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+NOT_CALLED ^go 
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"
+OUTPUT_NOT "action": "instance-describe"

@@ -20,3 +20,4 @@ NOT_CALLED ^go
 OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
 RESULT_NOT aleogr-shared-ab12
 RESULT_NOT demo-web@|demo-api@|\.iam"
+OUTPUT_NOT If parts of the database are missing
