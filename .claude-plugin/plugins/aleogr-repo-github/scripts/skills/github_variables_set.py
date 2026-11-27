@@ -1,11 +1,14 @@
-"""github_variables-set: which of the given Actions variables (or secrets) a run would
-set. Only mode=plan is converted; mode=apply stays in the SKILL.md's prose until step 2.
+"""github_variables-set: makes the given Actions variables (or secrets) of a repository
+hold the given values (mode=apply), or says which a run would set (mode=plan).
 
 The specification is skills/github_variables-set/SKILL.md: the same read, the same
-comparison and the same result block. examine() holds steps 1 and 2, shared by both
-modes; run() holds the plan's answer. Step 2 adds step 3 (the sets).
+comparison, the same sets and the same result block. examine() holds steps 1 and 2,
+shared by both modes; plan() holds the plan's answer and apply() step 3, the sets, run
+through the writing runner (ctx.write), one per variable to set, in order, stopping at
+the first that GitHub refuses.
 
-No value is ever printed: the answer and the block name variables only.
+No value is ever printed: the answer and the block name variables only, and the value
+of a set is passed as Hidden, so its `+ ` line shows `<value>`.
 """
 
 import importlib.util
@@ -16,8 +19,8 @@ import sys
 FAMILY = "repo"
 PROVIDER = "github"
 ACTION = "variables-set"
-UNCONVERTED_MODES = ("apply",)
 DEFAULT_MODE = "plan"
+WRITES = True  # mode=apply sets variables, through ctx.write only
 
 
 def _shared():
@@ -32,6 +35,7 @@ def _shared():
 
 
 G = _shared()
+common = G.common
 
 _VAR_NAME = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 _VALUE_BREAKERS = (",", '"', "`", "$", "\\")
@@ -150,6 +154,95 @@ def examine(args, ctx, reader, kind, variables, replace):
     return Found(to_set, already)
 
 
+SECRETS_NOTE = "A secret's value cannot be read back: only its name is compared."
+
+
+def set_command(kind, name, full, value):
+    """The set of step 3, as the SKILL.md writes it; the value is never shown."""
+    tool = "secret" if kind == "secrets" else "variable"
+    return ["gh", tool, "set", name, "--repo", full, "--body", common.Hidden(value)]
+
+
+def _words(kind):
+    """(variable, variables, Actions variables), or the same for secrets."""
+    if kind == "secrets":
+        return "secret", "secrets", "Actions secrets"
+    return "variable", "variables", "Actions variables"
+
+
+def refused_first(kind, name):
+    one, _, actions = _words(kind)
+    return ("GitHub refused to set the %s %s; nothing was set. Check that gh may change the "
+            "repository's %s (it needs write access to the repository), then run this "
+            "skill again." % (one, name, actions))
+
+
+def refused_later(kind, name):
+    one, many, actions = _words(kind)
+    return ("GitHub refused to set the %s %s; the %s before it were set and the rest were "
+            "not. Check that gh may change the repository's %s (it needs write access to "
+            "the repository), then run this skill again with the same arguments."
+            % (one, name, many, actions))
+
+
+def refused_item(kind):
+    _, many, actions = _words(kind)
+    return G.pending_item(many, "run github_variables-set again with the same arguments and "
+                                "mode=apply once gh may change the repository's %s" % actions)
+
+
+def _unchanged_line(found, secrets):
+    if secrets:
+        return ("Every given secret already exists and is left alone: %s."
+                % ", ".join(found.already))
+    return ("Every given variable already holds the given value: %s."
+            % ", ".join(found.already))
+
+
+def _already_line(names, secrets, past):
+    if secrets:
+        return ("These secrets already %s and %s left alone: %s."
+                % ("existed" if past else "exist", "were" if past else "would be",
+                   ", ".join(names)))
+    return ("These variables already %s the given value: %s."
+            % ("held" if past else "hold", ", ".join(names)))
+
+
+def apply(args, ctx, reader, kind, variables, found, resources):
+    """Step 3: one set per variable to set, sorted by name; stop at the first refusal."""
+    secrets = kind == "secrets"
+    full = "%s/%s" % (args["owner"], args["name"])
+    values = dict(variables)
+    done = []
+    refused = None
+    for name in found.to_set:
+        c = reader.write(set_command(kind, name, full, values[name]))
+        if not c.ok:
+            refused = name
+            break
+        done.append(name)
+    lines = []
+    pending = []
+    if refused is not None and not done:
+        status = "failed"
+        lines.append(refused_first(kind, refused))
+        out = outputs((), found.already)
+    else:
+        status = "updated"
+        lines.append("These %s were set: %s." % ("secrets" if secrets else "variables",
+                                                 ", ".join(done)))
+        if refused is not None:
+            lines.append(refused_later(kind, refused))
+            pending.append(refused_item(kind))
+        out = outputs(done, found.already)
+    if found.already:
+        lines.append(_already_line(found.already, secrets, past=True))
+    if secrets:
+        lines.append(SECRETS_NOTE)
+    return ctx.result(status, out, resources=resources, pending=pending, cost=G.NO_COST,
+                      lines=lines + reader.notes)
+
+
 def run(args, ctx):
     parsed, problem = validate(args)
     if problem:
@@ -161,29 +254,21 @@ def run(args, ctx):
         return found
     resources = [G.repository_resource(args["owner"], args["name"])]
     secrets = kind == "secrets"
+    if found.to_set and args.get("mode") == "apply":
+        return apply(args, ctx, reader, kind, variables, found, resources)
     lines = []
     if not found.to_set:
         status = "unchanged"
-        if secrets:
-            lines.append("Every given secret already exists and is left alone: %s."
-                         % ", ".join(found.already))
-        else:
-            lines.append("Every given variable already holds the given value: %s."
-                         % ", ".join(found.already))
+        lines.append(_unchanged_line(found, secrets))
         out = outputs((), found.already)
     else:
         status = "would-update"
         lines.append("apply would set these %s: %s." % ("secrets" if secrets else "variables",
                                                        ", ".join(found.to_set)))
         if found.already:
-            if secrets:
-                lines.append("These secrets already exist and would be left alone: %s."
-                             % ", ".join(found.already))
-            else:
-                lines.append("These variables already hold the given value: %s."
-                             % ", ".join(found.already))
+            lines.append(_already_line(found.already, secrets, past=False))
         out = outputs(found.to_set, found.already)
     if secrets:
-        lines.append("A secret's value cannot be read back: only its name is compared.")
+        lines.append(SECRETS_NOTE)
     return ctx.result(status, out, resources=resources, cost=G.NO_COST,
                       lines=lines + reader.notes)

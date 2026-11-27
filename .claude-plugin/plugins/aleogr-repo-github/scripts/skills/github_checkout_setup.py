@@ -1,10 +1,14 @@
 """github_checkout-setup: whether the repository has the local file (by default the
-project declaration) and whether it equals the local one. Only mode=plan is converted;
-mode=apply stays in the SKILL.md's prose until step 2.
+project declaration) and whether it equals the local one (mode=plan); in mode=apply,
+sends the file at the repository's birth, or fast-forwards a folder that is behind.
 
 The specification is skills/github_checkout-setup/SKILL.md: the same reads, in the same
 order, the same states and the same result block. examine() holds steps 1 to 5, shared
-by both modes; run() holds step 6 for plan. Step 2 adds steps 7 to 18 after examine().
+by both modes; run() holds step 6; birth() holds steps 7 to 16 and fast_forward() steps
+17 and 18, run through the writing runner (ctx.write) only in mode=apply.
+
+The login, the id and the no-reply address are never printed: the two `git config`
+commands pass them as Hidden, so their `+ ` lines show `<login>` and `<id>`.
 """
 
 import importlib.util
@@ -15,8 +19,8 @@ import sys
 FAMILY = "repo"
 PROVIDER = "github"
 ACTION = "checkout-setup"
-UNCONVERTED_MODES = ("apply",)
 DEFAULT_MODE = "plan"
+WRITES = True  # mode=apply runs git writes, through ctx.write only
 
 
 def _shared():
@@ -31,6 +35,7 @@ def _shared():
 
 
 G = _shared()
+common = G.common
 
 DEFAULT_PATH = ".aleogr/project.json"
 DEFAULT_MESSAGE = "Add the project declaration"
@@ -253,6 +258,347 @@ def _birth_commands(args, owner, name, branch):
     ]
 
 
+# ---------------------------------------------------------------------------
+# mode=apply: steps 7 to 18
+
+_LOGIN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{0,38}$")
+LOGIN_SHOWN = "<login>"
+EMAIL_SHOWN = "<id>+<login>@users.noreply.github.com"
+NOT_CREATED = ("The repository %s does not exist: it must be created first, with "
+               "/aleogr-repo-github:github_repo-create; nothing was changed.")
+# Step 15: the repository's rules refused the push.
+_RULES_WORDS = ("GH013", "GH006", "rule violations")
+# Step 17: a fast-forward that is not possible.
+_FF_WORDS = ("would be overwritten", "Not possible to fast-forward", "diverging", "CONFLICT")
+
+
+def identity_commands(login, user_id):
+    """The two commands of step 11, as the SKILL.md writes them; the values are Hidden,
+    shown as `<login>` and `<id>+<login>@users.noreply.github.com`."""
+    email = "%s+%s@users.noreply.github.com" % (user_id, login)
+    return [
+        ["git", "config", "--local", "user.name", common.Hidden(login, LOGIN_SHOWN)],
+        ["git", "config", "--local", "user.email", common.Hidden(email, EMAIL_SHOWN)],
+    ]
+
+
+def init_command(branch):
+    return ["git", "init", "-b", branch]
+
+
+def remote_add_command(owner, name):
+    return ["git", "remote", "add", "origin", "https://github.com/%s/%s.git" % (owner, name)]
+
+
+def pull_command(branch):
+    return ["git"] + G.CREDENTIAL + ["pull", "origin", branch]
+
+
+def add_command(path):
+    return ["git", "add", "--", path]
+
+
+def commit_command(message, path):
+    return ["git", "commit", "-m", message, "--", path]
+
+
+def push_command(branch):
+    return ["git"] + G.CREDENTIAL + ["push", "-u", "origin", branch]
+
+
+def fast_forward_command(branch):
+    return ["git"] + G.CREDENTIAL + ["pull", "--ff-only", "origin", branch]
+
+
+def verify_item(args):
+    how = "/aleogr-repo-github:github_checkout-setup owner=%s name=%s" % (args["owner"],
+                                                                       args["name"])
+    path = args.get("path", DEFAULT_PATH)
+    if path != DEFAULT_PATH:
+        how += " path=%s" % path
+    if args.get("head") == "check":
+        how += " head=check"
+    return G.pending_item("verify", how + " mode=plan")
+
+
+def _account(c):
+    """(login, id) from `gh api user`, or None. The login is a GitHub login and the id
+    a number, or it is not the account."""
+    user = G.json_of(c.out) if c.ok else None
+    if not isinstance(user, dict):
+        return None
+    login, user_id = user.get("login"), user.get("id")
+    if not (isinstance(login, str) and _LOGIN.match(login)):
+        return None
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id < 0:
+        return None
+    return login, user_id
+
+
+def _changes_line(changes):
+    if not changes:
+        return "No local change was made in this folder."
+    return "Local changes already made in this folder: %s." % ", ".join(changes)
+
+
+def _verify(reader, full, path, local):
+    """Steps 16 and 18: the read of step 3 again, compared by the rule of step 4. The
+    state (equal, differs, or None when the read failed)."""
+    c = reader.gh(["gh", "api", "repos/%s/contents/%s" % (full, path),
+                   "-H", "Accept: application/vnd.github.raw"])
+    if not c.ok:
+        return None
+    remote = G.json_of(c.out)
+    is_json = remote is not None or c.out.strip() == "null"
+    return "equal" if is_json and G.json_equal(remote, local) else "differs"
+
+
+def birth(args, ctx, reader, found):
+    """Steps 7 to 16: the state is not-sent and the repository exists."""
+    owner, name = args["owner"], args["name"]
+    full = "%s/%s" % (owner, name)
+    path = args.get("path", DEFAULT_PATH)
+    message = args.get("message", DEFAULT_MESSAGE)
+    branch = found.branch
+    resources = [G.repository_resource(owner, name)]
+    changes = []
+
+    def failed(sentence, extra=()):
+        lines = [sentence] + list(extra) + [
+            "Nothing was changed on GitHub.", _changes_line(changes)]
+        return ctx.result("failed", outputs("not-sent", branch, path), resources=resources,
+                          cost=G.NO_COST, lines=lines + reader.notes)
+
+    # Step 7: the account, for the commit identity only.
+    c = reader.gh(["gh", "api", "user"])
+    account = _account(c)
+    if account is None:
+        return failed("The account of gh could not be read: %s."
+                      % (G.gh_cause(c) if not c.ok else "gh gave no login and id"))
+    login, user_id = account
+
+    # Step 8: a git checkout?
+    c = reader.git(["git", "rev-parse", "--is-inside-work-tree"])
+    was_checkout = c.ok and c.out.strip() == "true"
+    if not was_checkout:
+        if G.not_installed(c):
+            return failed(G.GIT_NOT_INSTALLED)
+        if c.ok or "not a git repository" not in c.text:
+            return failed("This folder could not be read as a git checkout: %s."
+                          % (G.git_cause(c) if not c.ok else "git did not answer true"))
+        if not reader.write(init_command(branch)).ok:
+            return failed("git init -b needs git 2.28 or later: this folder could not be "
+                          "made a git checkout.")
+        changes.append("a new git checkout")
+
+    # Step 9: origin is this repository?
+    c = reader.git(["git", "remote", "get-url", "origin"])
+    if c.ok:
+        if not G.origin_matches(c.out, owner, name):
+            return failed("This folder's origin is not the repository %s; nothing was "
+                          "changed." % full)
+    elif "No such remote" in c.text:
+        if not reader.write(remote_add_command(owner, name)).ok:
+            return failed("The remote origin could not be added to this folder: git "
+                          "refused it.")
+        changes.append("the remote origin")
+    else:
+        return failed("This folder's remote origin could not be read: %s." % G.git_cause(c))
+
+    # Step 10: on the default branch?
+    c = reader.git(["git", "branch", "--show-current"])
+    current = c.out.strip() if c.ok else None
+    if current != branch:
+        if c.ok and current:
+            return failed("This folder is on the branch %s, and it must be on %s."
+                          % (current, branch))
+        if c.ok:
+            return failed("This folder is on no branch, and it must be on %s." % branch)
+        return failed("This folder's branch could not be read (%s), and it must be on %s."
+                      % (G.git_cause(c), branch))
+
+    # Step 11: this checkout's commit identity.
+    name_cmd, email_cmd = identity_commands(login, user_id)
+    if not reader.write(name_cmd).ok:
+        return failed("This checkout's commit identity could not be set: git refused "
+                      "git config --local user.name <login>.")
+    changes.append("this checkout's commit name")
+    if not reader.write(email_cmd).ok:
+        return failed("This checkout's commit identity could not be set: git refused "
+                      "git config --local user.email %s." % EMAIL_SHOWN)
+    changes[-1] = "this checkout's identity"
+
+    # Step 12: the repository's first commit (its README).
+    c = reader.write(pull_command(branch))
+    if not c.ok:
+        extra = ["An interrupted merge may be left in this folder."] if was_checkout else []
+        return failed("The README of %s could not be pulled into this folder: %s."
+                      % (full, G.git_cause(c)), extra)
+    changes.append("the pulled README")
+
+    # Step 13: only this run's commit may be pushed.
+    local_commits = ("This folder has local commits that are not in the repository; "
+                     "nothing was pushed.")
+    c = reader.git(["git", "rev-list", "--count", "origin/%s..HEAD" % branch])
+    count = c.out.strip() if c.ok else None
+    resume = False
+    if count == "1":
+        c = reader.git(["git", "diff", "--name-only", "origin/%s" % branch, "HEAD"])
+        listed = [l.rstrip("\r") for l in c.out.strip().splitlines()] if c.ok else None
+        if listed != [path]:
+            return failed(local_commits)
+        c = reader.git(["git", "log", "-1", "--format=%ae", "HEAD"])
+        email = "%s+%s@users.noreply.github.com" % (user_id, login)
+        if not (c.ok and c.out.strip() == email):
+            return failed(local_commits)
+        resume = True
+    elif count != "0":
+        return failed(local_commits)
+
+    # Step 14: commit the file, and only the file.
+    if not resume:
+        if not reader.write(add_command(path)).ok:
+            return failed("The file %s could not be added: git refused it." % path)
+        if not reader.write(commit_command(message, path)).ok:
+            return failed("The file %s could not be committed: git refused it." % path)
+        changes.append("a local commit")
+
+    # Step 15: push to the default branch.
+    c = reader.write(push_command(branch))
+    if not c.ok:
+        t = c.text
+        if any(w in t for w in _RULES_WORDS) or "protected branch" in t.lower():
+            lines = ["The repository's rules refused the push of %s to %s: the file is not "
+                     "in the repository." % (path, branch),
+                     "Nothing was changed on GitHub; the local commit is kept.",
+                     _changes_line(changes),
+                     "Open a pull request that adds %s." % path]
+            return ctx.result("pending", outputs("not-sent", branch, path),
+                              resources=resources,
+                              pending=[G.pending_item(ITEM_MISSING,
+                                                      "open a pull request that adds %s"
+                                                      % path)],
+                              cost=G.NO_COST, lines=lines + reader.notes)
+        return failed("The push of %s to %s failed: %s; the local commit is kept."
+                      % (path, branch, G.git_cause(c)))
+
+    # Step 16: verify, once.
+    state = _verify(reader, full, path, found.local)
+    lines = ["The file %s was sent to %s as its first content after its README, on %s."
+             % (path, full, branch),
+             "Local changes made in this folder: %s." % ", ".join(changes)]
+    pending = []
+    if state == "equal":
+        lines.append("The repository's copy of %s now equals the local file." % path)
+    else:
+        lines.append("The repository's copy of %s could not be read back to verify it."
+                     % path if state is None else
+                     "The repository's copy of %s, read back, does not equal the local file."
+                     % path)
+        pending.append(verify_item(args))
+    return ctx.result("created", outputs(state, branch, path, pushed=True),
+                      resources=resources, pending=pending, cost=G.NO_COST,
+                      lines=lines + reader.notes)
+
+
+def fast_forward(args, ctx, reader, found):
+    """Steps 17 and 18: the state is behind."""
+    owner, name = args["owner"], args["name"]
+    full = "%s/%s" % (owner, name)
+    path = args.get("path", DEFAULT_PATH)
+    branch = found.branch
+    resources = [G.repository_resource(owner, name)]
+
+    # Step 17: a fast-forward only.
+    c = reader.write(fast_forward_command(branch))
+    if not c.ok:
+        if any(w in c.text for w in _FF_WORDS):
+            sentence = ("This folder cannot be brought up to date by a fast-forward; nothing "
+                        "was changed on GitHub.")
+        else:
+            sentence = ("This folder could not be brought up to date: %s; nothing was "
+                        "changed on GitHub." % G.git_cause(c))
+        return ctx.result("failed", outputs("behind", branch, path), resources=resources,
+                          cost=G.NO_COST, lines=[sentence] + reader.notes)
+
+    # Step 18: verify, once, against the local file read again.
+    text, _ = G.read_local(path)
+    local = G.json_of(text) if text is not None else None
+    local_ok = text is not None and (local is not None or text.strip() == "null")
+    state = _verify(reader, full, path, local)
+    if state == "equal" and not local_ok:
+        state = "differs"
+    lines = ["This folder was behind the repository: it was brought up to date by a "
+             "fast-forward of %s." % branch,
+             "Nothing was committed, pushed, configured or initialised."]
+    pending = []
+    if state == "equal":
+        lines.append("The repository's copy of %s equals the local file." % path)
+    else:
+        lines.append("The repository's copy of %s could not be read back to verify it."
+                     % path if state is None else
+                     "The repository's copy of %s, read back, does not equal the local file."
+                     % path)
+        pending.append(verify_item(args))
+    return ctx.result("updated", outputs(state, branch, path, updated=True),
+                      resources=resources, pending=pending, cost=G.NO_COST,
+                      lines=lines + reader.notes)
+
+
+# Values the SKILL.md's rules let through but that no git command of this skill takes
+# (the shapes of aleogr_common's allowlist of writes): checked before any write, each
+# with one fixed sentence, instead of a refused write.
+PATH_UNUSABLE = ("path={path} cannot be committed as it is written: it has a . part, an "
+                 "empty part or a / at the end; give the file's plain relative path (such "
+                 "as a/b.json, not ./a/b.json, a//b.json or a/); nothing was changed.")
+BRANCH_UNUSABLE = ("The default branch {branch} of {full} has a name this tooling does not "
+                   "use in a git command: it may hold only A-Z, a-z, 0-9, ., _, - and /, "
+                   "not start with -, have no .. and no //, and not end with / or .{extra}; "
+                   "nothing was changed.")
+BRANCH_UNUSABLE_BIRTH = ", and the birth does not push a branch named aleogr/change-..."
+
+
+def path_usable(path):
+    """Whether `git add -- <path>` and `git commit ... -- <path>` take this path."""
+    return common.write_refusal("github_checkout-setup", ["git", "add", "--", path]) is None
+
+
+def branch_usable(branch, birth):
+    """Whether the git commands of a birth (or of a fast-forward) take this branch."""
+    pattern = common.DEFAULT_BRANCH_ARG if birth else common.BRANCH_ARG
+    return isinstance(branch, str) and pattern.re.fullmatch(branch) is not None
+
+
+def apply(args, ctx, reader, found):
+    """Step 6 for apply, when it acts: a birth, a folder behind, or a repository that
+    does not exist."""
+    owner, name = args["owner"], args["name"]
+    full = "%s/%s" % (owner, name)
+    path = args.get("path", DEFAULT_PATH)
+    if found.state == "behind":
+        if not branch_usable(found.branch, False):
+            return ctx.result("failed", outputs("behind", found.branch, path),
+                              resources=[G.repository_resource(owner, name)], cost=G.NO_COST,
+                              lines=[BRANCH_UNUSABLE.format(branch=found.branch, full=full,
+                                                            extra="")] + reader.notes)
+        return fast_forward(args, ctx, reader, found)
+    if not found.exists:
+        return ctx.result("failed", outputs("not-sent", None, path),
+                          cost=G.NO_COST, lines=[NOT_CREATED % full] + reader.notes)
+    problem = None
+    if not path_usable(path):
+        problem = PATH_UNUSABLE.format(path=path)
+    elif not branch_usable(found.branch, True):
+        problem = BRANCH_UNUSABLE.format(branch=found.branch, full=full,
+                                         extra=BRANCH_UNUSABLE_BIRTH)
+    if problem:
+        return ctx.result("failed", outputs("not-sent", found.branch, path),
+                          resources=[G.repository_resource(owner, name)], cost=G.NO_COST,
+                          lines=[problem, "No local change was made in this folder."]
+                          + reader.notes)
+    return birth(args, ctx, reader, found)
+
+
 def run(args, ctx):
     path = args.get("path", DEFAULT_PATH)
     problem = _validate(args)
@@ -264,6 +610,10 @@ def run(args, ctx):
     found = examine(args, ctx, reader)
     if not isinstance(found, Found):
         return found
+    if args.get("mode") == "apply" and found.state in ("behind", "not-sent"):
+        result = apply(args, ctx, reader, found)
+        result.data = {"repositoryCopy": found.copy}
+        return result
 
     # Step 6, plan.
     resources = [G.repository_resource(owner, name)] if found.exists else []

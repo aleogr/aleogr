@@ -106,8 +106,9 @@ def _gh_error_line(c):
 
 
 class Reader(object):
-    """Runs the reads of a skill through ctx.read (always the read-only runner) and
-    keeps the sentences that the answer adds (an exit code that could not be trusted)."""
+    """Runs the reads of a skill through ctx.read (always the read-only runner), and its
+    writes through ctx.write, and keeps the sentences that the answer adds (an exit code
+    that could not be trusted)."""
 
     def __init__(self, ctx):
         self.ctx = ctx
@@ -124,6 +125,17 @@ class Reader(object):
 
     def git(self, argv):
         return self.ctx.read(argv)
+
+    def write(self, argv):
+        """A write, through ctx.write (the writing runner: only in mode=apply, only the
+        shapes of the skill's allowlist of writes). For gh, the same rule as a read: an
+        exit 0 next to gh's error line is that error."""
+        c = self.ctx.write(argv)
+        if argv and str(argv[0]) == "gh" and c.ok and _gh_error_line(c):
+            if UNTRUSTED not in self.notes:
+                self.notes.append(UNTRUSTED)
+            c = common.Completed(1, c.out, c.err)
+        return c
 
 
 def not_installed(c):
