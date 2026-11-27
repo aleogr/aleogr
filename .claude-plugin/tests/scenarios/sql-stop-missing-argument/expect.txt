@@ -1,0 +1,4 @@
+# A missing required argument: failed with one sentence, no command, never a question.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT projectId is missing
