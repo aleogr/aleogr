@@ -21,6 +21,10 @@ from helpers import aleogr_common as common, load_skill, plugin_root  # noqa: E4
 PLUGIN = "aleogr-cloud-gcp"
 SKILL = "gcp_environment-create"
 ROOT = plugin_root(PLUGIN)
+# The SKILL.md as it was before it became a shell over the command: the specification
+# these tests check the module against.
+SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden",
+                        "gcp_environment-create.md")
 skill = load_skill(PLUGIN, SKILL)
 
 OK = common.Completed
@@ -379,7 +383,7 @@ class TestPaths(unittest.TestCase):
 
 class TestSkillText(unittest.TestCase):
     def test_the_sentences_the_skill_writes(self):
-        with open(os.path.join(ROOT, "skills", SKILL, "SKILL.md"), encoding="utf-8") as f:
+        with open(SKILL_MD, encoding="utf-8") as f:
             text = f.read()
         self.assertIn("`%s`" % skill.CREATE_FAILED, text)
         self.assertIn("`%s`" % (skill.PARENT_FOUND % "<projectId>"), text)

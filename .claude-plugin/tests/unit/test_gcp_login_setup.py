@@ -20,6 +20,10 @@ from helpers import aleogr_common as common, load_skill, plugin_root  # noqa: E4
 PLUGIN = "aleogr-cloud-gcp"
 SKILL = "gcp_login-setup"
 ROOT = plugin_root(PLUGIN)
+# The SKILL.md as it was before it became a shell over the command: the specification
+# these tests check the module against.
+SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden",
+                        "gcp_login-setup.md")
 skill = load_skill(PLUGIN, SKILL)
 
 OK = common.Completed
@@ -125,7 +129,7 @@ class TestGoldenCommands(unittest.TestCase):
         self.assertIsNone(common.write_refusal(SKILL, ctx.writes[0], root=ROOT))
 
     def test_the_commands_are_the_skill_s(self):
-        with open(os.path.join(ROOT, "skills", SKILL, "SKILL.md"), encoding="utf-8") as f:
+        with open(SKILL_MD, encoding="utf-8") as f:
             text = f.read()
         written = (GOLDEN_GRANT.replace(ORG_ID, "<organizationId>")
                    .replace("--member=" + MEMBER, '--member="<member>"')
@@ -305,7 +309,7 @@ class TestNothingSecret(unittest.TestCase):
 
 class TestTheList(unittest.TestCase):
     def test_the_list_is_the_skill_s_byte_for_byte(self):
-        with open(os.path.join(ROOT, "skills", SKILL, "SKILL.md"), encoding="utf-8") as f:
+        with open(SKILL_MD, encoding="utf-8") as f:
             text = f.read()
         block = re.search(r"## The list of what is left\n\n.*?\n```\n(.*?)\n```", text,
                           re.S).group(1)
@@ -321,7 +325,7 @@ class TestTheList(unittest.TestCase):
         self.assertEqual(r.block["pending"], [skill.login_item(P)])
 
     def test_the_item_s_how(self):
-        with open(os.path.join(ROOT, "skills", SKILL, "SKILL.md"), encoding="utf-8") as f:
+        with open(SKILL_MD, encoding="utf-8") as f:
             text = f.read()
         self.assertIn('"how": "%s"' % skill.LOGIN_HOW.replace("{p}", "<projectId>"), text)
         self.assertIn('"how": "%s"' % skill.NOT_READ_ITEM["how"], text)

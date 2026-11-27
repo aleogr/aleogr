@@ -1,5 +1,6 @@
 ---
 description: Google Cloud (GCP) services enable. Use to enable the Google APIs a GCP project of an aleogr project and environment (or the shared platform project) needs, enabling only the ones still missing. Idempotent; plan by default.
+allowed-tools: Bash(aleogr-cloud-gcp --read-only gcp_services-enable), Bash(aleogr-cloud-gcp --read-only gcp_services-enable *)
 ---
 
 # gcp_services-enable
@@ -19,51 +20,38 @@ Free text after the skill name, as `key=value` pairs.
 | `services=<list>` | Comma-separated API names, for example `a.googleapis.com,b.googleapis.com`. |
 | `mode=plan\|apply` | `plan` (default) reports what would change and changes nothing; `apply` executes. |
 
-## Validate first
+`services` is required, and the project is named in one of three ways: `projectId`, `project=<name> environment=<environment>`, or `project=shared platform=shared`.
 
-Before running any command, check the arguments. Any failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
+The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
-- `services` is required, and the project is named in one of three ways: `projectId`, `project=<name> environment=<environment>`, or `project=shared platform=shared` (if `services`, `project` or `environment` is missing, the sentence names it: `<argument> is missing.`; never ask for it, nobody may answer in an automated run); `environment` is one of `dev`, `hom`, `prd`; `platform` is absent or `shared`; `mode` is `plan` or `apply`.
-- `platform=shared` needs `project=shared` and no `environment`; `project=shared` needs `platform=shared`.
-- `projectId`, when given, has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`.
-- Every entry of `services` ends with `.googleapis.com` and has only `a-z`, `0-9`, `-` and `.` before that suffix. Remove duplicates.
+## Run
 
-## Steps
+Run one of these two commands with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 
-Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
+- When the arguments hold `mode=apply`, run exactly:
 
-1. Find the project and the enabled services: invoke `aleogr-cloud-gcp:gcp_environment-describe` with `projectId=<projectId>` when it was given, otherwise with `project=shared platform=shared` (shared platform project) or `project=<project> environment=<environment>`. Use its result only as input and do not repeat it; this skill's answer ends with exactly one `aleogr-result` block, its own.
-   - `status` `failed`: stop with `failed`.
-   - `exists` false: stop with `failed`, saying the environment must be created first (`gcp_environment-create`). Never create a project.
-   - Otherwise take `projectId` and `enabledServices`.
+  ```
+  aleogr-cloud-gcp gcp_services-enable <arguments>
+  ```
 
-2. Compare. `alreadyEnabled` is the requested services present in `enabledServices`; `missing` is the rest.
-   - `missing` empty: run nothing else and end with `status` `unchanged`.
-   - `plan` mode: run nothing else and end with `status` `would-update`, listing `missing`.
+- In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
-3. `apply` mode: enable all the missing services with one command:
+  ```
+  aleogr-cloud-gcp --read-only gcp_services-enable <arguments>
+  ```
 
-   ```
-   gcloud services enable <missing...> --project=<projectId>
-   ```
+Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
 
-   A non-zero exit stops with `failed` and one sentence of cause, without raw error text (nothing was enabled that needs to be kept).
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
-4. Verify:
+It prints two kinds of lines:
 
-   ```
-   gcloud services list --enabled --project=<projectId> --format="value(config.name)"
-   ```
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
 
-   Every requested service must be in the output. A non-zero exit, or a requested service missing, ends with `pending`: say which one could not be confirmed, and set `pending[].how` to this same command.
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
 
-Then answer in a few lines: the project ID, which services were enabled, which already were, and the result block.
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
-
-End with exactly one fenced block tagged `aleogr-result`:
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` followed by this block, and nothing else (with `"mode": "apply"` in place of `"mode": "plan"` when the command was the one for `mode=apply`):
 
 ```aleogr-result
 {
@@ -71,22 +59,15 @@ End with exactly one fenced block tagged `aleogr-result`:
   "family": "cloud",
   "provider": "gcp",
   "action": "services-enable",
-  "mode": "apply",
-  "status": "updated",
-  "resources": [
-    { "type": "project", "id": "<projectId>", "name": "<project>", "labels": { "aleogr-project": "<project>", "aleogr-environment": "<environment>" } }
-  ],
-  "outputs": {
-    "projectId": "<projectId>",
-    "enabled": ["<service>.googleapis.com"],
-    "alreadyEnabled": ["<service>.googleapis.com"]
-  },
-  "cost": { "fixed": false, "notes": "enabling APIs is free" },
-  "pending": []
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-cloud-gcp, then try again" } ]
 }
 ```
 
-- `mode` echoes the mode used. `status` is one of `would-update` (plan: some are missing), `updated`, `unchanged`, `pending` (enabled, but not confirmed by step 4), `failed`.
-- `enabled` lists the services this run enabled (in `plan`, the ones it would enable); `alreadyEnabled` the requested ones that were on.
-- `failed`: `resources` is empty and `outputs` is `{ "projectId": null, "enabled": [], "alreadyEnabled": [] }`.
-- `pending`: `resources` and `outputs.projectId` are set as usual.
+## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

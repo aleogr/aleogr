@@ -43,12 +43,13 @@ scenario cannot be run this way.
 
 "Not converted" means one of: the prompt is not one slash command of a skill (a prompt of
 several lines, such as the `harness-selftest*` scenarios); the plugin has no command; or the
-command answers 64 because that skill, or that mode of it, has no module yet (the skills
-that write to Google Cloud, the `mode=apply` of `gcp_ci-identity-setup`, `project-apply`,
-`project-access`, `platform-plan` and `platform-apply`). `run-direct.sh` counts those apart,
-never as failures, and exits 1 only when a scenario failed. At the end of step 1 it printed
-`passed 180, failed 0, not converted 493`; at the end of part 2a of step 2 it prints
-`passed 357, failed 0, not converted 316`.
+command answers 64 because that skill has no module yet (the four orchestrators that are
+still prose: `project-apply`, `project-access`, `platform-plan` and `platform-apply`).
+`run-direct.sh` counts those apart, never as failures, and exits 1 only when a scenario
+failed. At the end of step 1 it printed `passed 180, failed 0, not converted 493`; at the end
+of part 2a of step 2, `passed 357, failed 0, not converted 316`; at the end of part 2b it
+prints `passed 556, failed 0, not converted 117` (111 scenarios of the four orchestrators and
+the 6 `harness-selftest*`).
 
 A scenario of a command that writes runs in the scenario's working folder, a copy of its
 `files/`, so the `FILE`, `SAME_FILE`, `NO_FILE` and `FILE_NOT` lines check what the command
@@ -59,9 +60,11 @@ command) prints a `failed` result and exits 70, which the direct mode reports as
 provider (the declaration's rules, each row's states, the arguments of each skill), that the
 copies of `aleogr_common.py` are byte-identical, that the read-only runner refuses every
 command that is not a read before running it, that the writing runner accepts only each
-skill's own write shapes (`test_writes.py`), that an argument given twice and a refused
-command still end with a `failed` result (`test_refusals.py`), and that every script parses
-as Python 3.9:
+skill's own write shapes and that the refusals of Google Cloud hold for every skill
+(`test_writes.py`), each cost gate (absent, with another value, and no write built then), how
+each waiting skill ends when the eight-minute budget is spent, that an argument given twice
+and a refused command still end with a `failed` result (`test_refusals.py`), and that every
+script parses as Python 3.9:
 
 ```
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .claude-plugin/tests/unit
@@ -73,15 +76,19 @@ In a unit test, load a skill's module with `helpers.load_skill(plugin, skill)`, 
 **The writing runner.** A command writes only in `mode=apply`, without `--read-only`, through
 `ctx.write` (a provider command), `ctx.write_file` (a file of the folder) and `ctx.backup` (copies
 to put back). Each refuses, before anything runs or is shown, what is not on the skill's own
-allowlist (`WRITE_SHAPES` and `FILE_WRITES` in `aleogr_common.py`). A unit test replaces
-`ctx.execute(argv)`, the one place a command runs, to record each write.
+allowlist (`WRITE_SHAPES` and `FILE_WRITES` in `aleogr_common.py`), and `ctx.write_temp_file`
+writes the one temporary file a skill names (`TEMP_FILE_WRITES`). A wait is `ctx.wait()`,
+which runs `sleep 30` (so the fake logs it) and says no once the run's eight minutes are spent.
+A unit test replaces `ctx.execute(argv)`, the one place a command runs, to record each write.
 
 **Golden commands.** Each writing skill's unit test holds its write commands exactly as the
 skill's text gave them, every flag, in order, and checks that the module builds them argument
 for argument, that a hidden value is a `Hidden` argument, and that each is on the allowlist
-(`TestGoldenCommands`). Where a skill's text gave a whole file (`ci.yml`, the declaration's
-canonical form), that text, as the skill's SKILL.md held it before it became a shell, is kept
-in `unit/golden/` and the unit test compares the file byte for byte.
+(`TestGoldenCommands`). Where a skill's text gave a whole file or text the command prints
+(`ci.yml`, the declaration's canonical form, the login's list of what is left), or a unit test
+checks the command's sentences against it (`gcp_environment-create`, `gcp_login-setup`), that
+text, as the skill's SKILL.md held it before it became a shell, is kept in `unit/golden/`
+and the unit test reads it there.
 
 The workflow `self-test-skills.yml` runs the unit tests and `run-direct.sh` on every pull
 request that changes `.claude-plugin/`. A converted skill's command passes its scenarios with
@@ -89,8 +96,9 @@ their `expect.txt` unchanged; a line that pins something only a model does is th
 that may change, and none has.
 
 **A run with the model is needed only** for what the direct mode cannot see: that a shell
-skill runs its command with the arguments it was given and relays the answer with nothing
-added, and every skill or mode that is still prose. A rule is never tested with the model.
+skill runs the right one of its commands with the arguments it was given and relays the answer
+with nothing added, and the four orchestrators that are still prose. A rule is never tested
+with the model.
 
 ## How it works
 
