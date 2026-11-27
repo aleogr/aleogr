@@ -41,6 +41,31 @@ other line of `expect.txt` is checked exactly as with the model. It exits 0 for 
 for a failure, 2 for bad usage, and **3, printing `NOT CONVERTED <scenario>`**, when the
 scenario cannot be run this way.
 
+**A run in more than one command.** When the command's answer ends with a block whose
+`status` is `continue` (`docs/DESIGN.md` section 10.4), `run.sh` runs the command of its
+`next:` line, as the shell's model will: the line is split with `shlex`, and it must be the
+same plugin command and skill with the same arguments and one `run=<id>`, or the scenario
+fails (`(the answer says continue, but its next: line is not this command)`). It goes on
+while the answer says `continue`, at most eight commands in all; a run still at `continue`
+after the eighth fails (`(the run did not end within eight commands)`). The answer that the
+`OUTPUT`, `OUTPUT_NOT` and `RESULT_NOT` lines check is the **last** command's stdout; the
+call log, the files of the working folder and the stderr shown on a failure are the whole
+run's, and a failure lists every command run. Every command must exit 0. The harness unsets
+`ALEOGR_RUN_ENDS`, `ALEOGR_STEP_LIMIT`, `ALEOGR_WAIT_CLOCK_LIMIT` and
+`ALEOGR_TEST_SLEEP_CLOCK` before each command, so a scenario does not depend on the shell
+it is run from.
+
+**The `clock` file.** The fake `sleep` returns at once, so the run's clock does not move and
+every existing scenario runs in one command. A scenario that has a file `clock` holding the
+one line `sleep-counts` runs with `ALEOGR_TEST_SLEEP_CLOCK=1`: each `sleep <n>` that the fake
+logs during a command moves that command's clock by `<n>` seconds (the shared module counts
+the `sleep` lines of `FAKE_LOG`, and honours the variable only when `FAKE_LOG` is set, so
+only under these fakes; it only adds to the clock, so it can only shorten a run). Thirty
+seconds per wait reach the step limit of four minutes after eight waits, so such a scenario
+continues over several commands, as a real run would. A `clock` file with any other content
+is a bad scenario (exit 2). The loop and the `clock` file are tested on a copy of the
+harness with stand-in commands (`unit/test_continue.py`).
+
 "Not converted" means one of: the prompt is not one slash command of a skill (a prompt of
 several lines, such as the `harness-selftest*` scenarios); the plugin has no command; or the
 command answers 64 because that skill has no module yet (the four orchestrators that are
@@ -88,6 +113,12 @@ Every provider command is bounded by the run's deadline (`RUN_DEADLINE`, nine an
 past it the command is killed and the run ends with the `failed` result of an aborted run
 (`aborted_result`), which any unexpected exception also gets, with no traceback; a unit test moves
 the clock (`common.set_clock`) or raises `TimeLimit` from a context to reach these endings.
+A run in more than one command (the status `continue`, its `next:` line, the carried file and
+each of its refusals, the bound of eight commands, the deadline passed to a called command and
+its `data.waitRefused` / `data.timeLimit`, the step limit, the environment variables that only
+lower a limit, the uncounted wait `ctx.wait(counted=False)`) is tested in `test_continue.py`
+with module objects given to `common.run_command`, an injected clock and a temporary folder
+for the carried files (`common.set_carry_folder`).
 A unit test replaces `ctx.execute(argv)`, the one place a command runs, to record each write.
 
 **Golden commands.** Each writing skill's unit test holds its write commands exactly as the
