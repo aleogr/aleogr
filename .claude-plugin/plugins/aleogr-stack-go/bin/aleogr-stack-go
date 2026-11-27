@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""The command of this plugin: `<plugin> [--json] <skill> [key=value ...]` or
+`<plugin> --has <skill> [mode]`. The plugin's name is this file's name; its root is the
+folder above bin/, found from this file's real path. The same file is in every plugin."""
+import os
+import sys
+
+sys.dont_write_bytecode = True
+
+_here = os.path.dirname(os.path.realpath(__file__))
+_root = os.path.dirname(_here)
+# Only the plugin's scripts/ and the standard library: not the current folder, not bin/.
+sys.path[:] = [os.path.join(_root, "scripts")] + [
+    p for p in sys.path if p not in ("", ".", _here)]
+
+import aleogr_common  # noqa: E402
+
+if __name__ == "__main__":
+    sys.exit(aleogr_common.main(os.path.basename(os.path.realpath(__file__)), _root,
+                                sys.argv[1:]))

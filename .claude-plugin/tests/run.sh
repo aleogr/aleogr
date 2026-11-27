@@ -2,9 +2,18 @@
 # Runs one scenario headless against the fake gcloud, gh and git and checks expect.txt.
 # Usage: .claude-plugin/tests/run.sh <scenario>
 # Env:   TEST_MODEL (default: sonnet)
+#        RUN_MODE=direct: no model. Runs the plugin command that prompt.txt names
+#        (/<plugin>:<skill> args runs <plugin> <skill> args) with the fakes and every
+#        plugin's bin/ on PATH; its stdout is the answer. Exit 3 and "NOT CONVERTED
+#        <scenario>" when the prompt is not one slash command of a skill, or the
+#        command answers 64 (that skill or mode is not converted).
 set -u
 
 if [ $# -ne 1 ]; then echo "usage: run.sh <scenario>" >&2; exit 2; fi
+case "${RUN_MODE:-}" in
+  ''|direct) ;;
+  *) echo "unknown RUN_MODE '${RUN_MODE}' (unset, or direct)" >&2; exit 2 ;;
+esac
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 plugins="$(cd "$here/../plugins" && pwd)"
@@ -24,6 +33,40 @@ log="$work/calls.log"
 out="$work/claude.out"
 : > "$log"
 
+if [ "${RUN_MODE:-}" = direct ]; then
+  err="$work/command.err"
+  # The prompt, one line "/<plugin>:<skill> key=value ...", split as a shell would split
+  # words (quotes), with no expansion of any kind; NUL-separated: plugin, skill, args.
+  if ! PYTHONDONTWRITEBYTECODE=1 python3 -I -c '
+import re, shlex, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+if text.endswith("\n"):
+    text = text[:-1]
+m = re.match(r"/([a-z0-9-]+):([a-z][a-z0-9_-]*)(?: (.*))?$", text)
+if "\n" in text or "\r" in text or not m:
+    sys.exit(3)
+try:
+    words = shlex.split(m.group(3) or "")
+except ValueError:
+    sys.exit(3)
+sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
+' "$scenario/prompt.txt" > "$work/argv"; then
+    echo "NOT CONVERTED $1"
+    exit 3
+  fi
+  argv=()
+  while IFS= read -r -d '' w; do argv+=("$w"); done < "$work/argv"
+  if [ ! -x "$plugins/${argv[0]}/bin/${argv[0]}" ]; then echo "NOT CONVERTED $1"; exit 3; fi
+  bins=""
+  for b in "$plugins"/*/bin; do bins="$bins:$b"; done
+  (
+    cd "$work/cwd" || exit 1
+    PATH="$here/bin$bins:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
+      PYTHONDONTWRITEBYTECODE=1 "${argv[@]}" < /dev/null > "$out" 2> "$err"
+  )
+  claude_status=$?
+  if [ "$claude_status" -eq 64 ]; then echo "NOT CONVERTED $1"; exit 3; fi
+else
 (
   cd "$work/cwd" || exit 1
   PATH="$here/bin:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
@@ -39,13 +82,16 @@ out="$work/claude.out"
       < /dev/null > "$out" 2>&1
 )
 claude_status=$?
+fi
 # Claude Code's own call (git ... ls-files --error-unmatch -- :(icase).claude/settings.local.json)
 # reaches the fake git through PATH; it is not the skill's, so it is dropped from the log.
 grep -vF 'ls-files --error-unmatch -- :(icase).claude/settings.local.json' "$log" > "$log.skill" || true
 mv "$log.skill" "$log"
 
 failed=()
-if [ "$claude_status" -ne 0 ]; then failed+=("(claude exited with status $claude_status)"); fi
+if [ "${RUN_MODE:-}" = direct ]; then
+  if [ "$claude_status" -ne 0 ]; then failed+=("(the command exited with status $claude_status)"); fi
+elif [ "$claude_status" -ne 0 ]; then failed+=("(claude exited with status $claude_status)"); fi
 while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in ''|'#'*) continue ;; esac
   kind="${line%% *}"
@@ -129,6 +175,15 @@ echo "Failed expect lines:"
 printf '  %s\n' "${failed[@]}"
 echo "call log:"
 if [ -s "$log" ]; then sed -E -e '/^(gh|git|go|sleep) /!s/^/gcloud /' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
+if [ "${RUN_MODE:-}" = direct ]; then
+  echo "command: ${argv[*]}"
+  echo "command exit status: $claude_status"
+  echo "command output:"
+  sed 's/^/  /' "$out"
+  echo "command stderr:"
+  sed 's/^/  /' "$err"
+  exit 1
+fi
 echo "claude exit status: $claude_status"
 echo "claude output:"
 sed 's/^/  /' "$out"
