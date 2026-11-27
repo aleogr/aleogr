@@ -1,0 +1,24 @@
+# The check is written first, the database is made, web's user too, then the grant of its roles is
+# refused: the run stops with one item database and the grant's own sentence, sets no setting and
+# proposes nothing; no "apply again" on a guess.
+CALLED ^sql databases create demo_dev
+CALLED ^projects add-iam-policy-binding aleogr-shared-ab12
+NOT_CALLED ^run services update|^gh pr create|^gh (variable|secret) set
+NOT_CALLED instances patch
+FILE web/db.go ^func dbCheck\(
+OUTPUT "item": "database", "reason": "manual", "how": "[^"]*/aleogr:project-plan
+OUTPUT could not be given the role
+OUTPUT The database of web was not all made; nothing after it was made\.
+OUTPUT_NOT "item": "(components|ci|services|ci secrets|access|instance)", "reason"
+OUTPUT_NOT "how": "[^"]*(/aleogr:project-apply confirm=yes"|apply again)
+OUTPUT_NOT PERMISSION_DENIED|Policy update access denied
+OUTPUT "status": "updated"
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|[Tt]he run (changed|stops|stopped)|[Tt]his run stopped (before|at|there)
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only; no e-mail of a component nor the shared project id
+# in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

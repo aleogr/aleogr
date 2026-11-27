@@ -1,0 +1,6 @@
+example.com/first v1.0.0 h1:keptFirstLineFakeHashForTheScenarioOnly000000=
+example.com/first v1.0.0/go.mod h1:keptFakeHashForTheScenarioOnly11111111111111=
+example.com/middle v1.2.3 h1:keptFakeHashForTheScenarioOnly22222222222222=
+example.com/middle v1.2.3/go.mod h1:keptFakeHashForTheScenarioOnly33333333333333=
+example.com/other v1.0.0 h1:keptFakeHashForTheScenarioOnly44444444444444=
+example.com/last v0.9.0/go.mod h1:keptLastLineFakeHashForTheScenarioOnly999999=

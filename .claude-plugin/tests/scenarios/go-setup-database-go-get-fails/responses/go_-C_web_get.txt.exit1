@@ -1,0 +1,1 @@
+go: cloud.google.com/go/cloudsqlconn@v1.27.1: selftest-raw-error

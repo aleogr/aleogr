@@ -1,0 +1,11 @@
+{
+  "labels": {
+    "aleogr-platform": "shared",
+    "aleogr-project": "shared"
+  },
+  "lifecycleState": "ACTIVE",
+  "name": "shared",
+  "parent": { "id": "333333333333", "type": "folder" },
+  "projectId": "aleogr-shared-ab12",
+  "projectNumber": "210987654321"
+}

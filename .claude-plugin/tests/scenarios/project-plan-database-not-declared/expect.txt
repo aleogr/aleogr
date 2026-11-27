@@ -1,0 +1,16 @@
+# No component uses the database (Review Focus 6): exactly the thirteen rows of stage 4b, no row
+# database, no read of the shared project or of the instance, go_setup without the database.
+OUTPUT "item": "services", "state": "as declared", "action": "none"
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none" \}\s*$
+OUTPUT_NOT "item": "database"
+OUTPUT "database": null
+NOT_CALLED ^sql 
+NOT_CALLED ^projects get-iam-policy
+NOT_CALLED aleogr-project=shared|aleogr-platform=shared|aleogr-shared
+NOT_CALLED ^go 
+OUTPUT_NOT shared instance
+OUTPUT nothing to do
+OUTPUT "status": "unchanged"
+NOT_CALLED instances patch
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|variables-set|setup|ci-setup)"

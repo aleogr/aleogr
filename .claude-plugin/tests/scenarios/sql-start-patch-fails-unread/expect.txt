@@ -1,0 +1,11 @@
+# The start command fails and the read after it fails too: the answer says it could not tell
+# whether the instance runs, and names the read that shows it. No retry of either.
+AT_MOST 1 ^sql instances patch
+COUNT 2 ^sql instances describe aleogr-shared
+AT_MOST 2 ^sql instances describe
+OUTPUT "status": "failed"
+OUTPUT "state": null
+OUTPUT The instance could not be started, and the read after the failure could not tell whether it is running: it may be charged by the hour until it is stopped\.
+OUTPUT gcp-cloud-sql_instance-describe
+OUTPUT_NOT PERMISSION_DENIED|does not have permission|selftest-raw-read-error
+NOT_CALLED ^sql instances (restart|delete|create)

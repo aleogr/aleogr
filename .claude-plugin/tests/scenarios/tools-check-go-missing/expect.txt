@@ -1,0 +1,9 @@
+# go is not installed: missing, failed, with the official install page as the fix, and no raw
+# error text.
+CALLED ^go version$
+NOT_CALLED ^(auth|projects|--version)
+NOT_CALLED ^gh 
+OUTPUT "name": "go", "command": "go", "state": "missing"
+OUTPUT "status": "failed"
+OUTPUT go\.dev/doc/install
+OUTPUT_NOT command not found

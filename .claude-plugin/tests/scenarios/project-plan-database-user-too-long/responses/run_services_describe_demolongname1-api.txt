@@ -1,0 +1,68 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "demolongname1-api",
+    "namespace": "123456789012",
+    "labels": {
+      "aleogr-project": "demolongname1",
+      "aleogr-environment": "dev",
+      "aleogr-component": "api",
+      "cloud.googleapis.com/location": "us-central1"
+    },
+    "annotations": {
+      "run.googleapis.com/ingress": "all",
+      "run.googleapis.com/ingress-status": "all",
+      "run.googleapis.com/maxScale": "2",
+      "run.googleapis.com/iap-enabled": "true"
+    }
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "run.googleapis.com/cpu-throttling": "true",
+          "run.googleapis.com/startup-cpu-boost": "true"
+        }
+      },
+      "spec": {
+        "containerConcurrency": 80,
+        "timeoutSeconds": 300,
+        "serviceAccountName": "demolongname1-api@aleogr-dev-demolongname1-ab12.iam.gserviceaccount.com",
+        "containers": [
+          {
+            "image": "us-central1-docker.pkg.dev/aleogr-dev-demolongname1-ab12/demolongname1/api@sha256:4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "http1"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "1000m",
+                "memory": "512Mi"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "traffic": [
+      {
+        "latestRevision": true,
+        "percent": 100
+      }
+    ]
+  },
+  "status": {
+    "url": "https://demolongname1-api-123456789012.us-central1.run.app",
+    "latestReadyRevisionName": "demolongname1-api-00001-abc",
+    "conditions": [
+      {
+        "type": "Ready",
+        "status": "True"
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+# The database modules need the defaults' stacks.go.database.minVersion (1.26): a component that
+# uses the database and declares Go 1.25 is refused, and the file is left as it was.
+OUTPUT "status": "failed"
+OUTPUT needs Go 1\.26 or later; give .version=1\.26. or later in the same call
+FILE_NOT .aleogr/project.json database
+FILE .aleogr/project.json "version": "1\.27" \}$
+NOT_CALLED .

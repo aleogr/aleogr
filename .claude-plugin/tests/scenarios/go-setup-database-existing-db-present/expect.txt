@@ -1,0 +1,13 @@
+# db.go is there: never overwritten. db_test.go is missing: written. main.go is the plain
+# template: replaced by the variant with the route.
+FILE web/db.go kept: the owner's own check\.
+FILE_NOT web/db.go cloudsqlconn
+FILE web/db_test.go ^func TestDBNotConfigured\(
+FILE web/main.go ^	mux\.HandleFunc\("GET /db", dbCheck\)$
+OUTPUT "route": "added"
+OUTPUT "status": "created"
+# The owner's db.go imports neither module: they are not needed, no go command runs (this is
+# also how a run after go mod tidy removed them avoids running go get again).
+OUTPUT "modules": "not-needed"
+NOT_CALLED ^go
+FILE_NOT web/go.mod require

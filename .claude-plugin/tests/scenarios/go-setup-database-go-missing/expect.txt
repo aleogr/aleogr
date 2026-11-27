@@ -1,0 +1,10 @@
+# Go cannot start: failed before any file is written.
+CALLED ^go version$
+NOT_CALLED ^go (-C [^ ]+ )?(get|mod)
+NO_FILE web/go.mod
+NO_FILE web/main.go
+NO_FILE web/main_test.go
+NO_FILE web/db.go
+NO_FILE web/db_test.go
+OUTPUT "status": "failed"
+OUTPUT_NOT command not found

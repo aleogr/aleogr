@@ -1,0 +1,11 @@
+# The start command fails and the instance is still stopped: one read after the failure says so,
+# so the owner knows it is not charged. No second patch, no other read.
+CALLED ^sql instances patch aleogr-shared .*--activation-policy=ALWAYS
+AT_MOST 1 ^sql instances patch
+COUNT 2 ^sql instances describe aleogr-shared
+AT_MOST 2 ^sql instances describe
+OUTPUT "status": "failed"
+OUTPUT "state": "stopped"
+OUTPUT The instance could not be started: it is still stopped, so it is not charged by the hour\.
+OUTPUT_NOT PERMISSION_DENIED|does not have permission
+NOT_CALLED ^sql instances (restart|delete|create)

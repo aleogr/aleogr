@@ -1,0 +1,9 @@
+{
+  "bindings": [
+    { "condition": { "expression": "resource.name == 'projects/aleogr-shared-ab12/instances/aleogr-shared'", "title": "only-aleogr-shared" }, "members": ["serviceAccount:demo-other@aleogr-dev-demo-ab12.iam.gserviceaccount.com"], "role": "roles/storage.objectViewer" },
+    { "members": ["serviceAccount:demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com"], "role": "roles/cloudsql.instanceUser" },
+    { "members": ["user:owner@example.com"], "role": "roles/owner" }
+  ],
+  "etag": "BwYxxxxxxxx=",
+  "version": 3
+}

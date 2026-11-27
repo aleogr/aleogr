@@ -93,6 +93,10 @@
             "description": "The language version, major.minor. With the stack go it is 1.22 or later, comparing the major and then the minor as numbers (1.21 and 1.9 are refused): the Go starting point's routes need Go 1.22. The pattern checks the form only; the minimum is stated in prose.",
             "type": "string",
             "pattern": "^[0-9]+\\.[0-9]+$"
+          },
+          "database": {
+            "description": "Optional: true when the component uses the project's database on the shared instance, in each environment; absent or false, it does not (written only when true, last in the component's line). A component with database true needs cloud and environments, and a version of stacks.<stack>.database.minVersion of the owner's defaults or later (1.26 with the defaults of the plugin aleogr): the modules of the database check need it. The minimum version is stated in prose only.",
+            "type": "boolean"
           }
         }
       }
@@ -128,5 +132,14 @@
   },
   "dependentRequired": { "environments": ["cloud"] },
   "if": { "required": ["environments"] },
-  "then": { "properties": { "name": { "minLength": 3 } } }
+  "then": { "properties": { "name": { "minLength": 3 } } },
+  "allOf": [
+    {
+      "if": {
+        "required": ["components"],
+        "properties": { "components": { "contains": { "required": ["database"], "properties": { "database": { "const": true } } } } }
+      },
+      "then": { "required": ["cloud", "environments"] }
+    }
+  ]
 }

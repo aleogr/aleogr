@@ -1,0 +1,9 @@
+# accounts given empty: failed before any command, never a question.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT accounts is missing
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

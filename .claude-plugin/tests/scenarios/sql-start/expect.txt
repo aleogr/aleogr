@@ -1,4 +1,4 @@
 CALLED ^sql instances patch aleogr-shared .*--activation-policy=ALWAYS .*--async
 OUTPUT "status": "updated"
 OUTPUT "state": "starting"
-OUTPUT ten minutes
+OUTPUT twelve minutes

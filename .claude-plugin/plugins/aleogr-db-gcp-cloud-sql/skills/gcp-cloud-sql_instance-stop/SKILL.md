@@ -15,7 +15,7 @@ Free text after the skill name, as `key=value` pairs. Both are required.
 | `projectId=<id>` | The GCP project that holds the instance. |
 | `instance=<name>` | The Cloud SQL instance name (the shared platform uses `aleogr-shared`). |
 
-Validate before any command. If one is missing, ask for it. `projectId` must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. `instance` must be lowercase letters, digits and `-`, starting with a letter, at most 60 characters. If a value is invalid, end with the result block with `status` `failed`, one sentence saying which argument is wrong, and no command.
+Validate before any command, and never ask for anything. If one is missing, end with the result block with `status` `failed`, the one sentence `<argument> is missing.`, word for word, and no command. `projectId` must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. `instance` must be lowercase letters, digits and `-`, starting with a letter, at most 60 characters. If a value is invalid, end with the result block with `status` `failed`, one sentence saying which argument is wrong, and no command.
 
 ## Steps
 
@@ -58,6 +58,8 @@ From `settings.activationPolicy` and `state` of the describe JSON:
 | `ALWAYS` | anything else | `starting` |
 
 ## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
 
 End with exactly one fenced block tagged `aleogr-result`:
 

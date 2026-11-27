@@ -23,7 +23,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 
 ## Validate first
 
-Before any command, check the arguments. If one required argument is missing, ask for it. Any other failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
+Before any command, check the arguments, and never ask for anything. A missing required argument ends the skill with the result block, `status` `failed`, the one sentence `<argument> is missing.`, word for word, and no `gcloud` call. Any other failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
 
 - `projectId`: 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter, not ending with `-`.
 - `instance`: lowercase letters, digits and `-`, starting with a letter, at most 60 characters.

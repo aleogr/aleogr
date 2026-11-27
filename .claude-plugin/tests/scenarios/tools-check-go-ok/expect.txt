@@ -1,0 +1,6 @@
+# command=go checks Go alone: go version answers, so go is ok; neither gcloud nor gh is checked.
+CALLED ^go version$
+NOT_CALLED ^(auth|projects|--version)
+NOT_CALLED ^gh 
+OUTPUT "name": "go", "command": "go", "state": "ok", "fix": null
+OUTPUT "status": "unchanged"

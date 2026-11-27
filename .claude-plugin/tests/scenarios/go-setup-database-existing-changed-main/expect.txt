@@ -1,0 +1,13 @@
+# main.go differs from the plain template by one byte (no final newline): it is left as it
+# is and the result carries the item route; db.go and db_test.go are still written.
+FILE_NOT web/main.go GET /db
+FILE web/main.go web: ok
+FILE web/db.go ^func dbCheck\(
+FILE web/db_test.go ^func TestDBNotConfigured\(
+OUTPUT "item": "route"
+OUTPUT "reason": "manual"
+OUTPUT add the line mux\.HandleFunc\(\\"GET /db\\", dbCheck\) to the router in web/main\.go
+OUTPUT "route": "manual"
+OUTPUT "database": "written"
+OUTPUT "status": "created"
+OUTPUT tests of web/db_test\.go, which expect the route, fail

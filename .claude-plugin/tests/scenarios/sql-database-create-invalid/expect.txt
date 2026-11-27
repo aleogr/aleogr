@@ -1,0 +1,14 @@
+# A database name too long for PostgreSQL (63 characters) cannot happen: project has at most 14
+# characters and environment 3, so <project>_<environment> has at most 18. What is pinned here is
+# the mapping of the hyphen (my-app -> my_app_dev) and the failure of an invalid mode, before any
+# command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT mode must be plan or apply
+OUTPUT "database": "my_app_dev"
+OUTPUT_NOT my-app_dev
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

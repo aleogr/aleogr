@@ -1,0 +1,13 @@
+# The database user of webdatabasecheck would have 64 characters (rulings: at most 63): the row is
+# fix by hand with its one line, and nothing of the instance is read.
+OUTPUT "item": "database", "state": "user name too long", "action": "fix by hand" \},\s*$
+OUTPUT webdatabasecheck.*too long for a database user
+NOT_CALLED ^sql 
+NOT_CALLED ^projects get-iam-policy
+NOT_CALLED instances patch
+OUTPUT_NOT nothing to do
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup)"
+RESULT_NOT aleogr-shared-ab12|webdatabasecheck@
+OUTPUT "database": \{ "name": "demolongname1_dev", "instanceState": null, "start": false, "components": \["webdatabasecheck"\] \}
+OUTPUT "status": "pending"

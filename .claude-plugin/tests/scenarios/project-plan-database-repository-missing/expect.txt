@@ -1,0 +1,13 @@
+# The repository does not exist and the declaration has a component that uses the database: the
+# rows follow the creation, nothing in the cloud is read, and the repository's copy of the
+# declaration has no database component ([], as it has no environment).
+OUTPUT "item": "repository", "state": "missing", "action": "create"
+OUTPUT "item": "services", "state": "follows the creation", "action": "none"
+# The notice before every start (the instance was not read), character for character.
+OUTPUT ^If parts of the database are missing and the shared instance is stopped, project-apply starts it: it then runs, charged by the hour, until the night stop\.$
+OUTPUT "item": "database", "state": "follows the creation", "action": "none" \},\s*$
+OUTPUT "repositoryEnvironments": \[\]
+OUTPUT "repositoryDatabaseComponents": \[\]
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": null, "start": false, "components": \["web"\] \}
+NOT_CALLED ^(projects|services|artifacts|iam|billing|sql)( |$)
+OUTPUT "status": "would-create"

@@ -1,0 +1,26 @@
+# The start of the instance is refused: the run stops with the item database; nothing after it is
+# made, and the answer does not say that the instance was started.
+CALLED ^sql instances patch aleogr-shared --project=aleogr-shared-ab12 --activation-policy=ALWAYS
+NOT_CALLED ^sleep
+# The night stop was read before the start; the start fails and its one read back shows the instance
+# still stopped: the answer relays the start skill's fixed sentence, so the owner knows it costs nothing.
+ORDER ^scheduler jobs describe aleogr-shared-stop-weeknight --project=aleogr-shared-ab12 >> ^sql instances patch
+AT_MOST 1 ^sql instances patch
+COUNT 3 ^sql instances describe aleogr-shared --project=aleogr-shared-ab12
+OUTPUT The instance could not be started: it is still stopped, so it is not charged by the hour\.
+OUTPUT "item": "database", "reason": "manual", "how": "the shared instance could not be started: run /aleogr:platform-plan
+NOT_CALLED ^sql (databases|users) (create|list)|add-iam-policy-binding|^run services update|^gh pr create
+OUTPUT The database of web was not all made; nothing after it was made\.
+OUTPUT "item": "database", "reason": "manual", "how": "[^"]*/aleogr:project-plan
+OUTPUT_NOT "how": "[^"]*(/aleogr:project-apply confirm=yes"|apply again)
+OUTPUT_NOT This run started the shared database instance
+OUTPUT_NOT HTTPError|not authorized
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|[Tt]he run (changed|stops|stopped)|[Tt]his run stopped (before|at|there)
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only; no e-mail of a component nor the shared project id
+# in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open|instance-switch-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

@@ -1,0 +1,8 @@
+CALLED ^sql databases list
+NOT_CALLED ^sql databases create
+OUTPUT "status": "unchanged"
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

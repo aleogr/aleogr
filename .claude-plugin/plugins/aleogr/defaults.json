@@ -3,7 +3,7 @@
   "cloud": { "provider": "gcp", "region": "us-central1" },
   "domain": "aleogr.dev",
   "repo": { "provider": "github", "visibility": "private", "settings": { "mergeCommit": true, "squash": true, "rebase": false, "deleteBranchOnMerge": true, "issues": true, "wiki": false, "projects": false } },
-  "stacks": { "go": { "version": "1.27" } },
+  "stacks": { "go": { "version": "1.27", "database": { "minVersion": "1.26", "modules": ["cloud.google.com/go/cloudsqlconn@v1.27.1", "github.com/jackc/pgx/v5@v5.13.0"] } } },
   "ci": { "workflowsRepository": "aleogr/aleogr", "deployWorkflow": "deploy-cloud-run.yml" },
   "project": { "services": ["cloudresourcemanager.googleapis.com", "artifactregistry.googleapis.com", "iam.googleapis.com", "iamcredentials.googleapis.com", "sts.googleapis.com", "run.googleapis.com", "iap.googleapis.com"], "registry": { "keep": 5 }, "deploy": { "maxInstances": 2, "cpu": "1", "memory": "512Mi", "placeholderImage": "us-docker.pkg.dev/cloudrun/container/hello:latest" } },
   "platform": {

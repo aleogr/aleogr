@@ -1,0 +1,11 @@
+# A 30-character id and a 28-character project id: the user's name (<id>@<project id>.iam) has
+# exactly 63 characters, PostgreSQL's limit, so it is accepted and read (64 and 65 are refused).
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+CALLED ^sql users list .*--instance=aleogr-shared .*--project=aleogr-shared-ab12
+OUTPUT "status": "would-update"
+OUTPUT "user": false
+OUTPUT_NOT PostgreSQL allows 63
+NOT_CALLED add-iam-policy-binding
+NOT_CALLED ^sql users create
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+RESULT_NOT @

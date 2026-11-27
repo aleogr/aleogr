@@ -1,0 +1,10 @@
+# The start command fails here, but Cloud SQL took it: the read after the failure shows ALWAYS,
+# so the run is `updated` and the answer says the instance is starting and charged.
+AT_MOST 1 ^sql instances patch
+COUNT 2 ^sql instances describe aleogr-shared
+AT_MOST 2 ^sql instances describe
+OUTPUT "status": "updated"
+OUTPUT "state": "starting"
+OUTPUT The start command failed, but the instance is starting: it is charged by the hour until it is stopped\.
+OUTPUT_NOT PERMISSION_DENIED|does not have permission
+NOT_CALLED ^sql instances (restart|delete|create)

@@ -1,0 +1,1 @@
+ERROR: (gcloud.projects.add-iam-policy-binding) [owner@example.com] does not have permission to access projects instance [aleogr-shared-ab12] (or it may not exist): PERMISSION_DENIED: Policy update access denied.

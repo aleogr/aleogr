@@ -1,0 +1,1 @@
+/aleogr-cloud-gcp:gcp_deploy-describe projectId=aleogr-dev-demo-ab12 project=demo region=us-central1 components=web maxInstances=2 cpu=1 memory=512Mi ciAccount=demo-ci@aleogr-dev-demo-ab12.iam.gserviceaccount.com environment=dev env=web:DB_INSTANCE=aleogr-shared-ab12:us-central1:aleogr-shared;web:DB_NAME=demo_dev;web:DB_USER=demo-web@aleogr-dev-demo-ab12.iam

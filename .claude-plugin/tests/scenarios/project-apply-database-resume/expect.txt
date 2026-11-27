@@ -1,0 +1,21 @@
+# A run after a cut: the instance runs and the database exists, web's user, roles and settings are
+# missing. The database is not created again; the rest is made; nothing to do at the end.
+NOT_CALLED instances patch
+NOT_CALLED ^sql databases create|^sleep|^gh pr create
+CALLED ^sql users create demo-web@aleogr-dev-demo-ab12\.iam
+ORDER ^sql users create >> ^projects add-iam-policy-binding aleogr-shared-ab12
+ORDER ^projects add-iam-policy-binding >> ^run services update demo-web --update-env-vars=
+OUTPUT "item": "database", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT "status": "updated"
+OUTPUT ^web: https://demo-web-123456789012\.us-central1\.run\.app/db$
+OUTPUT_NOT This run started the shared database instance
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|[Tt]he run (changed|stops|stopped)|[Tt]his run stopped (before|at|there)
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only; no e-mail of a component nor the shared project id
+# in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

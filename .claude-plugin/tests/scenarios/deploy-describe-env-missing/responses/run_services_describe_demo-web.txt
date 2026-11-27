@@ -1,0 +1,78 @@
+{
+  "apiVersion": "serving.knative.dev/v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "demo-web",
+    "namespace": "123456789012",
+    "labels": {
+      "aleogr-project": "demo",
+      "aleogr-environment": "dev",
+      "aleogr-component": "web",
+      "cloud.googleapis.com/location": "us-central1"
+    },
+    "annotations": {
+      "run.googleapis.com/ingress": "all",
+      "run.googleapis.com/ingress-status": "all",
+      "run.googleapis.com/maxScale": "2",
+      "run.googleapis.com/iap-enabled": "true"
+    }
+  },
+  "spec": {
+    "template": {
+      "metadata": {
+        "annotations": {
+          "run.googleapis.com/cpu-throttling": "true",
+          "run.googleapis.com/startup-cpu-boost": "true"
+        }
+      },
+      "spec": {
+        "containerConcurrency": 80,
+        "timeoutSeconds": 300,
+        "serviceAccountName": "demo-web@aleogr-dev-demo-ab12.iam.gserviceaccount.com",
+        "containers": [
+          {
+            "image": "us-central1-docker.pkg.dev/aleogr-dev-demo-ab12/demo/web@sha256:4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "http1"
+              }
+            ],
+            "resources": {
+              "limits": {
+                "cpu": "1000m",
+                "memory": "512Mi"
+              }
+            },
+            "env": [
+              {
+                "name": "DB_INSTANCE",
+                "value": "aleogr-shared-ab12:us-central1:aleogr-shared"
+              },
+              {
+                "name": "DB_NAME",
+                "value": "demo_dev"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "traffic": [
+      {
+        "latestRevision": true,
+        "percent": 100
+      }
+    ]
+  },
+  "status": {
+    "url": "https://demo-web-123456789012.us-central1.run.app",
+    "latestReadyRevisionName": "demo-web-00001-abc",
+    "conditions": [
+      {
+        "type": "Ready",
+        "status": "True"
+      }
+    ]
+  }
+}

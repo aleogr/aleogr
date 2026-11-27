@@ -29,7 +29,7 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 - `paths` is one or more paths separated by `,`, with no empty entry. Each path is a relative file path: not empty, does not start with `/` or `./`, does not end with `/`, has no `//`, has no `..` anywhere, has no space, and has only the characters `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` and `/`. A path named twice counts once.
 - `title`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `body`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
-- `note`, when given, has 1 to 100 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
+- `note`, when given, has 1 to 300 characters, and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `mode`, when given, is `plan` or `apply`.
 
 In the commands below, `<paths>` is the list of `paths` separated by spaces, in the order given, `<full body>` is `<body>` alone, or, when `note` is given, `<body>`, one space and `<note>`, and `<changed>` is the list `changed` of step 7, separated by spaces, in the same order.

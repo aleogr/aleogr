@@ -1,0 +1,1 @@
+/aleogr-stack-go:go_setup component=web path=web version=1.27 module=github.com/example-org/example-repo/web database=yes modules=cloud.google.com/go/cloudsqlconn@v1.27.1,github.com/jackc/pgx/v5@v5.13.0 minVersion=1.26 mode=plan

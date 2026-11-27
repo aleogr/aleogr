@@ -1,0 +1,18 @@
+# Review Focus 8: a stopped instance is a normal state. The roles are still read; the database and
+# the users are not read (null), and the run is unchanged, not failed.
+CALLED ^sql instances describe aleogr-shared
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+NOT_CALLED ^sql (databases|users)
+NOT_CALLED ^sql operations list
+OUTPUT "status": "unchanged"
+OUTPUT_NOT "status": "failed"
+OUTPUT "instanceState": "stopped"
+OUTPUT "databaseExists": null
+OUTPUT "read": false
+OUTPUT "account": 1, "user": null, "client": true, "instanceUser": true
+OUTPUT [Nn]ot read
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @

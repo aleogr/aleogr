@@ -1,0 +1,10 @@
+# The dependencies moved the go line to 1.28: go.mod is put back as it was (go 1.27, no
+# require) and go.sum, which did not exist, is removed; the run fails.
+CALLED ^go -C web get
+FILE web/go.mod ^go 1\.27$
+FILE_NOT web/go.mod ^go 1\.28
+FILE_NOT web/go.mod cloudsqlconn
+NO_FILE web/go.sum
+OUTPUT "status": "failed"
+OUTPUT 1\.27
+OUTPUT does not build until the modules are added

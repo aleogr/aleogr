@@ -8,6 +8,7 @@ if [ $# -ne 1 ]; then echo "usage: run.sh <scenario>" >&2; exit 2; fi
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 plugins="$(cd "$here/../plugins" && pwd)"
+repo="$(cd "$here/../.." && pwd)"
 scenario="$here/scenarios/$1"
 if [ ! -f "$scenario/prompt.txt" ] || [ ! -f "$scenario/expect.txt" ]; then
   echo "scenario '$1' not found or incomplete: $scenario" >&2
@@ -59,6 +60,13 @@ while IFS= read -r line || [ -n "$line" ]; do
         [ "$(grep -Ec -- "$re" "$log")" -ge "$n" ] || ok=0 ;;
       esac
       ;;
+    AT_MOST)
+      # AT_MOST <n> <regex>: at most <n> logged calls match (COUNT is "at least").
+      n="${arg%% *}"; re="${arg#* }"
+      case "$n" in ''|*[!0-9]*) echo "bad AT_MOST number: $line" >&2; ok=0 ;; *)
+        [ "$(grep -Ec -- "$re" "$log")" -le "$n" ] || ok=0 ;;
+      esac
+      ;;
     OUTPUT)     grep -Eq -- "$arg" "$out" || ok=0 ;;
     OUTPUT_NOT) ! grep -Eq -- "$arg" "$out" || ok=0 ;;
     RESULT_NOT)
@@ -76,6 +84,16 @@ while IFS= read -r line || [ -n "$line" ]; do
         echo "bad expect line (FILE needs a path and a regex): $line" >&2; ok=0
       else
         { [ -f "$work/cwd/$f" ] && grep -Eq -- "$re" "$work/cwd/$f"; } || ok=0
+      fi
+      ;;
+    SAME_FILE)
+      # SAME_FILE <relative path> <repository path>: the file exists and is byte for byte
+      # the repository's file (cmp), such as a template the skill copies unchanged.
+      f="${arg%% *}"; ref="${arg#* }"
+      if [ "$kind" = "$line" ] || [ "$ref" = "$arg" ] || [ -z "$ref" ]; then
+        echo "bad expect line (SAME_FILE needs a path and a repository path): $line" >&2; ok=0
+      else
+        { [ -f "$work/cwd/$f" ] && [ -f "$repo/$ref" ] && cmp -s -- "$work/cwd/$f" "$repo/$ref"; } || ok=0
       fi
       ;;
     NO_FILE)
@@ -110,7 +128,7 @@ echo "FAIL $1"
 echo "Failed expect lines:"
 printf '  %s\n' "${failed[@]}"
 echo "call log:"
-if [ -s "$log" ]; then sed -E -e '/^(gh|git|sleep) /!s/^/gcloud /' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
+if [ -s "$log" ]; then sed -E -e '/^(gh|git|go|sleep) /!s/^/gcloud /' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
 echo "claude exit status: $claude_status"
 echo "claude output:"
 sed 's/^/  /' "$out"

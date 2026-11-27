@@ -1,0 +1,10 @@
+# go mod tidy removed the two requirements (here the fake does it): modules not-needed, not
+# failed; go.mod stays as tidy left it; the files written stay.
+CALLED ^go -C web get
+CALLED ^go -C web mod tidy$
+FILE_NOT web/go.mod cloudsqlconn
+FILE web/go.mod ^go 1\.27$
+FILE web/db.go ^func dbCheck\(
+OUTPUT "modules": "not-needed"
+OUTPUT "status": "created"
+OUTPUT_NOT "status": "failed"

@@ -1,0 +1,13 @@
+# The update that sets the settings is refused: failed, a pending item, names only, no word of gcloud's.
+CALLED ^run services update demo-web --update-env-vars=
+NOT_CALLED --image
+NOT_CALLED --ingress|--no-invoker-iam-check|--no-iap|--allow-unauthenticated( |$)
+OUTPUT "status": "failed"
+OUTPUT "item": "web: env"
+OUTPUT DB_INSTANCE
+OUTPUT_NOT PERMISSION_DENIED|run\.services\.update|namespaces/
+OUTPUT_NOT aleogr-shared-ab12:|demo_dev
+RESULT_NOT aleogr-shared-ab12|demo_dev
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

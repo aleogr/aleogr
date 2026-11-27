@@ -7,3 +7,7 @@ ORDER ^sql instances describe probe >> ^sql instances create probe
 COUNT 2 ^sql instances describe probe
 OUTPUT SELFTEST-BEFORE
 OUTPUT SELFTEST-AFTER
+# AT_MOST is "at most": the create ran once, the describe twice, and a call that never ran counts 0.
+AT_MOST 1 ^sql instances create probe
+AT_MOST 2 ^sql instances describe probe
+AT_MOST 0 ^sql instances delete

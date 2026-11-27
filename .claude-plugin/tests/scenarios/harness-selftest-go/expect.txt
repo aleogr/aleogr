@@ -1,0 +1,14 @@
+# The fake go logs "go <arguments>" and answers like the other fakes; a successful call with a
+# <prefix>.files/ folder copies its files into the -C folder; a failed call copies nothing.
+CALLED ^go version$
+CALLED ^go -C sub get example\.com/dep@v1\.0\.0$
+CALLED ^go -C sub mod tidy$
+ORDER ^go -C sub get >> ^go -C sub mod tidy
+OUTPUT SELFTEST-GO-VERSION
+OUTPUT SELFTEST-GET
+OUTPUT SELFTEST-TIDY-FAILED
+OUTPUT selftest-rewritten
+FILE sub/go.mod ^require example\.com/dep v1\.0\.0 // selftest-rewritten$
+FILE sub/go.sum ^example\.com/dep v1\.0\.0 h1:selftest-sum=$
+FILE_NOT sub/go.mod selftest-should-not-be-copied
+RESULT_NOT selftest-absent

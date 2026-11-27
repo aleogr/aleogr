@@ -1,0 +1,13 @@
+# DB_NAME's value holds a space, DB_USER names admin, which is not one of components, and DB_INSTANCE's value
+# holds "#", which would break the ^##^ form: failed before any command.
+NOT_CALLED .
+OUTPUT "status": "failed"
+OUTPUT DB_NAME
+OUTPUT admin
+OUTPUT DB_USER
+OUTPUT DB_INSTANCE
+# A failure sentence names a setting, never its value.
+OUTPUT_NOT demo db|demo-admin@|shared##x|aleogr-shared-ab12:
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

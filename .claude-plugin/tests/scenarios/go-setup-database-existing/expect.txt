@@ -1,0 +1,17 @@
+# An existing component whose main.go is still the plain template: replaced by the variant
+# with the route; db.go and db_test.go written; one go get of both modules, then go mod tidy.
+FILE web/main.go ^	mux\.HandleFunc\("GET /db", dbCheck\)$
+FILE web/main.go web: ok
+FILE web/db.go ^func dbCheck\(
+FILE web/db_test.go ^func TestDBNotConfigured\(
+FILE web/main_test.go httptest
+FILE web/go.mod ^go 1\.27$
+FILE web/go.mod cloudsqlconn v1\.27\.1
+CALLED ^go -C web get cloud\.google\.com/go/cloudsqlconn@v1\.27\.1 github\.com/jackc/pgx/v5@v5\.13\.0$
+CALLED ^go -C web mod tidy$
+ORDER ^go -C web get >> ^go -C web mod tidy
+OUTPUT "status": "created"
+OUTPUT "written": false
+OUTPUT "database": "written"
+OUTPUT "route": "added"
+OUTPUT "modules": "added"

@@ -2,4 +2,4 @@
 # is what makes the state "starting".
 CALLED ^sql operations list .*--instance=aleogr-shared
 OUTPUT "state": "starting"
-OUTPUT [Tt]en minutes
+OUTPUT [Tt]welve minutes

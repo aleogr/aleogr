@@ -1,0 +1,31 @@
+# A new component with database=yes: the starting files with the route, db.go and db_test.go,
+# then the two modules with one go get and go mod tidy, in the component's folder.
+FILE web/go.mod ^module github\.com/example-org/example-repo/web$
+FILE web/go.mod ^go 1\.27$
+FILE web/main.go ^	mux\.HandleFunc\("GET /db", dbCheck\)$
+FILE web/main.go web: ok
+FILE web/main_test.go httptest
+FILE web/db.go ^func dbCheck\(w http\.ResponseWriter, r \*http\.Request\) \{$
+FILE web/db.go cloudsqlconn\.WithIAMAuthN\(\)
+FILE web/db.go cloudsqlconn\.WithLazyRefresh\(\)
+FILE web/db.go ^const dbTimeout = 5 \* time\.Second$
+FILE web/db.go database: not reachable \(the shared instance may be stopped\)
+FILE_NOT web/db.go [Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]
+FILE web/db_test.go ^func TestDBNotConfigured\(t \*testing\.T\) \{$
+FILE web/db_test.go ^func TestDBRoute\(t \*testing\.T\) \{$
+FILE web/go.sum cloudsqlconn
+CALLED ^go version$
+CALLED ^go -C web get cloud\.google\.com/go/cloudsqlconn@v1\.27\.1 github\.com/jackc/pgx/v5@v5\.13\.0$
+CALLED ^go -C web mod tidy$
+ORDER ^go version >> ^go -C web get
+ORDER ^go -C web get >> ^go -C web mod tidy
+NOT_CALLED ^gh
+OUTPUT "status": "created"
+OUTPUT "written": true
+OUTPUT "database": "written"
+OUTPUT "route": "added"
+OUTPUT "modules": "added"
+OUTPUT "dockerfile": "not-asked"
+# db.go and db_test.go are the templates byte for byte.
+SAME_FILE web/db.go .claude-plugin/plugins/aleogr-stack-go/files/db.go.tmpl
+SAME_FILE web/db_test.go .claude-plugin/plugins/aleogr-stack-go/files/db_test.go.tmpl

@@ -4,3 +4,4 @@ FILE out/result.json "copied": ?"seed-content"
 NO_FILE out/other.json
 FILE_NOT out/result.json "copied": ?"other-content"
 FILE_NOT out/other.json .
+SAME_FILE seed.txt .claude-plugin/tests/scenarios/harness-selftest-files/files/seed.txt

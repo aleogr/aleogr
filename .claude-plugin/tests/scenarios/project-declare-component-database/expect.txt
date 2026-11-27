@@ -1,0 +1,7 @@
+# database=yes on an existing component of a declaration with an environment: the key is written
+# last in the component's line, its other keys are kept, and nothing is run.
+OUTPUT "status": "updated"
+FILE .aleogr/project.json ^    \{ "name": "web", "stack": "go", "path": "web", "version": "1\.27", "database": true \}$
+FILE .aleogr/project.json ^  "environments": \{ "dev": \{\} \}$
+OUTPUT "changes": \["components\.web"\]
+NOT_CALLED .

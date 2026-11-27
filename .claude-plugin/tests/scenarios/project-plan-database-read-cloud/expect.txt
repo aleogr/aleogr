@@ -1,0 +1,21 @@
+# project-apply's last plan after it wrote the database check's files in this folder in the same run
+# (readCloud=yes): the declaration is the repository's and only generated files changed here, so the
+# plan proposes them and still reads the environment's items, the services and the database: the
+# answer's table shows what the run made in the cloud, and the deploy list comes from the services.
+OUTPUT "changed": \["web/go\.sum", "web/db\.go", "web/db_test\.go"\]
+OUTPUT "item": "declaration", "state": "changed here", "action": "propose"
+CALLED ^run services describe demo-web
+CALLED ^sql users list --instance=aleogr-shared --project=aleogr-shared-ab12
+OUTPUT "item": "services", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "database", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "settings", "state": "not checked until the change is merged", "action": "none"
+OUTPUT "urls": \{ "api": "https://demo-api-[^"]+", "web": "https://demo-web-[^"]+" \}
+OUTPUT_NOT "item": "(environment dev|apis|registry|ci identity|services|database|ci secrets)", "state": "not checked
+OUTPUT "item": "ci secrets", "state": "as declared", "action": "none"
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do|If parts of the database
+NOT_CALLED instances patch
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup|pull-request-open|checkout-setup)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

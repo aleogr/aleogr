@@ -1,0 +1,36 @@
+# Review Focus 1 and 7. Both roles, on the shared project, to serviceAccount:<account>, each with
+# --condition=None; the user of the IAM service-account type, named without .gserviceaccount.com,
+# with no password and no database role; each change read back.
+CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.client( |$)
+CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.instanceUser( |$)
+COUNT 2 ^projects add-iam-policy-binding aleogr-shared-ab12 .*--member=serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com( |$)
+COUNT 2 ^projects add-iam-policy-binding aleogr-shared-ab12 .*--condition=None( |$)
+CALLED ^sql users create demo-web@aleogr-dev-demo-ab12\.iam --instance=aleogr-shared .*--project=aleogr-shared-ab12
+CALLED ^sql users create demo-web@aleogr-dev-demo-ab12\.iam .*--type=cloud_iam_service_account( |$)
+NOT_CALLED ^sql users create .*gserviceaccount
+NOT_CALLED --database-roles|--host
+NOT_CALLED ^sql users (set|patch)
+COUNT 2 ^projects get-iam-policy aleogr-shared-ab12
+COUNT 2 ^sql users list
+ORDER ^sql users list >> ^projects add-iam-policy-binding
+# The user first, the roles after it: a role held always means the user exists.
+ORDER ^sql users create >> ^projects add-iam-policy-binding
+OUTPUT "status": "updated"
+OUTPUT "userCreated": true
+OUTPUT "user": true
+OUTPUT "client": true
+OUTPUT "instanceUser": true
+OUTPUT "pending": \[ ?\]
+# Every scenario of the database skills: the instance is never started, stopped or changed,
+# and the result block holds no e-mail at all (no account address, no user name).
+NOT_CALLED ^sql instances (patch|restart|delete|create)
+NOT_CALLED --password|set-password|--prompt-for-password
+RESULT_NOT @
+# Review Focus 7, as an allow-list: no role but the two, no binding but on the shared project,
+# no member but serviceAccount:<account>, and no binding command of another kind.
+NOT_CALLED --role=(([^ r]|( |$))|r([^ o]|( |$))|ro([^ l]|( |$))|rol([^ e]|( |$))|role([^ s]|( |$))|roles([^ /]|( |$))|roles/([^ c]|( |$))|roles/c([^ l]|( |$))|roles/cl([^ o]|( |$))|roles/clo([^ u]|( |$))|roles/clou([^ d]|( |$))|roles/cloud([^ s]|( |$))|roles/clouds([^ q]|( |$))|roles/cloudsq([^ l]|( |$))|roles/cloudsql([^ \.]|( |$))|roles/cloudsql\.([^ ci]|( |$))|roles/cloudsql\.c([^ l]|( |$))|roles/cloudsql\.cl([^ i]|( |$))|roles/cloudsql\.cli([^ e]|( |$))|roles/cloudsql\.clie([^ n]|( |$))|roles/cloudsql\.clien([^ t]|( |$))|roles/cloudsql\.client[^ ]|roles/cloudsql\.i([^ n]|( |$))|roles/cloudsql\.in([^ s]|( |$))|roles/cloudsql\.ins([^ t]|( |$))|roles/cloudsql\.inst([^ a]|( |$))|roles/cloudsql\.insta([^ n]|( |$))|roles/cloudsql\.instan([^ c]|( |$))|roles/cloudsql\.instanc([^ e]|( |$))|roles/cloudsql\.instance([^ U]|( |$))|roles/cloudsql\.instanceU([^ s]|( |$))|roles/cloudsql\.instanceUs([^ e]|( |$))|roles/cloudsql\.instanceUse([^ r]|( |$))|roles/cloudsql\.instanceUser[^ ])
+NOT_CALLED --role( |$)|--member( |$)
+NOT_CALLED ^projects add-iam-policy-binding (([^ a]|( |$))|a([^ l]|( |$))|al([^ e]|( |$))|ale([^ o]|( |$))|aleo([^ g]|( |$))|aleog([^ r]|( |$))|aleogr([^ -]|( |$))|aleogr-([^ s]|( |$))|aleogr-s([^ h]|( |$))|aleogr-sh([^ a]|( |$))|aleogr-sha([^ r]|( |$))|aleogr-shar([^ e]|( |$))|aleogr-share([^ d]|( |$))|aleogr-shared([^ -]|( |$))|aleogr-shared-([^ a]|( |$))|aleogr-shared-a([^ b]|( |$))|aleogr-shared-ab([^ 1]|( |$))|aleogr-shared-ab1([^ 2]|( |$))|aleogr-shared-ab12[^ ])
+NOT_CALLED ^([^p]|p[^r]|pr[^o]|pro[^j]|proj[^e]|proje[^c]|projec[^t]|project[^s]|projects[^ ]).*add-iam-policy-binding
+NOT_CALLED --member=(([^ s]|( |$))|s([^ e]|( |$))|se([^ r]|( |$))|ser([^ v]|( |$))|serv([^ i]|( |$))|servi([^ c]|( |$))|servic([^ e]|( |$))|service([^ A]|( |$))|serviceA([^ c]|( |$))|serviceAc([^ c]|( |$))|serviceAcc([^ o]|( |$))|serviceAcco([^ u]|( |$))|serviceAccou([^ n]|( |$))|serviceAccoun([^ t]|( |$))|serviceAccount([^ :]|( |$))|serviceAccount:([^ d]|( |$))|serviceAccount:d([^ e]|( |$))|serviceAccount:de([^ m]|( |$))|serviceAccount:dem([^ o]|( |$))|serviceAccount:demo([^ -]|( |$))|serviceAccount:demo-([^ w]|( |$))|serviceAccount:demo-w([^ e]|( |$))|serviceAccount:demo-we([^ b]|( |$))|serviceAccount:demo-web([^ @]|( |$))|serviceAccount:demo-web@([^ a]|( |$))|serviceAccount:demo-web@a([^ l]|( |$))|serviceAccount:demo-web@al([^ e]|( |$))|serviceAccount:demo-web@ale([^ o]|( |$))|serviceAccount:demo-web@aleo([^ g]|( |$))|serviceAccount:demo-web@aleog([^ r]|( |$))|serviceAccount:demo-web@aleogr([^ -]|( |$))|serviceAccount:demo-web@aleogr-([^ d]|( |$))|serviceAccount:demo-web@aleogr-d([^ e]|( |$))|serviceAccount:demo-web@aleogr-de([^ v]|( |$))|serviceAccount:demo-web@aleogr-dev([^ -]|( |$))|serviceAccount:demo-web@aleogr-dev-([^ d]|( |$))|serviceAccount:demo-web@aleogr-dev-d([^ e]|( |$))|serviceAccount:demo-web@aleogr-dev-de([^ m]|( |$))|serviceAccount:demo-web@aleogr-dev-dem([^ o]|( |$))|serviceAccount:demo-web@aleogr-dev-demo([^ -]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-([^ a]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-a([^ b]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab([^ 1]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab1([^ 2]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12([^ \.]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.([^ i]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.i([^ a]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.ia([^ m]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam([^ \.]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.([^ g]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.g([^ s]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gs([^ e]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gse([^ r]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gser([^ v]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserv([^ i]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gservi([^ c]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gservic([^ e]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gservice([^ a]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gservicea([^ c]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceac([^ c]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceacc([^ o]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceacco([^ u]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccou([^ n]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccoun([^ t]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount([^ \.]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.([^ c]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.c([^ o]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.co([^ m]|( |$))|serviceAccount:demo-web@aleogr-dev-demo-ab12\.iam\.gserviceaccount\.com[^ ])
+NOT_CALLED set-iam-policy|remove-iam-policy-binding|--condition-from-file|^organizations |^resource-manager 
