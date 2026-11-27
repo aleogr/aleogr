@@ -3,6 +3,10 @@
 # the roles and the settings, says it started the instance, and proposes the check written before
 # the start (before any cost).
 ORDER ^go -C web get >> ^sql instances patch
+# The night stop is read right before the start (its jobs and identity, as platform-plan reads them).
+ORDER ^scheduler jobs describe aleogr-shared-stop-weeknight --project=aleogr-shared-ab12 --location=us-central1 >> ^sql instances patch
+CALLED ^scheduler jobs describe aleogr-shared-stop-weekend
+AT_MOST 1 ^sql instances patch
 ORDER ^sql instances patch aleogr-shared --project=aleogr-shared-ab12 --activation-policy=ALWAYS >> ^sleep 30$
 ORDER ^sleep 30$ >> ^sql databases list
 ORDER ^sql databases list >> ^sql databases create demo_dev
@@ -16,12 +20,17 @@ OUTPUT "status": "updated"
 OUTPUT "item": "pull request #7 is open"
 CALLED ^gh pr create .*Add the database check of web
 COUNT 1 ^gh pr create
+AT_MOST 1 ^gh pr create
+# The last plan reads the cloud although the check's files make the declaration changed here
+# (readCloud=yes): its table shows the database made, and the deploy list comes from the services.
+OUTPUT "item": "database", "state": "as declared", "action": "none"
+OUTPUT ^web: https://demo-web-123456789012\.us-central1\.run\.app/db$
 # The answer: no line while a wait runs, no opening summary, no note of its own under the table.
 OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|[Tt]he run (changed|stops|stopped)|[Tt]his run stopped (before|at|there)
 # Every database scenario of the run: the instance is never stopped, created or deleted; no
 # password; the nested blocks are input only; no e-mail of a component nor the shared project id
 # in the result block.
 NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
-OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open|instance-switch-setup)"
 RESULT_NOT aleogr-shared-ab12
 RESULT_NOT demo-web@|demo-api@|\.iam"

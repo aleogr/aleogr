@@ -1,0 +1,40 @@
+# The owner's main step after the merge (the review's I5), composed from the existing fixtures: the
+# folder is behind the merged declaration and code, so the run updates it, plans again, enables the
+# Cloud SQL Admin API of the project's own GCP project, plans again under the wait for just-enabled
+# APIs (the first plan after the enable is refused once), reads the night stop, starts the stopped
+# shared instance, waits for it (read on the second try), makes the database, the user, the roles
+# and the settings, and its last plan says nothing to do. No pull request: the code is merged.
+ORDER ^git -c credential.* pull --ff-only origin main >> ^services enable sqladmin\.googleapis\.com
+ORDER ^services enable >> ^sleep 30$
+ORDER ^services enable >> ^artifacts repositories describe demo
+ORDER ^services enable >> ^scheduler jobs describe aleogr-shared-stop-weeknight --project=aleogr-shared-ab12
+ORDER ^scheduler jobs describe aleogr-shared-stop-weekend >> ^sql instances patch aleogr-shared --project=aleogr-shared-ab12 --activation-policy=ALWAYS
+ORDER ^sql instances patch >> ^sql databases list
+ORDER ^sql databases list >> ^sql databases create demo_dev
+ORDER ^sql databases create >> ^sql users create demo-web@aleogr-dev-demo-ab12\.iam
+ORDER ^sql users create >> ^projects add-iam-policy-binding aleogr-shared-ab12
+ORDER ^projects add-iam-policy-binding >> ^run services update demo-web --update-env-vars=
+COUNT 2 ^sleep 30$
+COUNT 2 ^artifacts repositories describe demo
+AT_MOST 1 ^sql instances patch
+AT_MOST 1 ^services enable
+NOT_CALLED ^gh pr create|^go |^git (add|commit|switch)
+OUTPUT This run started the shared database instance: it runs, charged by the hour, until the night stop\. To stop it sooner: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop, or the workflow self-shared-database of aleogr/aleogr \(action stop\)\.
+OUTPUT "item": "database", "state": "as declared", "action": "none"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT ^web: https://demo-web-123456789012\.us-central1\.run\.app/db$
+OUTPUT "status": "updated"
+OUTPUT "pullRequest": null
+OUTPUT "notes": "the shared instance started in this run is charged by the hour until the night stop"
+OUTPUT_NOT already starting|could not be confirmed|was not all made|did not accept calls
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|[Tt]he run (changed|stops|stopped)|[Tt]his run stopped (before|at|there)
+OUTPUT_NOT PERMISSION_DENIED|has not been used
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only (one table, one result block: no nested block or table
+# copied); no e-mail of a component nor the shared project id in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|instance-switch-setup|deploy-setup|services-enable|checkout-setup|go-setup|setup|pull-request-open)"
+OUTPUT_NOT ^GitHub secrets|GCP_SHARED_
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

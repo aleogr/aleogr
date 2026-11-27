@@ -1,6 +1,9 @@
 # The instance is started and stays starting for 30 tries (a 31st try would find it running): the
 # run stops at the limit, says it started the instance, and makes nothing after it.
 CALLED ^sql instances patch aleogr-shared --project=aleogr-shared-ab12 --activation-policy=ALWAYS
+ORDER ^scheduler jobs describe aleogr-shared-stop-weeknight --project=aleogr-shared-ab12 >> ^sql instances patch
+AT_MOST 1 ^sql instances patch
+AT_MOST 30 ^sql operations list
 COUNT 30 ^sql operations list
 COUNT 29 ^sleep 30$
 NOT_CALLED ^sql (databases|users) (list|create)

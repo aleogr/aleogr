@@ -6,6 +6,7 @@ OUTPUT "item": "database", "reason": "manual", "how": "[^"]*/aleogr:platform-pla
 OUTPUT /aleogr:platform-plan shows what it makes and what it costs
 OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "pending"
+OUTPUT Nothing can be made for the database until the shared platform is ready\.
 # The answer: no line while a wait runs, no opening summary, no note of its own under the table.
 OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|[Tt]he run (changed|stops|stopped)|[Tt]his run stopped (before|at|there)
 # Every database scenario of the run: the instance is never stopped, created or deleted; no

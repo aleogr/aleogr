@@ -1,0 +1,1 @@
+projects/123456789012/locations/global/workloadIdentityPools/github/providers/github

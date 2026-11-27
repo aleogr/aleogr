@@ -20,3 +20,5 @@ NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--pass
 OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
 RESULT_NOT aleogr-shared-ab12
 RESULT_NOT demo-web@|demo-api@|\.iam"
+# One pull request, at most (COUNT is "at least").
+AT_MOST 1 ^gh pr create
