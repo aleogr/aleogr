@@ -39,7 +39,7 @@ Before any command, check every argument, and never ask for anything. Each argum
 
 ## Steps
 
-Show each command before running it. Run only the commands below, in this order, each one alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. A value written in double quotes below keeps its quotes. The text of a non-zero exit is never read to decide and is never quoted: repeat no word of `gcloud`'s answer (not even its status words, codes or reasons). Each failure is said with its sentence below and nothing else about it. This skill never runs `gcloud sql instances patch` or any other command that starts, stops or changes the instance.
+Show each command before running it. Run only the commands below, in this order, each one alone: not piped into another command, not wrapped in a subshell, so that its exit code is the one read. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. A value written in double quotes below keeps its quotes. The text of a non-zero exit is never read to decide and is never quoted: repeat no word of `gcloud`'s answer (not even its status words, codes or reasons). Each failure, and each other sentence written in backquotes below, is said word for word, and nothing else about a failure. This skill never runs `gcloud sql instances patch` or any other command that starts, stops or changes the instance.
 
 1. The instance, with the read and the state rule of `gcp-cloud-sql_instance-describe`, copied here (its backups are not read):
 
@@ -76,7 +76,7 @@ Show each command before running it. Run only the commands below, in this order,
    - Any non-zero exit of either: say `The databases and users of the instance <instance> could not be read although it is running; nothing was changed.` and end with `failed`.
    - Any other state (`stopped`, `starting`, `creating`, `unknown`): neither command runs; `databaseExists` and each `user` are `null` (not read), and `read` is false. This is not a failure.
 
-Then answer in a few lines: the instance's state; the database's name and whether it exists, or that it was not read because the instance is not running (`The database and its users were not read: the shared instance is <state>.`); for each account, which may be named in the text, whether it is a user (or not read) and which of the two roles it holds; and the result block. When the state is `unknown`, the answer reports the raw `settings.activationPolicy` value (or that it is absent).
+Then answer in a few lines: the instance's state; the database's name and whether it exists, or, when the instance is not running, the sentence `The database and its users were not read: the shared instance is <state>.`, word for word; for each account, which may be named in the text, whether it is a user (or not read) and which of the two roles it holds; and the result block. When the state is `unknown`, the answer reports the raw `settings.activationPolicy` value (or that it is absent).
 
 ## The instance's state
 
