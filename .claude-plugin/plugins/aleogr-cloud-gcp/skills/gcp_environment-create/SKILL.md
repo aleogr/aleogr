@@ -1,5 +1,6 @@
 ---
 description: Google Cloud (GCP) environment create. Use to create the GCP project of an aleogr project and environment (in the environment's folder, under the organization or, for test projects, inside the tst folder; or directly under the organization for the shared platform project), link its billing account and verify it. Idempotent; plan by default.
+allowed-tools: Bash(aleogr-cloud-gcp --read-only gcp_environment-create), Bash(aleogr-cloud-gcp --read-only gcp_environment-create *)
 ---
 
 # gcp_environment-create
@@ -18,135 +19,45 @@ Free text after the skill name, as `key=value` pairs.
 | `platform=shared` | Only the aleogr platform passes it, with `project=shared` and no `environment`, to create the shared platform project. |
 | `root=tst` | Optional. A project that tests the tooling: the environment's folder is looked up inside the folder `tst` instead of under the organization. |
 
-## Validate first
+`project` and `environment` are required. The shared platform's project is the one exception: `project=shared platform=shared`, with no `environment` and no `root`.
 
-Before running any command, check the arguments. Any failure ends the skill with the result block, `status` `failed`, one sentence saying which rule failed, and no `gcloud` call.
+A GCP project's id is permanent. The result gives the project's id in `outputs.projectId`.
 
-- `mode` is `plan` or `apply`; `platform` is absent or `shared`; `root` is absent or `tst` (any other value of `root` fails).
-- With `platform=shared`: `project` must be `shared`, `environment` must be absent, and `root` is not allowed.
-- Without `platform`: `project` and `environment` are required (if one is missing, the sentence names it: `<argument> is missing.`; never ask for it, nobody may answer in an automated run); `environment` is one of `dev`, `hom`, `prd`; `test` and `shared` are refused as project names.
-- `project` has 1 to 14 characters (the project ID is limited to 30 characters), only `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`.
+The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
-## Steps
+## Run
 
-Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place. In `plan` mode the discovery commands (steps 1 to 4, the search by parent of step 3 included) are allowed because they only read; never run `projects create` or `billing projects link` in `plan`.
+Run one of these two commands with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 
-1. Check whether the project exists: invoke `aleogr-cloud-gcp:gcp_environment-describe` with `project=shared platform=shared` when `platform=shared` was given, otherwise with `project=<project> environment=<environment>`. The describe skill ends with its own `aleogr-result` block: use it only as input and do not repeat it; this skill's answer ends with exactly one `aleogr-result` block, its own. If the describe result has `status` `failed`, stop with `failed`. If `exists` is true:
-   - `billingLinked` true: run nothing else and end with `status` `unchanged`, reporting its `projectId`.
-   - `billingLinked` false (a project left without billing): do not create anything. Run step 4 only, and no other discovery command. In `plan`, end with `status` `would-update` (billing link missing). In `apply`, go to the repair in step 7 with the existing `projectId`, and end with `updated` instead of `created`.
+- When the arguments hold `mode=apply`, run exactly:
 
-2. Organization (needed to find the parent; run it in either mode):
+  ```
+  aleogr-cloud-gcp gcp_environment-create <arguments>
+  ```
 
-   ```
-   gcloud organizations list --format="value(name)"
-   ```
+- In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
-3. Parent. This skill never creates folders.
-   - With `platform=shared`: the parent is the organization from step 2. Run no folder command.
-   - Without `root`: find the folder whose display name equals the environment, under the organization:
+  ```
+  aleogr-cloud-gcp --read-only gcp_environment-create <arguments>
+  ```
 
-     ```
-     gcloud resource-manager folders list --organization=<organizationId> --filter="displayName=<environment>" --format="value(name)"
-     ```
+Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
 
-     No output: stop with `failed`, saying that the folder `<environment>` must be created first.
-   - With `root=tst`: first find the folder `tst` under the organization, then the folder of the environment inside it:
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
-     ```
-     gcloud resource-manager folders list --organization=<organizationId> --filter="displayName=tst" --format="value(name)"
-     gcloud resource-manager folders list --folder=<tstFolderId> --filter="displayName=<environment>" --format="value(name)"
-     ```
+It prints two kinds of lines:
 
-     No output from the first: stop with `failed`, saying that the folder `tst` must be created first, and run no other command. No output from the second: stop with `failed`, saying that the folder `<environment>` inside `tst` must be created first. The parent is the folder found by the second command.
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
 
-   Then, in either mode, search the parent once more, alone, before step 4. The search by labels of step 1 is eventually consistent and may not show a project created a minute ago; a search that names the parent reads a more consistent index. With `platform=shared` (the parent is the organization):
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
 
-   ```
-   gcloud projects list --filter="parent.type=organization AND parent.id=<organizationId> AND labels.aleogr-project=shared AND labels.aleogr-platform=shared" --format="value(projectId)"
-   ```
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-   Otherwise (the parent is the environment's folder; with `root=tst`, the folder inside `tst`):
+- When the command was the one for `mode=apply`, the sentence is `The command aleogr-cloud-gcp ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` and the block is as it is below.
 
-   ```
-   gcloud projects list --filter="parent.type=folder AND parent.id=<folderId> AND labels.aleogr-project=<project> AND labels.aleogr-environment=<environment>" --format="value(projectId)"
-   ```
-
-   `parent.id` takes the bare number, the digits after `organizations/` or `folders/` (as `--organization=` and `--folder=` do): `parent.id=folders/<n>` matches nothing and would read as "does not exist".
-
-   - Non-zero exit (not `0`): stop with `failed` and one sentence of cause, without raw error text. Create nothing.
-   - No output: the project does not exist. Continue with step 4.
-   - One line: that is the project's ID, and the project exists. Never create a project then. Say so in this one sentence: `The first search had not seen project <projectId> yet; the search by parent found it.` Then check its billing, alone:
-
-     ```
-     gcloud billing projects describe <projectId> --format="value(billingEnabled)"
-     ```
-
-     A non-zero exit stops with `failed` and one sentence of cause. `True`: run nothing else and end with `status` `unchanged`, reporting this `projectId`. Empty output or `False`: billing is not linked; run step 4, then in `plan` end with `status` `would-update`, and in `apply` go to the repair in step 7 with this `projectId` and end with `updated` instead of `created`, exactly as for an existing project found in step 1.
-   - More than one line: stop with `failed`, saying in one sentence that `<n>` projects with these labels were found in the parent and none was picked. Create nothing.
-
-4. Billing account:
-
-   ```
-   gcloud billing accounts list --filter="open=true" --format="value(name)"
-   ```
-
-`gcloud` returns names as `organizations/<id>`, `folders/<id>` and `billingAccounts/<id>`. The flags below take the bare id, the part after the slash: `--organization=<id>`, `--folder=<id>`, `--billing-account=<id>`.
-
-For steps 2 to 4 (except the search by parent at the end of step 3, whose outcomes are listed there): a non-zero exit, or empty output, stops the skill with `failed` and one sentence of cause, without raw error text. More than one line means more than one organization, folder (`tst` or the environment's) or billing account: stop with `failed`, say how many were found and ask which one to use (organization, folder or billing account), without printing any identifier in the answer or in the result block. Do not pick one; nobody may answer in an automated run, so run no create command.
-
-5. `plan` mode ends here: report what would be created (project ID with a placeholder suffix such as `aleogr-<environment>-<project>-xxxx`, or `aleogr-shared-xxxx` for the shared project, parent type, billing link) and end with `status` `would-create`.
-
-6. `apply` mode (a repair of an existing project, found in step 1 or by the search by parent of step 3, skips to step 7). Build the project ID: `aleogr-shared-<random>` with `platform=shared`, otherwise `aleogr-<environment>-<project>-<random>`, where `<random>` is 4 random characters of `a-z0-9` (pick the means that works in the current shell). Create the project with one of these two commands:
-   - With `platform=shared` (the shared project, under the organization, with the platform label and no environment):
-
-     ```
-     gcloud projects create <projectId> --organization=<id> --name="shared" --labels="aleogr-project=shared,aleogr-platform=shared"
-     ```
-
-   - Otherwise (in the environment's folder found in step 3, without the platform label; with `root=tst` that is the folder inside `tst`):
-
-     ```
-     gcloud projects create <projectId> --folder=<id> --name="<environment> <project>" --labels="aleogr-project=<project>,aleogr-environment=<environment>"
-     ```
-
-   Keep the quotes around the `--labels` value: PowerShell splits an unquoted value at its commas, and `gcloud` then rejects the arguments.
-
-   The create sets the labels itself (they are part of the create request). A non-zero exit does not prove that nothing was created: the command creates the project, waits for the operation and then enables an API, and a failure in the wait or the enable exits non-zero with the project existing. On a non-zero exit, run alone:
-
-   ```
-   gcloud projects describe <projectId> --format="value(lifecycleState)"
-   ```
-
-   - Exit `0` and `ACTIVE`: the project exists. Do not create it again; go on with step 7, and say exactly `The create reported an error, but the project <projectId> exists.` Repeat no word of `gcloud`'s answer to the create (not its message, not its status words): that sentence is all the answer says about it.
-   - Exit `0` with another state: the project exists but is not usable. Stop with `pending`, as below, with `pending[].how` this describe command.
-   - A non-zero exit (the project is not found, or cannot be read): stop with `failed` and the sentence `The project could not be created; nothing was created.`, with `outputs.projectId` `null`. Repeat no word of `gcloud`'s answers.
-
-   From here on the project exists: any later failure ends with `pending`, never `failed`, with `outputs.projectId` set to the project ID, `resources` listing the project, and `pending[].how` holding the next command to run.
-
-7. Link billing:
-
-   ```
-   gcloud billing projects link <projectId> --billing-account=<id>
-   ```
-
-   If it exits non-zero the project has no billing: stop with `status` `pending`, name the project ID, and set `pending` to one item whose `how` is the exact command `gcloud billing projects link <projectId> --billing-account=<id>` (with the real bare id, so the owner can run it). This also holds when repairing an existing project.
-
-8. Verify:
-
-   ```
-   gcloud projects describe <projectId> --format="value(lifecycleState)"
-   gcloud billing projects describe <projectId> --format="value(billingEnabled)"
-   ```
-
-   Expect `ACTIVE` and `True`, also when repairing an existing project (a non-empty `billingAccountName` is not enough). A non-zero exit, or any other value, ends with `pending` (the project exists) and a sentence saying what could not be verified; `pending[].how` is the command that checks it, for example `gcloud billing projects describe <projectId> --format="value(billingEnabled)"`.
-
-Then answer in a few lines: the project ID, its parent type, whether billing is linked, and the result block.
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
-
-End with exactly one fenced block tagged `aleogr-result`:
+The block:
 
 ```aleogr-result
 {
@@ -154,21 +65,15 @@ End with exactly one fenced block tagged `aleogr-result`:
   "family": "cloud",
   "provider": "gcp",
   "action": "environment-create",
-  "mode": "apply",
-  "status": "created",
-  "resources": [
-    { "type": "project", "id": "<projectId>", "name": "<project>", "labels": { "aleogr-project": "<project>", "aleogr-environment": "<environment>" } }
-  ],
-  "outputs": { "projectId": "<projectId>" },
-  "cost": { "fixed": false, "notes": "project creation is free" },
-  "pending": []
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-cloud-gcp, then try again" } ]
 }
 ```
 
-- `mode` echoes the mode used. `status` is one of `would-create` (plan), `created`, `would-update` (plan: the project exists, billing not linked), `updated` (billing linked on an existing project), `unchanged` (the project exists with billing), `pending` (the project exists, a step after creation or the billing link failed), `failed` (nothing was created).
-- `would-create`: `resources` lists the project with the planned ID, `outputs.projectId` is `null`.
-- `would-update` and `updated`: `resources` lists the project; `outputs.projectId` is its ID.
-- `failed`: `resources` is empty, `outputs` is `{ "projectId": null }`, and nothing but the one-sentence cause is added to the answer.
-- `pending`: `resources` lists the project and `outputs.projectId` is its ID, always.
-- With `platform=shared`, the labels in `resources` are `{ "aleogr-project": "shared", "aleogr-platform": "shared" }`.
-- Never put organization, folder or billing identifiers in the result block, except inside `pending[].how`.
+## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

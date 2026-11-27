@@ -424,8 +424,9 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(self.call(sql, "--has", "gcp-cloud-sql_instance-describe")[0], 0)
         self.assertEqual(self.call(sql, "--has", "gcp-cloud-sql_instance-describe",
                                    "plan")[0], 0)
-        self.assertEqual(self.call(sql, "--has", "gcp-cloud-sql_instance-create")[0], 64)
-        code, out, err = self.call(sql, "gcp-cloud-sql_instance-create", "mode=plan")
+        # project-apply is prose until step 3: the example of a skill not converted.
+        self.assertEqual(self.call("aleogr", "--has", "project-apply")[0], 64)
+        code, out, err = self.call("aleogr", "project-apply", "confirm=yes")
         self.assertEqual((code, out), (64, ""))
         self.assertEqual(len(err.splitlines()), 1)
         self.assertEqual(self.call(sql, "no-such-skill")[0], 2)

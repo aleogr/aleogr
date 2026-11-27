@@ -45,10 +45,11 @@ Unchanged, and now in code: nothing with a cost, nothing irreversible and nothin
 - A wait is the command `sleep 30` run by the script (the fake `sleep` of the tests logs it, so the scenarios still count the tries).
 - A shell of a skill that can wait tells the model to run the command in the foreground with the Bash tool's longest timeout (ten minutes), once, never in the background. Tried on 2026-11-27: a command that waited 150 seconds by itself ran to its end this way.
 - **A command never waits past eight minutes in one run.** A skill whose waits could add up to more ends `pending` at that point, with the item that says to run it again; every skill reads before it changes, so the second run goes on from where the first stopped. No leaf skill of today reaches the limit in its documented waits (ten tries of thirty seconds); the rule is there so none can be killed half-way by the tool's timeout.
+- **The clock of a run** (added after the final review of part 2b): the waits count only the `sleep`s, not the time the provider commands take, so a run also keeps its own clock from its start. No wait is begun that would end after seven minutes of the run; every provider command is bounded by the run's deadline of nine and a half minutes, and killed with what it started when it is reached; and a run aborted by that deadline, or by any unexpected error, always ends with a `failed` result that names the writes it had run and what they may have left charged or created, never with no answer. A shell whose command can write never says, when it printed no result, that nothing was run ([DESIGN.md section 10.4](../DESIGN.md#104-behavior-of-every-skill)).
 
 ### Files
 
-A command writes a file of the folder itself (the declaration, a component's starting files, `ci.yml`) and prints `+ write <path>` before it, as it prints a provider command. It writes only inside the current folder, never through a link that leads out of it, and only the paths its skill names.
+A command writes a file of the folder itself (the declaration, a component's starting files, `ci.yml`) and prints `+ write <path>` before it, as it prints a provider command. It writes only inside the current folder, never through a link that leads out of it, and only the paths its skill names. A temporary file (`gcp-artifact-registry_cleanup-configure`'s policy for a `keep` other than 5) is created new, mode 0600, in a private folder of the process in the system's temporary folder, never at a fixed name there, and removed when the process ends.
 
 ### Values that must not be shown
 
@@ -73,5 +74,5 @@ One task per plugin after a short foundation task (the writing runner and its al
 ## Known limits
 
 - `project-apply` stays prose until step 3: it still decides which skill to invoke and when, and still takes minutes after a merge.
-- During a long wait the owner sees nothing until the command ends (up to eight minutes).
+- During a long wait the owner sees nothing until the command ends (up to nine and a half minutes, the run's deadline).
 - An apply now asks for one permission for the whole command, where the prose asked per provider command. The gate for cost stays the confirmation in the command.

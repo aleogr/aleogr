@@ -1,6 +1,6 @@
 {
   "name": "aleogr-db-gcp-cloud-sql",
-  "version": "0.6.1",
+  "version": "0.7.1",
   "description": "Cloud SQL family: the shared platform's PostgreSQL instance and its start and stop, and a project's database on it, its users and their connection roles, with no password.",
   "author": { "name": "aleogr" }
 }

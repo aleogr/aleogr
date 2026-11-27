@@ -16,21 +16,27 @@ It holds what every command needs and nothing of a skill's own rules:
   command that is not on its skill's allowlist of writes (`WRITE_SHAPES` below);
 - the files of the current folder a skill writes (`FILE_WRITES`), the copies it keeps
   of them and puts back, and the waits of a run, within one budget;
+- the clock of a run: waits end at seven minutes (WAIT_CLOCK_LIMIT), every provider
+  command is bounded by the run's deadline (RUN_DEADLINE, a TimeLimit when it is
+  reached), and an aborted run still ends with a `failed` result (aborted_result);
 - `call_plugin`, which runs another plugin's command with `--json`;
 - the answer: lines, a table, and the fenced `aleogr-result` block.
 
 Python 3.9 or later, standard library only.
 """
 
+import atexit
 import importlib
 import json
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.dont_write_bytecode = True
 
@@ -62,6 +68,20 @@ class ReadRefused(Exception):
         self.argv = list(argv)
         self.reason = reason
         super().__init__("refused, not a read: %s (%s)" % (show_command(argv), reason))
+
+
+class TimeLimit(Exception):
+    """The run's deadline (RUN_DEADLINE) was reached while a provider command was still
+    running: the command was killed, and may still take effect (a create that the
+    provider had accepted goes on without it).
+
+    `shown` is the command as its `+ ` line showed it (a Hidden value as `<value>`). The
+    dispatcher prints the fixed `failed` result of an aborted run (aborted_result) and
+    exits 70."""
+
+    def __init__(self, argv):
+        self.shown = argv if isinstance(argv, str) else show_command(argv)
+        super().__init__("the run's time limit was reached while running: %s" % self.shown)
 
 
 class WriteRefused(Exception):
@@ -307,6 +327,14 @@ def _sleep(rest):
     return "sleep takes one number of seconds"
 
 
+def _only(*allowed):
+    """Accepts the command only when what follows it is exactly `allowed`
+    (`gcloud config get-value account`, and no other property)."""
+    def guard(rest):
+        return None if list(rest) == list(allowed) else "only %s here" % " ".join(allowed)
+    return guard
+
+
 _GIT_NO_OUTPUT = _no_flags("--output", "--ext-diff")
 
 READS = {
@@ -346,6 +374,12 @@ READS = {
         ("sql", "users", "list"),
         ("billing", "budgets", "list"),
         ("billing", "budgets", "describe"),
+        # Added for part 2b (the skills that write to Google Cloud read these too).
+        ("billing", "accounts", "list"),
+        ("config", "get-value", _only("account")),
+        ("organizations", "get-iam-policy"),
+        ("iam", "roles", "describe"),
+        ("scheduler", "jobs", "describe"),
     ],
     "gh": [
         ("--version",),
@@ -420,6 +454,12 @@ def read_refusal(argv):
     shapes = READS.get(tool)
     if shapes is None:
         return "%s is not a provider command" % tool
+    if tool == "gcloud":
+        # What no skill may ever run is not a read either (`auth print-access-token`,
+        # `config set`, `--impersonate-service-account` on a describe, ...).
+        why = _gcloud_refused(argv[1:])
+        if why:
+            return why
     args, reason = _strip_global(tool, argv[1:])
     if reason:
         return reason
@@ -473,18 +513,97 @@ class _T(object):
 
 
 class _PluginFile(object):
-    """One argument that is exactly `<plugin root>/files/<one of names>`."""
+    """One argument that is exactly `<prefix><plugin root>/files/<one of names>`: the
+    path alone (`--input <file>`), or after a flag written with it (`prefix`
+    `--message-body-from-file=`). Real paths are compared."""
 
-    def __init__(self, *names):
+    def __init__(self, *names, **kw):
         self.names = names
-        self.name = "a file of the plugin: " + ", ".join(names)
+        self.prefix = kw.get("prefix", "")
+        self.name = self.prefix + "a file of the plugin: " + ", ".join(names)
 
     def match(self, arg, env):
         root = (env or {}).get("root")
-        if not root:
+        if not root or not arg.startswith(self.prefix):
             return False
-        return any(os.path.realpath(arg) == os.path.realpath(os.path.join(root, "files", n))
+        path = arg[len(self.prefix):]
+        return any(os.path.realpath(path) == os.path.realpath(os.path.join(root, "files", n))
                    for n in self.names)
+
+
+# The private folder write_temp_file makes for a process (tempfile.mkdtemp's name: the
+# prefix, then letters, digits and `_`; never the `-` of `aleogr-backup-`).
+PRIVATE_TEMP_PREFIX = "aleogr-"
+_PRIVATE_TEMP_RE = re.compile(re.escape(PRIVATE_TEMP_PREFIX) + r"[A-Za-z0-9_]{1,64}")
+
+
+class _TempFile(object):
+    """One argument that is exactly `<prefix><system temporary folder>/aleogr-<x>/<name>`,
+    where `aleogr-<x>` is a private folder of write_temp_file (private_temp_dir) and
+    `<name>` matches `pattern` in full: a file the skill wrote for this run with
+    write_temp_file (TEMP_FILE_WRITES). Real paths of the temporary folder are
+    compared; `env["temp"]` stands for it in the unit tests."""
+
+    def __init__(self, pattern, prefix=""):
+        self.re = re.compile(pattern)
+        self.prefix = prefix
+        self.name = "%s<temporary folder>/aleogr-<x>/%s" % (prefix, pattern)
+
+    def match(self, arg, env):
+        if not arg.startswith(self.prefix):
+            return False
+        path = arg[len(self.prefix):]
+        folder = (env or {}).get("temp") or system_temp_dir()
+        head, base = os.path.split(path)
+        top, private = os.path.split(head)
+        return (bool(top) and self.re.fullmatch(base) is not None
+                and _PRIVATE_TEMP_RE.fullmatch(private) is not None
+                and os.path.realpath(top) == os.path.realpath(folder))
+
+
+class _AnyOf(object):
+    """One argument that matches one of `items` (each a `_T`, `_PluginFile`, ...)."""
+
+    def __init__(self, *items):
+        self.items = items
+        self.name = " or ".join(i.name for i in items)
+
+    def match(self, arg, env):
+        return any(i.match(arg, env) for i in self.items)
+
+
+class _Opt(object):
+    """In a shape: these items, in this order, all of them or none."""
+
+    def __init__(self, *items):
+        self.items = items
+
+
+class _Rep(object):
+    """In a shape: one item, `minimum` times or more, one after another."""
+
+    def __init__(self, item, minimum=1):
+        self.item = item
+        self.minimum = minimum
+
+
+class _Shape(object):
+    """A shape whose arguments must also agree with each other: `check(args)` (args:
+    the whole command after the tool) returns None, or the reason they do not (the
+    account's project is not `--project`, a label names another component, ...)."""
+
+    def __init__(self, *items, **kw):
+        self.items = items
+        self.check = kw.get("check")
+
+    def __getitem__(self, i):
+        return self.items[i]
+
+
+def _F(flag, pattern, name=None):
+    """One argument `<flag>=<value>`, the value matching `pattern` in full (gcloud's
+    flags are written with their value in one argument)."""
+    return _T(re.escape(flag) + "=(?:" + pattern + ")", "%s=<%s>" % (flag, name or "value"))
 
 
 _OWNER_RE = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"
@@ -668,6 +787,459 @@ WRITE_TOOLS = {
     "github_variables-set": "gh",
     "go_setup": "go",
 }
+
+
+# ---------------------------------------------------------------------------
+# Writes to Google Cloud (part 2b): the gcloud shapes, one per command each SKILL.md
+# prescribes, its flags in the SKILL.md's order (a value the SKILL.md double-quotes is
+# one argument without its quotes). A role, a member's form, a condition flag and the
+# resource are pinned as the skill writes them; a `_Shape`'s check makes the account,
+# the project and the names of one command agree with each other.
+
+_PID = r"[a-z][a-z0-9-]{4,28}[a-z0-9]"
+_INSTANCE = r"[a-z][a-z0-9-]{0,59}"
+_REGION = r"[a-z]+(?:-[a-z]+)+[0-9]+"
+# The region of instance-create (no rule of its own) and of instance-switch-setup
+# (lowercase letters, digits and -).
+_LOCATION = r"[a-z0-9-]{1,63}"
+_PROJECT_NAME = r"[a-z](?:[a-z0-9-]{0,12}[a-z0-9])?"
+_COMPONENT = r"[a-z](?:[a-z0-9-]{0,18}[a-z0-9])?"
+_SA_ID = r"[a-z][a-z0-9-]{4,28}[a-z0-9]"
+_SERVICE = _SA_ID  # <project>-<component>: a service's name and its account's id
+_SA = _SA_ID + "@" + _PID + r"\.iam\.gserviceaccount\.com"
+_DOMAIN = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{1,63}"
+_EMAIL = r"[A-Za-z0-9._%+-]{1,64}@" + _DOMAIN
+# One person: never a service account (its domain in any case of letters).
+_PERSON = r"(?!(?i:[^@]*@(?:.*\.)?gserviceaccount\.com$))[A-Za-z0-9._+-]{1,64}@" + _DOMAIN
+_ANY_SA = r"[a-z0-9][a-z0-9._-]{0,99}@(?:[a-z0-9-]{1,63}\.)*gserviceaccount\.com"
+# The active gcloud account as a member: `user:` for a person, `serviceAccount:` for an
+# address that ends with .gserviceaccount.com.
+_ACTIVE_MEMBER = "user:" + _PERSON + "|serviceAccount:" + _ANY_SA
+_ROLE = (r"roles/[A-Za-z0-9_.]{1,128}|(?:projects/" + _PID
+         + r"|organizations/[0-9]{1,25})/roles/[A-Za-z0-9_.]{1,64}")
+_GH_REPO = _OWNER_RE + "/" + _NAME_RE
+_SWITCH_REPO = r"[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}"
+_ISSUER = "--issuer-uri=https://token.actions.githubusercontent.com"
+_BILLING_ACCOUNT = r"[0-9A-Z]{6}-[0-9A-Z]{6}-[0-9A-Z]{6}"
+
+
+def _principal_set(repo):
+    return (r"principalSet://iam\.googleapis\.com/projects/[0-9]{1,20}/locations/global/"
+            r"workloadIdentityPools/github/attribute\.repository/" + repo)
+
+
+PROJECT_FLAG = _F("--project", _PID, "projectId")
+REGION_FLAG = _F("--region", _REGION, "region")
+INSTANCE_ARG = _T(_INSTANCE, "<instance>")
+SERVICE_ARG = _T(_SERVICE, "<service>")
+SA_ARG = _T(_SA, "<account>")
+STOP_BODY_FILE_ARG = _PluginFile("stop-body.json", prefix="--message-body-from-file=")
+CLEANUP_POLICY_FILE_ARG = _AnyOf(
+    _PluginFile("cleanup-policy.json", prefix="--policy="),
+    _TempFile(r"aleogr-cleanup-policy-keep-(?:[1-9]|[1-4][0-9]|50)\.json", prefix="--policy="))
+PLACEHOLDER_IMAGE_RE = (r"us-docker\.pkg\.dev/cloudrun/container/hello"
+                        r"(?::[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})?")
+
+
+def _flag_value(args, flag):
+    """The value of the first `<flag>=<value>` of args, or None."""
+    for a in args:
+        if a.startswith(flag + "="):
+            return a[len(flag) + 1:]
+    return None
+
+
+def _account_project(email):
+    """The project of a service account's address (`serviceAccount:` prefix allowed):
+    `<id>@<project>.iam.gserviceaccount.com`, or None."""
+    if email is None:
+        return None
+    if email.startswith("serviceAccount:"):
+        email = email[len("serviceAccount:"):]
+    m = re.fullmatch(r"[^@]+@([a-z0-9-]+)\.iam\.gserviceaccount\.com", email)
+    return m.group(1) if m else None
+
+
+def _agree(what, *getters):
+    """A check: every getter gives the same value, and none gives None."""
+    def check(args):
+        values = [g(args) for g in getters]
+        if None in values or len(set(values)) != 1:
+            return "%s do not agree" % what
+        return None
+    return check
+
+
+def _all(*checks):
+    def check(args):
+        for c in checks:
+            why = c(args)
+            if why:
+                return why
+        return None
+    return check
+
+
+def _arg(i):
+    return lambda args: args[i] if i < len(args) else None
+
+
+def _flag(name):
+    return lambda args: _flag_value(args, name)
+
+
+def _project_of(getter):
+    return lambda args: _account_project(getter(args))
+
+
+def _after(prefix_re, getter):
+    """The first group of `prefix_re` matched in full on getter's value, or None."""
+    def get(args):
+        v = getter(args)
+        m = re.fullmatch(prefix_re, v) if v is not None else None
+        return m.group(1) if m else None
+    return get
+
+
+_SAME_PROJECT = "the account, the project and --project"
+_LABELS3 = ("aleogr-project=(" + _PROJECT_NAME + "),aleogr-environment=(?:dev|hom|prd),"
+            "aleogr-component=(" + _COMPONENT + ")")
+
+
+def _labels_name(flag):
+    """`<project>-<component>` from the three labels of gcp_deploy-setup."""
+    def get(args):
+        v = _flag_value(args, flag)
+        m = re.fullmatch(_LABELS3, v) if v is not None else None
+        return "%s-%s" % (m.group(1), m.group(2)) if m else None
+    return get
+
+
+def _service_name(args):
+    """The service of `run deploy <service> ...` or `run services <verb> <service> ...`."""
+    i = 2 if args[1:2] == ["deploy"] else 3
+    return args[i] if len(args) > i else None
+
+
+def _service_account_of_service(args):
+    """`<service>@<projectId>.iam.gserviceaccount.com`, the service's own account."""
+    p, s = _flag_value(args, "--project"), _service_name(args)
+    return "%s@%s.iam.gserviceaccount.com" % (s, p) if p and s else None
+
+
+def _deploy_update_check(args):
+    """The repair of gcp_deploy-setup (6d1): at least one of its flags; --scaling=auto
+    and --min-instances=default only with --min=0; the account is the service's own;
+    the labels name this service."""
+    flags = args[4:-3]  # after `run services update <service>`, before the three last
+    if not flags:
+        return "no flag to change"
+    if ("--scaling=auto" in flags or "--min-instances=default" in flags) \
+            and "--min=0" not in flags:
+        return "--scaling=auto and --min-instances=default come with --min=0"
+    account = _flag_value(flags, "--service-account")
+    if account is not None and account != _service_account_of_service(args):
+        return "the account is not the service's own"
+    if _flag_value(flags, "--update-labels") is not None \
+            and _labels_name("--update-labels")(flags) != _service_name(args):
+        return "the labels name another service"
+    return None
+
+
+_DEPLOY_SIZE = [_F("--cpu", "1|2", "cpu"), _F("--memory", "512Mi|1Gi|2Gi", "memory")]
+_DEPLOY_ENV = r"[A-Z][A-Z0-9_]{0,63}=[a-zA-Z0-9._:@-]{1,200}"
+_CI_PROJECT = r"[a-z][a-z0-9-]{1,12}[a-z0-9]"
+_CI_BRANCH = r"(?!/)(?!.*\.\.)[A-Za-z0-9._/-]{1,255}(?<!/)"
+_CI_CONDITION = (
+    r"assertion\.repository=='" + _GH_REPO + r"' && assertion\.repository_id=='[1-9][0-9]{0,19}'"
+    r" && assertion\.repository_owner_id=='[1-9][0-9]{0,19}' && assertion\.ref=='refs/heads/"
+    + _CI_BRANCH + r"' && assertion\.job_workflow_ref\.startsWith\('" + _GH_REPO
+    + r"/\.github/workflows/[a-z0-9_-]{1,60}\.yml@'\)")
+_CI_MAPPING = ("--attribute-mapping=google.subject=assertion.sub,"
+               "attribute.repository=assertion.repository,attribute.ref=assertion.ref,"
+               "attribute.repository_id=assertion.repository_id,"
+               "attribute.repository_owner_id=assertion.repository_owner_id,"
+               "attribute.job_workflow_ref=assertion.job_workflow_ref")
+_POOL_CREATE = ("iam", "workload-identity-pools", "create", "github", PROJECT_FLAG,
+                "--location=global", "--display-name=GitHub", "--quiet")
+_SWITCH_SA = r"aleogr-shared-sql-switch@" + _PID + r"\.iam\.gserviceaccount\.com"
+_SWITCH_JOB = _T("aleogr-shared-stop-weeknight|aleogr-shared-stop-weekend", "<job>")
+_SWITCH_HEADERS = "Content-Type=application/json,X-HTTP-Method-Override=PATCH"
+_SWITCH_URI = r"https://sqladmin\.googleapis\.com/v1/projects/(" + _PID + ")/instances/" \
+              + _INSTANCE
+_SWITCH_JOB_CHECK = _agree("the job's instance, its account and --project",
+                           _after(_SWITCH_URI, _flag("--uri")),
+                           _project_of(_flag("--oauth-service-account-email")),
+                           _flag("--project"))
+_CRON = r"[0-9*,/-]{1,40}(?: [0-9*,/-]{1,40}){4}"
+_STOP_PATCH = ("sql", "instances", "patch", INSTANCE_ARG, PROJECT_FLAG,
+               "--activation-policy=NEVER", "--quiet")
+_BUDGET_AMOUNT = r"(?=[0-9.]*[1-9])[0-9]{1,15}(?:\.[0-9]{1,9})?[A-Z]{3}"
+_THRESHOLD = r"percent=(?:0\.[0-9]{0,8}[1-9][0-9]{0,8}|1(?:\.0{1,9})?)"
+
+WRITE_SHAPES.update({
+    # aleogr-db-gcp-cloud-sql
+    "gcp-cloud-sql_instance-stop": [
+        _STOP_PATCH,
+    ],
+    "gcp-cloud-sql_instance-start": [
+        ("sql", "instances", "patch", INSTANCE_ARG, PROJECT_FLAG, "--activation-policy=ALWAYS",
+         "--async", "--quiet"),
+    ],
+    "gcp-cloud-sql_instance-create": [
+        ("sql", "instances", "create", INSTANCE_ARG, PROJECT_FLAG,
+         _F("--database-version", r"POSTGRES_[0-9]{1,3}", "version"),
+         _F("--edition", "enterprise|enterprise-plus", "edition"),
+         _F("--tier", r"db-[a-z0-9-]{1,60}", "tier"),
+         _F("--region", _LOCATION, "region"),
+         "--availability-type=zonal", "--storage-type=SSD",
+         _F("--storage-size", r"[1-9][0-9]|100", "storageGb"),
+         "--no-storage-auto-increase", "--assign-ip", "--backup",
+         _F("--backup-start-time", r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", "backupStartUtc"),
+         _F("--retained-backups-count", r"[1-9]|[12][0-9]|30", "retainedBackups"),
+         "--no-enable-point-in-time-recovery", "--database-flags=cloudsql.iam_authentication=on",
+         "--no-enable-dataplex-integration", "--deletion-protection", "--async", "--quiet"),
+        # Step 6: the new instance is stopped by this skill's own patch, or by its night
+        # job. The only NEVER outside instance-stop: the SKILL.md prescribes it here.
+        _STOP_PATCH,
+        ("scheduler", "jobs", "run", _T(r"[a-z0-9-]{1,500}", "<stopJob>"), PROJECT_FLAG,
+         _F("--location", _LOCATION, "region"), "--quiet"),
+    ],
+    "gcp-cloud-sql_instance-switch-setup": [
+        ("iam", "roles", "create", "aleogrSharedSqlSwitch", PROJECT_FLAG,
+         "--title=aleogr shared SQL switch",
+         "--permissions=cloudsql.instances.get,cloudsql.instances.update", "--stage=GA",
+         "--quiet"),
+        ("iam", "service-accounts", "create", "aleogr-shared-sql-switch", PROJECT_FLAG,
+         "--display-name=aleogr shared SQL switch", "--quiet"),
+        _Shape("projects", "add-iam-policy-binding", _T(_PID, "<projectId>"),
+               _F("--member", "serviceAccount:" + _SWITCH_SA),
+               _F("--role", "projects/" + _PID + "/roles/aleogrSharedSqlSwitch"),
+               "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _arg(2), _project_of(_flag("--member")),
+                            _after("projects/(.*)/roles/aleogrSharedSqlSwitch",
+                                   _flag("--role")))),
+        _Shape("iam", "service-accounts", "add-iam-policy-binding", _T(_SWITCH_SA, "<account>"),
+               PROJECT_FLAG, _F("--member", "user:" + _EMAIL),
+               "--role=roles/iam.serviceAccountUser", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)), _flag("--project"))),
+        _POOL_CREATE,
+        ("iam", "workload-identity-pools", "providers", "create-oidc", "aleogr", PROJECT_FLAG,
+         "--location=global", "--workload-identity-pool=github", _ISSUER,
+         "--attribute-mapping=google.subject=assertion.sub,"
+         "attribute.repository=assertion.repository,attribute.ref=assertion.ref",
+         _F("--attribute-condition", r"assertion\.repository=='" + _SWITCH_REPO
+            + r"' && assertion\.ref=='refs/heads/main'", "condition"),
+         "--quiet"),
+        _Shape("iam", "service-accounts", "add-iam-policy-binding", _T(_SWITCH_SA, "<account>"),
+               PROJECT_FLAG, _F("--member", _principal_set(_SWITCH_REPO)),
+               "--role=roles/iam.workloadIdentityUser", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)), _flag("--project"))),
+        _Shape("scheduler", "jobs", "create", "http", _SWITCH_JOB, PROJECT_FLAG,
+               _F("--location", _LOCATION, "region"), _F("--schedule", _CRON, "cron"),
+               _F("--time-zone", r"[A-Za-z_]{1,64}/[A-Za-z_]{1,64}", "timeZone"),
+               _F("--uri", _SWITCH_URI, "uri"), "--http-method=POST",
+               "--headers=" + _SWITCH_HEADERS, STOP_BODY_FILE_ARG,
+               _F("--oauth-service-account-email", _SWITCH_SA, "account"),
+               "--oauth-token-scope=https://www.googleapis.com/auth/cloud-platform",
+               "--max-retry-attempts=5", "--min-backoff=5m", "--max-backoff=15m",
+               "--max-doublings=2", "--attempt-deadline=60s", "--quiet",
+               check=_SWITCH_JOB_CHECK),
+        _Shape("scheduler", "jobs", "update", "http", _SWITCH_JOB, PROJECT_FLAG,
+               _F("--location", _LOCATION, "region"), _F("--schedule", _CRON, "cron"),
+               _F("--time-zone", r"[A-Za-z_]{1,64}/[A-Za-z_]{1,64}", "timeZone"),
+               _F("--uri", _SWITCH_URI, "uri"), "--http-method=POST",
+               "--update-headers=" + _SWITCH_HEADERS, STOP_BODY_FILE_ARG,
+               _F("--oauth-service-account-email", _SWITCH_SA, "account"),
+               "--oauth-token-scope=https://www.googleapis.com/auth/cloud-platform", "--quiet",
+               check=_SWITCH_JOB_CHECK),
+        ("scheduler", "jobs", "resume", _SWITCH_JOB, PROJECT_FLAG,
+         _F("--location", _LOCATION, "region"), "--quiet"),
+    ],
+    "gcp-cloud-sql_database-create": [
+        ("sql", "databases", "create", _T(r"[a-z][a-z0-9_]{0,13}_(?:dev|hom|prd)", "<database>"),
+         _F("--instance", _INSTANCE, "instance"), PROJECT_FLAG, "--quiet"),
+    ],
+    "gcp-cloud-sql_access-grant": [
+        ("sql", "users", "create", _T(_SA_ID + "@" + _PID + r"\.iam", "<user>"),
+         _F("--instance", _INSTANCE, "instance"), PROJECT_FLAG,
+         "--type=cloud_iam_service_account", "--quiet"),
+        ("projects", "add-iam-policy-binding", _T(_PID, "<sharedProjectId>"),
+         _F("--member", "serviceAccount:" + _SA),
+         _F("--role", r"roles/cloudsql\.client|roles/cloudsql\.instanceUser", "role"),
+         "--condition=None", "--quiet"),
+    ],
+
+    # aleogr-registry-gcp-artifact-registry
+    "gcp-artifact-registry_repository-create": [
+        _Shape("artifacts", "repositories", "create", _T(_PROJECT_NAME, "<project>"),
+               PROJECT_FLAG, _F("--location", _REGION, "region"), "--repository-format=docker",
+               _F("--labels", "aleogr-project=" + _PROJECT_NAME
+                  + ",aleogr-environment=(?:dev|hom|prd)", "labels"),
+               check=_agree("the repository and its label", _arg(3),
+                            _after("aleogr-project=([^,]*),.*", _flag("--labels")))),
+    ],
+    "gcp-artifact-registry_cleanup-configure": [
+        ("artifacts", "repositories", "set-cleanup-policies", _T(_PROJECT_NAME, "<project>"),
+         _F("--location", _REGION, "region"), PROJECT_FLAG, CLEANUP_POLICY_FILE_ARG,
+         "--no-dry-run"),
+    ],
+    "gcp-artifact-registry_access-grant": [
+        _Shape("artifacts", "repositories", "add-iam-policy-binding",
+               _T(_PROJECT_NAME, "<project>"), _F("--location", _REGION, "region"),
+               PROJECT_FLAG, _F("--member", "serviceAccount:" + _SA),
+               "--role=roles/artifactregistry.writer", "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_flag("--member")),
+                            _flag("--project"))),
+    ],
+
+    # aleogr-cloud-gcp
+    "gcp_environment-create": [
+        ("projects", "create", _T(r"aleogr-shared-[a-z0-9]{4}", "aleogr-shared-<random>"),
+         _F("--organization", r"[0-9]{1,25}", "id"), "--name=shared",
+         "--labels=aleogr-project=shared,aleogr-platform=shared"),
+        _Shape("projects", "create",
+               _T(r"aleogr-(?:dev|hom|prd)-" + _PROJECT_NAME + r"-[a-z0-9]{4}",
+                  "aleogr-<environment>-<project>-<random>"),
+               _F("--folder", r"[0-9]{1,25}", "id"),
+               _F("--name", r"(?:dev|hom|prd) " + _PROJECT_NAME, "environment project"),
+               _F("--labels", "aleogr-project=" + _PROJECT_NAME
+                  + ",aleogr-environment=(?:dev|hom|prd)", "labels"),
+               check=_all(
+                   _agree("the environment of the project id, its name and its labels",
+                          _after(r"aleogr-([a-z]+)-.*-[a-z0-9]{4}", _arg(2)),
+                          _after(r"([a-z]+) .*", _flag("--name")),
+                          _after(r"aleogr-project=.*,aleogr-environment=(.*)",
+                                 _flag("--labels"))),
+                   _agree("the project of the project id, its name and its labels",
+                          _after(r"aleogr-[a-z]+-(.*)-[a-z0-9]{4}", _arg(2)),
+                          _after(r"[a-z]+ (.*)", _flag("--name")),
+                          _after(r"aleogr-project=(.*),aleogr-environment=.*",
+                                 _flag("--labels"))))),
+        ("billing", "projects", "link", _T(_PID, "<projectId>"),
+         _F("--billing-account", _BILLING_ACCOUNT, "id")),
+    ],
+    "gcp_services-enable": [
+        ("services", "enable",
+         _Rep(_T(r"[a-z0-9-][a-z0-9.-]{0,100}\.googleapis\.com", "<service>")), PROJECT_FLAG),
+    ],
+    "gcp_budget-alert-setup": [
+        ("billing", "budgets", "create", _F("--billing-account", _BILLING_ACCOUNT, "id"),
+         _F("--display-name", r"[A-Za-z0-9][A-Za-z0-9._-]{0,59}", "displayName"),
+         _F("--budget-amount", _BUDGET_AMOUNT, "amount><currency"),
+         _Rep(_F("--threshold-rule", _THRESHOLD, "percent=<t>")),
+         _F("--billing-project", _PID, "quotaProject")),
+        ("billing", "budgets", "update", _T(r"[A-Za-z0-9-]{1,64}", "<budgetId>"),
+         _F("--billing-account", _BILLING_ACCOUNT, "id"),
+         _F("--budget-amount", _BUDGET_AMOUNT, "amount><currency"), "--clear-threshold-rules",
+         _Rep(_F("--add-threshold-rule", _THRESHOLD, "percent=<t>")),
+         _F("--billing-project", _PID, "quotaProject")),
+    ],
+    "gcp_login-setup": [
+        ("organizations", "add-iam-policy-binding", _T(r"[0-9]{1,25}", "<organizationId>"),
+         _F("--member", _ACTIVE_MEMBER, "member"), "--role=roles/iap.settingsAdmin",
+         "--condition=None", "--quiet"),
+        ("services", "enable", "iap.googleapis.com", PROJECT_FLAG),
+    ],
+    "gcp_deploy-setup": [
+        # 5.1 and 5.2, the security pass: only allUsers or allAuthenticatedUsers is ever
+        # removed (always_refused refuses any other member of a remove).
+        ("iap", "web", "remove-iam-policy-binding", "--resource-type=cloud-run",
+         _F("--service", _SERVICE, "service"), REGION_FLAG, PROJECT_FLAG,
+         _F("--member", "allUsers|allAuthenticatedUsers"), _F("--role", _ROLE, "role"), "--all",
+         "--quiet"),
+        ("run", "services", "remove-iam-policy-binding", SERVICE_ARG,
+         _F("--member", "allUsers|allAuthenticatedUsers"), _F("--role", _ROLE, "role"),
+         REGION_FLAG, PROJECT_FLAG, "--all", "--quiet"),
+        # 5.3 and 5.4: each flag alone.
+        ("run", "services", "update", SERVICE_ARG, "--iap", REGION_FLAG, PROJECT_FLAG, "--quiet"),
+        ("run", "services", "update", SERVICE_ARG, "--invoker-iam-check", REGION_FLAG,
+         PROJECT_FLAG, "--quiet"),
+        # 6a: the service's account.
+        _Shape("iam", "service-accounts", "create", SERVICE_ARG, PROJECT_FLAG,
+               _F("--display-name", _PROJECT_NAME + " " + _COMPONENT, "project> <name"),
+               "--quiet",
+               check=_agree("the account and its display name", _arg(3),
+                            lambda a: (_flag_value(a, "--display-name") or "").replace(" ", "-")
+                            or None)),
+        # 6b: the CI account may act as the service's account.
+        _Shape("iam", "service-accounts", "add-iam-policy-binding", SA_ARG,
+               _F("--member", "serviceAccount:" + _SA), "--role=roles/iam.serviceAccountUser",
+               PROJECT_FLAG, "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)),
+                            _project_of(_flag("--member")), _flag("--project"))),
+        # 6c: the service, created behind the login, never public, never --min above 0.
+        _Shape("run", "deploy", SERVICE_ARG, _F("--image", PLACEHOLDER_IMAGE_RE, "image"),
+               "--no-allow-unauthenticated", "--iap", _F("--service-account", _SA, "account"),
+               "--min=0", _F("--max", r"[1-9]|10", "maxInstances"), _DEPLOY_SIZE[0],
+               _DEPLOY_SIZE[1], "--cpu-throttling", _F("--labels", _LABELS3, "labels"),
+               REGION_FLAG, PROJECT_FLAG, "--quiet",
+               check=_all(_agree("the service and its account", _flag("--service-account"),
+                                 _service_account_of_service),
+                          _agree("the service and its labels", _service_name,
+                                 _labels_name("--labels")))),
+        # 6d1: the repair, only the flags of what differs, never --image, a setting or a
+        # security flag.
+        _Shape("run", "services", "update", SERVICE_ARG,
+               _Opt(_F("--service-account", _SA, "account")),
+               _Opt("--min=0", _F("--max", r"[1-9]|10", "maxInstances")),
+               _Opt("--scaling=auto"), _Opt("--min-instances=default"),
+               _Opt(_DEPLOY_SIZE[0]), _Opt(_DEPLOY_SIZE[1]), _Opt("--cpu-throttling"),
+               _Opt(_F("--update-labels", _LABELS3, "labels")),
+               REGION_FLAG, PROJECT_FLAG, "--quiet", check=_deploy_update_check),
+        # 6d2: the login's agent may call the service.
+        ("run", "services", "add-iam-policy-binding", SERVICE_ARG,
+         _F("--member", r"serviceAccount:service-[0-9]{1,20}@gcp-sa-iap\.iam\.gserviceaccount\.com",
+            "agent"),
+         "--role=roles/run.invoker", REGION_FLAG, PROJECT_FLAG, "--condition=None", "--quiet"),
+        # 6e: the CI account may deploy this service.
+        _Shape("run", "services", "add-iam-policy-binding", SERVICE_ARG,
+               _F("--member", "serviceAccount:" + _SA), "--role=roles/run.developer",
+               REGION_FLAG, PROJECT_FLAG, "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_flag("--member")),
+                            _flag("--project"))),
+        # 6f: the active account gets in through the login.
+        ("iap", "web", "add-iam-policy-binding", "--resource-type=cloud-run",
+         _F("--service", _SERVICE, "service"), REGION_FLAG, PROJECT_FLAG,
+         _F("--member", _ACTIVE_MEMBER, "me"), "--role=roles/iap.httpsResourceAccessor",
+         "--condition=None", "--quiet"),
+        # 6g: the settings, alone, only ever added or changed.
+        ("run", "services", "update", SERVICE_ARG,
+         _F("--update-env-vars", r"\^##\^" + _DEPLOY_ENV + r"(?:##" + _DEPLOY_ENV + r")*",
+            "^##^NAME=value"),
+         REGION_FLAG, PROJECT_FLAG, "--quiet"),
+    ],
+    "gcp_access-grant": [
+        ("iap", "web", "add-iam-policy-binding", "--resource-type=cloud-run",
+         _F("--service", _SERVICE, "service"), REGION_FLAG, PROJECT_FLAG,
+         _F("--member", "user:" + _PERSON, "person"), "--role=roles/iap.httpsResourceAccessor",
+         "--condition=None", "--quiet"),
+    ],
+    "gcp_ci-identity-setup": [
+        _Shape("iam", "service-accounts", "create", _T(_CI_PROJECT + "-ci", "<project>-ci"),
+               PROJECT_FLAG, _F("--display-name", _CI_PROJECT + " CI", "project> CI"), "--quiet",
+               check=_agree("the account and its display name",
+                            _after("(.*)-ci", _arg(3)),
+                            _after("(.*) CI", _flag("--display-name")))),
+        _POOL_CREATE,
+        ("iam", "workload-identity-pools", "providers", "create-oidc", "github", PROJECT_FLAG,
+         "--location=global", "--workload-identity-pool=github", _ISSUER, _CI_MAPPING,
+         _F("--attribute-condition", _CI_CONDITION, "condition"), "--quiet"),
+        ("iam", "workload-identity-pools", "providers", "update-oidc", "github", PROJECT_FLAG,
+         "--location=global", "--workload-identity-pool=github", _ISSUER, _CI_MAPPING,
+         _F("--attribute-condition", _CI_CONDITION, "condition"), "--quiet"),
+        _Shape("iam", "service-accounts", "add-iam-policy-binding",
+               _T(_CI_PROJECT + "-ci@" + _PID + r"\.iam\.gserviceaccount\.com", "<account>"),
+               PROJECT_FLAG, _F("--member", _principal_set(_GH_REPO), "member"),
+               "--role=roles/iam.workloadIdentityUser", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)), _flag("--project"))),
+    ],
+})
+
+for _skill in list(WRITE_SHAPES):
+    if _skill.startswith("gcp"):
+        WRITE_TOOLS[_skill] = "gcloud"
+del _skill
 # Skills whose shapes mix tools: the shape's first word decides (pr is gh, every other
 # word is git).
 _MIXED_GH_WORDS = ("pr", "api", "repo", "secret", "variable")
@@ -762,37 +1334,180 @@ def always_refused(argv):
         if verb == "branch" and any(a in ("-d", "-D", "--delete") for a in args):
             return "git branch delete"
     elif tool == "gcloud":
-        words = [a for a in rest if not a.startswith("-")][:5]
-        if "delete" in words:
-            return "gcloud ... delete"
-        if "set-iam-policy" in words:
-            return "gcloud ... set-iam-policy"
+        return _gcloud_refused(rest)
     return None
+
+
+# gcloud's global flags that change who runs a command, with which configuration or
+# credential, or what it logs or prints: refused anywhere in the arguments of any gcloud
+# command, read or write, as `--flag=value` and as `--flag value` (and a boolean one as
+# `--no-<flag>` too).
+GCLOUD_REFUSED_FLAGS = (
+    "--account", "--configuration", "--access-token-file", "--flags-file", "--log-http",
+    "--trace-token", "--verbosity", "--credential-file-override",
+    "--impersonate-service-account", "--user-output-enabled",
+)
+# `--billing-project` (the project billed for the quota of a call) only on the commands
+# whose prescribed shape writes it, and only as `--billing-project=<id>`:
+# `billing budgets list|describe|create|update` (gcp_budget-alert-setup) and `iap
+# settings get` (gcp_login-describe, gcp_login-setup).
+GCLOUD_BILLING_PROJECT_COMMANDS = (
+    ("billing", "budgets", "list"), ("billing", "budgets", "describe"),
+    ("billing", "budgets", "create"), ("billing", "budgets", "update"),
+    ("iap", "settings", "get"),
+)
+
+_GCLOUD_PRIMITIVE_ROLES = ("roles/owner", "roles/editor", "roles/viewer", "owner", "editor",
+                           "viewer")
+_GCLOUD_PUBLIC_MEMBERS = ("allusers", "allauthenticatedusers")
+
+
+def _gcloud_flag_values(rest, flag):
+    """The values of `flag` in `rest`, written `--flag=value` or `--flag value`."""
+    values = []
+    for i, a in enumerate(rest):
+        if a.startswith(flag + "="):
+            values.append(a[len(flag) + 1:])
+        elif a == flag:
+            values.append(rest[i + 1] if i + 1 < len(rest) else "")
+    return values
+
+
+def _gcloud_refused(rest):
+    """The reason when `gcloud <rest>` is a command no skill may ever run, read or write,
+    whatever an entry of WRITE_SHAPES or READS says; None otherwise.
+
+    - a flag before the command (`gcloud --project=x config set ...`), but `--version`;
+    - `delete`, `set-iam-policy` or `set-password` (`sql users set-password`) among the
+      first five words;
+    - `remove-iam-policy-binding`, except with exactly one `--member`, `allUsers` or
+      `allAuthenticatedUsers` (the security pass of gcp_deploy-setup, which only closes
+      a service that is open to everyone);
+    - `allUsers` or `allAuthenticatedUsers` as a member of anything else;
+    - a primitive role (`roles/owner`, `roles/editor`, `roles/viewer`) in an
+      `add-iam-policy-binding`;
+    - `--allow-unauthenticated`, any flag with `password` in its name;
+    - anywhere in the arguments, a global flag of GCLOUD_REFUSED_FLAGS (`--account`,
+      `--configuration`, `--impersonate-service-account`, `--verbosity`, ...), and
+      `--billing-project` except as `--billing-project=<id>` on a command of
+      GCLOUD_BILLING_PROJECT_COMMANDS;
+    - `gcloud auth` other than `auth list`, `gcloud config` other than `config
+      get-value`, `gcloud iam service-accounts keys` (anything)."""
+    if not rest:
+        return None
+    if rest[0].startswith("-") and rest != ["--version"]:
+        return "gcloud with a flag before its command"
+    words = [a for a in rest if not a.startswith("-")]
+    lead = words[:5]
+    if "delete" in lead:
+        return "gcloud ... delete"
+    if "set-iam-policy" in lead:
+        return "gcloud ... set-iam-policy"
+    if "set-password" in lead:
+        return "gcloud ... set-password"
+    for a in rest:
+        if not a.startswith("-"):
+            continue
+        name = a.split("=", 1)[0].lower()
+        if name == "--allow-unauthenticated":
+            return "gcloud --allow-unauthenticated"
+        if "password" in name:
+            return "gcloud %s" % name
+        if name in GCLOUD_REFUSED_FLAGS or (
+                name.startswith("--no-") and "--" + name[5:] in GCLOUD_REFUSED_FLAGS):
+            return "gcloud %s" % name
+        if name == "--billing-project":
+            if "=" not in a or tuple(words[:3]) not in GCLOUD_BILLING_PROJECT_COMMANDS:
+                return "gcloud --billing-project here"
+    if words[:1] == ["auth"] and words != ["auth", "list"]:
+        return "gcloud auth other than list"
+    if words[:1] == ["config"] and words[:2] != ["config", "get-value"]:
+        return "gcloud config other than get-value"
+    if words[:3] == ["iam", "service-accounts", "keys"]:
+        return "gcloud iam service-accounts keys"
+    members = _gcloud_flag_values(rest, "--member")
+    public = [m for m in members if m.lower() in _GCLOUD_PUBLIC_MEMBERS]
+    if "remove-iam-policy-binding" in lead:
+        if len(members) != 1 or len(public) != 1:
+            return "gcloud remove-iam-policy-binding of a member other than allUsers or " \
+                   "allAuthenticatedUsers"
+    elif public:
+        return "gcloud with the member %s" % public[0]
+    if "add-iam-policy-binding" in lead:
+        for role in _gcloud_flag_values(rest, "--role"):
+            if role.lower() in _GCLOUD_PRIMITIVE_ROLES:
+                return "gcloud add-iam-policy-binding of the primitive role %s" % role
+    return None
+
+
+def _item_refusal(item, a, env):
+    """None when the one argument `a` matches the one item (a word or a matcher)."""
+    if isinstance(item, str):
+        return None if a == item else "%s where the shape has %s" % (a, item)
+    return None if item.match(a, env) else "%s is not %s" % (a, item.name)
+
+
+def _take(items, args, i, env):
+    """The index after `items` matched one argument each from `i`, or None."""
+    for item in items:
+        if i >= len(args) or _item_refusal(item, args[i], env):
+            return None
+        i += 1
+    return i
 
 
 def _match_shape(shape, args, env):
-    """None when `args` (the command after the tool) matches `shape`, else a reason."""
+    """None when `args` (the command after the tool) matches `shape`, else a reason.
+
+    Items are matched in order, each against one argument, except: an `_Opt` takes its
+    items when they all match there (else none); a `_Rep` takes its item as many times
+    as it matches, at least `minimum`; a guard function, last, takes every remaining
+    argument. Matching is greedy and never goes back: the shapes are written so that
+    the next item never matches what an `_Opt` or a `_Rep` could take. A `_Shape`'s
+    check runs when every item matched."""
+    items = shape.items if isinstance(shape, _Shape) else shape
     i = 0
-    for item in shape:
+    for item in items:
+        if isinstance(item, _Opt):
+            j = _take(item.items, args, i, env)
+            if j is not None:
+                i = j
+            continue
+        if isinstance(item, _Rep):
+            n = 0
+            while True:
+                j = _take((item.item,), args, i, env)
+                if j is None:
+                    break
+                i, n = j, n + 1
+            if n < item.minimum:
+                return "%s is needed %d times at least" % (
+                    getattr(item.item, "name", item.item), item.minimum)
+            continue
         if callable(item) and not hasattr(item, "match"):
-            return item(list(args[i:]), env)
+            why = item(list(args[i:]), env)
+            if why:
+                return why
+            i = len(args)
+            break
         if i >= len(args):
             return "too short"
-        a = args[i]
-        if isinstance(item, str):
-            if a != item:
-                return "%s where the shape has %s" % (a, item)
-        elif not item.match(a, env):
-            return "%s is not %s" % (a, item.name)
+        why = _item_refusal(item, args[i], env)
+        if why:
+            return why
         i += 1
     if i != len(args):
         return "too long"
+    check = getattr(shape, "check", None)
+    if check is not None:
+        return check(list(args))
     return None
 
 
-def write_refusal(skill, argv, root=None):
+def write_refusal(skill, argv, root=None, temp=None):
     """None when `argv` is a write that `skill` may run, otherwise the reason it is not.
-    `root` is the plugin's folder (for the shapes that name a file of the plugin)."""
+    `root` is the plugin's folder (for the shapes that name a file of the plugin);
+    `temp` the temporary folder of write_temp_file (system_temp_dir() when None)."""
     argv = _plain(argv)
     why = always_refused(argv)
     if why:
@@ -801,7 +1516,7 @@ def write_refusal(skill, argv, root=None):
     if not shapes:
         return "%s has no allowed write" % skill
     tool = _tool_name(argv[0])
-    env = {"root": root}
+    env = {"root": root, "temp": temp}
     for shape in shapes:
         if _shape_tool(skill, shape) != tool:
             continue
@@ -810,8 +1525,8 @@ def write_refusal(skill, argv, root=None):
     return "not on the allowlist of writes of %s" % skill
 
 
-def is_write_allowed(skill, argv, root=None):
-    return write_refusal(skill, argv, root) is None
+def is_write_allowed(skill, argv, root=None, temp=None):
+    return write_refusal(skill, argv, root, temp) is None
 
 
 def file_refusal(skill, path):
@@ -912,29 +1627,75 @@ def show_command(argv):
     return " ".join(a.shown if isinstance(a, Hidden) else shlex.quote(str(a)) for a in argv)
 
 
+def _bounded(timeout):
+    """(the timeout to run a command with, whether it is the run's deadline)."""
+    limit = remaining_seconds()
+    if timeout is None or timeout >= limit:
+        return limit, True
+    return timeout, False
+
+
+def _run_process(argv, timeout, cwd=None, env=None, stderr=subprocess.PIPE):
+    """Run argv (plain strings) with stdin closed and stdout (and stderr, unless given)
+    captured, in a process group of its own; when `timeout` passes, kill the group (the
+    command and every process it started) and raise subprocess.TimeoutExpired.
+    Returns (code, stdout bytes, stderr bytes or None)."""
+    kw = {}
+    if os.name == "posix":
+        kw["start_new_session"] = True
+    p = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                         stderr=stderr, cwd=cwd, env=env, **kw)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            if os.name == "posix":
+                os.killpg(p.pid, signal.SIGKILL)
+            else:
+                p.kill()
+        except OSError:
+            pass
+        try:
+            p.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        raise
+    except BaseException:
+        p.kill()
+        p.wait()
+        raise
+    return p.returncode, out, err
+
+
 def run(argv, timeout=None, cwd=None, env=None, stream=None):
     """Show `argv` on stderr (`+ <command>`), then run it and return Completed.
 
     Nothing of the command's output is printed. stdin is closed. A command that is
     not found returns exit 127 with empty output, as a shell does. An argument given
     as Hidden runs with its value and is shown as `<value>`.
+
+    The command runs at most until the run's deadline (remaining_seconds(), at least 1
+    second): when it is reached the command and what it started are killed and
+    TimeLimit is raised (with the shown command). A shorter `timeout`, given by the
+    caller, ends as exit 124 instead.
     """
     shown = show_command(argv)
     argv = _plain(argv)
     stream = stream or sys.stderr
     stream.write("+ %s\n" % shown)
     stream.flush()
+    timeout, deadline = _bounded(timeout)
     try:
-        p = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE, timeout=timeout, cwd=cwd, env=env)
+        code, out, err = _run_process(argv, timeout, cwd=cwd, env=env)
     except FileNotFoundError:
         return Completed(127, "", "%s: command not found\n" % argv[0])
     except PermissionError:
         return Completed(126, "", "%s: permission denied\n" % argv[0])
     except subprocess.TimeoutExpired:
+        if deadline:
+            raise TimeLimit(shown)
         return Completed(124, "", "%s: timed out\n" % argv[0])
-    return Completed(p.returncode, p.stdout.decode("utf-8", "replace"),
-                     p.stderr.decode("utf-8", "replace"))
+    return Completed(code, out.decode("utf-8", "replace"), err.decode("utf-8", "replace"))
 
 
 def run_read(argv, timeout=None, cwd=None, env=None, stream=None):
@@ -995,6 +1756,127 @@ def write_file(skill, path, content, stream=None, folder=None):
     except OSError:
         return False
     return True
+
+
+# Files a skill writes for one run in its process's private folder of the system's
+# temporary folder (private_temp_dir), never in the working folder (names matched in
+# full): the cleanup policy for a `keep` other than 5.
+TEMP_FILE_WRITES = {
+    "gcp-artifact-registry_cleanup-configure": [
+        r"aleogr-cleanup-policy-keep-(?:[1-9]|[1-4][0-9]|50)\.json"],
+}
+
+
+def system_temp_dir():
+    """The system's temporary folder as the skills name it: `/tmp` on Linux and macOS,
+    the folder of the `TEMP` environment variable on Windows (what `$env:TEMP` or
+    `echo %TEMP%` prints), with no command run."""
+    if os.name == "nt":
+        return os.environ.get("TEMP") or tempfile.gettempdir()
+    return "/tmp"
+
+
+_private_dirs = {}  # the real path of a temporary folder -> this process's private folder
+
+
+def _remove_private_dirs():
+    for d in list(_private_dirs.values()):
+        if d:
+            shutil.rmtree(d, ignore_errors=True)
+    _private_dirs.clear()
+
+
+atexit.register(_remove_private_dirs)
+
+
+def private_temp_dir(folder=None):
+    """This process's private folder in the system's temporary folder (or `folder`):
+    made once, on first use, by tempfile.mkdtemp (prefix `aleogr-`, mode 0700, a name
+    no one can know before), and removed with what it holds when the process ends.
+    None when it cannot be made. Its path is not fixed, so no file or link left by
+    someone else can be at a name inside it."""
+    top = folder or system_temp_dir()
+    key = os.path.realpath(top)
+    if key not in _private_dirs or not os.path.isdir(_private_dirs[key]):
+        try:
+            _private_dirs[key] = tempfile.mkdtemp(prefix=PRIVATE_TEMP_PREFIX, dir=top)
+        except OSError:
+            return None
+    return _private_dirs[key]
+
+
+def temp_file_path(name, folder=None):
+    """The path write_temp_file writes `name` at: inside private_temp_dir() (made now
+    when it was not), or None when that folder cannot be made."""
+    d = private_temp_dir(folder)
+    return os.path.join(d, name) if d else None
+
+
+def write_temp_file(skill, name, content, stream=None, folder=None):
+    """Write the file `name` in this process's private folder of the system's temporary
+    folder (or of `folder`; private_temp_dir): `content` (str as UTF-8, or bytes)
+    exactly. Returns its path, or None when the system refused.
+
+    Prints `+ write <path>` on stderr first. Raises WriteRefused, before printing, for
+    a name `skill` may not write (TEMP_FILE_WRITES) or a name with a folder in it. The
+    file is created new, mode 0600 (O_CREAT|O_EXCL|O_NOFOLLOW): a file or a link
+    already at that name is never written through, so None. It is removed with the
+    private folder when the process ends."""
+    patterns = TEMP_FILE_WRITES.get(skill) or ()
+    if not isinstance(name, str) or os.path.basename(name) != name or "\\" in name \
+            or not any(re.fullmatch(p, name) for p in patterns):
+        raise WriteRefused("write %s" % name, "%s may not write %s in the temporary folder"
+                           % (skill, name))
+    path = temp_file_path(name, folder)
+    if path is None:
+        return None
+    data = content.encode("utf-8") if isinstance(content, str) else bytes(content)
+    stream = stream or sys.stderr
+    stream.write("+ write %s\n" % path)
+    stream.flush()
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) \
+        | getattr(os, "O_BINARY", 0)
+    try:
+        fd = os.open(path, flags, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+    except OSError:
+        return None
+    return path
+
+
+def json_from_base64(text):
+    """The JSON value that `text` (base64, as `gcloud ... describe` prints a body)
+    encodes, or None when it is not base64 of UTF-8 JSON. Spaces and line breaks
+    around it do not count."""
+    import base64
+    import binascii
+    if not isinstance(text, str):
+        return None
+    try:
+        raw = base64.b64decode("".join(text.split()), validate=True)
+        return json.loads(raw.decode("utf-8"))
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return None
+
+
+def base64_of_file(path):
+    """The base64 text of a file's bytes (the stop body of a file of the plugin, as a
+    job's describe prints it), or None when it cannot be read."""
+    import base64
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode("ascii")
+    except OSError:
+        return None
+
+
+def random_name_part(length=4, alphabet="abcdefghijklmnopqrstuvwxyz0123456789"):
+    """`length` random characters of `alphabet` (the `<random>` of a project id or a
+    branch), drawn by the system's random source: no command is run, so no `+` line."""
+    import random
+    r = random.SystemRandom()
+    return "".join(r.choice(alphabet) for _ in range(length))
 
 
 class Backup(object):
@@ -1086,7 +1968,44 @@ class Backup(object):
 
 
 # ---------------------------------------------------------------------------
-# Waits: `sleep 30`, within eight minutes per run
+# The clock of a run, and its waits: `sleep 30`, within eight minutes of waiting and
+# seven minutes of the run
+#
+# A command runs under its shell's Bash tool timeout of ten minutes (600000 ms): a run
+# killed there prints nothing. So the run keeps its own clock, started by the
+# dispatcher (start_clock): a wait is allowed only while it ends within
+# WAIT_CLOCK_LIMIT seconds of the run (and within the count budget below), and every
+# provider command is bounded by RUN_DEADLINE (run: TimeLimit), which leaves the
+# dispatcher the time to print the result of an aborted run.
+
+WAIT_CLOCK_LIMIT = 420  # seven minutes: no wait ends later in a run
+RUN_DEADLINE = 570  # nine and a half minutes: no provider command runs later in a run
+_clock = {"now": time.monotonic, "start": None}
+
+
+def start_clock():
+    """The dispatcher's start of the run: the clock counts from now."""
+    _clock["start"] = _clock["now"]()
+
+
+def set_clock(now=None, start=None):
+    """For the unit tests only: the time function (time.monotonic when None) and the
+    start of the run (None: the clock is not started and counts 0)."""
+    _clock["now"] = now or time.monotonic
+    _clock["start"] = start
+
+
+def elapsed_seconds():
+    """The seconds since the dispatcher started the run (0 before it did)."""
+    if _clock["start"] is None:
+        return 0.0
+    return max(0.0, _clock["now"]() - _clock["start"])
+
+
+def remaining_seconds():
+    """The time a provider command may still run: up to RUN_DEADLINE, at least 1."""
+    return max(1, RUN_DEADLINE - elapsed_seconds())
+
 
 WAIT_SECONDS = 30
 WAIT_BUDGET_SECONDS = 8 * 60
@@ -1115,8 +2034,13 @@ def reset_wait_budget():
 
 
 def wait_allowed():
-    """True when one more wait of WAIT_SECONDS stays within the budget."""
-    return _waited[0] + WAIT_SECONDS <= WAIT_BUDGET_SECONDS
+    """True when one more wait of WAIT_SECONDS stays within the budget: the count of
+    waits (sixteen of thirty seconds) and the clock (the wait ends within
+    WAIT_CLOCK_LIMIT seconds of the run). With a wait that returns at once (the fake
+    `sleep` of the tests) the count decides; with real waits and slow commands, the
+    clock does."""
+    return (_waited[0] + WAIT_SECONDS <= WAIT_BUDGET_SECONDS
+            and elapsed_seconds() + WAIT_SECONDS <= WAIT_CLOCK_LIMIT)
 
 
 # ---------------------------------------------------------------------------
@@ -1151,6 +2075,16 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
     not converted for that skill (exit 64) or gives no JSON object, returns a fixed
     failure: `status` `failed`, `callError` `not-found`, `not-converted` or
     `no-result`, and one sentence in `answer`.
+
+    A callee stopped by a refused read or write exits 70 after printing its own
+    `failed` result (refused_result: the sentence of the refusal, and what it had
+    already written). That result is returned as the callee gave it, its answer kept,
+    with `callError` `refused` added, so the caller can relay the callee's sentence.
+    Any other exit 70, or a non-zero exit with no result object, is `no-result`.
+
+    The callee runs at most until this run's deadline, as a provider command does:
+    when it is reached, the callee and what it started are killed and TimeLimit is
+    raised. A shorter `timeout` ends as `no-result` instead.
     """
     path = shutil.which(command)
     if path is None:
@@ -1158,20 +2092,29 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
                              NOT_FOUND_SENTENCE.format(command=command))
     argv = [path] + (["--read-only"] if read_only else []) + ["--json", skill] + format_args(
         args or {})
+    timeout, deadline = _bounded(timeout)
     try:
-        p = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                           stderr=None, timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired):
+        code, out, _ = _run_process(argv, timeout, stderr=None)
+    except subprocess.TimeoutExpired:
+        if deadline:
+            raise TimeLimit([command] + argv[1:])
         return _call_failure("no-result", command, skill,
                              NO_RESULT_SENTENCE.format(command=command, skill=skill))
-    if p.returncode == EXIT_NOT_CONVERTED:
+    except OSError:
+        return _call_failure("no-result", command, skill,
+                             NO_RESULT_SENTENCE.format(command=command, skill=skill))
+    if code == EXIT_NOT_CONVERTED:
         return _call_failure("not-converted", command, skill,
                              NOT_CONVERTED_SENTENCE.format(command=command, skill=skill))
     try:
-        obj = json.loads(p.stdout.decode("utf-8"))
+        obj = json.loads(out.decode("utf-8"))
     except ValueError:
         obj = None
-    if p.returncode != 0 or not isinstance(obj, dict):
+    if code == EXIT_SOFTWARE and isinstance(obj, dict) \
+            and obj.get("aleogr-result") == 1 and obj.get("status") == "failed":
+        obj["callError"] = "refused"
+        return obj
+    if code != 0 or not isinstance(obj, dict):
         return _call_failure("no-result", command, skill,
                              NO_RESULT_SENTENCE.format(command=command, skill=skill))
     return obj
@@ -1323,13 +2266,21 @@ class Context(object):
     - ctx.write(argv): the writing runner (allowlist of writes of this skill).
     - ctx.write_file(path, content): a file of the current folder (FILE_WRITES).
     - ctx.backup(paths): copies of files of the folder, to put back (Backup).
+    - ctx.write_temp_file(name, content): a file of this process's private folder in
+      the system's temporary folder (TEMP_FILE_WRITES, private_temp_dir), for a flag
+      that takes a file the plugin does not hold; its path, or None. Its path is
+      common.temp_file_path(name).
 
     Other:
-    - ctx.wait(): one wait, `sleep 30`, within the budget of the run (False: the budget
-      is spent, nothing was run; end `pending` with WAIT_BUDGET_SENTENCE and
+    - ctx.wait(): one wait, `sleep 30`, within the budget of the run (wait_allowed: the
+      count of waits and the clock; False: the budget is spent, nothing was run; end `pending` with WAIT_BUDGET_SENTENCE and
       ctx.wait_budget_item()).
     - ctx.call(command, skill, args): call_plugin (with `--read-only` when this run was
       given it).
+    - ctx.on_abort(lines): the lines that the result of an aborted run (aborted_result:
+      the time limit, an unexpected error) prints, from now on, after what the run
+      wrote: what may now cost or need doing. Each call replaces the lines given
+      before; an empty list clears them.
     - ctx.result(...), ctx.failed(...): build a Result with the module's FAMILY,
       PROVIDER and ACTION.
     - ctx.plugin_path(*parts), ctx.defaults(): files of this plugin.
@@ -1354,6 +2305,8 @@ class Context(object):
         # it), `write <path>` for each file written, `restore <paths>` for copies put
         # back. A refusal's result names them (refused_result).
         self.writes_run = []
+        # The lines of aborted_result, as the module last registered them (on_abort).
+        self.abort_lines = []
 
     # Running
 
@@ -1396,6 +2349,14 @@ class Context(object):
         self._may_write("backup %s" % " ".join(paths))
         return Backup(self.skill, paths, record=self.writes_run)
 
+    def write_temp_file(self, name, content):
+        """A file of the system's temporary folder (TEMP_FILE_WRITES): its path, or
+        None when the system refused. Only when the run may write."""
+        self._may_write("write %s" % name)
+        path = write_temp_file(self.skill, name, content)
+        self.writes_run.append("write %s" % (path or name))
+        return path
+
     def wait(self):
         if not wait_allowed():
             return False
@@ -1405,6 +2366,9 @@ class Context(object):
 
     def wait_budget_item(self):
         return wait_budget_item(self.skill)
+
+    def on_abort(self, lines):
+        self.abort_lines = [lines] if isinstance(lines, str) else list(lines or ())
 
     def call(self, command, skill, args=None, timeout=None):
         return call_plugin(command, skill, args, timeout=timeout,
@@ -1467,18 +2431,60 @@ REFUSED_UNKNOWN = ("Earlier steps of this run may have been made; running the pl
 REFUSED_COST = {"fixed": False, "notes": "stopped before a command the tooling does not allow"}
 
 
+def _written_line(ctx):
+    """The sentence of what this run had already written (ctx.writes_run)."""
+    written = getattr(ctx, "writes_run", None)
+    if written is None:
+        return REFUSED_UNKNOWN
+    if not written:
+        return REFUSED_NOTHING_WRITTEN
+    return REFUSED_WRITTEN.format(writes=", ".join("`%s`" % w for w in written))
+
+
 def refused_result(ctx):
     """The result printed when a read or a write was refused (ReadRefused,
     WriteRefused): `failed`, REFUSED_SENTENCE, then what this run had already written
     (ctx.writes_run), and never the refused command itself."""
-    written = getattr(ctx, "writes_run", None)
-    if written is None:
-        second = REFUSED_UNKNOWN
-    elif not written:
-        second = REFUSED_NOTHING_WRITTEN
-    else:
-        second = REFUSED_WRITTEN.format(writes=", ".join("`%s`" % w for w in written))
-    return ctx.result("failed", {}, cost=dict(REFUSED_COST), lines=[REFUSED_SENTENCE, second])
+    return ctx.result("failed", {}, cost=dict(REFUSED_COST),
+                      lines=[REFUSED_SENTENCE, _written_line(ctx)])
+
+
+TIME_LIMIT_SENTENCE = ("This run reached its time limit while a command was still running; "
+                       "that command may still take effect.")
+UNEXPECTED_SENTENCE = "This run stopped on an unexpected error of the tooling."
+READ_STATE_SENTENCE = "Read the state before running it again: the plan shows it."
+ABORTED_COST = {"fixed": False, "notes": "the run may have changed something"}
+
+
+def aborted_result(ctx, sentence):
+    """The result printed when a run was aborted (TimeLimit, or any unexpected
+    exception): `failed`, `sentence` (TIME_LIMIT_SENTENCE or UNEXPECTED_SENTENCE), what
+    this run had already written, the lines the module registered (ctx.on_abort), then
+    READ_STATE_SENTENCE. Nothing of the exception's text: it may hold values."""
+    lines = [sentence, _written_line(ctx)] + list(getattr(ctx, "abort_lines", None) or ())
+    lines.append(READ_STATE_SENTENCE)
+    return ctx.result("failed", {}, cost=dict(ABORTED_COST), lines=lines)
+
+
+def run_skill(module, args, ctx):
+    """module.run(args, ctx), and every way it can end: (Result, exit code, the kind of
+    ending or None). A refused read or write gives refused_result, the time limit and
+    any other exception aborted_result, each with EXIT_SOFTWARE; a run that returns no
+    Result is an unexpected error. The kind (`not a read`, `not an allowed write`, `time
+    limit`, `unexpected error`) is for the one line on stderr."""
+    try:
+        result = module.run(args, ctx)
+    except ReadRefused:
+        return refused_result(ctx), EXIT_SOFTWARE, "refused, not a read"
+    except WriteRefused:
+        return refused_result(ctx), EXIT_SOFTWARE, "refused, not an allowed write"
+    except TimeLimit:
+        return aborted_result(ctx, TIME_LIMIT_SENTENCE), EXIT_SOFTWARE, "time limit reached"
+    except Exception:  # noqa: BLE001 - never a traceback: its text may hold values
+        return aborted_result(ctx, UNEXPECTED_SENTENCE), EXIT_SOFTWARE, "unexpected error"
+    if not isinstance(result, Result):
+        return aborted_result(ctx, UNEXPECTED_SENTENCE), EXIT_SOFTWARE, "returned no Result"
+    return result, EXIT_OK, None
 
 
 # ---------------------------------------------------------------------------
@@ -1522,29 +2528,36 @@ def main(plugin, root, argv, stdout=None, stderr=None):
         what = inv.skill if module is None else "%s mode=%s" % (inv.skill, mode)
         stderr.write("%s: not converted: %s\n" % (plugin, what))
         return EXIT_NOT_CONVERTED
+    before = _clock["start"]
+    start_clock()
+    try:
+        return _dispatch(plugin, root, inv, module, mode, stdout, stderr)
+    finally:
+        _clock["start"] = before  # a process ends here; an in-process test goes on
+
+
+def _dispatch(plugin, root, inv, module, mode, stdout, stderr):
     ctx = Context(plugin, root, inv.skill, module, mode, inv.args, inv.json,
                   read_only=inv.read_only)
     code = EXIT_OK
+    if inv.repeated:
+        result = repeated_result(ctx, inv.repeated)
+    elif inv.read_only and mode == "apply":
+        result = read_only_refusal(ctx)
+    else:
+        result, code, why = run_skill(module, inv.args, ctx)
+        if why:
+            # A bug of the command, or its time limit: loud (exit 70), but never without
+            # a result. The line shows no value of a command and no exception's text.
+            stderr.write("%s: %s: %s\n" % (plugin, inv.skill, why))
+            stderr.flush()
     try:
-        if inv.repeated:
-            result = repeated_result(ctx, inv.repeated)
-        elif inv.read_only and mode == "apply":
-            result = read_only_refusal(ctx)
-        else:
-            result = module.run(inv.args, ctx)
-    except (ReadRefused, WriteRefused) as e:
-        # A bug of the command: loud (exit 70), but never without a result. Neither line
-        # shows the refused command's values (the unit tests raise the exception itself,
-        # whose message has the command, its hidden values hidden).
-        stderr.write("%s: %s: refused, %s\n" % (
-            plugin, inv.skill,
-            "not a read" if isinstance(e, ReadRefused) else "not an allowed write"))
-        stderr.flush()
-        result = refused_result(ctx)
+        text = render_json(result) if inv.json else render_answer(result)
+    except Exception:  # noqa: BLE001 - a result that cannot be printed (too deep, ...)
+        stderr.write("%s: %s: unexpected error\n" % (plugin, inv.skill))
+        result = aborted_result(ctx, UNEXPECTED_SENTENCE)
+        text = render_json(result) if inv.json else render_answer(result)
         code = EXIT_SOFTWARE
-    if not isinstance(result, Result):
-        stderr.write("%s: %s returned no Result\n" % (plugin, inv.skill))
-        return EXIT_SOFTWARE
-    stdout.write(render_json(result) if inv.json else render_answer(result))
+    stdout.write(text)
     stdout.flush()
     return code

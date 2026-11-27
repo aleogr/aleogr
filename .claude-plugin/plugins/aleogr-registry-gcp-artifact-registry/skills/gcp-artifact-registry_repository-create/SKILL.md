@@ -1,5 +1,6 @@
 ---
 description: Google Cloud Artifact Registry (gcp-artifact-registry) repository create. Use to create a project's Docker image repository in Artifact Registry on Google Cloud, in the project's own GCP project and declared region, labelled with the project and the environment, and to learn the image path every component's image starts with. Idempotent (an existing repository is never touched); plan by default. No fixed cost.
+allowed-tools: Bash(aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_repository-create), Bash(aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_repository-create *)
 ---
 
 # gcp-artifact-registry_repository-create
@@ -18,56 +19,41 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 | `region=<region>` | The declared region, for example `us-central1`. |
 | `mode=plan\|apply` | `plan` (default) reports and changes nothing; `apply` executes. |
 
-## Validate first
+An existing repository is never changed: one in another region, or not a Docker repository, is left for the owner to fix by hand.
 
-Before any command, check the arguments. A missing required argument is a validation failure, with the sentence `<argument> is missing.`: do not ask for it. Any failure ends the skill with the result block, `status` `failed`, the one sentence given below for the rule that failed, and no `gcloud` call.
+The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
-- `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. Otherwise: `projectId is not a GCP project id.`
-- `project` has 1 to 14 characters, only lowercase letters, digits and `-`, starts with a letter and does not end with `-`. Otherwise: `project must have 1 to 14 lowercase letters, digits and hyphens, starting with a letter.`
-- `environment` is one of `dev`, `hom`, `prd`. Otherwise: `environment must be dev, hom or prd.`
-- `region` is a Google Cloud region name: lowercase letters, then one or more `-<letters>` parts, then digits (`us-central1`, `southamerica-east1`). A multi-region (`us`, `europe`) or anything with an uppercase letter is invalid. Otherwise: `region is not a Google Cloud region name (such as us-central1).`
-- `mode` is `plan` or `apply`. Otherwise: `mode must be plan or apply.`
+## Run
 
-## Steps
+Run one of these two commands with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 
-Show each command before running it. Run only the commands below (and the one skill invoked), in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
+- When the arguments hold `mode=apply`, run exactly:
 
-1. Check whether the repository exists: invoke `aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_registry-describe` with `projectId=<projectId> project=<project> region=<region>`. Its `aleogr-result` block is only input: do not repeat it; this skill's answer ends with exactly one block, its own.
-   - Describe `status` `failed`: stop with `failed` and its one-sentence cause, without raw error text. Run nothing else.
-   - `exists` true and `format` `DOCKER`: run nothing else and end with `status` `unchanged` and the describe's `imagePath`. Never change an existing repository.
-   - `exists` true with another `format`: a repository's format cannot be changed. Run nothing else and end with `status` `pending`, one item whose `item` is `repository <project>`, `reason` `manual`, and `how` `fix by hand: the repository <project> in <region> is not a Docker repository; delete it, then run this skill again`.
-   - `exists` false and `otherRegions` not empty: run nothing else and end with `status` `pending` (in `plan` and in `apply`; nothing is changed). One item whose `item` is `repository <project> in <otherRegions>`, `reason` `manual`, and `how` `fix by hand: the repository <project> exists in <otherRegions>, not in <region>, and a repository has one region; delete it there (moving the images it holds first, if they are needed), or declare the region <otherRegions>`. The answer says the same in one sentence.
-   - `exists` false and `otherRegions` empty: continue.
+  ```
+  aleogr-registry-gcp-artifact-registry gcp-artifact-registry_repository-create <arguments>
+  ```
 
-2. `plan` ends here: say what would be created (the repository `<project>`, format Docker, in `<region>`, its two labels, and the image path) and end with `status` `would-create`.
+- In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
-3. `apply`: create the repository. The command waits until the repository exists (no `--async`):
+  ```
+  aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_repository-create <arguments>
+  ```
 
-   ```
-   gcloud artifacts repositories create <project> --project=<projectId> --location=<region> --repository-format=docker --labels="aleogr-project=<project>,aleogr-environment=<environment>"
-   ```
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
-   Keep the quotes around the `--labels` value: PowerShell splits an unquoted value at its commas, and `gcloud` then rejects the arguments.
+It prints two kinds of lines:
 
-   - Exit zero: go to step 4.
-   - Exit non-zero and the text contains `ALREADY_EXISTS`: the repository appeared since step 1 (another run made it). Run the read of step 4 once, and only it. It succeeds, `format` is `DOCKER` and `name` has `locations/<region>`: end with `status` `unchanged` and the `imagePath`, with the sentence `The repository was created by another run between the check and the create.` and nothing quoted from `gcloud`'s answer (not even its status word). Anything else (a non-zero exit, another format or region): end with `failed`, one sentence saying the repository exists but could not be confirmed as a Docker repository in `<region>`, without raw error text.
-   - Any other non-zero exit stops with `failed` and exactly the sentence `The repository could not be created; nothing was changed. Check that the Artifact Registry API is enabled in <projectId> and that the active gcloud account may create repositories in it.` Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only that sentence about the failure. Run nothing else.
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
 
-4. Read it back, with this command alone (not the describe skill; the projection keeps only what is checked):
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
 
-   ```
-   gcloud artifacts repositories describe <project> --location=<region> --project=<projectId> --format="json(name,format,labels)"
-   ```
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-   `gcloud` prints lines such as `Encryption: ...` and `Registry URL: ...` before the JSON; they are not part of it. After a create that exited zero, the repository was created in step 3, so the status is `created` whatever this read shows. When the command succeeds, `format` is `DOCKER` and `labels` has both labels with the values above, nothing is pending. A non-zero exit, or a JSON that differs, adds one `pending` item whose `item` is `repository <project> read back`, `reason` `manual`, and `how` is `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_registry-describe projectId=<projectId> project=<project> region=<region>`, and the answer says what could not be confirmed.
+- When the command was the one for `mode=apply`, the sentence is `The command aleogr-registry-gcp-artifact-registry ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command aleogr-registry-gcp-artifact-registry could not be run: update the plugin aleogr-registry-gcp-artifact-registry, then try again.` and the block is as it is below.
 
-Then answer in a few lines: the repository, its region, what was done (created, already there, or what to fix by hand), the image path, and the result block.
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
-
-End with exactly one fenced block tagged `aleogr-result`:
+The block:
 
 ```aleogr-result
 {
@@ -75,19 +61,15 @@ End with exactly one fenced block tagged `aleogr-result`:
   "family": "registry",
   "provider": "gcp-artifact-registry",
   "action": "repository-create",
-  "mode": "apply",
-  "status": "created",
-  "resources": [
-    { "type": "repository", "id": "<projectId>/<region>/<project>", "name": "<project>", "labels": { "aleogr-project": "<project>", "aleogr-environment": "<environment>" } }
-  ],
-  "outputs": { "imagePath": "<region>-docker.pkg.dev/<projectId>/<project>" },
-  "cost": { "fixed": false, "notes": "free up to 0.5 GB of storage, then about US$ 0.10 per GB a month" },
-  "pending": []
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-registry-gcp-artifact-registry, then try again" } ]
 }
 ```
 
-- `mode` echoes the mode used. `status` is one of `would-create` (plan), `created`, `unchanged` (the repository already existed), `pending` (it exists in another region, or with another format: nothing was changed), `failed`.
-- `imagePath` is `<region>-docker.pkg.dev/<projectId>/<project>`, the prefix every component's image starts with (`<imagePath>/<component>`), for `would-create`, `created` and `unchanged`. It is `null` for `pending` and `failed`.
-- `would-create`, `pending` and `failed`: `resources` is empty. `created` and `unchanged`: `resources` lists the repository (with its labels as read; for `created`, the labels it was created with).
-- Each `pending` item is `{ "item": "<what>", "reason": "manual", "how": "<text>" }`.
-- Always `cost` as above.
+## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

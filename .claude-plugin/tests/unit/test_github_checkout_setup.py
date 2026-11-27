@@ -629,6 +629,45 @@ class TestValuesNoWriteTakes(Base):
         for branch in ("main", "release/1.2", "dev_x-y"):
             self.assertTrue(skill.branch_usable(branch, True), branch)
 
+    def run_with(self, found, mode="plan", **extra):
+        """run() with examine() replaced by `found`: the plan's own ending."""
+        args = dict(ARGS, **extra)
+        if mode:
+            args["mode"] = mode
+        ctx = FakeContext({}, args)
+        examine = skill.examine
+        skill.examine = lambda a, c, r: found
+        try:
+            return skill.run(dict(args), ctx), ctx
+        finally:
+            skill.examine = examine
+
+    def test_the_plan_ends_as_the_apply_would(self):
+        # mode=plan runs the same checks: a plan never announces a write the apply
+        # refuses (docs/DESIGN.md, section 18).
+        for mode in ("plan", None):
+            with self.subTest(mode=mode):
+                r, ctx = self.run_with(skill.Found(True, "main", "not-sent"), mode,
+                                       path="a/./b.json")
+                self.assertEqual((r.status, r.block["mode"], ctx.writes),
+                                 ("failed", "plan", []))
+                self.assertEqual(r.lines, [skill.PATH_UNUSABLE.format(path="a/./b.json"),
+                                           "No local change was made in this folder."])
+                self.assertIn("repositoryCopy", r.data)
+                r, ctx = self.run_with(skill.Found(True, "aleogr/change-abc123", "not-sent"),
+                                       mode)
+                self.assertEqual(r.status, "failed")
+                self.assertIn("aleogr/change-", r.lines[0])
+                r, ctx = self.run_with(skill.Found(True, "main+x", "behind"), mode)
+                self.assertEqual((r.status, r.block["outputs"]["state"]), ("failed", "behind"))
+        r, ctx = self.run_with(skill.Found(True, "main", "not-sent"))
+        self.assertEqual(r.status, "would-create")
+        r, ctx = self.run_with(skill.Found(True, "main", "behind"))
+        self.assertEqual(r.status, "would-update")
+        # A repository that does not exist is not a birth: its plan is unchanged.
+        r, ctx = self.run_with(skill.Found(False, None, "not-sent"), path="a/./b.json")
+        self.assertEqual(r.status, "would-create")
+
     def test_what_passes_is_what_the_allowlist_takes(self):
         for branch in ("main", "release/1.2", "main+x", "aleogr/change-abc123"):
             for birth in (True, False):

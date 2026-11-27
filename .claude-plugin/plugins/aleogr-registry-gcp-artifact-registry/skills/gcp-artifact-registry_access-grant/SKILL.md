@@ -1,5 +1,6 @@
 ---
 description: Google Cloud Artifact Registry (gcp-artifact-registry) access grant. Use to let a CI service account push images to a project's Docker image repository in Artifact Registry on Google Cloud, by granting it the writer role on that one repository (never on the GCP project), and to check whether it already may push. Idempotent; plan by default. No fixed cost.
+allowed-tools: Bash(aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_access-grant), Bash(aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_access-grant *)
 ---
 
 # gcp-artifact-registry_access-grant
@@ -19,56 +20,43 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 | `role=push` | The access granted. `push` is the only one. |
 | `mode=plan\|apply` | `plan` (default) reports and changes nothing; `apply` executes. |
 
-## Validate first
+`role=push` is the only access granted.
 
-Before any command, check the arguments, and never ask for anything. A missing required argument ends the skill with the result block, `status` `failed`, the one sentence `<argument> is missing.` and no `gcloud` call. Any invalid value ends it the same way, with the one sentence given below for the rule that failed.
+The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
-- `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. Otherwise: `projectId is not a GCP project id.`
-- `project` has 1 to 14 characters, only lowercase letters, digits and `-`, starts with a letter and does not end with `-`. Otherwise: `project must have 1 to 14 lowercase letters, digits and hyphens, starting with a letter.`
-- `region` is a Google Cloud region name: lowercase letters, then one or more `-<letters>` parts, then digits (`us-central1`, `southamerica-east1`). A multi-region (`us`, `europe`) or anything with an uppercase letter is invalid. Otherwise: `region is not a Google Cloud region name (such as us-central1).`
-- `identity` is a service account e-mail: `<id>@<project id>.iam.gserviceaccount.com`, where `<id>` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`, and `<project id>` follows the rule of `projectId`. All lowercase, with no prefix such as `serviceAccount:`. A user's or a group's e-mail, or any other text, is invalid. Otherwise: `identity must be a service account e-mail (<id>@<project id>.iam.gserviceaccount.com).`
-- `identity` belongs to the project: its `<project id>` is exactly `projectId`. An account of another GCP project, well formed or not, is refused. Otherwise: `identity must be a service account of the project <projectId>.`
-- `role` is `push`. `role=pull`: `role=pull is not needed: Cloud Run's own agent pulls from a repository of its own project, so only push is granted.` Any other value: `role must be push.`
-- `mode` is `plan` or `apply`. Otherwise: `mode must be plan or apply.`
+## Run
 
-In the steps, `<member>` is `serviceAccount:<identity>`.
+Run one of these two commands with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 
-## Steps
+- When the arguments hold `mode=apply`, run exactly:
 
-Show each command before running it. Run only the commands below, in this order, each one alone (its exit code and its text decide the next step). On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
+  ```
+  aleogr-registry-gcp-artifact-registry gcp-artifact-registry_access-grant <arguments>
+  ```
 
-1. Read who may push, from the repository's IAM policy:
+- In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
-   ```
-   gcloud artifacts repositories get-iam-policy <project> --location=<region> --project=<projectId> --format=json
-   ```
+  ```
+  aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_access-grant <arguments>
+  ```
 
-   - Exit non-zero and the text contains both `NOT_FOUND:` and `Requested entity was not found`: the repository does not exist in `region`. Say `The repository <project> does not exist in <region>: create it first with gcp-artifact-registry_repository-create.`, run nothing else and end with `status` `failed`. Never create the repository here. Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only the sentence above about the failure.
-   - Any other non-zero exit is a failure of the check: the Artifact Registry API not enabled, permission denied (Artifact Registry answers `PERMISSION_DENIED` with the words "or it may not exist" when the account may not read the repository: that is still this failure), `gcloud` missing or not signed in. Say exactly `The repository's access could not be read; nothing was changed. Check that the GCP project <projectId> exists, that the Artifact Registry API is enabled in it, and that the active gcloud account is signed in and may read its repositories.` Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only the sentence above about the failure. Run nothing else and end with `status` `failed`.
-   - Success: `granted` is `true` when a binding whose `role` is exactly `roles/artifactregistry.writer` and that has no `condition` lists `<member>` in its `members`; otherwise `false` (also when there are no `bindings` at all). A binding of another role (reader, administrator) does not count.
+Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
 
-2. `granted` true: run nothing else and end with `status` `unchanged` (in `plan` and in `apply`). `granted` false: in `plan`, say that `<identity>` would get the writer role on the repository `<project>` and end with `status` `would-update`. In `apply`, continue.
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
-3. `apply`: grant the writer role on the repository:
+It prints two kinds of lines:
 
-   ```
-   gcloud artifacts repositories add-iam-policy-binding <project> --location=<region> --project=<projectId> --member="<member>" --role="roles/artifactregistry.writer" --condition=None --quiet
-   ```
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
 
-   - Never grant it on the GCP project: never run `gcloud projects add-iam-policy-binding`.
-   - A binding made right after the account is created can be refused for a while (seconds to minutes) while the new account is not yet visible: a non-zero exit whose text says the account does not exist (`does not exist`, or `NOT_FOUND`) is the refusal that waiting cures, and the binding is polled: wait 30 seconds, then run the same command again, alone; while it is refused that same way, wait and try again; at most 10 tries in all, the first one included (so at most 9 waits, about 5 minutes). Any other non-zero exit, on any try, ends the poll at once, with no further wait and no further try. The tenth refusal stops the skill.
-   - The wait is the command `sleep 30`, the one command of this skill that is not `gcloud`. Show it, then run it with the Bash tool in the background (`run_in_background`: Claude Code refuses a `sleep` in the foreground), run nothing else while it runs, and when its completion notice arrives go on with the next try in this same run. A pending wait is part of the run: while one is pending, never end the answer, never give the result block, and never tell the owner to run anything. A wait that cannot be run, or whose completion notice never comes, counts as the refusal that ends the poll: the skill ends as after the tenth refusal, never loops and never leaves the answer unfinished.
-   - A failure (not polled, or the tenth refusal) stops with `failed` and exactly the sentence `The push access could not be granted; nothing was changed. Check that the account <identity> exists and that the active gcloud account may change the repository's access.` Never explain which text decided this, and repeat no word of `gcloud`'s answer (not even its status words, codes or reasons): the answer says only that sentence about the failure. Run nothing else.
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
 
-4. Read it back with step 1's command, alone. The binding was added in step 3, so the status is `updated` whatever this read shows. When the command succeeds and `granted` is true, nothing is pending. A non-zero exit, or `granted` still false, adds one `pending` item whose `item` is `push access of <identity> read back`, `reason` `manual`, and `how` is `/aleogr-registry-gcp-artifact-registry:gcp-artifact-registry_access-grant projectId=<projectId> project=<project> region=<region> identity=<identity> role=push mode=plan`, and the answer says what could not be confirmed.
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-Then answer in a few lines: the repository, the account, whether it may push (before and, after a change, after), what was done, and the result block.
+- When the command was the one for `mode=apply`, the sentence is `The command aleogr-registry-gcp-artifact-registry ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command aleogr-registry-gcp-artifact-registry could not be run: update the plugin aleogr-registry-gcp-artifact-registry, then try again.` and the block is as it is below.
 
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
-
-End with exactly one fenced block tagged `aleogr-result`:
+The block:
 
 ```aleogr-result
 {
@@ -76,19 +64,15 @@ End with exactly one fenced block tagged `aleogr-result`:
   "family": "registry",
   "provider": "gcp-artifact-registry",
   "action": "access-grant",
-  "mode": "apply",
-  "status": "updated",
-  "resources": [
-    { "type": "repository-binding", "id": "<projectId>/<region>/<project>", "name": "<project>", "member": "serviceAccount:<identity>", "role": "roles/artifactregistry.writer" }
-  ],
-  "outputs": { "granted": true },
-  "cost": { "fixed": false, "notes": "no cost" },
-  "pending": []
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-registry-gcp-artifact-registry, then try again" } ]
 }
 ```
 
-- `mode` echoes the mode used. `status` is one of `unchanged` (the account already may push), `would-update` (plan, it may not), `updated` (apply granted it), `failed` (an invalid argument, a repository that does not exist, a read that failed, or a grant that failed).
-- `granted` is from the last read (step 4's when it succeeded, else step 1's). `failed`: `resources` is empty and `outputs` is `{ "granted": null }`.
-- `unchanged` and `updated`: `resources` lists the binding as above. `would-update`: `resources` is empty.
-- Each `pending` item is `{ "item": "<what>", "reason": "manual", "how": "<text>" }`.
-- Always `cost` as above.
+## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

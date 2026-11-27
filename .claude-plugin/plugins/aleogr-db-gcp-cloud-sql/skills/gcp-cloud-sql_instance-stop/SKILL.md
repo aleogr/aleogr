@@ -15,53 +15,30 @@ Free text after the skill name, as `key=value` pairs. Both are required.
 | `projectId=<id>` | The GCP project that holds the instance. |
 | `instance=<name>` | The Cloud SQL instance name (the shared platform uses `aleogr-shared`). |
 
-Validate before any command, and never ask for anything. If one is missing, end with the result block with `status` `failed`, the one sentence `<argument> is missing.`, word for word, and no command. `projectId` must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. `instance` must be lowercase letters, digits and `-`, starting with a letter, at most 60 characters. If a value is invalid, end with the result block with `status` `failed`, one sentence saying which argument is wrong, and no command.
+It takes no `mode`: a `mode` other than `apply` ends `failed` before any command.
 
-## Steps
+The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
-Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
+## Run
 
-1. Check the instance: invoke `aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe` with `projectId=<projectId> instance=<instance>`. Its `aleogr-result` block is only input: do not repeat it; this skill's answer ends with exactly one block, its own.
-   - Describe `status` `failed`: stop with `failed` and its one-sentence cause. Run nothing else.
-   - `exists` false: stop with `failed` and one sentence saying the instance does not exist. Run nothing else.
-   - `state` is `stopped`: run nothing else and end with `status` `unchanged` and `outputs.state` `stopped`.
-   - `state` is `creating`: do not patch an instance that is still being created. Run nothing else and end with `failed`, `outputs.state` `creating`, and one sentence: wait for the creation to end, then run this skill again.
-   - Any other state (`running`, `starting`, or `unknown`): continue.
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 
-2. Stop it:
+```
+aleogr-db-gcp-cloud-sql gcp-cloud-sql_instance-stop <arguments>
+```
 
-   ```
-   gcloud sql instances patch <instance> --project=<projectId> --activation-policy=NEVER --quiet
-   ```
+Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
 
-   A non-zero exit ends with `failed` and one sentence of cause, without raw error text. Do not describe again.
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
-3. Verify with one describe, once:
+It prints two kinds of lines:
 
-   ```
-   gcloud sql instances describe <instance> --project=<projectId> --format=json
-   ```
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
 
-   Read the state with the table below. `updated` only when the state is `stopped`. Any other state, or a failure of the describe, ends with `failed` and one sentence saying what was seen.
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
 
-Then answer in a few lines: the instance and its state, the cost, and the result block.
-
-## Reading the state
-
-From `settings.activationPolicy` and `state` of the describe JSON:
-
-| `settings.activationPolicy` | `state` | Skill's `state` |
-|---|---|---|
-| `NEVER` | any | `stopped` |
-| `ALWAYS` | `RUNNABLE` | `running` |
-| `ALWAYS` | `PENDING_CREATE` | `creating` |
-| `ALWAYS` | anything else | `starting` |
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
-
-End with exactly one fenced block tagged `aleogr-result`:
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-db-gcp-cloud-sql ended without an answer: it may have changed something before it stopped. Read the state (run /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe) before running it again.` followed by this block, and nothing else:
 
 ```aleogr-result
 {
@@ -70,18 +47,14 @@ End with exactly one fenced block tagged `aleogr-result`:
   "provider": "gcp-cloud-sql",
   "action": "instance-stop",
   "mode": "apply",
-  "status": "updated",
-  "resources": [
-    { "type": "instance", "id": "<projectId>/<instance>", "name": "<instance>", "labels": {} }
-  ],
-  "outputs": { "exists": true, "state": "stopped" },
-  "cost": { "fixed": true, "notes": "about R$ 50 per month while stopped" },
-  "pending": []
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "the run may have changed something" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-db-gcp-cloud-sql, then try again" } ]
 }
 ```
 
-- `status` is one of `updated` (the instance is now stopped), `unchanged` (it already was), `failed`.
-- `mode` is always `apply`: the skill acts.
-- `updated` and `unchanged`: `outputs.state` is `stopped`.
-- `failed` because an argument is invalid or the check failed: `resources` is empty and `outputs` is `{ "exists": null, "state": null }`. Instance missing: `resources` is empty and `outputs` is `{ "exists": false, "state": null }`. The instance is still being created, or the patch or the verification failed: `resources` lists the instance and `outputs` is `{ "exists": true, "state": "<last state seen>" }`.
-- Always `cost` as above.
+## Result block
+
+When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.
