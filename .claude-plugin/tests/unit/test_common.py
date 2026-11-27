@@ -390,6 +390,13 @@ class TestAnswer(unittest.TestCase):
         obj = json.loads(common.render_json(r))
         self.assertEqual(obj["answer"], ["One line."])
         self.assertEqual(obj["outputs"], {"exists": False})
+        self.assertNotIn("data", obj)
+
+    def test_data_goes_only_into_the_json_document(self):
+        r = common.Result(common.result_block("db", "p", "a", "unchanged", {}), ["Line."],
+                          data={"copy": {"secret-ish": 1}})
+        self.assertNotIn("secret-ish", common.render_answer(r))
+        self.assertEqual(json.loads(common.render_json(r))["data"], {"copy": {"secret-ish": 1}})
 
     def test_table(self):
         self.assertEqual(common.render_table(["item", "state", "action"],

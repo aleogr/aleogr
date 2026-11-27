@@ -81,13 +81,17 @@ def outputs(state=None, branch=None, path=DEFAULT_PATH, pushed=False, updated=Fa
 class Found(object):
     """What steps 1 to 5 found."""
 
-    def __init__(self, exists, branch, state, reason=None, local=None, file_equal=False):
+    def __init__(self, exists, branch, state, reason=None, local=None, file_equal=False,
+                 copy=None):
         self.exists = exists  # step 1 proved the repository exists
         self.file_equal = file_equal  # step 4 found the two files equal
         self.branch = branch  # its default_branch (None when it does not exist)
         self.state = state  # equal, not-sent, differs, behind, needs-attention, missing
         self.reason = reason  # for needs-attention
         self.local = local  # the local file, as a JSON value
+        # The repository's copy that step 3 read: None when it was not read (absent, or
+        # the repository does not exist), else {"json": <it is valid JSON>, "value": ...}.
+        self.copy = copy
 
 
 class Failure(object):
@@ -196,14 +200,15 @@ def examine(args, ctx, reader):
     if c.ok:
         # Step 4: the file is present; compare as JSON values.
         remote = G.json_of(c.out)
-        equal = (remote is not None or c.out.strip() == "null") and G.json_equal(remote,
-                                                                              local)
+        is_json = remote is not None or c.out.strip() == "null"
+        copy = {"json": is_json, "value": remote}
+        equal = is_json and G.json_equal(remote, local)
         if equal and args.get("head") != "check":
-            return Found(True, branch, "equal", local=local, file_equal=True)
+            return Found(True, branch, "equal", local=local, file_equal=True, copy=copy)
         got = _folder(reader, full, owner, name, branch, path, equal)
         if isinstance(got, Failure):
             return failed(got.sentence, True, branch)
-        return Found(True, branch, got[0], got[1], local, equal)
+        return Found(True, branch, got[0], got[1], local, equal, copy=copy)
     if not G.http(c, 404):
         return failed("The repository's copy of %s could not be read: %s."
                       % (path, G.gh_cause(c)), True, branch)
@@ -310,5 +315,10 @@ def run(args, ctx):
                      "/aleogr-repo-github:github_repo-create." % full]
         lines.append("apply would run, without anything run now:")
         lines += G.shown(_birth_commands(args, owner, name, found.branch))
-    return ctx.result(status, out, resources=resources, pending=pending, cost=G.NO_COST,
-                      lines=lines + reader.notes)
+    result = ctx.result(status, out, resources=resources, pending=pending, cost=G.NO_COST,
+                        lines=lines + reader.notes)
+    # For a calling command only (the --json document): the copy step 3 read, which the
+    # block does not hold. project-plan notes its environments and database components
+    # from it, with no read of its own.
+    result.data = {"repositoryCopy": found.copy}
+    return result

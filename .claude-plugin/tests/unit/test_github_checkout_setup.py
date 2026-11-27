@@ -114,6 +114,21 @@ class TestPlan(Base):
         self.assertEqual((r.status, r.block["outputs"]["state"]), ("unchanged", "equal"))
         self.assertEqual(len(ctx.calls), 2)
 
+    def test_repository_copy_is_given_to_a_caller_only(self):
+        # project-plan notes the environments of the repository's copy from this.
+        remote = {"version": 1, "name": "demo", "environments": {"dev": {}}}
+        r, _ = self.run_skill({REPO: ok({"default_branch": "main"}), CONTENTS: ok(remote),
+                               "git rev-parse --is-inside-work-tree": fail("fatal: no")})
+        self.assertEqual(r.data, {"repositoryCopy": {"json": True, "value": remote}})
+        self.assertNotIn("environments", common.render_answer(r))
+        r, _ = self.run_skill({REPO: ok({"default_branch": "main"}), CONTENTS: ok("not json"),
+                               "git rev-parse --is-inside-work-tree": fail("fatal: no")})
+        self.assertEqual(r.data, {"repositoryCopy": {"json": False, "value": None}})
+        r, _ = self.run_skill({REPO: ok({"default_branch": "main"}),
+                               CONTENTS: fail("gh: Not Found (HTTP 404)"),
+                               REPO + "/commits?per_page=2": ok([{"sha": SHA1}])})
+        self.assertEqual(r.data, {"repositoryCopy": None})
+
     def test_list_order_and_booleans_matter(self):
         for remote in ({"version": 1, "name": "demo", "list": [2, 1]},
                        {"version": True, "name": "demo", "list": [1, 2]}, "not json"):

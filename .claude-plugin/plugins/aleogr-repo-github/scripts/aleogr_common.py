@@ -543,11 +543,18 @@ def result_block(family, provider, action, status, outputs, mode="plan", resourc
 
 
 class Result(object):
-    """What a skill's run() returns: the answer's lines and the result object."""
+    """What a skill's run() returns: the answer's lines and the result object.
 
-    def __init__(self, block, lines=()):
+    `data` (optional, a JSON object) is what the skill read that a calling command needs
+    and the block does not hold (for example the repository's copy of a file). It goes
+    only into the `--json` document, as its key `data`: never into the fenced block or
+    the answer, so the owner never sees it.
+    """
+
+    def __init__(self, block, lines=(), data=None):
         self.block = block
         self.lines = list(lines)
+        self.data = data
 
     @property
     def status(self):
@@ -616,9 +623,12 @@ def render_answer(result):
 
 
 def render_json(result):
-    """The stdout of `--json`: the result object, with the answer's lines as `answer`."""
+    """The stdout of `--json`: the result object, with the answer's lines as `answer`
+    and, when the skill gave any, its `data`."""
     obj = dict(result.block)
     obj["answer"] = list(result.lines)
+    if getattr(result, "data", None) is not None:
+        obj["data"] = result.data
     return json.dumps(obj, ensure_ascii=False) + "\n"
 
 
