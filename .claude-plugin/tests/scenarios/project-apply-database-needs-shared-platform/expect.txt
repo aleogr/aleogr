@@ -7,7 +7,7 @@ OUTPUT /aleogr:platform-plan shows what it makes and what it costs
 OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
 OUTPUT "status": "pending"
 # The answer: no line while a wait runs, no opening summary, no note of its own under the table.
-OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|The run (changed|stops|stopped)
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|[Tt]he run (changed|stops|stopped)|[Tt]his run stopped (before|at|there)
 # Every database scenario of the run: the instance is never stopped, created or deleted; no
 # password; the nested blocks are input only; no e-mail of a component nor the shared project id
 # in the result block.
