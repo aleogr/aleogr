@@ -1,8 +1,10 @@
-"""Unit tests of github_variables-set's arguments and plan, the cases no scenario covers.
+"""Unit tests of github_variables-set: its arguments, plan and apply, the cases no
+scenario covers, and its golden commands.
 
-The skill's run() is given a context whose read() answers from a dict, so no provider
-command runs. The scenarios gh-variables-plan and gh-secrets-plan cover the rest, in the
-direct mode.
+The skill's run() is given a context whose read() answers from a dict and whose
+execute() (where ctx.write runs a command that passed the allowlist of writes) records
+the write and answers from another dict, so no provider command runs. The scenarios
+gh-variables-* and gh-secrets-* cover the rest, in the direct mode.
 """
 
 import json
@@ -35,11 +37,18 @@ def fail(text, code=1):
 
 
 class FakeContext(common.Context):
-    def __init__(self, answers, args):
+    def __init__(self, answers, args, writes=None):
         common.Context.__init__(self, PLUGIN, ROOT, "github_variables-set", skill,
                                 args.get("mode") or "plan", args)
         self.answers = answers
+        self.write_answers = writes or {}
         self.calls = []
+        self.writes = []
+
+    def execute(self, argv, timeout=None):
+        # Reached only through ctx.write, after the allowlist of writes accepted argv.
+        self.writes.append(list(argv))
+        return self.write_answers.get(argv[3], common.Completed(0, "", ""))
 
     def read(self, argv, timeout=None):
         assert common.read_refusal(argv) is None, argv
@@ -48,9 +57,9 @@ class FakeContext(common.Context):
         return self.answers.get(line, common.Completed(0, "", ""))
 
 
-def run(answers, **over):
+def run(answers, writes=None, **over):
     args = dict(ARGS, **over)
-    ctx = FakeContext(answers, args)
+    ctx = FakeContext(answers, args, writes)
     return skill.run(dict(args), ctx), ctx
 
 
@@ -134,6 +143,115 @@ class TestPlan(unittest.TestCase):
                 self.assertTrue(r.lines[0].startswith(sentence), r.lines)
                 self.assertEqual(r.block["resources"], [])
                 self.assertEqual(r.block["outputs"], {"set": [], "already": []})
+
+
+def plain(argv):
+    return [a.value if isinstance(a, common.Hidden) else a for a in argv]
+
+
+class TestGoldenCommands(unittest.TestCase):
+    """Step 3 of the SKILL.md, as it writes the commands:
+
+        gh variable set <NAME> --repo <owner>/<name> --body "<value>"
+        gh secret set <NAME> --repo <owner>/<name> --body "<value>"
+    """
+
+    def test_variable_set(self):
+        r, ctx = run({VARS: ok([])}, mode="apply")
+        self.assertEqual([plain(w) for w in ctx.writes], [
+            ["gh", "variable", "set", "A_VAR", "--repo", "example-org/example-repo", "--body",
+             "secret-one"],
+            ["gh", "variable", "set", "B_VAR", "--repo", "example-org/example-repo", "--body",
+             "secret-two"]])
+        for w in ctx.writes:
+            self.assertIsInstance(w[-1], common.Hidden)
+            self.assertTrue(all(isinstance(a, str) for a in w[:-1]))
+            self.assertEqual(common.show_command(w).split(" --body ")[1], "<value>")
+        self.assertEqual(ctx.calls, [VARS])
+
+    def test_secret_set(self):
+        r, ctx = run({SECRETS: ok([])}, mode="apply", kind="secrets")
+        self.assertEqual([plain(w) for w in ctx.writes], [
+            ["gh", "secret", "set", "A_VAR", "--repo", "example-org/example-repo", "--body",
+             "secret-one"],
+            ["gh", "secret", "set", "B_VAR", "--repo", "example-org/example-repo", "--body",
+             "secret-two"]])
+        self.assertIsInstance(ctx.writes[0][-1], common.Hidden)
+
+    def test_each_golden_command_is_on_the_allowlist(self):
+        for kind in ("variables", "secrets"):
+            argv = skill.set_command(kind, "A_VAR", "example-org/example-repo", "v=1")
+            self.assertIsNone(common.write_refusal("github_variables-set", argv))
+
+
+class TestApply(unittest.TestCase):
+    def test_all_set_names_only(self):
+        r, ctx = run({VARS: ok([{"name": "A_VAR", "value": "secret-one"}])}, mode="apply")
+        self.assertEqual([w[3] for w in ctx.writes], ["B_VAR"])
+        self.assertEqual((r.status, r.block["outputs"], r.block["pending"]),
+                         ("updated", {"set": ["B_VAR"], "already": ["A_VAR"]}, []))
+        self.assertEqual(r.block["mode"], "apply")
+        self.assertEqual(r.lines, ["These variables were set: B_VAR.",
+                                   "These variables already held the given value: A_VAR."])
+        self.assertNotIn("secret-", text_of(r))
+
+    def test_unchanged_writes_nothing(self):
+        r, ctx = run({VARS: ok([{"name": "A_VAR", "value": "secret-one"},
+                                {"name": "B_VAR", "value": "secret-two"}])}, mode="apply")
+        self.assertEqual((r.status, ctx.writes, r.block["mode"]), ("unchanged", [], "apply"))
+
+    def test_first_set_refused_is_failed(self):
+        r, ctx = run({VARS: ok([])}, {"A_VAR": fail("HTTP 403: Resource not accessible")},
+                     mode="apply")
+        self.assertEqual([w[3] for w in ctx.writes], ["A_VAR"])
+        self.assertEqual((r.status, r.block["outputs"], r.block["pending"]),
+                         ("failed", {"set": [], "already": []}, []))
+        self.assertEqual(r.lines[0], skill.refused_first("variables", "A_VAR"))
+        self.assertEqual(r.block["resources"][0]["id"], "example-org/example-repo")
+        self.assertNotIn("403", text_of(r))
+        self.assertNotIn("secret-", text_of(r))
+
+    def test_later_set_refused_is_updated_with_the_item(self):
+        r, ctx = run({SECRETS: ok([])}, {"B_VAR": fail("HTTP 403")}, mode="apply",
+                     kind="secrets")
+        self.assertEqual([w[3] for w in ctx.writes], ["A_VAR", "B_VAR"])
+        self.assertEqual((r.status, r.block["outputs"]),
+                         ("updated", {"set": ["A_VAR"], "already": []}))
+        self.assertEqual(r.block["pending"], [{
+            "item": "secrets", "reason": "manual",
+            "how": "run github_variables-set again with the same arguments and mode=apply "
+                   "once gh may change the repository's Actions secrets"}])
+        self.assertEqual(r.lines[1], "GitHub refused to set the secret B_VAR; the secrets "
+                         "before it were set and the rest were not. Check that gh may change "
+                         "the repository's Actions secrets (it needs write access to the "
+                         "repository), then run this skill again with the same arguments.")
+        self.assertEqual(r.lines[-1], skill.SECRETS_NOTE)
+
+    def test_exit_0_with_an_error_line_is_a_refusal(self):
+        r, ctx = run({VARS: ok([])}, {"A_VAR": common.Completed(
+            0, "", "gh: Resource not accessible by integration (HTTP 403)\n")}, mode="apply")
+        self.assertEqual(r.status, "failed")
+        self.assertIn(G_UNTRUSTED, r.lines)
+        self.assertEqual(len(ctx.writes), 1)
+
+    def test_plan_never_writes(self):
+        ctx = FakeContext({VARS: ok([])}, dict(ARGS))
+        with self.assertRaises(common.WriteRefused):
+            ctx.write(skill.set_command("variables", "A_VAR", "example-org/example-repo", "x"))
+        r, ctx = run({VARS: ok([])})
+        self.assertEqual((r.status, ctx.writes), ("would-update", []))
+
+    def test_read_only_option_refuses_apply_before_reading(self):
+        args = dict(ARGS, mode="apply")
+        ctx = common.Context(PLUGIN, ROOT, "github_variables-set", skill, "apply", args,
+                             read_only=True)
+        self.assertFalse(ctx.writable)
+        r = common.read_only_refusal(ctx)
+        self.assertEqual((r.status, r.lines, r.block["outputs"], r.block["mode"]),
+                         ("failed", [common.READ_ONLY_APPLY_SENTENCE], {}, "apply"))
+
+
+G_UNTRUSTED = skill.G.UNTRUSTED
 
 
 if __name__ == "__main__":
