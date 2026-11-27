@@ -166,9 +166,9 @@ class TestArgumentGivenTwice(unittest.TestCase):
             shutil.rmtree(folder)
 
     def test_not_converted_still_comes_first(self):
-        sql = "aleogr-db-gcp-cloud-sql"
+        sql = "aleogr"  # project-apply is prose until step 3
         p = subprocess.run([sys.executable, os.path.join(PLUGINS, sql, "bin", sql),
-                            "gcp-cloud-sql_instance-create", "a=1", "a=2"],
+                            "project-apply", "a=1", "a=2"],
                            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE,
                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
