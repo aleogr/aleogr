@@ -28,7 +28,10 @@ ROOT = plugin_root(PLUGIN)
 skill = load_skill(PLUGIN, "project-declare")
 PATH = ".aleogr/project.json"
 
-with open(os.path.join(ROOT, "skills", "project-declare", "SKILL.md"), encoding="utf-8") as _f:
+# The SKILL.md as it was before it became a shell over the command: the specification
+# the canonical form is checked against.
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden",
+                       "project-declare.md"), encoding="utf-8") as _f:
     SKILL_MD = _f.read()
 with open(os.path.join(ROOT, "defaults.json"), encoding="utf-8") as _f:
     DEFAULTS = json.load(_f)

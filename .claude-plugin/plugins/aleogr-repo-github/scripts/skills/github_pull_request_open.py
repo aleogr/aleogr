@@ -331,6 +331,26 @@ def _changes_line(changes):
     return "Local changes made in this folder: %s." % ", ".join(changes)
 
 
+PATH_UNUSABLE = ("The path {path} cannot be committed as it is written: it has a . part; "
+                 "name the file by its plain relative path (such as a/b.json, not "
+                 "a/./b.json); nothing was committed, and nothing reached GitHub.")
+BRANCH_UNUSABLE = ("The default branch {branch} of {full} has a name this tooling does not "
+                   "use in a git command: it may hold only A-Z, a-z, 0-9, ., _, - and /, "
+                   "not start with -, have no .. and no //, and not end with / or .; "
+                   "nothing was committed, and nothing reached GitHub.")
+
+
+def path_usable(path):
+    """Whether `git add -- <path>` and `git commit ... -- <path>` take this path."""
+    return common.write_refusal("github_pull-request-open",
+                                ["git", "add", "--", path]) is None
+
+
+def branch_usable(branch):
+    """Whether the git and gh commands of steps 10, 14 and 15 take this branch."""
+    return isinstance(branch, str) and common.BRANCH_ARG.re.fullmatch(branch) is not None
+
+
 def apply(args, ctx, reader, found):
     """Steps 9 to 15: the folder is ready, no tooling pull request is open, and
     `changed` is not empty."""
@@ -349,6 +369,14 @@ def apply(args, ctx, reader, found):
                           lines=lines + reader.notes)
 
     nothing = "Nothing was committed, and nothing reached GitHub."
+
+    # Before any write: values the SKILL.md's rules let through but that no git command
+    # of this skill takes (the shapes of aleogr_common's allowlist of writes).
+    for p in changed:
+        if not path_usable(p):
+            return ending("failed", [PATH_UNUSABLE.format(path=p)])
+    if not branch_usable(branch):
+        return ending("failed", [BRANCH_UNUSABLE.format(branch=branch, full=full)])
 
     # Step 9: the account, then this checkout's commit identity.
     c = reader.gh(["gh", "api", "user"])

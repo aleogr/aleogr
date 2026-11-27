@@ -239,7 +239,10 @@ class TestPlan(Base):
 # ---------------------------------------------------------------------------
 # mode=apply
 
-SKILL_MD = os.path.join(ROOT, "skills", "github_ci-setup", "SKILL.md")
+# The SKILL.md as it was before it became a shell over the command: the specification
+# the golden file is checked against.
+SKILL_MD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "golden",
+                        "github_ci-setup.md")
 HEAD = "gh api repos/example-org/tooling/commits/main"
 NOT_FOUND = fail("gh: Not Found (HTTP 404)")
 

@@ -545,15 +545,57 @@ def fast_forward(args, ctx, reader, found):
                       lines=lines + reader.notes)
 
 
+# Values the SKILL.md's rules let through but that no git command of this skill takes
+# (the shapes of aleogr_common's allowlist of writes): checked before any write, each
+# with one fixed sentence, instead of a refused write.
+PATH_UNUSABLE = ("path={path} cannot be committed as it is written: it has a . part, an "
+                 "empty part or a / at the end; give the file's plain relative path (such "
+                 "as a/b.json, not ./a/b.json, a//b.json or a/); nothing was changed.")
+BRANCH_UNUSABLE = ("The default branch {branch} of {full} has a name this tooling does not "
+                   "use in a git command: it may hold only A-Z, a-z, 0-9, ., _, - and /, "
+                   "not start with -, have no .. and no //, and not end with / or .{extra}; "
+                   "nothing was changed.")
+BRANCH_UNUSABLE_BIRTH = ", and the birth does not push a branch named aleogr/change-..."
+
+
+def path_usable(path):
+    """Whether `git add -- <path>` and `git commit ... -- <path>` take this path."""
+    return common.write_refusal("github_checkout-setup", ["git", "add", "--", path]) is None
+
+
+def branch_usable(branch, birth):
+    """Whether the git commands of a birth (or of a fast-forward) take this branch."""
+    pattern = common.DEFAULT_BRANCH_ARG if birth else common.BRANCH_ARG
+    return isinstance(branch, str) and pattern.re.fullmatch(branch) is not None
+
+
 def apply(args, ctx, reader, found):
     """Step 6 for apply, when it acts: a birth, a folder behind, or a repository that
     does not exist."""
+    owner, name = args["owner"], args["name"]
+    full = "%s/%s" % (owner, name)
+    path = args.get("path", DEFAULT_PATH)
     if found.state == "behind":
+        if not branch_usable(found.branch, False):
+            return ctx.result("failed", outputs("behind", found.branch, path),
+                              resources=[G.repository_resource(owner, name)], cost=G.NO_COST,
+                              lines=[BRANCH_UNUSABLE.format(branch=found.branch, full=full,
+                                                            extra="")] + reader.notes)
         return fast_forward(args, ctx, reader, found)
     if not found.exists:
-        full = "%s/%s" % (args["owner"], args["name"])
-        return ctx.result("failed", outputs("not-sent", None, args.get("path", DEFAULT_PATH)),
+        return ctx.result("failed", outputs("not-sent", None, path),
                           cost=G.NO_COST, lines=[NOT_CREATED % full] + reader.notes)
+    problem = None
+    if not path_usable(path):
+        problem = PATH_UNUSABLE.format(path=path)
+    elif not branch_usable(found.branch, True):
+        problem = BRANCH_UNUSABLE.format(branch=found.branch, full=full,
+                                         extra=BRANCH_UNUSABLE_BIRTH)
+    if problem:
+        return ctx.result("failed", outputs("not-sent", found.branch, path),
+                          resources=[G.repository_resource(owner, name)], cost=G.NO_COST,
+                          lines=[problem, "No local change was made in this folder."]
+                          + reader.notes)
     return birth(args, ctx, reader, found)
 
 

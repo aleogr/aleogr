@@ -405,5 +405,46 @@ class TestApply(unittest.TestCase):
                          ["open the pull request", "return this folder to the default branch"])
 
 
+
+class TestValuesNoWriteTakes(unittest.TestCase):
+    """Values the SKILL.md's rules let through but that the shapes of the allowlist of
+    writes refuse: the run ends failed, with one fixed sentence, before any write."""
+
+    def apply(self, branch="main", changed=("a.json",)):
+        args = dict(ARGS, mode="apply", title="Change")
+        ctx = FakeContext({}, args)
+        found = skill.Found(branch, None, "ready", list(changed))
+        return skill.apply(args, ctx, skill.G.Reader(ctx), found), ctx
+
+    def test_a_dot_part_inside_a_path(self):
+        for path in ("a/./b.json", "a/.", "."):
+            with self.subTest(path=path):
+                self.assertIsNotNone(skill.split_paths(path))  # the skill's rule lets it by
+                r, ctx = self.apply(changed=["x.json", path])
+                self.assertEqual((r.status, ctx.calls, ctx.writes), ("failed", [], []))
+                self.assertEqual(r.lines, [skill.PATH_UNUSABLE.format(path=path),
+                                           "No local change was made in this folder."])
+
+    def test_the_rule_already_refuses_the_others(self):
+        for path in ("./a.json", "a//b.json", "conf/"):
+            with self.subTest(path=path):
+                self.assertIsNone(skill.split_paths(path))
+                self.assertEqual(skill._validate(dict(ARGS, paths=path), "plan"),
+                                 skill.PATHS_RULE)
+
+    def test_default_branch_the_shapes_refuse(self):
+        for branch in ("main+x", "rélease", "-main", "a..b", "a/"):
+            with self.subTest(branch=branch):
+                r, ctx = self.apply(branch=branch)
+                self.assertEqual((r.status, ctx.calls, ctx.writes), ("failed", [], []))
+                self.assertTrue(r.lines[0].startswith(
+                    "The default branch %s of example-org/example-repo has a name" % branch))
+                self.assertEqual(r.block["outputs"]["defaultBranch"], branch)
+        for branch in ("main", "release/1.2", "aleogr/change-abc123"):
+            self.assertTrue(skill.branch_usable(branch), branch)
+            self.assertIsNone(common.write_refusal("github_pull-request-open",
+                                                   skill.switch_back_command(branch)))
+
+
 if __name__ == "__main__":
     unittest.main()

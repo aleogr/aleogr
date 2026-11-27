@@ -40,7 +40,8 @@ sys.dont_write_bytecode = True
 EXIT_OK = 0  # a result was produced, whatever its status (failed included)
 EXIT_USAGE = 2  # bad usage: unknown option, malformed argument, unknown skill
 EXIT_NOT_CONVERTED = 64  # the skill, or this mode of it, is not converted
-EXIT_SOFTWARE = 70  # a bug of the command: a refused read, an unexpected exception
+EXIT_SOFTWARE = 70  # a bug of the command: a refused read or write (after its `failed`
+#                     result), an unexpected exception
 
 PROVIDER_TOOLS = ("gcloud", "gh", "git", "go")
 
@@ -53,7 +54,8 @@ class ReadRefused(Exception):
     """A command that is not a read was given to the read-only runner.
 
     It is raised before anything runs. It is a bug of the skill's code, never a state
-    of the provider: the dispatcher prints it on stderr and exits 70, with no result.
+    of the provider: the dispatcher prints one line on stderr (without the command's
+    values), prints the fixed `failed` result of a refusal (refused_result) and exits 70.
     """
 
     def __init__(self, argv, reason):
@@ -68,7 +70,8 @@ class WriteRefused(Exception):
     outside `mode=apply` or under `--read-only`.
 
     It is raised before anything runs or is shown. Like ReadRefused it is a bug of the
-    skill's code: the dispatcher prints it on stderr and exits 70, with no result.
+    skill's code: the dispatcher prints one line on stderr (without the command's
+    values), prints the fixed `failed` result of a refusal (refused_result) and exits 70.
     """
 
     def __init__(self, what, reason):
@@ -84,12 +87,15 @@ _KEY = re.compile(r"^[A-Za-z][A-Za-z0-9]*$")
 _SKILL = re.compile(r"^[a-z][a-z0-9_-]*$")
 
 
-def parse_args(tokens):
+def parse_args(tokens, repeated=None):
     """Parse `key=value` tokens into a dict (insertion order kept).
 
     The value is everything after the first `=`, and may be empty or hold more `=`
-    (`variables=A=1,B=2`). A token without `=`, a key that is not letters and digits
-    starting with a letter, or a key given twice is a UsageError.
+    (`variables=A=1,B=2`). A token without `=`, or a key that is not letters and digits
+    starting with a letter, is a UsageError. A key given twice is a UsageError too,
+    unless `repeated` is a list: the key is then added to it (once), and its first value
+    is kept. The dispatcher passes one, and answers a repeated key with a `failed`
+    result (REPEATED_SENTENCE) without running the skill.
     """
     args = {}
     for token in tokens:
@@ -99,7 +105,11 @@ def parse_args(tokens):
         if not _KEY.match(key):
             raise UsageError("bad argument name: %s" % key)
         if key in args:
-            raise UsageError("argument given twice: %s" % key)
+            if repeated is None:
+                raise UsageError("argument given twice: %s" % key)
+            if key not in repeated:
+                repeated.append(key)
+            continue
         args[key] = value
     return args
 
@@ -113,20 +123,23 @@ def format_args(args):
 class Invocation(object):
     """A parsed command line."""
 
-    def __init__(self, skill, args, json_mode=False, has=False, mode=None, read_only=False):
+    def __init__(self, skill, args, json_mode=False, has=False, mode=None, read_only=False,
+                 repeated=()):
         self.skill = skill
         self.args = args
         self.json = json_mode
         self.has = has
         self.mode = mode
         self.read_only = read_only
+        self.repeated = list(repeated)  # keys given more than once, in order
 
 
 def parse_command_line(argv):
     """Parse the arguments of `<command> ...` (without the command itself).
 
     `[--read-only] [--json] <skill> [key=value ...]` (the two options in either order,
-    each at most once) or `--has <skill> [mode]`. Raises UsageError.
+    each at most once) or `--has <skill> [mode]`. Raises UsageError. A key=value
+    argument given twice is not a UsageError: it is listed in `repeated`.
     """
     argv = list(argv)
     if not argv:
@@ -157,7 +170,10 @@ def parse_command_line(argv):
         raise UsageError("unknown option: %s" % skill)
     if not _SKILL.match(skill):
         raise UsageError("bad skill name: %s" % skill)
-    return Invocation(skill, parse_args(argv[1:]), json_mode=json_mode, read_only=read_only)
+    repeated = []
+    args = parse_args(argv[1:], repeated)
+    return Invocation(skill, args, json_mode=json_mode, read_only=read_only,
+                      repeated=repeated)
 
 
 def module_name(skill):
@@ -992,10 +1008,12 @@ class Backup(object):
       nothing.
 
     Every path is checked as ctx.write_file checks it, before anything is copied.
+    `record` (a list, given by ctx.backup) gets `restore <paths>` when restore() runs.
     """
 
-    def __init__(self, skill, paths, stream=None, folder=None):
+    def __init__(self, skill, paths, stream=None, folder=None, record=None):
         self.skill = skill
+        self.record = record  # a list: what restore() wrote is added to it
         self.paths = list(paths)
         self.stream = stream or sys.stderr
         self.folder = folder or os.getcwd()
@@ -1038,6 +1056,8 @@ class Backup(object):
         for p in self.paths:
             _checked_path(self.skill, p, self.folder)
         self._say("restore", self.paths)
+        if self.record is not None:
+            self.record.append("restore " + " ".join(self.paths))
         done = True
         for p in self.paths:
             full = os.path.join(self.folder, p)
@@ -1188,10 +1208,11 @@ class Result(object):
     the answer, so the owner never sees it.
     """
 
-    def __init__(self, block, lines=(), data=None):
+    def __init__(self, block, lines=(), data=None, expand=None):
         self.block = block
         self.lines = list(lines)
         self.data = data
+        self.expand = expand  # the layout of the fenced block (render_block); None: default
 
     @property
     def status(self):
@@ -1224,18 +1245,27 @@ def _members(obj, indent, expand):
         comma = "," if i < len(items) - 1 else ""
         key = json.dumps(k, ensure_ascii=False)
         if k in expand and isinstance(v, dict) and v:
+            inner = expand[k] if isinstance(expand, dict) else ()
             out.append("%s%s: {" % (pad, key))
-            out.extend(_members(v, indent + 2, ()))
+            out.extend(_members(v, indent + 2, inner or ()))
             out.append("%s}%s" % (pad, comma))
         else:
             out.append("%s%s: %s%s" % (pad, key, _value(v, indent), comma))
     return out
 
 
-def render_block(block, expand=("outputs",)):
+DEFAULT_EXPAND = ("outputs",)
+
+
+def render_block(block, expand=DEFAULT_EXPAND):
     """The result object laid out as the skills print it: one top-level key per line,
     `outputs` one key per line, a list of objects one object per line, every other
-    value on one line (`{ "a": 1 }`, `["x", "y"]`, `[]`, `{}`)."""
+    value on one line (`{ "a": 1 }`, `["x", "y"]`, `[]`, `{}`).
+
+    `expand` names the objects laid out one key per line: a tuple of keys (their own
+    members on one line each), or a dict of key to the same kind of value, for objects
+    inside them (`{"outputs": {"declaration": ("repo",)}}`). A module that prints a
+    nested object expanded in its SKILL.md's example sets BLOCK_EXPAND."""
     return "\n".join(["{"] + _members(block, 2, expand) + ["}"])
 
 
@@ -1256,7 +1286,8 @@ def render_answer(result):
     text = ""
     if result.lines:
         text = "\n".join(result.lines) + "\n\n"
-    return text + "```aleogr-result\n" + render_block(result.block) + "\n```\n"
+    expand = getattr(result, "expand", None) or DEFAULT_EXPAND
+    return text + "```aleogr-result\n" + render_block(result.block, expand) + "\n```\n"
 
 
 def render_json(result):
@@ -1314,6 +1345,10 @@ class Context(object):
         writes = bool(getattr(module, "WRITES", False))
         self.writable = writes and mode == "apply" and not self.forced_read_only
         self.read_only = not self.writable
+        # What this run wrote, in order: each write command run (as its `+ ` line shows
+        # it), `write <path>` for each file written, `restore <paths>` for copies put
+        # back. A refusal's result names them (refused_result).
+        self.writes_run = []
 
     # Running
 
@@ -1338,6 +1373,7 @@ class Context(object):
         why = write_refusal(self.skill, argv, root=self.root)
         if why:
             raise WriteRefused(show_command(argv), why)
+        self.writes_run.append(show_command(argv))
         return self.execute(argv, timeout=timeout)
 
     def run(self, argv, timeout=None):
@@ -1347,11 +1383,13 @@ class Context(object):
 
     def write_file(self, path, content):
         self._may_write("write %s" % path)
-        return write_file(self.skill, path, content)
+        done = write_file(self.skill, path, content)
+        self.writes_run.append("write %s" % path)
+        return done
 
     def backup(self, paths):
         self._may_write("backup %s" % " ".join(paths))
-        return Backup(self.skill, paths)
+        return Backup(self.skill, paths, record=self.writes_run)
 
     def wait(self):
         if not wait_allowed():
@@ -1384,7 +1422,7 @@ class Context(object):
         block = result_block(m.FAMILY, m.PROVIDER, m.ACTION, status, outputs,
                              mode=mode or getattr(m, "RESULT_MODE", None) or self.mode,
                              resources=resources, pending=pending, cost=cost, **extra)
-        return Result(block, lines)
+        return Result(block, lines, expand=getattr(m, "BLOCK_EXPAND", None))
 
     def failed(self, lines, outputs, pending=(), cost=None, **extra):
         if isinstance(lines, str):
@@ -1403,6 +1441,39 @@ def read_only_refusal(ctx):
     nothing run."""
     return ctx.result("failed", {}, cost=dict(NOTHING_RUN_COST),
                       lines=[READ_ONLY_APPLY_SENTENCE], mode="apply")
+
+
+REPEATED_SENTENCE = "The argument {key} is given twice."
+
+
+def repeated_result(ctx, keys):
+    """The result of a command line that gives a key=value argument more than once:
+    `failed`, one fixed sentence per such key, nothing run."""
+    return ctx.result("failed", {}, cost=dict(NOTHING_RUN_COST),
+                      lines=[REPEATED_SENTENCE.format(key=k) for k in keys])
+
+
+REFUSED_SENTENCE = ("This run stopped before a command that this tooling does not allow, "
+                    "and nothing after it was run.")
+REFUSED_NOTHING_WRITTEN = "Nothing had been written by this run before it stopped."
+REFUSED_WRITTEN = "Before it stopped, this run had already run these writes: {writes}."
+REFUSED_UNKNOWN = ("Earlier steps of this run may have been made; running the plan shows "
+                   "the state.")
+REFUSED_COST = {"fixed": False, "notes": "stopped before a command the tooling does not allow"}
+
+
+def refused_result(ctx):
+    """The result printed when a read or a write was refused (ReadRefused,
+    WriteRefused): `failed`, REFUSED_SENTENCE, then what this run had already written
+    (ctx.writes_run), and never the refused command itself."""
+    written = getattr(ctx, "writes_run", None)
+    if written is None:
+        second = REFUSED_UNKNOWN
+    elif not written:
+        second = REFUSED_NOTHING_WRITTEN
+    else:
+        second = REFUSED_WRITTEN.format(writes=", ".join("`%s`" % w for w in written))
+    return ctx.result("failed", {}, cost=dict(REFUSED_COST), lines=[REFUSED_SENTENCE, second])
 
 
 # ---------------------------------------------------------------------------
@@ -1448,17 +1519,27 @@ def main(plugin, root, argv, stdout=None, stderr=None):
         return EXIT_NOT_CONVERTED
     ctx = Context(plugin, root, inv.skill, module, mode, inv.args, inv.json,
                   read_only=inv.read_only)
+    code = EXIT_OK
     try:
-        if inv.read_only and mode == "apply":
+        if inv.repeated:
+            result = repeated_result(ctx, inv.repeated)
+        elif inv.read_only and mode == "apply":
             result = read_only_refusal(ctx)
         else:
             result = module.run(inv.args, ctx)
     except (ReadRefused, WriteRefused) as e:
-        stderr.write("%s: %s\n" % (plugin, e))
-        return EXIT_SOFTWARE
+        # A bug of the command: loud (exit 70), but never without a result. Neither line
+        # shows the refused command's values (the unit tests raise the exception itself,
+        # whose message has the command, its hidden values hidden).
+        stderr.write("%s: %s: refused, %s\n" % (
+            plugin, inv.skill,
+            "not a read" if isinstance(e, ReadRefused) else "not an allowed write"))
+        stderr.flush()
+        result = refused_result(ctx)
+        code = EXIT_SOFTWARE
     if not isinstance(result, Result):
         stderr.write("%s: %s returned no Result\n" % (plugin, inv.skill))
         return EXIT_SOFTWARE
     stdout.write(render_json(result) if inv.json else render_answer(result))
     stdout.flush()
-    return EXIT_OK
+    return code

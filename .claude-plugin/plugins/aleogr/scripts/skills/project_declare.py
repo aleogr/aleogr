@@ -29,6 +29,9 @@ ACTION = "project-declare"
 DEFAULT_MODE = "apply"
 RESULT_MODE = "apply"
 WRITES = True  # the file .aleogr/project.json, through ctx.write_file only
+# The block as the SKILL.md's example lays it out: `outputs.declaration` and its `repo`
+# one key per line (render_block).
+BLOCK_EXPAND = {"outputs": {"declaration": ("repo",)}}
 COST = {"fixed": False, "notes": "writes a local file only"}
 
 

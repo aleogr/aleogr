@@ -582,5 +582,65 @@ class TestApply(Base):
                          "name=example-repo head=check mode=plan")
 
 
+
+class TestValuesNoWriteTakes(Base):
+    """Values the SKILL.md's rules let through but that the shapes of the allowlist of
+    writes refuse: the run ends failed, with one fixed sentence, before any write (never
+    a refused write, exit 70)."""
+
+    def apply(self, found, **extra):
+        args = dict(ARGS, mode="apply", **extra)
+        ctx = FakeContext({}, args)
+        r = skill.apply(args, ctx, G.Reader(ctx), found)
+        return r, ctx
+
+    def test_paths_with_a_dot_or_empty_part(self):
+        for path in ("./a.json", "a//b.json", "conf/", "a/./b.json", "a/."):
+            with self.subTest(path=path):
+                self.assertIsNone(skill._validate(dict(ARGS, path=path)))  # the skill's rule
+                r, ctx = self.apply(skill.Found(True, "main", "not-sent"), path=path)
+                self.assertEqual((r.status, ctx.calls, ctx.writes), ("failed", [], []))
+                self.assertEqual(r.lines, [skill.PATH_UNUSABLE.format(path=path),
+                                           "No local change was made in this folder."])
+                self.assertEqual(r.block["outputs"]["path"], path)
+        for path in (".aleogr/project.json", "conf/x.json", "a.b/c_d-e.json"):
+            self.assertTrue(skill.path_usable(path), path)
+
+    def test_default_branch_the_shapes_refuse(self):
+        for branch in ("main+x", "rélease", "a b", "-main", "a..b", "a/", "aleogr/change-abc123"):
+            with self.subTest(branch=branch):
+                r, ctx = self.apply(skill.Found(True, branch, "not-sent"))
+                self.assertEqual((r.status, ctx.calls, ctx.writes), ("failed", [], []))
+                self.assertTrue(r.lines[0].startswith("The default branch %s of "
+                                                      "example-org/example-repo has a name"
+                                                      % branch), r.lines)
+                self.assertIn("aleogr/change-", r.lines[0])
+                self.assertEqual(r.block["outputs"]["defaultBranch"], branch)
+
+    def test_fast_forward_takes_a_change_branch_but_not_the_others(self):
+        for branch in ("main+x", "rélease"):
+            with self.subTest(branch=branch):
+                r, ctx = self.apply(skill.Found(True, branch, "behind"))
+                self.assertEqual((r.status, ctx.writes), ("failed", []))
+                self.assertEqual(r.block["outputs"]["state"], "behind")
+                self.assertNotIn("aleogr/change-", r.lines[0])
+        self.assertTrue(skill.branch_usable("aleogr/change-abc123", False))
+        self.assertFalse(skill.branch_usable("aleogr/change-abc123", True))
+        for branch in ("main", "release/1.2", "dev_x-y"):
+            self.assertTrue(skill.branch_usable(branch, True), branch)
+
+    def test_what_passes_is_what_the_allowlist_takes(self):
+        for branch in ("main", "release/1.2", "main+x", "aleogr/change-abc123"):
+            for birth in (True, False):
+                command = skill.push_command(branch) if birth else \
+                    skill.fast_forward_command(branch)
+                self.assertEqual(skill.branch_usable(branch, birth),
+                                 common.write_refusal("github_checkout-setup", command) is None,
+                                 (branch, birth))
+
+
+G = skill.G
+
+
 if __name__ == "__main__":
     unittest.main()
