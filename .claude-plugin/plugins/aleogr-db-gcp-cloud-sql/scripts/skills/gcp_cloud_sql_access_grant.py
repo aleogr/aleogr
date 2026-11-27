@@ -318,6 +318,7 @@ def run(args, ctx):
     for role in missing:
         tries = 0
         accepted = False
+        budget_spent = False
         while True:
             tries += 1
             g = ctx.write(grant_command(shared, account, role))
@@ -328,9 +329,13 @@ def run(args, ctx):
                 break
             if not ctx.wait():
                 # A wait that cannot be run counts as the refusal that ends the poll.
+                budget_spent = True
                 break
         if not accepted:
             said.append(GRANT_REFUSED % role)
+            if budget_spent:
+                # The run's wait budget ended the poll: a second run goes on.
+                said.append(common.WAIT_BUDGET_SENTENCE)
             said.append("The grant of the role %s was refused after %s." % (role, _tries(tries)))
             if granted:
                 back = _json(ctx.read(policy_command(shared)))

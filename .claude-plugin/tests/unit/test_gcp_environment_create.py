@@ -397,5 +397,55 @@ class TestSkillText(unittest.TestCase):
         self.assertIn("gcloud billing projects link <projectId> --billing-account=<id>", text)
 
 
+
+class TimeLimitContext(FakeContext):
+    """The run's time limit is reached while its `at`-th write is still running, or
+    (`at` 0) while the first read after the writes is."""
+
+    def __init__(self, at):
+        args = dict(ENV, mode="apply")
+        FakeContext.__init__(self, args, missing(), discovery())
+        self.at = at
+
+    def execute(self, argv, timeout=None):
+        if len(self.writes) + 1 == self.at:
+            self.writes.append(list(argv))
+            raise common.TimeLimit(argv)
+        return FakeContext.execute(self, argv, timeout)
+
+    def read(self, argv, timeout=None):
+        if self.at == 0 and len(self.writes) == 2:
+            raise common.TimeLimit(argv)
+        return FakeContext.read(self, argv, timeout)
+
+
+class TestAborted(unittest.TestCase):
+    def aborted(self, at):
+        ctx = TimeLimitContext(at)
+        r, code, why = common.run_skill(skill, dict(ENV, mode="apply"), ctx)
+        self.assertEqual((code, why), (common.EXIT_SOFTWARE, "time limit reached"))
+        self.assertEqual(r.status, "failed")
+        self.assertEqual(r.block["cost"], common.ABORTED_COST)
+        self.assertEqual((r.lines[0], r.lines[-1]),
+                         (common.TIME_LIMIT_SENTENCE, common.READ_STATE_SENTENCE))
+        return r, ctx
+
+    def test_after_the_create_the_project_exists(self):
+        for at in (2, 0):  # the link, then the verification
+            with self.subTest(at=at):
+                r, ctx = self.aborted(at)
+                project_id = ctx.writes[0][3]
+                self.assertEqual(r.lines[2:-1], [
+                    "The GCP project %s now exists; running this skill again with the same "
+                    "arguments goes on from it." % project_id])
+                self.assertIn("projects create %s" % project_id, r.lines[1])
+
+    def test_the_create_itself_is_still_running(self):
+        r, ctx = self.aborted(1)
+        self.assertEqual(len(ctx.writes), 1)
+        self.assertEqual(len(r.lines), 3)
+        self.assertNotIn("now exists", "\n".join(r.lines))
+
+
 if __name__ == "__main__":
     unittest.main()

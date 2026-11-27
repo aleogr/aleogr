@@ -46,6 +46,31 @@ def run(args, ctx):
     ctx.write(["gh", "repo", "delete", "other-org/other-repo", "--yes"])
     return ctx.result("updated", {})
 ''' % SECRET,
+    # An apply that writes, registers what an aborted run says, then reaches the time
+    # limit of the run while a command is still running.
+    "github_repo_create": '''
+import aleogr_common as common
+FAMILY, PROVIDER, ACTION = "repo", "github", "repo-create"
+DEFAULT_MODE = "plan"
+WRITES = True
+def run(args, ctx):
+    ctx.write(["gh", "repo", "create", "example-org/example-repo", "--private", "--add-readme"])
+    ctx.on_abort(["The repository example-org/example-repo now exists."])
+    raise common.TimeLimit(["gh", "repo", "view", common.Hidden("%s")])
+''' % SECRET,
+    # A plan that reads deeply nested JSON: an unexpected error of the tooling.
+    "github_branch_protect": '''
+import json
+FAMILY, PROVIDER, ACTION = "repo", "github", "branch-protect"
+DEFAULT_MODE = "plan"
+def run(args, ctx):
+    ctx.on_abort(["A line the module registered."])
+    if args.get("how") == "value":
+        raise ValueError("%s")
+    if args.get("how") == "none":
+        return None
+    return json.loads("[" * 100000 + "]" * 100000)
+''' % SECRET,
     # An apply that writes a file, then tries one it may not write.
     "project_declare": '''
 FAMILY, PROVIDER, ACTION = "orchestrator", "aleogr", "project-declare"
@@ -254,6 +279,70 @@ class TestRefusedCommand(unittest.TestCase):
         del ctx.writes_run
         self.assertEqual(common.refused_result(ctx).lines,
                          [common.REFUSED_SENTENCE, common.REFUSED_UNKNOWN])
+
+
+class TestAbortedRun(unittest.TestCase):
+    def test_the_time_limit_gives_a_result_and_exits_70(self):
+        with StandInPlugin() as p:
+            code, out, err, ran = p.run("github_repo-create", "mode=apply")
+            jcode, jout, _, _ = p.run("--json", "github_repo-create", "mode=apply")
+        self.assertEqual(code, common.EXIT_SOFTWARE)
+        self.assertEqual(err.splitlines()[-1], "demo: github_repo-create: time limit reached")
+        want = [common.TIME_LIMIT_SENTENCE,
+                "Before it stopped, this run had already run these writes: `gh repo create "
+                "example-org/example-repo --private --add-readme`.",
+                "The repository example-org/example-repo now exists.",
+                common.READ_STATE_SENTENCE]
+        self.assertEqual(out.split("\n\n")[0].splitlines(), want)
+        block = block_of(out)
+        self.assertEqual((block["status"], block["mode"], block["outputs"], block["cost"],
+                          block["pending"]),
+                         ("failed", "apply", {}, common.ABORTED_COST, []))
+        self.assertEqual(block["cost"]["notes"], "the run may have changed something")
+        self.assertEqual(len(ran), 1)
+        self.assertNotIn(SECRET, out + err)
+        self.assertNotIn("Traceback", err)
+        self.assertEqual(jcode, common.EXIT_SOFTWARE)
+        self.assertEqual(json.loads(jout)["answer"], want)
+
+    def test_an_unexpected_error_gives_a_result_and_no_traceback(self):
+        for how in ("deep", "value", "none"):
+            with self.subTest(how=how):
+                with StandInPlugin() as p:
+                    code, out, err, ran = p.run("github_branch-protect", "how=" + how)
+                self.assertEqual(code, common.EXIT_SOFTWARE)
+                self.assertNotIn("Traceback", err)
+                self.assertNotIn(SECRET, out + err)
+                self.assertNotIn("Recursion", out + err)
+                self.assertEqual(len(err.splitlines()), 1)
+                self.assertEqual(out.split("\n\n")[0].splitlines(), [
+                    common.UNEXPECTED_SENTENCE, common.REFUSED_NOTHING_WRITTEN,
+                    "A line the module registered.", common.READ_STATE_SENTENCE])
+                block = block_of(out)
+                self.assertEqual((block["status"], block["mode"], block["cost"]),
+                                 ("failed", "plan", common.ABORTED_COST))
+
+    def test_on_abort_replaces_and_clears(self):
+        class Reader(object):
+            FAMILY, PROVIDER, ACTION = "repo", "github", "repo-describe"
+
+        ctx = common.Context("p", "/x", "s", Reader, "plan", {})
+        ctx.on_abort(["a", "b"])
+        ctx.on_abort(["c"])
+        self.assertEqual(common.aborted_result(ctx, common.UNEXPECTED_SENTENCE).lines,
+                         [common.UNEXPECTED_SENTENCE, common.REFUSED_NOTHING_WRITTEN, "c",
+                          common.READ_STATE_SENTENCE])
+        ctx.on_abort([])
+        self.assertEqual(len(common.aborted_result(ctx, common.TIME_LIMIT_SENTENCE).lines), 3)
+
+    def test_a_refusal_is_unchanged(self):
+        class Reader(object):
+            FAMILY, PROVIDER, ACTION = "repo", "github", "repo-describe"
+
+        ctx = common.Context("p", "/x", "s", Reader, "plan", {})
+        ctx.on_abort(["c"])
+        self.assertEqual(common.refused_result(ctx).lines,
+                         [common.REFUSED_SENTENCE, common.REFUSED_NOTHING_WRITTEN])
 
 
 class TestBlockLayout(unittest.TestCase):

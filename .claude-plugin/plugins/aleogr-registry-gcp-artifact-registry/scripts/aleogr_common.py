@@ -16,21 +16,27 @@ It holds what every command needs and nothing of a skill's own rules:
   command that is not on its skill's allowlist of writes (`WRITE_SHAPES` below);
 - the files of the current folder a skill writes (`FILE_WRITES`), the copies it keeps
   of them and puts back, and the waits of a run, within one budget;
+- the clock of a run: waits end at seven minutes (WAIT_CLOCK_LIMIT), every provider
+  command is bounded by the run's deadline (RUN_DEADLINE, a TimeLimit when it is
+  reached), and an aborted run still ends with a `failed` result (aborted_result);
 - `call_plugin`, which runs another plugin's command with `--json`;
 - the answer: lines, a table, and the fenced `aleogr-result` block.
 
 Python 3.9 or later, standard library only.
 """
 
+import atexit
 import importlib
 import json
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.dont_write_bytecode = True
 
@@ -62,6 +68,20 @@ class ReadRefused(Exception):
         self.argv = list(argv)
         self.reason = reason
         super().__init__("refused, not a read: %s (%s)" % (show_command(argv), reason))
+
+
+class TimeLimit(Exception):
+    """The run's deadline (RUN_DEADLINE) was reached while a provider command was still
+    running: the command was killed, and may still take effect (a create that the
+    provider had accepted goes on without it).
+
+    `shown` is the command as its `+ ` line showed it (a Hidden value as `<value>`). The
+    dispatcher prints the fixed `failed` result of an aborted run (aborted_result) and
+    exits 70."""
+
+    def __init__(self, argv):
+        self.shown = argv if isinstance(argv, str) else show_command(argv)
+        super().__init__("the run's time limit was reached while running: %s" % self.shown)
 
 
 class WriteRefused(Exception):
@@ -511,15 +531,23 @@ class _PluginFile(object):
                    for n in self.names)
 
 
+# The private folder write_temp_file makes for a process (tempfile.mkdtemp's name: the
+# prefix, then letters, digits and `_`; never the `-` of `aleogr-backup-`).
+PRIVATE_TEMP_PREFIX = "aleogr-"
+_PRIVATE_TEMP_RE = re.compile(re.escape(PRIVATE_TEMP_PREFIX) + r"[A-Za-z0-9_]{1,64}")
+
+
 class _TempFile(object):
-    """One argument that is exactly `<prefix><system temporary folder>/<name>`, where
+    """One argument that is exactly `<prefix><system temporary folder>/aleogr-<x>/<name>`,
+    where `aleogr-<x>` is a private folder of write_temp_file (private_temp_dir) and
     `<name>` matches `pattern` in full: a file the skill wrote for this run with
-    write_temp_file (TEMP_FILE_WRITES). Real paths of the folder are compared."""
+    write_temp_file (TEMP_FILE_WRITES). Real paths of the temporary folder are
+    compared; `env["temp"]` stands for it in the unit tests."""
 
     def __init__(self, pattern, prefix=""):
         self.re = re.compile(pattern)
         self.prefix = prefix
-        self.name = "%s<temporary folder>/%s" % (prefix, pattern)
+        self.name = "%s<temporary folder>/aleogr-<x>/%s" % (prefix, pattern)
 
     def match(self, arg, env):
         if not arg.startswith(self.prefix):
@@ -527,8 +555,10 @@ class _TempFile(object):
         path = arg[len(self.prefix):]
         folder = (env or {}).get("temp") or system_temp_dir()
         head, base = os.path.split(path)
-        return (bool(head) and self.re.fullmatch(base) is not None
-                and os.path.realpath(head) == os.path.realpath(folder))
+        top, private = os.path.split(head)
+        return (bool(top) and self.re.fullmatch(base) is not None
+                and _PRIVATE_TEMP_RE.fullmatch(private) is not None
+                and os.path.realpath(top) == os.path.realpath(folder))
 
 
 class _AnyOf(object):
@@ -779,8 +809,8 @@ _SERVICE = _SA_ID  # <project>-<component>: a service's name and its account's i
 _SA = _SA_ID + "@" + _PID + r"\.iam\.gserviceaccount\.com"
 _DOMAIN = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{1,63}"
 _EMAIL = r"[A-Za-z0-9._%+-]{1,64}@" + _DOMAIN
-# One person: never a service account.
-_PERSON = r"(?![^@]*@(?:.*\.)?gserviceaccount\.com$)[A-Za-z0-9._+-]{1,64}@" + _DOMAIN
+# One person: never a service account (its domain in any case of letters).
+_PERSON = r"(?!(?i:[^@]*@(?:.*\.)?gserviceaccount\.com$))[A-Za-z0-9._+-]{1,64}@" + _DOMAIN
 _ANY_SA = r"[a-z0-9][a-z0-9._-]{0,99}@(?:[a-z0-9-]{1,63}\.)*gserviceaccount\.com"
 # The active gcloud account as a member: `user:` for a person, `serviceAccount:` for an
 # address that ends with .gserviceaccount.com.
@@ -1308,6 +1338,25 @@ def always_refused(argv):
     return None
 
 
+# gcloud's global flags that change who runs a command, with which configuration or
+# credential, or what it logs or prints: refused anywhere in the arguments of any gcloud
+# command, read or write, as `--flag=value` and as `--flag value` (and a boolean one as
+# `--no-<flag>` too).
+GCLOUD_REFUSED_FLAGS = (
+    "--account", "--configuration", "--access-token-file", "--flags-file", "--log-http",
+    "--trace-token", "--verbosity", "--credential-file-override",
+    "--impersonate-service-account", "--user-output-enabled",
+)
+# `--billing-project` (the project billed for the quota of a call) only on the commands
+# whose prescribed shape writes it, and only as `--billing-project=<id>`:
+# `billing budgets list|describe|create|update` (gcp_budget-alert-setup) and `iap
+# settings get` (gcp_login-describe, gcp_login-setup).
+GCLOUD_BILLING_PROJECT_COMMANDS = (
+    ("billing", "budgets", "list"), ("billing", "budgets", "describe"),
+    ("billing", "budgets", "create"), ("billing", "budgets", "update"),
+    ("iap", "settings", "get"),
+)
+
 _GCLOUD_PRIMITIVE_ROLES = ("roles/owner", "roles/editor", "roles/viewer", "owner", "editor",
                            "viewer")
 _GCLOUD_PUBLIC_MEMBERS = ("allusers", "allauthenticatedusers")
@@ -1337,8 +1386,11 @@ def _gcloud_refused(rest):
     - `allUsers` or `allAuthenticatedUsers` as a member of anything else;
     - a primitive role (`roles/owner`, `roles/editor`, `roles/viewer`) in an
       `add-iam-policy-binding`;
-    - `--allow-unauthenticated`, any flag with `password` in its name,
-      `--impersonate-service-account`;
+    - `--allow-unauthenticated`, any flag with `password` in its name;
+    - anywhere in the arguments, a global flag of GCLOUD_REFUSED_FLAGS (`--account`,
+      `--configuration`, `--impersonate-service-account`, `--verbosity`, ...), and
+      `--billing-project` except as `--billing-project=<id>` on a command of
+      GCLOUD_BILLING_PROJECT_COMMANDS;
     - `gcloud auth` other than `auth list`, `gcloud config` other than `config
       get-value`, `gcloud iam service-accounts keys` (anything)."""
     if not rest:
@@ -1361,8 +1413,12 @@ def _gcloud_refused(rest):
             return "gcloud --allow-unauthenticated"
         if "password" in name:
             return "gcloud %s" % name
-        if name == "--impersonate-service-account":
-            return "gcloud --impersonate-service-account"
+        if name in GCLOUD_REFUSED_FLAGS or (
+                name.startswith("--no-") and "--" + name[5:] in GCLOUD_REFUSED_FLAGS):
+            return "gcloud %s" % name
+        if name == "--billing-project":
+            if "=" not in a or tuple(words[:3]) not in GCLOUD_BILLING_PROJECT_COMMANDS:
+                return "gcloud --billing-project here"
     if words[:1] == ["auth"] and words != ["auth", "list"]:
         return "gcloud auth other than list"
     if words[:1] == ["config"] and words[:2] != ["config", "get-value"]:
@@ -1571,29 +1627,75 @@ def show_command(argv):
     return " ".join(a.shown if isinstance(a, Hidden) else shlex.quote(str(a)) for a in argv)
 
 
+def _bounded(timeout):
+    """(the timeout to run a command with, whether it is the run's deadline)."""
+    limit = remaining_seconds()
+    if timeout is None or timeout >= limit:
+        return limit, True
+    return timeout, False
+
+
+def _run_process(argv, timeout, cwd=None, env=None, stderr=subprocess.PIPE):
+    """Run argv (plain strings) with stdin closed and stdout (and stderr, unless given)
+    captured, in a process group of its own; when `timeout` passes, kill the group (the
+    command and every process it started) and raise subprocess.TimeoutExpired.
+    Returns (code, stdout bytes, stderr bytes or None)."""
+    kw = {}
+    if os.name == "posix":
+        kw["start_new_session"] = True
+    p = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                         stderr=stderr, cwd=cwd, env=env, **kw)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            if os.name == "posix":
+                os.killpg(p.pid, signal.SIGKILL)
+            else:
+                p.kill()
+        except OSError:
+            pass
+        try:
+            p.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        raise
+    except BaseException:
+        p.kill()
+        p.wait()
+        raise
+    return p.returncode, out, err
+
+
 def run(argv, timeout=None, cwd=None, env=None, stream=None):
     """Show `argv` on stderr (`+ <command>`), then run it and return Completed.
 
     Nothing of the command's output is printed. stdin is closed. A command that is
     not found returns exit 127 with empty output, as a shell does. An argument given
     as Hidden runs with its value and is shown as `<value>`.
+
+    The command runs at most until the run's deadline (remaining_seconds(), at least 1
+    second): when it is reached the command and what it started are killed and
+    TimeLimit is raised (with the shown command). A shorter `timeout`, given by the
+    caller, ends as exit 124 instead.
     """
     shown = show_command(argv)
     argv = _plain(argv)
     stream = stream or sys.stderr
     stream.write("+ %s\n" % shown)
     stream.flush()
+    timeout, deadline = _bounded(timeout)
     try:
-        p = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE, timeout=timeout, cwd=cwd, env=env)
+        code, out, err = _run_process(argv, timeout, cwd=cwd, env=env)
     except FileNotFoundError:
         return Completed(127, "", "%s: command not found\n" % argv[0])
     except PermissionError:
         return Completed(126, "", "%s: permission denied\n" % argv[0])
     except subprocess.TimeoutExpired:
+        if deadline:
+            raise TimeLimit(shown)
         return Completed(124, "", "%s: timed out\n" % argv[0])
-    return Completed(p.returncode, p.stdout.decode("utf-8", "replace"),
-                     p.stderr.decode("utf-8", "replace"))
+    return Completed(code, out.decode("utf-8", "replace"), err.decode("utf-8", "replace"))
 
 
 def run_read(argv, timeout=None, cwd=None, env=None, stream=None):
@@ -1656,8 +1758,9 @@ def write_file(skill, path, content, stream=None, folder=None):
     return True
 
 
-# Files a skill writes for one run in the system's temporary folder, never in the
-# working folder (names matched in full): the cleanup policy for a `keep` other than 5.
+# Files a skill writes for one run in its process's private folder of the system's
+# temporary folder (private_temp_dir), never in the working folder (names matched in
+# full): the cleanup policy for a `keep` other than 5.
 TEMP_FILE_WRITES = {
     "gcp-artifact-registry_cleanup-configure": [
         r"aleogr-cleanup-policy-keep-(?:[1-9]|[1-4][0-9]|50)\.json"],
@@ -1673,32 +1776,68 @@ def system_temp_dir():
     return "/tmp"
 
 
+_private_dirs = {}  # the real path of a temporary folder -> this process's private folder
+
+
+def _remove_private_dirs():
+    for d in list(_private_dirs.values()):
+        if d:
+            shutil.rmtree(d, ignore_errors=True)
+    _private_dirs.clear()
+
+
+atexit.register(_remove_private_dirs)
+
+
+def private_temp_dir(folder=None):
+    """This process's private folder in the system's temporary folder (or `folder`):
+    made once, on first use, by tempfile.mkdtemp (prefix `aleogr-`, mode 0700, a name
+    no one can know before), and removed with what it holds when the process ends.
+    None when it cannot be made. Its path is not fixed, so no file or link left by
+    someone else can be at a name inside it."""
+    top = folder or system_temp_dir()
+    key = os.path.realpath(top)
+    if key not in _private_dirs or not os.path.isdir(_private_dirs[key]):
+        try:
+            _private_dirs[key] = tempfile.mkdtemp(prefix=PRIVATE_TEMP_PREFIX, dir=top)
+        except OSError:
+            return None
+    return _private_dirs[key]
+
+
+def temp_file_path(name, folder=None):
+    """The path write_temp_file writes `name` at: inside private_temp_dir() (made now
+    when it was not), or None when that folder cannot be made."""
+    d = private_temp_dir(folder)
+    return os.path.join(d, name) if d else None
+
+
 def write_temp_file(skill, name, content, stream=None, folder=None):
-    """Write the file `name` of the system's temporary folder (or `folder`): `content`
-    (str as UTF-8, or bytes) exactly, its whole content replaced. Returns its path, or
-    None when the system refused.
+    """Write the file `name` in this process's private folder of the system's temporary
+    folder (or of `folder`; private_temp_dir): `content` (str as UTF-8, or bytes)
+    exactly. Returns its path, or None when the system refused.
 
     Prints `+ write <path>` on stderr first. Raises WriteRefused, before printing, for
     a name `skill` may not write (TEMP_FILE_WRITES) or a name with a folder in it. The
-    file is opened without following a link (a link left at that name by someone else
-    is refused by the system, so None), and is left in the folder afterwards, as the
-    skills say."""
+    file is created new, mode 0600 (O_CREAT|O_EXCL|O_NOFOLLOW): a file or a link
+    already at that name is never written through, so None. It is removed with the
+    private folder when the process ends."""
     patterns = TEMP_FILE_WRITES.get(skill) or ()
     if not isinstance(name, str) or os.path.basename(name) != name or "\\" in name \
             or not any(re.fullmatch(p, name) for p in patterns):
         raise WriteRefused("write %s" % name, "%s may not write %s in the temporary folder"
                            % (skill, name))
-    path = os.path.join(folder or system_temp_dir(), name)
+    path = temp_file_path(name, folder)
+    if path is None:
+        return None
     data = content.encode("utf-8") if isinstance(content, str) else bytes(content)
     stream = stream or sys.stderr
     stream.write("+ write %s\n" % path)
     stream.flush()
-    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0) \
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) \
         | getattr(os, "O_BINARY", 0)
     try:
-        if os.path.islink(path):
-            return None
-        fd = os.open(path, flags, 0o644)
+        fd = os.open(path, flags, 0o600)
         with os.fdopen(fd, "wb") as f:
             f.write(data)
     except OSError:
@@ -1829,7 +1968,44 @@ class Backup(object):
 
 
 # ---------------------------------------------------------------------------
-# Waits: `sleep 30`, within eight minutes per run
+# The clock of a run, and its waits: `sleep 30`, within eight minutes of waiting and
+# seven minutes of the run
+#
+# A command runs under its shell's Bash tool timeout of ten minutes (600000 ms): a run
+# killed there prints nothing. So the run keeps its own clock, started by the
+# dispatcher (start_clock): a wait is allowed only while it ends within
+# WAIT_CLOCK_LIMIT seconds of the run (and within the count budget below), and every
+# provider command is bounded by RUN_DEADLINE (run: TimeLimit), which leaves the
+# dispatcher the time to print the result of an aborted run.
+
+WAIT_CLOCK_LIMIT = 420  # seven minutes: no wait ends later in a run
+RUN_DEADLINE = 570  # nine and a half minutes: no provider command runs later in a run
+_clock = {"now": time.monotonic, "start": None}
+
+
+def start_clock():
+    """The dispatcher's start of the run: the clock counts from now."""
+    _clock["start"] = _clock["now"]()
+
+
+def set_clock(now=None, start=None):
+    """For the unit tests only: the time function (time.monotonic when None) and the
+    start of the run (None: the clock is not started and counts 0)."""
+    _clock["now"] = now or time.monotonic
+    _clock["start"] = start
+
+
+def elapsed_seconds():
+    """The seconds since the dispatcher started the run (0 before it did)."""
+    if _clock["start"] is None:
+        return 0.0
+    return max(0.0, _clock["now"]() - _clock["start"])
+
+
+def remaining_seconds():
+    """The time a provider command may still run: up to RUN_DEADLINE, at least 1."""
+    return max(1, RUN_DEADLINE - elapsed_seconds())
+
 
 WAIT_SECONDS = 30
 WAIT_BUDGET_SECONDS = 8 * 60
@@ -1858,8 +2034,13 @@ def reset_wait_budget():
 
 
 def wait_allowed():
-    """True when one more wait of WAIT_SECONDS stays within the budget."""
-    return _waited[0] + WAIT_SECONDS <= WAIT_BUDGET_SECONDS
+    """True when one more wait of WAIT_SECONDS stays within the budget: the count of
+    waits (sixteen of thirty seconds) and the clock (the wait ends within
+    WAIT_CLOCK_LIMIT seconds of the run). With a wait that returns at once (the fake
+    `sleep` of the tests) the count decides; with real waits and slow commands, the
+    clock does."""
+    return (_waited[0] + WAIT_SECONDS <= WAIT_BUDGET_SECONDS
+            and elapsed_seconds() + WAIT_SECONDS <= WAIT_CLOCK_LIMIT)
 
 
 # ---------------------------------------------------------------------------
@@ -1900,6 +2081,10 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
     already written). That result is returned as the callee gave it, its answer kept,
     with `callError` `refused` added, so the caller can relay the callee's sentence.
     Any other exit 70, or a non-zero exit with no result object, is `no-result`.
+
+    The callee runs at most until this run's deadline, as a provider command does:
+    when it is reached, the callee and what it started are killed and TimeLimit is
+    raised. A shorter `timeout` ends as `no-result` instead.
     """
     path = shutil.which(command)
     if path is None:
@@ -1907,24 +2092,29 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
                              NOT_FOUND_SENTENCE.format(command=command))
     argv = [path] + (["--read-only"] if read_only else []) + ["--json", skill] + format_args(
         args or {})
+    timeout, deadline = _bounded(timeout)
     try:
-        p = subprocess.run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                           stderr=None, timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired):
+        code, out, _ = _run_process(argv, timeout, stderr=None)
+    except subprocess.TimeoutExpired:
+        if deadline:
+            raise TimeLimit([command] + argv[1:])
         return _call_failure("no-result", command, skill,
                              NO_RESULT_SENTENCE.format(command=command, skill=skill))
-    if p.returncode == EXIT_NOT_CONVERTED:
+    except OSError:
+        return _call_failure("no-result", command, skill,
+                             NO_RESULT_SENTENCE.format(command=command, skill=skill))
+    if code == EXIT_NOT_CONVERTED:
         return _call_failure("not-converted", command, skill,
                              NOT_CONVERTED_SENTENCE.format(command=command, skill=skill))
     try:
-        obj = json.loads(p.stdout.decode("utf-8"))
+        obj = json.loads(out.decode("utf-8"))
     except ValueError:
         obj = None
-    if p.returncode == EXIT_SOFTWARE and isinstance(obj, dict) \
+    if code == EXIT_SOFTWARE and isinstance(obj, dict) \
             and obj.get("aleogr-result") == 1 and obj.get("status") == "failed":
         obj["callError"] = "refused"
         return obj
-    if p.returncode != 0 or not isinstance(obj, dict):
+    if code != 0 or not isinstance(obj, dict):
         return _call_failure("no-result", command, skill,
                              NO_RESULT_SENTENCE.format(command=command, skill=skill))
     return obj
@@ -2076,16 +2266,21 @@ class Context(object):
     - ctx.write(argv): the writing runner (allowlist of writes of this skill).
     - ctx.write_file(path, content): a file of the current folder (FILE_WRITES).
     - ctx.backup(paths): copies of files of the folder, to put back (Backup).
-    - ctx.write_temp_file(name, content): a file of the system's temporary folder
-      (TEMP_FILE_WRITES), for a flag that takes a file the plugin does not hold; its
-      path, or None.
+    - ctx.write_temp_file(name, content): a file of this process's private folder in
+      the system's temporary folder (TEMP_FILE_WRITES, private_temp_dir), for a flag
+      that takes a file the plugin does not hold; its path, or None. Its path is
+      common.temp_file_path(name).
 
     Other:
-    - ctx.wait(): one wait, `sleep 30`, within the budget of the run (False: the budget
-      is spent, nothing was run; end `pending` with WAIT_BUDGET_SENTENCE and
+    - ctx.wait(): one wait, `sleep 30`, within the budget of the run (wait_allowed: the
+      count of waits and the clock; False: the budget is spent, nothing was run; end `pending` with WAIT_BUDGET_SENTENCE and
       ctx.wait_budget_item()).
     - ctx.call(command, skill, args): call_plugin (with `--read-only` when this run was
       given it).
+    - ctx.on_abort(lines): the lines that the result of an aborted run (aborted_result:
+      the time limit, an unexpected error) prints, from now on, after what the run
+      wrote: what may now cost or need doing. Each call replaces the lines given
+      before; an empty list clears them.
     - ctx.result(...), ctx.failed(...): build a Result with the module's FAMILY,
       PROVIDER and ACTION.
     - ctx.plugin_path(*parts), ctx.defaults(): files of this plugin.
@@ -2110,6 +2305,8 @@ class Context(object):
         # it), `write <path>` for each file written, `restore <paths>` for copies put
         # back. A refusal's result names them (refused_result).
         self.writes_run = []
+        # The lines of aborted_result, as the module last registered them (on_abort).
+        self.abort_lines = []
 
     # Running
 
@@ -2169,6 +2366,9 @@ class Context(object):
 
     def wait_budget_item(self):
         return wait_budget_item(self.skill)
+
+    def on_abort(self, lines):
+        self.abort_lines = [lines] if isinstance(lines, str) else list(lines or ())
 
     def call(self, command, skill, args=None, timeout=None):
         return call_plugin(command, skill, args, timeout=timeout,
@@ -2231,18 +2431,60 @@ REFUSED_UNKNOWN = ("Earlier steps of this run may have been made; running the pl
 REFUSED_COST = {"fixed": False, "notes": "stopped before a command the tooling does not allow"}
 
 
+def _written_line(ctx):
+    """The sentence of what this run had already written (ctx.writes_run)."""
+    written = getattr(ctx, "writes_run", None)
+    if written is None:
+        return REFUSED_UNKNOWN
+    if not written:
+        return REFUSED_NOTHING_WRITTEN
+    return REFUSED_WRITTEN.format(writes=", ".join("`%s`" % w for w in written))
+
+
 def refused_result(ctx):
     """The result printed when a read or a write was refused (ReadRefused,
     WriteRefused): `failed`, REFUSED_SENTENCE, then what this run had already written
     (ctx.writes_run), and never the refused command itself."""
-    written = getattr(ctx, "writes_run", None)
-    if written is None:
-        second = REFUSED_UNKNOWN
-    elif not written:
-        second = REFUSED_NOTHING_WRITTEN
-    else:
-        second = REFUSED_WRITTEN.format(writes=", ".join("`%s`" % w for w in written))
-    return ctx.result("failed", {}, cost=dict(REFUSED_COST), lines=[REFUSED_SENTENCE, second])
+    return ctx.result("failed", {}, cost=dict(REFUSED_COST),
+                      lines=[REFUSED_SENTENCE, _written_line(ctx)])
+
+
+TIME_LIMIT_SENTENCE = ("This run reached its time limit while a command was still running; "
+                       "that command may still take effect.")
+UNEXPECTED_SENTENCE = "This run stopped on an unexpected error of the tooling."
+READ_STATE_SENTENCE = "Read the state before running it again: the plan shows it."
+ABORTED_COST = {"fixed": False, "notes": "the run may have changed something"}
+
+
+def aborted_result(ctx, sentence):
+    """The result printed when a run was aborted (TimeLimit, or any unexpected
+    exception): `failed`, `sentence` (TIME_LIMIT_SENTENCE or UNEXPECTED_SENTENCE), what
+    this run had already written, the lines the module registered (ctx.on_abort), then
+    READ_STATE_SENTENCE. Nothing of the exception's text: it may hold values."""
+    lines = [sentence, _written_line(ctx)] + list(getattr(ctx, "abort_lines", None) or ())
+    lines.append(READ_STATE_SENTENCE)
+    return ctx.result("failed", {}, cost=dict(ABORTED_COST), lines=lines)
+
+
+def run_skill(module, args, ctx):
+    """module.run(args, ctx), and every way it can end: (Result, exit code, the kind of
+    ending or None). A refused read or write gives refused_result, the time limit and
+    any other exception aborted_result, each with EXIT_SOFTWARE; a run that returns no
+    Result is an unexpected error. The kind (`not a read`, `not an allowed write`, `time
+    limit`, `unexpected error`) is for the one line on stderr."""
+    try:
+        result = module.run(args, ctx)
+    except ReadRefused:
+        return refused_result(ctx), EXIT_SOFTWARE, "refused, not a read"
+    except WriteRefused:
+        return refused_result(ctx), EXIT_SOFTWARE, "refused, not an allowed write"
+    except TimeLimit:
+        return aborted_result(ctx, TIME_LIMIT_SENTENCE), EXIT_SOFTWARE, "time limit reached"
+    except Exception:  # noqa: BLE001 - never a traceback: its text may hold values
+        return aborted_result(ctx, UNEXPECTED_SENTENCE), EXIT_SOFTWARE, "unexpected error"
+    if not isinstance(result, Result):
+        return aborted_result(ctx, UNEXPECTED_SENTENCE), EXIT_SOFTWARE, "returned no Result"
+    return result, EXIT_OK, None
 
 
 # ---------------------------------------------------------------------------
@@ -2286,29 +2528,36 @@ def main(plugin, root, argv, stdout=None, stderr=None):
         what = inv.skill if module is None else "%s mode=%s" % (inv.skill, mode)
         stderr.write("%s: not converted: %s\n" % (plugin, what))
         return EXIT_NOT_CONVERTED
+    before = _clock["start"]
+    start_clock()
+    try:
+        return _dispatch(plugin, root, inv, module, mode, stdout, stderr)
+    finally:
+        _clock["start"] = before  # a process ends here; an in-process test goes on
+
+
+def _dispatch(plugin, root, inv, module, mode, stdout, stderr):
     ctx = Context(plugin, root, inv.skill, module, mode, inv.args, inv.json,
                   read_only=inv.read_only)
     code = EXIT_OK
+    if inv.repeated:
+        result = repeated_result(ctx, inv.repeated)
+    elif inv.read_only and mode == "apply":
+        result = read_only_refusal(ctx)
+    else:
+        result, code, why = run_skill(module, inv.args, ctx)
+        if why:
+            # A bug of the command, or its time limit: loud (exit 70), but never without
+            # a result. The line shows no value of a command and no exception's text.
+            stderr.write("%s: %s: %s\n" % (plugin, inv.skill, why))
+            stderr.flush()
     try:
-        if inv.repeated:
-            result = repeated_result(ctx, inv.repeated)
-        elif inv.read_only and mode == "apply":
-            result = read_only_refusal(ctx)
-        else:
-            result = module.run(inv.args, ctx)
-    except (ReadRefused, WriteRefused) as e:
-        # A bug of the command: loud (exit 70), but never without a result. Neither line
-        # shows the refused command's values (the unit tests raise the exception itself,
-        # whose message has the command, its hidden values hidden).
-        stderr.write("%s: %s: refused, %s\n" % (
-            plugin, inv.skill,
-            "not a read" if isinstance(e, ReadRefused) else "not an allowed write"))
-        stderr.flush()
-        result = refused_result(ctx)
+        text = render_json(result) if inv.json else render_answer(result)
+    except Exception:  # noqa: BLE001 - a result that cannot be printed (too deep, ...)
+        stderr.write("%s: %s: unexpected error\n" % (plugin, inv.skill))
+        result = aborted_result(ctx, UNEXPECTED_SENTENCE)
+        text = render_json(result) if inv.json else render_answer(result)
         code = EXIT_SOFTWARE
-    if not isinstance(result, Result):
-        stderr.write("%s: %s returned no Result\n" % (plugin, inv.skill))
-        return EXIT_SOFTWARE
-    stdout.write(render_json(result) if inv.json else render_answer(result))
+    stdout.write(text)
     stdout.flush()
     return code

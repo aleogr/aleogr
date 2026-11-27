@@ -59,7 +59,7 @@ It prints two kinds of lines:
 
 Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
 
-Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr could not be run: update the plugin aleogr, then try again.` followed by this block, and nothing else:
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr ended without an answer: it may have changed something before it stopped. Read the state (look at .aleogr/project.json) before running it again.` followed by this block, and nothing else:
 
 ```aleogr-result
 {
@@ -71,7 +71,7 @@ Only when the command printed no `aleogr-result` block at all (it was not found,
   "status": "failed",
   "resources": [],
   "outputs": {},
-  "cost": { "fixed": false, "notes": "nothing was run" },
+  "cost": { "fixed": false, "notes": "the run may have changed something" },
   "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr, then try again" } ]
 }
 ```

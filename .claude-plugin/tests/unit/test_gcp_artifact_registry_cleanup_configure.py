@@ -91,7 +91,7 @@ class FakeContext(common.Context):
         written = common.write_temp_file(self.skill, name, content, stream=io.StringIO(),
                                          folder=self.folder)
         self.files.append((name, content))
-        return os.path.join(TEMP, name) if written else None
+        return common.temp_file_path(name) if written else None
 
 
 class Base(unittest.TestCase):
@@ -127,14 +127,18 @@ class TestGoldenCommands(Base):
     def test_another_keep_writes_the_temporary_file_right_before_the_set(self):
         r, ctx = self.run_skill(keep="12", reads=[repo(), repo([keep_rule(12), delete_rule()])])
         self.assertEqual(r.status, "updated")
-        path = os.path.join(TEMP, "aleogr-cleanup-policy-keep-12.json")
+        # In this process's private folder of the temporary folder, whose name is not fixed.
+        path = common.temp_file_path("aleogr-cleanup-policy-keep-12.json")
+        private = os.path.dirname(path)
+        self.assertEqual(os.path.dirname(private), TEMP)
+        self.assertRegex(os.path.basename(private), r"^aleogr-[A-Za-z0-9_]+$")
         self.assertEqual(ctx.writes, [(GOLDEN_SET % path).split(" ")])
         self.assertIsNone(common.write_refusal(SKILL, ctx.writes[0], root=ROOT))
         with open(SHIPPED, encoding="utf-8") as f:
             shipped = f.read()
         want = shipped.replace('"keepCount": 5', '"keepCount": 12')
         self.assertEqual(ctx.files, [("aleogr-cleanup-policy-keep-12.json", want)])
-        with open(os.path.join(self.folder, "aleogr-cleanup-policy-keep-12.json"),
+        with open(common.temp_file_path("aleogr-cleanup-policy-keep-12.json", self.folder),
                   encoding="utf-8") as f:
             self.assertEqual(f.read(), want)
         self.assertEqual(json.loads(want)[0]["mostRecentVersions"]["keepCount"], 12)
@@ -281,7 +285,7 @@ class TestPaths(Base):
 
     def test_a_temporary_file_that_cannot_be_written(self):
         os.symlink(os.path.join(self.folder, "elsewhere"),
-                   os.path.join(self.folder, "aleogr-cleanup-policy-keep-3.json"))
+                   common.temp_file_path("aleogr-cleanup-policy-keep-3.json", self.folder))
         r, ctx = self.run_skill(keep="3")
         self.assertEqual(r.status, "failed")
         self.assertEqual(ctx.writes, [])

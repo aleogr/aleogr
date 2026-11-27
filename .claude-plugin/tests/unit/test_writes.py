@@ -11,6 +11,7 @@ import io
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -421,7 +422,8 @@ GCLOUD_ALLOWED = {
         g("artifacts repositories set-cleanup-policies demo --location=us-central1 "
           "--project=%s --policy=%s --no-dry-run" % (P, CLEANUP_POLICY)),
         g("artifacts repositories set-cleanup-policies demo --location=us-central1 "
-          "--project=%s --policy=/tmp/aleogr-cleanup-policy-keep-3.json --no-dry-run" % P),
+          "--project=%s --policy=/tmp/aleogr-a1b2_c3d/aleogr-cleanup-policy-keep-3.json "
+          "--no-dry-run" % P),
     ],
     "gcp-artifact-registry_access-grant": [
         g("artifacts repositories add-iam-policy-binding demo --location=us-central1 "
@@ -735,6 +737,24 @@ NOT_ON_THE_LIST.update({
         "--project=" + P + " --policy=/tmp/other.json --no-dry-run",
         "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
         "--project=" + P + " --policy=/tmp/aleogr-cleanup-policy-keep-51.json --no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/tmp/aleogr-a1b2/aleogr-cleanup-policy-keep-51.json "
+        "--no-dry-run",
+        # The fixed name of the temporary folder itself: someone else may have put it there.
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/tmp/aleogr-cleanup-policy-keep-3.json --no-dry-run",
+        # Not a private folder of write_temp_file.
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/tmp/aleogr-backup-a1b2/aleogr-cleanup-policy-keep-3.json "
+        "--no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/tmp/other/aleogr-cleanup-policy-keep-3.json --no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/tmp/x/aleogr-a1b2/aleogr-cleanup-policy-keep-3.json "
+        "--no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/var/tmp/aleogr-a1b2/aleogr-cleanup-policy-keep-3.json "
+        "--no-dry-run",
         "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
         "--project=" + P + " --policy=aleogr-cleanup-policy-keep-3.json --no-dry-run",
         "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
@@ -1108,7 +1128,7 @@ class TestGoogleCloudWrites(unittest.TestCase):
         try:
             cmd = g("artifacts repositories set-cleanup-policies demo --location=us-central1 "
                     "--project=%s --policy=%s --no-dry-run"
-                    % (P, os.path.join(top, "aleogr-cleanup-policy-keep-7.json")))
+                    % (P, os.path.join(top, "aleogr-x1y2z3_4", "aleogr-cleanup-policy-keep-7.json")))
             skill = "gcp-artifact-registry_cleanup-configure"
             self.assertIsNone(common.write_refusal(skill, cmd, root=REGISTRY, temp=top))
             self.assertIsNotNone(common.write_refusal(skill, cmd, root=REGISTRY))
@@ -1253,13 +1273,37 @@ class TestTemporaryFile(unittest.TestCase):
         err = io.StringIO()
         path = common.write_temp_file(self.SKILL, self.NAME, "[\n  1\n]\n", stream=err,
                                       folder=self.top)
-        self.assertEqual(path, os.path.join(self.top, self.NAME))
+        private = common.private_temp_dir(self.top)
+        self.assertEqual(path, os.path.join(private, self.NAME))
+        self.assertEqual(path, common.temp_file_path(self.NAME, self.top))
+        self.assertEqual(os.path.dirname(private), self.top)
+        self.assertTrue(os.path.basename(private).startswith("aleogr-"))
         self.assertEqual(err.getvalue(), "+ write %s\n" % path)
         with open(path, "rb") as f:
             self.assertEqual(f.read(), b"[\n  1\n]\n")
-        common.write_temp_file(self.SKILL, self.NAME, "x", stream=io.StringIO(), folder=self.top)
+        if os.name == "posix":
+            self.assertEqual(stat.S_IMODE(os.stat(private).st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+        # The command's own shape accepts that path, under this temporary folder.
+        cmd = g("artifacts repositories set-cleanup-policies demo --location=us-central1 "
+                "--project=%s --policy=%s --no-dry-run" % (P, path))
+        self.assertIsNone(common.write_refusal(self.SKILL, cmd, root=REGISTRY, temp=self.top))
+        # A file already at that name is never written through: created new only.
+        self.assertIsNone(common.write_temp_file(self.SKILL, self.NAME, "x",
+                                                 stream=io.StringIO(), folder=self.top))
         with open(path, "rb") as f:
-            self.assertEqual(f.read(), b"x")  # its whole content replaced
+            self.assertEqual(f.read(), b"[\n  1\n]\n")
+
+    def test_the_private_folder_is_removed_when_the_process_ends(self):
+        code = ("import sys; sys.dont_write_bytecode = True; sys.path.insert(0, %r); "
+                "import aleogr_common as c; "
+                "p = c.write_temp_file(%r, %r, 'x', folder=%r); print(p)"
+                % (os.path.dirname(common.__file__), self.SKILL, self.NAME, self.top))
+        p = subprocess.run([sys.executable, "-c", code], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE)
+        path = p.stdout.decode().strip()
+        self.assertTrue(path.startswith(os.path.join(self.top, "aleogr-")), path)
+        self.assertEqual(os.listdir(self.top), [])
 
     def test_refuses_another_name_before_showing_it(self):
         for name in ("aleogr-cleanup-policy-keep-51.json", "other.json", "../x.json",
@@ -1271,13 +1315,16 @@ class TestTemporaryFile(unittest.TestCase):
         with self.assertRaises(common.WriteRefused):
             common.write_temp_file("gcp_deploy-setup", self.NAME, "x", stream=io.StringIO(),
                                    folder=self.top)
-        self.assertEqual(os.listdir(self.top), [])
+        self.assertEqual(os.listdir(self.top), [])  # refused before its folder is made
 
     def test_a_link_at_that_name_is_not_followed(self):
         target = os.path.join(self.top, "target")
         with open(target, "w") as f:
             f.write("kept")
+        # A link at the old fixed name is not even looked at: the file is in a private
+        # folder; one inside that folder (it cannot be known before) is not followed.
         os.symlink(target, os.path.join(self.top, self.NAME))
+        os.symlink(target, common.temp_file_path(self.NAME, self.top))
         self.assertIsNone(common.write_temp_file(self.SKILL, self.NAME, "x",
                                                  stream=io.StringIO(), folder=self.top))
         with open(target) as f:
@@ -1803,6 +1850,221 @@ class TestDirectModeWithFiles(unittest.TestCase):
             self.assertEqual(p.returncode, 1)
         finally:
             shutil.rmtree(top)
+
+
+
+class TestGlobalFlagsOfGcloud(unittest.TestCase):
+    """The global flags of gcloud are refused anywhere in a command, read or write."""
+
+    READ = "gcloud projects describe demo --format=json"
+    WRITE = ("gcp-cloud-sql_instance-stop",
+             "gcloud sql instances patch aleogr-shared --project=%s "
+             "--activation-policy=NEVER --quiet" % S)
+
+    def forms(self, flag):
+        value = "x@example.com" if flag in ("--account", "--impersonate-service-account") \
+            else "x"
+        if flag in ("--log-http", "--user-output-enabled"):
+            return [[flag], [flag + "=true"], ["--no-" + flag[2:]], [flag, "false"]]
+        return [[flag + "=" + value], [flag, value]]
+
+    def test_every_flag_on_a_read_and_on_a_write(self):
+        skill, write = self.WRITE
+        self.assertIsNone(common.read_refusal(words(self.READ)))
+        self.assertIsNone(refusal(skill, write))
+        for flag in common.GCLOUD_REFUSED_FLAGS + ("--billing-project",):
+            for form in self.forms(flag):
+                for at in ("middle", "end"):
+                    with self.subTest(flag=flag, form=form, at=at):
+                        r = words(self.READ)
+                        w = words(write)
+                        if at == "end":
+                            r, w = r + form, w + form
+                        else:
+                            r = r[:3] + form + r[3:]
+                            w = w[:4] + form + w[4:]
+                        self.assertIsNotNone(common.read_refusal(r))
+                        self.assertIsNotNone(common.always_refused(r))
+                        self.assertIsNotNone(refusal(skill, w))
+
+    def test_the_flags_named(self):
+        for flag in ("--account", "--configuration", "--access-token-file", "--flags-file",
+                     "--log-http", "--trace-token", "--verbosity",
+                     "--credential-file-override", "--impersonate-service-account",
+                     "--user-output-enabled"):
+            self.assertIn(flag, common.GCLOUD_REFUSED_FLAGS)
+
+    def test_billing_project_only_where_a_skill_writes_it(self):
+        budget = GCLOUD_ALLOWED["gcp_budget-alert-setup"]
+        for argv in budget:
+            self.assertIsNone(refusal("gcp_budget-alert-setup", argv))
+        kept = [a for a in READS_2B if any(x.startswith("--billing-project=") for x in a)]
+        self.assertEqual(len(kept), 3)  # budgets list, budgets describe, iap settings get
+        for argv in kept:
+            self.assertIsNone(common.read_refusal(argv), argv)
+            # As `--billing-project <id>` (two arguments) it is refused.
+            two = []
+            for a in argv:
+                two += a.split("=", 1) if a.startswith("--billing-project=") else [a]
+            self.assertIsNotNone(common.read_refusal(two), two)
+        for cmd in ("gcloud projects describe demo --billing-project=%s" % S,
+                    "gcloud sql instances describe aleogr-shared --project=%s "
+                    "--billing-project=%s --format=json" % (S, S),
+                    "gcloud billing accounts list --billing-project=%s" % S):
+            self.assertIsNotNone(common.read_refusal(words(cmd)), cmd)
+
+    def test_a_flag_that_only_starts_the_same_is_not_refused(self):
+        # --billing-account is not --account, --display-name is not --configuration.
+        for argv in GCLOUD_ALLOWED["gcp_budget-alert-setup"]:
+            self.assertTrue(any(a.startswith("--billing-account=") for a in argv))
+            self.assertIsNone(common.always_refused(argv))
+
+
+class TestPersonIsNeverAServiceAccount(unittest.TestCase):
+    def test_the_domain_in_any_case(self):
+        skill = "gcp_access-grant"
+        base = ("iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-api "
+                "--region=us-central1 --project=%s --member=user:%%s "
+                "--role=roles/iap.httpsResourceAccessor --condition=None --quiet" % P)
+        self.assertIsNone(refusal(skill, g(base % "demo-user@example.com")))
+        for member in ("x@demo.iam.gserviceaccount.com", "x@DEMO.IAM.GSERVICEACCOUNT.COM",
+                       "x@gServiceAccount.com", "x@demo.iam.GServiceAccount.Com"):
+            with self.subTest(member=member):
+                self.assertIsNotNone(refusal(skill, g(base % member)))
+
+
+class FakeClock(object):
+    def __init__(self):
+        self.t = 1000.0
+
+    def __call__(self):
+        return self.t
+
+
+class TestTheClockOfARun(unittest.TestCase):
+    def setUp(self):
+        common.reset_wait_budget()
+        self.clock = FakeClock()
+        common.set_clock(self.clock, start=self.clock.t)
+
+    def tearDown(self):
+        common.set_clock()
+        common.reset_wait_budget()
+
+    def test_limits(self):
+        self.assertEqual((common.WAIT_CLOCK_LIMIT, common.RUN_DEADLINE), (420, 570))
+
+    def test_the_clock_ends_the_waits_before_the_count_does(self):
+        ctx = common.Context("aleogr-cloud-gcp", "/x", "gcp_login-setup", Writer, "apply", {})
+        shown = []
+
+        def execute(argv, timeout=None):
+            shown.append(common.show_command(argv))
+            self.clock.t += 30 + 5  # the wait, and a command of five seconds after it
+            return common.Completed(0, "", "")
+
+        ctx.execute = execute
+        got = []
+        for _ in range(16):
+            got.append(ctx.wait())
+        # The 12th wait ends at 11 * 35 + 30 = 415 s; a 13th would end at 420 + 30 > 420.
+        self.assertEqual(got, [True] * 12 + [False] * 4)
+        self.assertEqual(len(shown), 12)
+        self.assertLess(common.waited_seconds(), common.WAIT_BUDGET_SECONDS)
+
+    def test_a_wait_that_ends_at_the_limit_is_allowed(self):
+        self.clock.t += 390
+        self.assertTrue(common.wait_allowed())
+        self.clock.t += 0.5
+        self.assertFalse(common.wait_allowed())
+
+    def test_the_count_still_decides_with_instant_waits(self):
+        ctx = common.Context("aleogr-cloud-gcp", "/x", "gcp_login-setup", Writer, "apply", {})
+        ctx.execute = lambda argv, timeout=None: common.Completed(0, "", "")
+        self.assertEqual([ctx.wait() for _ in range(18)], [True] * 16 + [False] * 2)
+
+    def test_no_clock_before_the_dispatcher_starts_it(self):
+        common.set_clock(self.clock, start=None)
+        self.clock.t += 10000
+        self.assertEqual(common.elapsed_seconds(), 0.0)
+        self.assertTrue(common.wait_allowed())
+
+    def test_the_remaining_time_of_a_command(self):
+        self.assertEqual(common.remaining_seconds(), 570)
+        self.clock.t += 500
+        self.assertEqual(common.remaining_seconds(), 70)
+        self.clock.t += 500
+        self.assertEqual(common.remaining_seconds(), 1)
+
+    def test_a_command_past_the_deadline_is_killed_and_raises(self):
+        self.clock.t += common.RUN_DEADLINE - 1  # one second left
+        marker = os.path.join(tempfile.mkdtemp(), "late")
+        code = ("import os, sys, time; time.sleep(3); open(sys.argv[1], 'w').close()")
+        err = io.StringIO()
+        with self.assertRaises(common.TimeLimit) as cm:
+            common.run([sys.executable, "-c", code, marker,
+                        common.Hidden("s3cr3t")], stream=err)
+        self.assertIn("<value>", cm.exception.shown)
+        self.assertNotIn("s3cr3t", cm.exception.shown + str(cm.exception) + err.getvalue())
+        import time
+        time.sleep(3)
+        self.assertFalse(os.path.exists(marker), "the command was not killed")
+        shutil.rmtree(os.path.dirname(marker))
+
+    def test_what_it_started_is_killed_too(self):
+        if os.name != "posix":
+            self.skipTest("process groups")
+        self.clock.t += common.RUN_DEADLINE - 1
+        marker = os.path.join(tempfile.mkdtemp(), "late")
+        child = "import sys, time; time.sleep(3); open(sys.argv[1], 'w').close()"
+        parent = ("import subprocess, sys; subprocess.Popen([sys.executable, '-c', %r, "
+                  "sys.argv[1]]).wait()" % child)
+        with self.assertRaises(common.TimeLimit):
+            common.run([sys.executable, "-c", parent, marker], stream=io.StringIO())
+        import time
+        time.sleep(3.5)
+        self.assertFalse(os.path.exists(marker), "a process the command started was not killed")
+        shutil.rmtree(os.path.dirname(marker))
+
+    def test_a_command_within_the_deadline_runs_as_before(self):
+        c = common.run([sys.executable, "-c", "print('ok')"], stream=io.StringIO())
+        self.assertEqual((c.code, c.out), (0, "ok\n"))
+        # A shorter timeout of the caller's own is exit 124, not the run's time limit.
+        c = common.run([sys.executable, "-c", "import time; time.sleep(3)"], timeout=0.5,
+                       stream=io.StringIO())
+        self.assertEqual(c.code, 124)
+
+    def test_a_called_command_past_the_deadline_is_killed_and_raises(self):
+        self.clock.t += common.RUN_DEADLINE - 1
+        top = tempfile.mkdtemp()
+        old = os.environ["PATH"]
+        try:
+            cmd = os.path.join(top, "aleogr-demo")
+            with open(cmd, "w") as f:
+                f.write("#!/bin/sh\nexec %s -c 'import time; time.sleep(5)'\n" % sys.executable)
+            os.chmod(cmd, 0o755)
+            os.environ["PATH"] = top
+            with self.assertRaises(common.TimeLimit) as cm:
+                common.call_plugin("aleogr-demo", "demo_skill", {"a": "1"})
+            self.assertEqual(cm.exception.shown, "aleogr-demo --json demo_skill a=1")
+        finally:
+            os.environ["PATH"] = old
+            shutil.rmtree(top)
+
+    def test_the_context_s_reads_and_writes_run_bounded(self):
+        self.clock.t += common.RUN_DEADLINE - 1
+        ctx = common.Context("aleogr-cloud-gcp", "/x", "gcp_login-setup", Writer, "apply", {})
+        with StandIns(), contextlib.redirect_stderr(io.StringIO()):
+            slow = os.path.join(os.environ["PATH"], "gcloud")
+            with open(slow, "w") as f:
+                f.write("#!/bin/sh\nexec %s -c 'import time; time.sleep(5)'\n"
+                        % sys.executable)
+            with self.assertRaises(common.TimeLimit) as cm:
+                ctx.read(["gcloud", "projects", "describe", "demo"])
+            self.assertEqual(cm.exception.shown, "gcloud projects describe demo")
+            with self.assertRaises(common.TimeLimit):
+                ctx.write(IAP_ENABLE)
+        self.assertEqual(ctx.writes_run, [" ".join(IAP_ENABLE)])
 
 
 if __name__ == "__main__":

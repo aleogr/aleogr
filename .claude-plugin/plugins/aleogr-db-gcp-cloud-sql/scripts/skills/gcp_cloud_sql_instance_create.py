@@ -15,6 +15,11 @@ budget spent while the instance is still being created ends exactly as step 5's 
 timeout does (pending, the instance left running and charged until it is stopped, and
 the instance-stop command); a budget spent while waiting for the job's stop is "still not
 stopped after 5 minutes": the skill falls back to its own patch, as step 6 says.
+
+From the moment the create command exits zero until a describe shows the instance
+stopped, a run aborted by its time limit or an unexpected error (common.aborted_result)
+says what its own timeout says: the instance exists, runs and is charged by the hour
+until it is stopped, and the command that stops it (ctx.on_abort).
 """
 
 import json
@@ -270,6 +275,8 @@ def run(args, ctx):
     stop_item = {"item": "instance", "reason": "manual", "how": stop_how(project_id, instance)}
     running_line = ("It is not stopped: it runs and is charged by the hour until it is "
                     "stopped. Stop it with %s." % stop_how(project_id, instance))
+    # The instance exists from here: an aborted run says so, until it is seen stopped.
+    ctx.on_abort(["The instance %s was created." % instance, COST_LINE, running_line])
     night_item = {"item": "night stop", "reason": "manual", "how": NIGHT_STOP_HOW}
 
     def pending(state, said, items=None):
@@ -286,7 +293,10 @@ def run(args, ctx):
                 data = json.loads(d.out)
             except ValueError:
                 data = None
-        return state_of(data) if isinstance(data, dict) else None
+        state = state_of(data) if isinstance(data, dict) else None
+        if state == "stopped":
+            ctx.on_abort([])  # seen stopped: an aborted run leaves nothing charged by the hour
+        return state
 
     # Step 5: wait until it runs (or shows stopped).
     seen = None

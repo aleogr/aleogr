@@ -9,6 +9,10 @@ the same states, the prescribed sentences word for word and the same result bloc
 patch runs through ctx.write only: its shape (the only ALWAYS of any skill) is on this
 skill's allowlist of writes alone. The SKILL.md names no confirm argument: the gates
 before the patch are the arguments and the check of step 1 (state stopped only).
+
+From just before the patch until the run ends with its own answer, a run aborted by its
+time limit or an unexpected error (common.aborted_result) also says that a running
+instance is charged by the hour, with the command that stops it (ctx.on_abort).
 """
 
 import json
@@ -159,8 +163,19 @@ def run(args, ctx):
     connect = ("It takes about twelve minutes to accept connections; %s shows when it is "
                "running." % describe_how)
 
-    # Step 2: start it. The cost is said before the lines that report the command.
+    # Step 2: start it. The cost is said before the lines that report the command, and
+    # by an aborted run from here on.
     lines = [cost_line]
+    ctx.on_abort([cost_line])
+    result = _after_patch(ctx, project_id, instance, resources, outputs, lines, connect,
+                          describe_how, read_back)
+    ctx.on_abort([])  # the run ends with its own answer
+    return result
+
+
+def _after_patch(ctx, project_id, instance, resources, outputs, lines, connect, describe_how,
+                 read_back):
+    """Steps 2 and 3, from the patch on: the result."""
     c = ctx.write(patch_command(project_id, instance))
     if not c.ok:
         # The one read after a failed patch, decided by the activation policy alone.
@@ -176,7 +191,8 @@ def run(args, ctx):
             return ctx.result("failed", outputs(True, "stopped"), resources=resources,
                               cost=dict(COST), lines=[FAILED_STILL_STOPPED])
         return ctx.result("failed", outputs(True, None), resources=resources, cost=dict(COST),
-                          lines=[FAILED_UNREAD, "%s shows whether it is running." % describe_how])
+                          lines=lines + [FAILED_UNREAD,
+                                         "%s shows whether it is running." % describe_how])
 
     # Step 3: one verification, never repeated.
     seen, _policy = read_back()

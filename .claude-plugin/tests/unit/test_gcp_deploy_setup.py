@@ -491,5 +491,53 @@ class TestPaths(unittest.TestCase):
         self.assertEqual(r.lines, [skill.READ_FAILED % ("demo-api", PID)])
 
 
+
+class TimeLimitContext(FakeContext):
+    """The run's time limit is reached while its `at`-th write is still running."""
+
+    def __init__(self, args, reads_, at):
+        FakeContext.__init__(self, args, reads_)
+        self.at = at
+
+    def execute(self, argv, timeout=None):
+        if len(self.writes) + 1 == self.at:
+            self.writes.append(list(argv))
+            raise common.TimeLimit(argv)
+        return FakeContext.execute(self, argv, timeout)
+
+
+class TestAborted(unittest.TestCase):
+    def aborted(self, at):
+        a = reads(service=[MISSING_SERVICE, ok(service())], account=[MISSING_ACCOUNT,
+                                                                     ok(ACCOUNT_POLICY)],
+                  login=ok(LOGIN_POLICY))
+        common.reset_wait_budget()
+        ctx = TimeLimitContext(dict(ARGS), a, at)
+        r, code, why = common.run_skill(skill, dict(ARGS), ctx)
+        self.assertEqual((code, why), (common.EXIT_SOFTWARE, "time limit reached"))
+        self.assertEqual(r.status, "failed")
+        self.assertEqual(r.block["cost"], common.ABORTED_COST)
+        self.assertEqual((r.lines[0], r.lines[-1]),
+                         (common.TIME_LIMIT_SENTENCE, common.READ_STATE_SENTENCE))
+        return r, ctx
+
+    def test_after_the_first_write_it_says_what_may_exist(self):
+        for at in (2, 3):  # the act-as grant after the account, the deploy
+            with self.subTest(at=at):
+                r, ctx = self.aborted(at)
+                self.assertEqual(len(ctx.writes), at)
+                self.assertTrue(r.lines[1].startswith(
+                    "Before it stopped, this run had already run these writes: `gcloud iam "
+                    "service-accounts create demo-web "), r.lines[1])
+                self.assertEqual(r.lines[2:-1], [skill.ABORT_LINE])
+                self.assertIn("running this skill again with the same arguments goes on",
+                              skill.ABORT_LINE)
+
+    def test_the_first_write_itself_is_still_running(self):
+        r, ctx = self.aborted(1)
+        self.assertEqual(len(ctx.writes), 1)
+        self.assertEqual(len(r.lines), 3)
+
+
 if __name__ == "__main__":
     unittest.main()

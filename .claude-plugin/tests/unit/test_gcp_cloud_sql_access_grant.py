@@ -255,6 +255,16 @@ class TestThePoll(unittest.TestCase):
         self.assertIn("The grant of the role roles/cloudsql.instanceUser was refused after 8 "
                       "tries.", r.lines)
         self.assertEqual(r.block["pending"][0]["item"], "access")
+        # The budget's sentence, right after the prescribed one: a second run goes on.
+        i = r.lines.index(skill.GRANT_REFUSED % skill.INSTANCE_USER)
+        self.assertEqual(r.lines[i + 1], common.WAIT_BUDGET_SENTENCE)
+        self.assertEqual(r.lines.count(common.WAIT_BUDGET_SENTENCE), 1)
+
+    def test_a_poll_that_ends_on_its_tries_has_no_budget_sentence(self):
+        r, ctx = run({USERS: users(USER)}, [NOT_VISIBLE] * 10 + [OK])
+        self.assertNotIn(common.WAIT_BUDGET_SENTENCE, r.lines)
+        r, ctx = run({USERS: users(USER)}, (DENIED,))
+        self.assertNotIn(common.WAIT_BUDGET_SENTENCE, r.lines)
 
     def test_a_role_not_seen_after_its_grant(self):
         r, ctx = run({USERS: users(USER), POLICY: [policy(), policy(skill.CLIENT)]})

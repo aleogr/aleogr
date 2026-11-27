@@ -62,8 +62,10 @@ copies of `aleogr_common.py` are byte-identical, that the read-only runner refus
 command that is not a read before running it, that the writing runner accepts only each
 skill's own write shapes and that the refusals of Google Cloud hold for every skill
 (`test_writes.py`), each cost gate (absent, with another value, and no write built then), how
-each waiting skill ends when the eight-minute budget is spent, that an argument given twice
-and a refused command still end with a `failed` result (`test_refusals.py`), and that every
+each waiting skill ends when the eight-minute budget is spent, that an argument given twice,
+a refused command, the run's time limit and an unexpected error still end with a `failed` result
+(`test_refusals.py`), what each skill that creates something says when its run is aborted after
+the create, and that every
 script parses as Python 3.9:
 
 ```
@@ -77,8 +79,15 @@ In a unit test, load a skill's module with `helpers.load_skill(plugin, skill)`, 
 `ctx.write` (a provider command), `ctx.write_file` (a file of the folder) and `ctx.backup` (copies
 to put back). Each refuses, before anything runs or is shown, what is not on the skill's own
 allowlist (`WRITE_SHAPES` and `FILE_WRITES` in `aleogr_common.py`), and `ctx.write_temp_file`
-writes the one temporary file a skill names (`TEMP_FILE_WRITES`). A wait is `ctx.wait()`,
-which runs `sleep 30` (so the fake logs it) and says no once the run's eight minutes are spent.
+writes the one temporary file a skill names (`TEMP_FILE_WRITES`), created new, mode 0600, in a
+private folder (`aleogr-<random>`, 0700) of the system's temporary folder that the process removes
+when it ends. A wait is `ctx.wait()`, which runs `sleep 30` (so the fake logs it) and says no once
+the run's eight minutes of waiting are spent, or when the wait would end after seven minutes of the
+run (`WAIT_CLOCK_LIMIT`; the fake `sleep` returns at once, so in the scenarios the count decides).
+Every provider command is bounded by the run's deadline (`RUN_DEADLINE`, nine and a half minutes):
+past it the command is killed and the run ends with the `failed` result of an aborted run
+(`aborted_result`), which any unexpected exception also gets, with no traceback; a unit test moves
+the clock (`common.set_clock`) or raises `TimeLimit` from a context to reach these endings.
 A unit test replaces `ctx.execute(argv)`, the one place a command runs, to record each write.
 
 **Golden commands.** Each writing skill's unit test holds its write commands exactly as the

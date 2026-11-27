@@ -738,6 +738,10 @@ def plan(ctx, comps, analyses, args):
 # Steps 5 to 8: the apply
 
 
+ABORT_LINE = ("Services or service accounts may have been created by this run; running this "
+              "skill again with the same arguments goes on from them.")
+
+
 class Run(object):
     def __init__(self, ctx, args, info):
         self.ctx = ctx
@@ -756,8 +760,13 @@ class Run(object):
     def write(self, c, argv):
         """One write on component c: True when it exited 0."""
         c.touched = True
+        first = not self.any_command
         self.any_command = True
         r = self.ctx.write(argv)
+        if first:
+            # From the first write on, a run aborted by its time limit or an unexpected
+            # error says what it may have left behind.
+            self.ctx.on_abort([ABORT_LINE])
         if r.ok:
             c.changed = True
             self.any_change = True

@@ -42,6 +42,10 @@ UNUSABLE = ("An identifier read from Google Cloud does not have the form this to
             "in a command; nothing was changed.")
 
 
+ABORT_EXISTS = ("The GCP project %s now exists; running this skill again with the same "
+                "arguments goes on from it.")
+
+
 def _cause(c):
     """One sentence's cause of a failed gcloud command, with no raw error text."""
     t = c.text.lower()
@@ -318,6 +322,9 @@ def _run(args, ctx):
                 "The project %s exists, but it is not active." % project_id],
                 lifecycle_command(project_id))
         lines.append(CREATED_BUT % project_id)
+    # The project exists from here: a run aborted later (its time limit, an unexpected
+    # error) says so.
+    ctx.on_abort([ABORT_EXISTS % project_id])
 
     # Steps 7 and 8.
     return link_and_verify(args, ctx, project_id, billing_id, parent_type, lines, "created")

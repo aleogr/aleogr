@@ -6,14 +6,15 @@ The specification is skills/gcp-artifact-registry_cleanup-configure/SKILL.md: th
 read, the same comparison, the same one set, the same read back, the same states and the
 same result block. The policy file is the plugin's own files/cleanup-policy.json for
 keep=5; for any other keep it is that file's content with the count replaced, written
-for this run in the system's temporary folder (ctx.write_temp_file), only in mode=apply,
-right before the set. The set runs through ctx.write only; it is checked against this
-skill's allowlist of writes in both modes before the plan announces it or the apply
-writes the file.
+for this run in a private folder of this process in the system's temporary folder
+(ctx.write_temp_file, common.temp_file_path; the folder is made by the plan too, empty,
+to name the path, and removed when the process ends), only in mode=apply, right before
+the set. The set runs through ctx.write only; it is checked against this skill's
+allowlist of writes in both modes before the plan announces it or the apply writes the
+file.
 """
 
 import json
-import os
 import re
 
 import aleogr_common as common
@@ -75,10 +76,12 @@ def temp_name(keep):
 
 
 def policy_path(ctx, keep):
-    """<policy file>: the plugin's own file for keep=5, else the temporary file's path."""
+    """<policy file>: the plugin's own file for keep=5, else the temporary file's path,
+    in this process's private folder of the system's temporary folder (made now; None
+    when it cannot be made)."""
     if keep == SHIPPED_KEEP:
         return ctx.plugin_path("files", "cleanup-policy.json")
-    return os.path.join(common.system_temp_dir(), temp_name(keep))
+    return common.temp_file_path(temp_name(keep))
 
 
 def policy_text(shipped, keep):
@@ -270,6 +273,9 @@ def run(args, ctx):
                                     "off); nothing was changed." % keep])
 
     path = policy_path(ctx, keep)
+    if path is None:
+        # The private temporary folder could not be made: no file can be written.
+        return failed(FILE_FAILED % temp_name(keep))
     argv = set_command(project_id, project, region, path)
     if common.write_refusal(SKILL, argv, root=ctx.root):
         return failed(UNUSABLE)

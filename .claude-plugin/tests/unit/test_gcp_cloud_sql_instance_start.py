@@ -29,6 +29,9 @@ GOLDEN_PATCH = ("gcloud sql instances patch aleogr-shared --project=aleogr-share
                 "--activation-policy=ALWAYS --async --quiet")
 GOLDEN_DESCRIBE = ("gcloud sql instances describe aleogr-shared --project=aleogr-shared-zz99 "
                    "--format=json")
+STOP_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop "
+            "projectId=aleogr-shared-zz99 instance=aleogr-shared")
+COST_LINE = "While it runs it is charged by the hour, until it is stopped with %s." % STOP_HOW
 DESCRIBE_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe "
                 "projectId=aleogr-shared-zz99 instance=aleogr-shared")
 
@@ -180,8 +183,10 @@ class TestPaths(unittest.TestCase):
             r, ctx = run(write_code=1, answer=answer)
             self.assertEqual((r.status, r.block["outputs"]), ("failed",
                                                               {"exists": True, "state": None}))
-            self.assertEqual(r.lines[0], skill.FAILED_UNREAD)
-            self.assertIn(DESCRIBE_HOW, r.lines[1])
+            # It may run: the hourly cost and the command that stops it come first.
+            self.assertEqual(r.lines[0], COST_LINE)
+            self.assertEqual(r.lines[1], skill.FAILED_UNREAD)
+            self.assertIn(DESCRIBE_HOW, r.lines[2])
             self.assertNotIn("PERMISSION_DENIED", "\n".join(r.lines))
         self.assertEqual(len(ctx.writes), 1)
 
@@ -194,6 +199,58 @@ class TestPaths(unittest.TestCase):
         r, ctx = run(answer=common.Completed(1, "", "x"))
         self.assertEqual((r.status, r.block["outputs"]["state"]), ("updated", None))
         self.assertIn("could not be read", "\n".join(r.lines))
+
+
+
+class TimeLimitContext(FakeContext):
+    """The run's time limit is reached while the patch (`at="patch"`) or the read after
+    it (`at="read"`) is still running."""
+
+    def __init__(self, at):
+        FakeContext.__init__(self, dict(ARGS), described("stopped"))
+        self.at = at
+
+    def execute(self, argv, timeout=None):
+        self.writes.append(" ".join(argv))
+        if self.at == "patch":
+            raise common.TimeLimit(argv)
+        return common.Completed(0, "", "")
+
+    def read(self, argv, timeout=None):
+        raise common.TimeLimit(argv)
+
+
+class TestAborted(unittest.TestCase):
+    def test_the_time_limit_after_the_patch_names_the_hourly_cost(self):
+        for at in ("patch", "read"):
+            with self.subTest(at=at):
+                ctx = TimeLimitContext(at)
+                r, code, why = common.run_skill(skill, dict(ARGS), ctx)
+                self.assertEqual((code, why), (common.EXIT_SOFTWARE, "time limit reached"))
+                self.assertEqual(r.status, "failed")
+                self.assertEqual(r.block["cost"], common.ABORTED_COST)
+                self.assertEqual(r.block["mode"], "apply")
+                self.assertEqual(r.lines, [
+                    common.TIME_LIMIT_SENTENCE,
+                    "Before it stopped, this run had already run these writes: `%s`."
+                    % GOLDEN_PATCH,
+                    COST_LINE, common.READ_STATE_SENTENCE])
+
+    def test_a_run_that_ends_normally_clears_it(self):
+        r, ctx = run()
+        self.assertEqual(r.status, "updated")
+        self.assertEqual(ctx.abort_lines, [])
+
+    def test_before_the_patch_nothing_is_registered(self):
+        ctx = FakeContext(dict(ARGS), described("stopped"))
+
+        def call(*a, **k):
+            raise common.TimeLimit(["aleogr-db-gcp-cloud-sql", "--json", "x"])
+
+        ctx.call = call
+        r, code, _ = common.run_skill(skill, dict(ARGS), ctx)
+        self.assertEqual(r.lines, [common.TIME_LIMIT_SENTENCE, common.REFUSED_NOTHING_WRITTEN,
+                                   common.READ_STATE_SENTENCE])
 
 
 if __name__ == "__main__":

@@ -330,5 +330,98 @@ class TestPaths(unittest.TestCase):
             self.assertEqual(skill.state_of(data), want)
 
 
+
+class TimeLimitContext(FakeContext):
+    """The run's time limit is reached while its `at`-th command (1 for the first, in the
+    order of the log: writes, describes and waits) is still running."""
+
+    def __init__(self, at, states):
+        FakeContext.__init__(self, dict(ARGS), described(False), states)
+        self.at = at
+
+    def _tick(self, argv):
+        if len(self.log) + 1 == self.at:
+            self.log.append(" ".join(argv))
+            raise common.TimeLimit(argv)
+
+    def execute(self, argv, timeout=None):
+        self._tick(argv)
+        return FakeContext.execute(self, argv, timeout)
+
+    def read(self, argv, timeout=None):
+        self._tick(argv)
+        return FakeContext.read(self, argv, timeout)
+
+
+class TestAborted(unittest.TestCase):
+    CREATED = ["The instance aleogr-shared was created.",
+               "It costs about R$ 50 per month while stopped.",
+               "It is not stopped: it runs and is charged by the hour until it is stopped. "
+               "Stop it with %s." % STOP_HOW]
+
+    def aborted(self, at, states):
+        common.reset_wait_budget()
+        ctx = TimeLimitContext(at, states)
+        r, code, why = common.run_skill(skill, dict(ARGS), ctx)
+        self.assertEqual((code, why), (common.EXIT_SOFTWARE, "time limit reached"))
+        self.assertEqual(r.status, "failed")
+        self.assertEqual(r.block["cost"], common.ABORTED_COST)
+        self.assertEqual(r.block["mode"], "apply")
+        self.assertEqual(r.lines[0], common.TIME_LIMIT_SENTENCE)
+        self.assertEqual(r.lines[-1], common.READ_STATE_SENTENCE)
+        return r, ctx
+
+    def test_after_the_create_the_instance_runs_and_is_charged(self):
+        # The describe of step 5 (the second command) is still running.
+        r, ctx = self.aborted(2, ["creating"])
+        self.assertEqual(r.lines, [
+            common.TIME_LIMIT_SENTENCE,
+            "Before it stopped, this run had already run these writes: `%s`." % GOLDEN_CREATE,
+        ] + self.CREATED + [common.READ_STATE_SENTENCE])
+        # While waiting (a wait, then a describe), and at the stop itself.
+        for at in (3, 4):
+            r, _ = self.aborted(at, ["creating"])
+            self.assertEqual(r.lines[2:-1], self.CREATED, at)
+        r, ctx = self.aborted(3, ["running"])  # the patch of step 6
+        self.assertEqual(ctx.log[-1], GOLDEN_PATCH)
+        self.assertEqual(r.lines[2:-1], self.CREATED)
+        self.assertIn(GOLDEN_PATCH, r.lines[1])
+
+    def test_the_verification_after_the_patch_still_says_it(self):
+        r, ctx = self.aborted(4, ["running"])
+        self.assertEqual(ctx.log, [GOLDEN_CREATE, GOLDEN_DESCRIBE, GOLDEN_PATCH,
+                                   GOLDEN_DESCRIBE])
+        self.assertEqual(r.lines[2:-1], self.CREATED)
+
+    def test_the_create_itself_is_still_running(self):
+        r, ctx = self.aborted(1, ["running"])
+        self.assertEqual(ctx.log, [GOLDEN_CREATE])
+        self.assertEqual(r.lines, [
+            common.TIME_LIMIT_SENTENCE,
+            "Before it stopped, this run had already run these writes: `%s`." % GOLDEN_CREATE,
+            common.READ_STATE_SENTENCE])
+
+    def test_cleared_once_seen_stopped(self):
+        # Step 5 sees it stopped; the verification of step 7 is still running.
+        r, ctx = self.aborted(3, ["stopped"])
+        self.assertEqual(ctx.log, [GOLDEN_CREATE, GOLDEN_DESCRIBE, GOLDEN_DESCRIBE])
+        self.assertEqual(len(r.lines), 3)
+        self.assertNotIn("charged by the hour", "\n".join(r.lines))
+
+    def test_an_unexpected_error_says_the_same(self):
+        common.reset_wait_budget()
+        ctx = FakeContext(dict(ARGS), described(False), ["creating"])
+
+        def read(argv, timeout=None):
+            raise RecursionError("maximum recursion depth exceeded: s3cr3t")
+
+        ctx.read = read
+        r, code, why = common.run_skill(skill, dict(ARGS), ctx)
+        self.assertEqual((code, why), (common.EXIT_SOFTWARE, "unexpected error"))
+        self.assertEqual(r.lines[0], common.UNEXPECTED_SENTENCE)
+        self.assertEqual(r.lines[2:-1], self.CREATED)
+        self.assertNotIn("s3cr3t", "\n".join(r.lines))
+
+
 if __name__ == "__main__":
     unittest.main()
