@@ -5,6 +5,7 @@ COUNT 2 ^sql instances describe aleogr-shared
 AT_MOST 2 ^sql instances describe
 OUTPUT "status": "failed"
 OUTPUT "state": null
-OUTPUT could not tell whether it is running: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe shows whether it is charged by the hour\.
+OUTPUT The instance could not be started, and the read after the failure could not tell whether it is running: it may be charged by the hour until it is stopped\.
+OUTPUT gcp-cloud-sql_instance-describe
 OUTPUT_NOT PERMISSION_DENIED|does not have permission|selftest-raw-read-error
 NOT_CALLED ^sql instances (restart|delete|create)

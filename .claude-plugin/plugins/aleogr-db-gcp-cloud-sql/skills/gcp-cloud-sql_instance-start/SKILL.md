@@ -22,8 +22,8 @@ Validate before any command, and never ask for anything. If one is missing, end 
 Show each command before running it. Run only the commands below, in this order. On Windows, when `gcloud` fails to start, use `gcloud.cmd` in its place.
 
 1. Check the instance: invoke `aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe` with `projectId=<projectId> instance=<instance>`. Its `aleogr-result` block is only input: do not repeat it; this skill's answer ends with exactly one block, its own.
-   - Describe `status` `failed`: stop with `failed` and the sentence `The instance <instance> could not be read, so it was not started.` Run nothing else.
-   - `exists` false: stop with `failed` and the sentence `The instance <instance> does not exist, so it was not started.` Run nothing else.
+   - Describe `status` `failed`: stop with `failed` and the sentence `The instance could not be read, so it was not started.` Run nothing else.
+   - `exists` false: stop with `failed` and the sentence `The instance does not exist, so it was not started.` Run nothing else.
    - `state` is `running`, `starting` or `creating`: run nothing else and end with `status` `unchanged` and `outputs.state` as the describe reported it.
    - `state` is `unknown`: run nothing else and end with `failed` and one sentence giving the activation policy the describe reported.
    - `state` is `stopped`: continue.
@@ -37,8 +37,8 @@ Show each command before running it. Run only the commands below, in this order.
    A non-zero exit is not yet the end: the command may have reached Cloud SQL even though it failed here, and a started instance is charged by the hour. Read the instance once, with the describe command of step 3, and decide by its `settings.activationPolicy` alone, never by the text of the failure:
 
    - `ALWAYS`: the start was accepted after all. Go on as after an accepted patch, with this describe as the verification of step 3 (do not describe again): `updated`, `outputs.state` `starting`, and the answer also says `The start command failed, but the instance is starting: it is charged by the hour until it is stopped.`
-   - `NEVER`: `failed`, `outputs.state` `stopped`, with the sentence `The instance <instance> could not be started: it is still stopped, so it is not charged by the hour.`
-   - The describe fails, or any other value: `failed`, `outputs.state` `null`, with the sentence `The instance <instance> could not be started, and a read after the failure could not tell whether it is running: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe shows whether it is charged by the hour.`
+   - `NEVER`: `failed`, `outputs.state` `stopped`, with the sentence `The instance could not be started: it is still stopped, so it is not charged by the hour.`
+   - The describe fails, or any other value: `failed`, `outputs.state` `null`, with the sentence `The instance could not be started, and the read after the failure could not tell whether it is running: it may be charged by the hour until it is stopped.`; the answer then names `/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe projectId=<projectId> instance=<instance>` as the read that shows it.
 
    No raw error text in any of them, and no other command: this is the one read after a failed patch.
 

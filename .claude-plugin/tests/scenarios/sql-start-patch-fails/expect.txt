@@ -6,6 +6,6 @@ COUNT 2 ^sql instances describe aleogr-shared
 AT_MOST 2 ^sql instances describe
 OUTPUT "status": "failed"
 OUTPUT "state": "stopped"
-OUTPUT The instance aleogr-shared could not be started: it is still stopped, so it is not charged by the hour\.
+OUTPUT The instance could not be started: it is still stopped, so it is not charged by the hour\.
 OUTPUT_NOT PERMISSION_DENIED|does not have permission
 NOT_CALLED ^sql instances (restart|delete|create)
