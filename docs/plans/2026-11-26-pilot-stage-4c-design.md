@@ -2,6 +2,23 @@
 
 Status: approved by the owner on 2026-11-26. Source of truth after approval: [`DESIGN.md`](../DESIGN.md) and [`CONTRACTS.md`](../CONTRACTS.md); this document is what the implementation plan is written from. It replaces the outline of part 4c in [`2026-11-19-pilot-stage-4-design.md`](2026-11-19-pilot-stage-4-design.md). The owner asked the designer to decide everything: every decision here is the designer's, listed at the end for the owner to check.
 
+> **Changed during the build (note of 2026-11-27).** Decisions made while stage 4c was built changed parts of this document; its body is kept as approved. The source of truth is [`DESIGN.md`](../DESIGN.md) (sections 6.4, 11.5, 12, 16 and 18) and [`CONTRACTS.md`](../CONTRACTS.md). What this document says → what was built:
+>
+> - The declaration's pull request, then a run that makes the cloud and proposes the code, then a second merge → one pull request carries the declaration and the check's code; the run after its merge makes the cloud and opens no pull request (one merge in all).
+> - `go_setup database=yes` after the cloud → before anything that costs: in the proposal before the merge, and as the first database step of a run, which a failing `go_setup` stops before the start.
+> - The user and the roles made when missing → the user first, then the roles, both only while the instance runs: on an instance that is not running nothing is made or granted.
+> - The instance started when the row is `create` or `update` → started only when a database, a user or a role is missing; settings alone (`differs: settings`) are written with the instance stopped.
+> - The cost said by a plan line when the instance is stopped → said before every start: the warning in the pull request's body and the answer of the proposal (before the merge), the plan's cost line when it read the instance stopped, its conditional line when it did not (a `follows …` row), and the start's sentence after.
+> - "Until the night stop" taken on trust → the run reads the switch (`gcp-cloud-sql_instance-switch-setup … mode=plan`) right before a start and does not start the instance when it cannot confirm it.
+> - The wait until a list answers → a failed read counts as a try (only the 30 tries end it), and a run that finds the instance already starting enters the same wait, with no start.
+> - A start that fails ends the run → it is read back once, so the answer says whether the instance runs and costs.
+> - `env=<NAME>=<value>[,…]` → `env=<component>:<NAME>=<value>`, entries joined by `;`, the difference word `env`.
+> - The Go toolchain needed by `go_setup` → the plan checks it first (`tools-check command=go`); without Go the row `components` is `needs Go on this machine` / `fix by hand`, and nothing is made or started.
+> - The `go` line kept exactly as declared → it may also read `<version>.0`; `go.mod` and `go.sum` are put back from copies.
+> - The row's states → also `user name too long` / `fix by hand` (a user over 63 characters) and `needs the shared platform` / `none`, which ends `pending`, never `nothing to do`; `differs` is only `differs: settings`.
+> - The owner's run with two merges → declare, apply (one pull request, with the warning), merge (`/db` says `database: not configured`), apply (no pull request), `/db` says `database: ok`.
+> - The pull request's note of one sentence → up to 300 characters, holding both warnings when the proposal adds an environment and a database.
+
 ## Intent
 
 After stage 4b, `pilot`'s two components run on Cloud Run behind the login, and neither has anywhere to keep data. Stage 4c gives a project a database without a dashboard: the owner declares that a component uses the database, and one `project-apply` and one merge later that component reaches its own database on the shared instance, with no password anywhere.

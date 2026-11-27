@@ -10,6 +10,19 @@
 
 **Spec:** [`2026-11-26-pilot-stage-4c-design.md`](2026-11-26-pilot-stage-4c-design.md). Facts checked against primary sources on 2026-11-26: `.superpowers/sdd/2026-11-26-pilot-stage-4c/facts.md` (scratch, not versioned; each implementer reads the sections its task names; what a task relies on goes to `docs/PROVIDER-FACTS.md` in Task 6, marked as read in the reference, never as seen in a real run). Models of style: `gcp_deploy-setup`, `gcp_access-grant`, `gcp-cloud-sql_instance-describe`, `github_variables-set`.
 
+> **Changed during the build (note of 2026-11-27).** Decisions made while stage 4c was built changed parts of this plan; its body is kept as written. The source of truth is [`DESIGN.md`](../DESIGN.md) and [`CONTRACTS.md`](../CONTRACTS.md). What this plan says → what was built:
+>
+> - Task 1, `access-grant` grants the roles whatever the instance's state and makes the user later → the user first, then the roles, only while the instance runs; on any other state it grants nothing and ends `pending` (item `instance`, whose `how` depends on the state).
+> - Task 1, any user name → a user over 63 characters is refused, and the plan shows `user name too long` / `fix by hand`.
+> - Task 3, the `go` line must stay the declared version and the files are put back from a read → `<version>.0` is accepted, the files are put back from copies (`cp -p`), `route` may be `would-add` and `modules` `would-add` or `not-needed`.
+> - Task 4, the row's words include `api` → the project's Cloud SQL Admin API is in the row `apis`; `start` is true only when a database, a user or a role is missing (never for settings alone, never without Go); the plan checks Go (`tools-check command=go`); `outputs.database` also has `components`, and the plan gives `repositoryDatabaseComponents`.
+> - Task 4, `needs the shared platform` / `none` with a line → also when the instance does not exist, and it ends `pending` with the item `database`, never `nothing to do`.
+> - Task 4, the cost line only for a stopped instance read → also the conditional line under every `follows …` row, and a `starting` line that says `project-apply` waits.
+> - Task 5, the start first, then the cloud, then `go_setup` and the proposal → the check's code goes in the declaration's pull request; after the merge the run writes any code still missing first, reads the shared project itself, reads the night stop right before the start and does not start without it, waits (a failed read counts as a try; an instance already starting is waited for, not started), makes the database, the users, the roles and the settings, and opens no pull request.
+> - Task 5, the start under the run's confirmation → only under `confirm=yes` itself; a failed start is read back once; after creating the services the run plans again and makes the database in the same run.
+> - Task 5, the start's sentence ends `the workflow self-shared-database.` → `the workflow self-shared-database of aleogr/aleogr (action stop).`; the proposal that adds the database carries the warning in its `note`, up to 300 characters.
+> - Task 6, the checklist with a plan step and a merge of the code → declare, apply, read the warning, merge, apply, `/db`; a read-only `/aleogr:platform-plan` before the first apply; after an expired session, the same apply again.
+
 ## Global Constraints
 
 - **The premise** (`docs/DESIGN.md` section 10.4): a run goes on by itself; waits are bounded polls with `sleep 30`; a stop only before something irreversible, exposing or with a cost; one command per thing left; a short answer with one result block; never a question.
