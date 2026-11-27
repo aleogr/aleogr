@@ -1,0 +1,11 @@
+# As gh-pr-open-note, with a note of two sentences (more than 100 characters, at most 300): it is appended to the pull request's body after
+# "Proposed by aleogr.", and to the body only: the commit message is the title alone.
+CALLED ^gh pr create --repo example-org/example-repo --base main --head aleogr/change-[a-z0-9]{6} --title "?Change the project declaration"? --body "?Proposed by aleogr\. Applying this change after the merge creates a Google Cloud project, whose id is permanent\. Applying this after the merge starts the shared database instance when it is stopped: it then runs, charged by the hour, until the night stop\."?$
+CALLED ^git commit -m "?Change the project declaration"? -- \.aleogr/project\.json
+NOT_CALLED ^git commit .*permanent
+ORDER ^gh pr create >> ^git switch main
+NOT_CALLED ^git push|^git .*push .*origin main|--global
+OUTPUT "status": "created"
+OUTPUT "number": 7
+RESULT_NOT example-user
+OUTPUT_NOT example-user|owner@example\.com

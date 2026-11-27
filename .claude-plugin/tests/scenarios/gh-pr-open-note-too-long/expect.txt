@@ -1,0 +1,4 @@
+# A note longer than 300 characters is refused before any command.
+OUTPUT "status": "failed"
+OUTPUT note
+NOT_CALLED .
