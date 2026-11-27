@@ -1,16 +1,20 @@
-# The database is made, then the grant of web's roles is refused: the run stops with one item
-# database, sets no setting, writes no file and proposes nothing; no "apply again" on a guess.
+# The check is written first, the database is made, web's user too, then the grant of its roles is
+# refused: the run stops with one item database and the grant's own sentence, sets no setting and
+# proposes nothing; no "apply again" on a guess.
 CALLED ^sql databases create demo_dev
 CALLED ^projects add-iam-policy-binding aleogr-shared-ab12
-NOT_CALLED ^run services update|^gh pr create|^go -C|^gh (variable|secret) set|^sql users create
+NOT_CALLED ^run services update|^gh pr create|^gh (variable|secret) set
 NOT_CALLED instances patch
-NO_FILE web/db.go
+FILE web/db.go ^func dbCheck\(
 OUTPUT "item": "database", "reason": "manual", "how": "[^"]*/aleogr:project-plan
-OUTPUT The database of web was not all made: gcp-cloud-sql_access-grant stopped the run; nothing after it was made\.
+OUTPUT could not be given the role
+OUTPUT The database of web was not all made; nothing after it was made\.
 OUTPUT_NOT "item": "(components|ci|services|ci secrets|access|instance)", "reason"
 OUTPUT_NOT "how": "[^"]*(/aleogr:project-apply confirm=yes"|apply again)
 OUTPUT_NOT PERMISSION_DENIED|Policy update access denied
 OUTPUT "status": "updated"
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|The run (changed|stops|stopped)
 # Every database scenario of the run: the instance is never stopped, created or deleted; no
 # password; the nested blocks are input only; no e-mail of a component nor the shared project id
 # in the result block.

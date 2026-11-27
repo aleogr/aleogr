@@ -1,0 +1,4 @@
+ M .github/workflows/ci.yml
+?? jobs/go.mod
+?? jobs/main.go
+?? jobs/main_test.go

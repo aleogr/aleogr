@@ -1,0 +1,10 @@
+# The owner merged a declaration that adds the component jobs (its code is not in this folder). One
+# confirmed run updates the folder, plans again, writes the starting point of jobs and the CI file,
+# and proposes them: a merge is followed by one project-apply confirm=yes, not two.
+ORDER ^git -c credential.* pull --ff-only origin main >> ^gh pr create
+FILE jobs/go.mod ^module github\.com/example-org/demo/jobs$
+FILE .github/workflows/ci.yml ^# aleogr-ci 1 api:services/api:go:1\.27,jobs:jobs:go:1\.27,web:web:go:1\.27
+CALLED ^gh pr create --repo example-org/demo
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"
+OUTPUT_NOT "item": "(components|ci)", "reason"

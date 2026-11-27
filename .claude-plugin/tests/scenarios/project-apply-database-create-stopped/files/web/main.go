@@ -19,7 +19,6 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeText(w, "ok\n")
 	})
-	mux.HandleFunc("GET /db", dbCheck)
 	return mux
 }
 

@@ -1,0 +1,1 @@
+go: github.com/jackc/pgx/v5@v5.13.0: reading https://proxy.golang.org: 403 Forbidden

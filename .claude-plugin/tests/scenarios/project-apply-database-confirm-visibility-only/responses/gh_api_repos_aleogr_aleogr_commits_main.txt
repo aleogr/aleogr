@@ -1,0 +1,5 @@
+{
+  "sha": "3333333333333333333333333333333333333333",
+  "commit": { "message": "Update the workflows", "author": { "name": "Example", "date": "2026-11-18T10:00:00Z" } },
+  "parents": []
+}

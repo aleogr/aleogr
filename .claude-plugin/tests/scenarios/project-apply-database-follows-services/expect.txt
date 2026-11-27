@@ -1,0 +1,22 @@
+# web's service is missing: the first plan's row database follows the services. The run creates the
+# service, plans again, and makes the database, the user, the roles and the settings in the same run,
+# then proposes the check and the CI file.
+ORDER ^run deploy demo-web >> ^sql databases create demo_dev
+ORDER ^sql databases create >> ^projects add-iam-policy-binding aleogr-shared-ab12
+ORDER ^projects add-iam-policy-binding >> ^run services update demo-web --update-env-vars=
+ORDER ^run services update demo-web --update-env-vars= >> ^gh pr create
+NOT_CALLED instances patch
+CALLED ^gh pr create
+FILE web/db.go ^func dbCheck\(
+OUTPUT "status": "updated"
+OUTPUT "item": "pull request #7 is open"
+OUTPUT_NOT This run started the shared database instance
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|The run (changed|stops|stopped)
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only; no e-mail of a component nor the shared project id
+# in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

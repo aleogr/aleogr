@@ -1,11 +1,15 @@
 # The instance runs; the database, web's user, its roles and its settings are missing, and so is
 # web's check. One confirmed run makes them, in this order, with the settings last, then proposes
 # the check from the plan made after them. The instance is not started: it runs.
-ORDER ^sql databases create demo_dev --instance=aleogr-shared --project=aleogr-shared-ab12 >> ^projects add-iam-policy-binding aleogr-shared-ab12
-ORDER ^projects add-iam-policy-binding aleogr-shared-ab12 >> ^sql users create demo-web@aleogr-dev-demo-ab12\.iam
-ORDER ^sql users create >> ^run services update demo-web
-ORDER ^run services update demo-web >> ^go -C web get
-ORDER ^go -C web get >> ^gh pr create
+ORDER ^sql databases create demo_dev --instance=aleogr-shared --project=aleogr-shared-ab12 >> ^sql users create
+ORDER ^sql users create demo-web@aleogr-dev-demo-ab12\.iam >> ^projects add-iam-policy-binding aleogr-shared-ab12
+ORDER ^projects add-iam-policy-binding >> ^run services update demo-web
+ORDER ^go -C web get >> ^sql databases create
+# project-apply reads the shared project itself (the plan of step 1 reads it once; the plan after the
+# cloud does not, the folder then holding the files to propose).
+COUNT 2 ^projects list --filter=labels\.aleogr-project=shared
+OUTPUT ^web: https://demo-web-123456789012\.us-central1\.run\.app/db$
+ORDER ^run services update demo-web >> ^gh pr create
 CALLED ^run services update demo-web --update-env-vars=\^##\^DB_INSTANCE=aleogr-shared-ab12:us-central1:aleogr-shared##DB_NAME=demo_dev##DB_USER=demo-web@aleogr-dev-demo-ab12\.iam
 NOT_CALLED instances patch
 NOT_CALLED ^sleep
@@ -19,6 +23,8 @@ CALLED ^gh pr create .*Add the database check of web
 OUTPUT "status": "updated"
 OUTPUT "item": "pull request #7 is open"
 OUTPUT_NOT This run started the shared database instance
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|The run (changed|stops|stopped)
 # Every database scenario of the run: the instance is never stopped, created or deleted; no
 # password; the nested blocks are input only; no e-mail of a component nor the shared project id
 # in the result block.

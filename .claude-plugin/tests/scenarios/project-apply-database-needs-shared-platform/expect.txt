@@ -1,0 +1,17 @@
+# web declares the database, but the shared platform is not found: the run makes nothing and does not
+# say nothing to do; it ends with the item database naming /aleogr:platform-plan.
+NOT_CALLED instances patch
+NOT_CALLED ^sql |add-iam-policy-binding|^run (deploy|services update)|^gh pr create|^go -C
+OUTPUT "item": "database", "reason": "manual", "how": "[^"]*/aleogr:platform-plan
+OUTPUT /aleogr:platform-plan shows what it makes and what it costs
+OUTPUT_NOT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT "status": "pending"
+# The answer: no line while a wait runs, no opening summary, no note of its own under the table.
+OUTPUT_NOT [Ww]ait(ing)? (is )?running|in the background|try again when|follows when it completes|stopped with status|The last plan (finds|was made)|The run (changed|stops|stopped)
+# Every database scenario of the run: the instance is never stopped, created or deleted; no
+# password; the nested blocks are input only; no e-mail of a component nor the shared project id
+# in the result block.
+NOT_CALLED activation-policy=NEVER|^sql instances (restart|create|delete)|--password|set-password
+OUTPUT_NOT "action": "(project-plan|database-describe|database-create|access-grant|instance-start|deploy-setup|go-setup|setup|pull-request-open)"
+RESULT_NOT aleogr-shared-ab12
+RESULT_NOT demo-web@|demo-api@|\.iam"

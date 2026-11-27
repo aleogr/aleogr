@@ -1,0 +1,27 @@
+{
+  "id": 7654321,
+  "name": "demo",
+  "full_name": "example-org/demo",
+  "owner": {
+    "login": "example-org",
+    "id": 2345678,
+    "type": "Organization"
+  },
+  "private": false,
+  "visibility": "public",
+  "html_url": "https://github.com/example-org/demo",
+  "description": "Demo project",
+  "default_branch": "main",
+  "topics": [
+    "aleogr-demo",
+    "sample"
+  ],
+  "has_issues": true,
+  "has_projects": false,
+  "has_wiki": false,
+  "allow_merge_commit": true,
+  "allow_squash_merge": true,
+  "allow_rebase_merge": false,
+  "delete_branch_on_merge": true,
+  "archived": false
+}
