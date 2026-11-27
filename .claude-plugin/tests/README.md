@@ -57,24 +57,34 @@ it is run from.
 
 **The `clock` file.** The fake `sleep` returns at once, so the run's clock does not move and
 every existing scenario runs in one command. A scenario that has a file `clock` holding the
-one line `sleep-counts` runs with `ALEOGR_TEST_SLEEP_CLOCK=1`: each `sleep <n>` that the fake
+one line `sleep-counts` runs with `ALEOGR_TEST_SLEEP_CLOCK=1`, in both modes (with the model,
+the commands the model runs inherit it from `claude`): each `sleep <n>` that the fake
 logs during a command moves that command's clock by `<n>` seconds (the shared module counts
 the `sleep` lines of `FAKE_LOG`, and honours the variable only when `FAKE_LOG` is set, so
 only under these fakes; it only adds to the clock, so it can only shorten a run). Thirty
 seconds per wait reach the step limit of four minutes after eight waits, so such a scenario
 continues over several commands, as a real run would. A `clock` file with any other content
 is a bad scenario (exit 2). The loop and the `clock` file are tested on a copy of the
-harness with stand-in commands (`unit/test_continue.py`).
+harness with stand-in commands (`unit/test_continue.py`). Three scenarios have a `clock`
+file, all of `project-apply`, each made from a one-command scenario whose final answer it
+pins: `project-apply-continue-start-wait-limit` (the instance's wait over three commands, to
+its limit of thirty tries), `project-apply-continue-create-stopped` (the instance started in
+the first command and ready in the second) and `project-apply-continue-already-starting`
+(an instance someone else started, never started by the run). `project-apply`'s own wait is
+bounded by the clock's limit for waits, not by the step limit, so its commands make thirteen
+waits each.
 
 "Not converted" means one of: the prompt is not one slash command of a skill (a prompt of
 several lines, such as the `harness-selftest*` scenarios); the plugin has no command; or the
-command answers 64 because that skill has no module yet (the four orchestrators that are
-still prose: `project-apply`, `project-access`, `platform-plan` and `platform-apply`).
+command answers 64 because that skill has no module yet (the three orchestrators that are
+still prose: `project-access`, `platform-plan` and `platform-apply`).
 `run-direct.sh` counts those apart, never as failures, and exits 1 only when a scenario
 failed. At the end of step 1 it printed `passed 180, failed 0, not converted 493`; at the end
-of part 2a of step 2, `passed 357, failed 0, not converted 316`; at the end of part 2b it
-prints `passed 556, failed 0, not converted 117` (111 scenarios of the four orchestrators and
-the 6 `harness-selftest*`).
+of part 2a of step 2, `passed 357, failed 0, not converted 316`; at the end of part 2b,
+`passed 556, failed 0, not converted 117`; at the end of part 3a of step 3 it prints
+`passed 635, failed 0, not converted 41` (the 76 scenarios of `project-apply` and the three
+`project-apply-continue-*` pass; the 41 are the 35 scenarios of the three orchestrators still
+prose and the 6 `harness-selftest*`).
 
 A scenario of a command that writes runs in the scenario's working folder, a copy of its
 `files/`, so the `FILE`, `SAME_FILE`, `NO_FILE` and `FILE_NOT` lines check what the command
@@ -137,7 +147,9 @@ that may change, and none has.
 
 **A run with the model is needed only** for what the direct mode cannot see: that a shell
 skill runs the right one of its commands with the arguments it was given and relays the answer
-with nothing added, and the four orchestrators that are still prose. A rule is never tested
+with nothing added, that `project-apply`'s shell runs each `next:` command while the answer
+says `continue` and gives the last answer (a `project-apply-continue-*` scenario run with the
+model), and the three orchestrators that are still prose. A rule is never tested
 with the model.
 
 ## How it works

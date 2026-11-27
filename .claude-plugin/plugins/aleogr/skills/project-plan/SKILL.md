@@ -56,12 +56,6 @@ Only when the command printed no `aleogr-result` block at all (it was not found,
 }
 ```
 
-The command applies "The database's settings", below, to the services of the components that use the database.
-
-## The database's settings
-
-A component `<c>` of the project `<project>` that uses the database gets, on its service in the environment `<environment>`, exactly three settings, each `<NAME>=<value>`: `DB_INSTANCE=<shared project id>:<region>:<instance>`, the shared instance's connection name, where `<shared project id>` is the GCP project id of the shared platform (found by its labels), `<region>` is `cloud.region` of the declaration and `<instance>` is `platform.database.instance` of the defaults; `DB_NAME=<database>`, where `<database>` is `<project>_<environment>` with every `-` of the project's name written `_` (`demo_dev`; `my-app` gives `my_app_dev`); and `DB_USER=<project>-<c>@<project id>.iam`, the database user of the component's service account, where `<project id>` is the GCP project id of the environment. They are given to the service skills as `env="<c>:DB_INSTANCE=<value>;<c>:DB_NAME=<value>;<c>:DB_USER=<value>"`, the three entries of each component that uses the database, the components sorted by name, all joined by `;`; a component that does not use the database gets none, and no other setting is given.
-
 ## Result block
 
 When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

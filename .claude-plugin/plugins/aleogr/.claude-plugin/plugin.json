@@ -1,6 +1,6 @@
 {
   "name": "aleogr",
-  "version": "0.14.3",
+  "version": "0.15.0",
   "description": "Orchestrator: checks tools and plans and creates the shared platform (shared project, budget alert and the shared Cloud SQL database with its night switch) and prepares the login of the organization as far as a command can, and declares, plans and applies a project's GitHub repository, proposes a change to it by pull request, generates its Go components and CI file, makes the check ci required once that file is merged, and creates the ground of the environment dev on Google Cloud: its GCP project and APIs, the Docker image repository with its cleanup policy, and a keyless CI identity that may push images to it and deploy; with components, creates each component's Cloud Run service behind the login (no instance always on, billed by request) and the repository's CI secrets before it proposes the Dockerfiles and the CI file with its deploy jobs, and lets a person in to the services through the login (project-access); for a component that declares the database, makes its database on the shared Cloud SQL instance, its database user (its own service account, no password), its connection roles and its service's settings, starting the shared instance when it is stopped and something must be made in it, and proposes the component's database check.",
   "author": {
     "name": "aleogr"

@@ -9,8 +9,9 @@
 #        command answers 64 (that skill or mode is not converted). While an answer's
 #        block says `continue`, the command of its `next:` line runs next (the same
 #        command and skill, the same arguments and one run=; at most eight commands);
-#        the last command's stdout is the answer. A file `clock` (one line
-#        `sleep-counts`) makes each logged `sleep 30` move the run's clock by 30 s.
+#        the last command's stdout is the answer.
+#        In both modes a file `clock` (one line `sleep-counts`) makes each logged
+#        `sleep 30` move the run's clock by 30 s.
 set -u
 
 if [ $# -ne 1 ]; then echo "usage: run.sh <scenario>" >&2; exit 2; fi
@@ -37,6 +38,16 @@ log="$work/calls.log"
 out="$work/claude.out"
 : > "$log"
 
+# A file `clock` holding the one line `sleep-counts`: each `sleep <n>` the fake logs
+# moves the run's clock by <n> seconds (ALEOGR_TEST_SLEEP_CLOCK, a test aid of the
+# shared module that only shortens a run and only works with FAKE_LOG set). Both modes
+# set it: in the default mode the model's commands inherit it from claude.
+sleep_clock=""
+if [ -e "$scenario/clock" ]; then
+  if [ "$(cat "$scenario/clock")" = sleep-counts ]; then sleep_clock=1
+  else echo "bad clock file (one line: sleep-counts): $scenario/clock" >&2; exit 2; fi
+fi
+
 if [ "${RUN_MODE:-}" = direct ]; then
   err="$work/command.err"
   # The prompt, one line "/<plugin>:<skill> key=value ...", split as a shell would split
@@ -61,14 +72,6 @@ sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
   argv=()
   while IFS= read -r -d '' w; do argv+=("$w"); done < "$work/argv"
   if [ ! -x "$plugins/${argv[0]}/bin/${argv[0]}" ]; then echo "NOT CONVERTED $1"; exit 3; fi
-  # A file `clock` holding the one line `sleep-counts`: each `sleep <n>` the fake logs
-  # moves the run's clock by <n> seconds (ALEOGR_TEST_SLEEP_CLOCK, a test aid of the
-  # shared module that only shortens a run and only works with FAKE_LOG set).
-  sleep_clock=""
-  if [ -e "$scenario/clock" ]; then
-    if [ "$(cat "$scenario/clock")" = sleep-counts ]; then sleep_clock=1
-    else echo "bad clock file (one line: sleep-counts): $scenario/clock" >&2; exit 2; fi
-  fi
   bins=""
   for b in "$plugins"/*/bin; do bins="$bins:$b"; done
   # A run in more than one command: while the answer's block says `continue`, run the
@@ -137,6 +140,8 @@ sys.stdout.write("".join(w + "\0" for w in words))
 else
 (
   cd "$work/cwd" || exit 1
+  unset ALEOGR_TEST_SLEEP_CLOCK
+  if [ -n "$sleep_clock" ]; then export ALEOGR_TEST_SLEEP_CLOCK=1; fi
   PATH="$here/bin:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
     claude -p "$(cat "$scenario/prompt.txt")" \
       --model "${TEST_MODEL:-sonnet}" \

@@ -335,39 +335,39 @@ class TestArguments(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# The database's settings, shared with project-apply
-
-
-SETTINGS_PARAGRAPH = (
-    "## The database's settings\n\n"
-    "A component `<c>` of the project `<project>` that uses the database gets, on its "
-    "service in the environment `<environment>`, exactly three settings, each "
-    "`<NAME>=<value>`: `DB_INSTANCE=<shared project id>:<region>:<instance>`, the shared "
-    "instance's connection name, where `<shared project id>` is the GCP project id of the "
-    "shared platform (found by its labels), `<region>` is `cloud.region` of the declaration "
-    "and `<instance>` is `platform.database.instance` of the defaults; `DB_NAME=<database>`, "
-    "where `<database>` is `<project>_<environment>` with every `-` of the project's name "
-    "written `_` (`demo_dev`; `my-app` gives `my_app_dev`); and "
-    "`DB_USER=<project>-<c>@<project id>.iam`, the database user of the component's service "
-    "account, where `<project id>` is the GCP project id of the environment. They are given "
-    "to the service skills as "
-    "`env=\"<c>:DB_INSTANCE=<value>;<c>:DB_NAME=<value>;<c>:DB_USER=<value>\"`, the three "
-    "entries of each component that uses the database, the components sorted by name, all "
-    "joined by `;`; a component that does not use the database gets none, and no other "
-    "setting is given.\n")
-
-
-def _paragraph(skill_name):
-    with open(os.path.join(ROOT, "skills", skill_name, "SKILL.md"), encoding="utf-8") as f:
-        text = f.read()
-    start = text.index("## The database's settings")
-    return text[start:text.index("\n## ", start + 1)]
+# The database's settings: one rule in code (database_settings), used by both commands.
+# Until part 3a it was a paragraph that project-plan/SKILL.md and project-apply/SKILL.md
+# had to hold byte for byte; both skills are commands now, and the rule is pinned here.
 
 
 class TestDatabaseSettings(unittest.TestCase):
-    def test_paragraph_is_pinned_and_shared(self):
-        self.assertEqual(_paragraph("project-plan"), SETTINGS_PARAGRAPH)
-        self.assertEqual(_paragraph("project-apply"), SETTINGS_PARAGRAPH)
+    def test_one_rule_for_both_commands(self):
+        # project-apply builds the settings only through this function, never a copy.
+        path = os.path.join(ROOT, "scripts", "skills", "project_apply.py")
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        self.assertIn("PP.database_settings(", text)
+        for name in ("DB_INSTANCE", "DB_NAME", "DB_USER"):
+            self.assertNotIn(name, text)
+
+    def test_each_sentence_of_the_rule(self):
+        one = skill.database_settings("demo", ["web"], SHARED, "us-central1",
+                                      "aleogr-shared", PID).split(";")
+        # Exactly three settings, each <NAME>=<value>, after `<c>:`.
+        self.assertEqual(one, [
+            # the shared instance's connection name
+            "web:DB_INSTANCE=%s:us-central1:aleogr-shared" % SHARED,
+            # <project>_<environment>
+            "web:DB_NAME=demo_dev",
+            # the database user of the component's service account
+            "web:DB_USER=demo-web@%s.iam" % PID])
+        # Every `-` of the project's name is written `_` in the database's name only.
+        got = skill.database_settings("my-app", ["web"], SHARED, "r", "i", PID)
+        self.assertIn("web:DB_NAME=my_app_dev", got)
+        self.assertIn("web:DB_USER=my-app-web@%s.iam" % PID, got)
+        # The environment is part of the database's name.
+        self.assertIn("web:DB_NAME=demo_hom",
+                      skill.database_settings("demo", ["web"], SHARED, "r", "i", PID, "hom"))
 
     def test_settings(self):
         got = skill.database_settings("my-app", ["web", "api"], SHARED, "us-central1",
