@@ -1,14 +1,17 @@
 # web uses the database and its go.mod lacks the modules, which project-apply adds with Go:
-# Go is checked first (tools-check command=go) and is missing: the row components is fix by hand.
+# Go is checked first (tools-check command=go) and is missing: the row components is fix by hand,
+# so although the stopped instance lacks the roles of web, nothing will be started: start false.
 CALLED ^go version$
 NOT_CALLED ^go (-C [^ ]+ )?(get|mod)
 OUTPUT "item": "components", "state": "needs Go on this machine", "action": "fix by hand"
 OUTPUT Cloud Shell
 OUTPUT "item": "go", "reason": "manual"
 OUTPUT go\.dev/doc/install
-OUTPUT "item": "database", "state": "as declared", "action": "none" \},\s*$
+OUTPUT "item": "database", "state": "missing: roles", "action": "create" \},\s*$
 OUTPUT "generate": false
-OUTPUT "status": "pending"
+OUTPUT "status": "would-update"
+OUTPUT "database": \{ "name": "demo_dev", "instanceState": "stopped", "start": false, "components": \["web"\] \}
+OUTPUT_NOT charged by the hour
 OUTPUT_NOT command not found
 # Every database scenario of the plan: the instance is never started or changed, nothing is
 # created, the nested blocks are input only, and no e-mail of a component nor the shared

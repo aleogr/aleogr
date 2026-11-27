@@ -1,0 +1,11 @@
+# A failed proposal left web's go.sum, db.go and db_test.go in the folder (git lists them untracked):
+# they are tooling paths of a database component, so the plan sees them changed and proposes them.
+CALLED ^git status --porcelain -- .*web/go\.sum web/db\.go web/db_test\.go
+OUTPUT "changed": \["web/go\.sum", "web/db\.go", "web/db_test\.go"\]
+OUTPUT "item": "declaration", "state": "changed here", "action": "propose"
+OUTPUT "item": "database", "state": "not checked until the change is merged", "action": "none" \},\s*$
+OUTPUT "status": "would-update"
+OUTPUT_NOT nothing to do
+NOT_CALLED instances patch
+NOT_CALLED --method|^gh pr create|^gh (variable|secret) set|^git (switch|add|commit|-c credential)|create|add-iam-policy-binding|set-iam-policy|update-oidc|set-cleanup-policies|services enable|^run (deploy|services (update|delete))
+OUTPUT_NOT "action": "(tools-check|environment-describe|registry-describe|ci-identity-setup|login-describe|deploy-describe|database-describe|variables-set|setup|ci-setup|pull-request-open|checkout-setup)"

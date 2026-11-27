@@ -7,7 +7,7 @@
   "settings": {
     "tier": "db-f1-micro",
     "edition": "ENTERPRISE",
-    "activationPolicy": "ALWAYS",
+    "activationPolicy": "NEVER",
     "dataDiskSizeGb": "10",
     "storageAutoResize": false,
     "deletionProtectionEnabled": true,
