@@ -158,7 +158,7 @@ Write down how long the run waited for the instance (from the start's line to th
 **Stop and send the answer** (its sentences only, with every id replaced by `<id>`) if:
 
 - it says `The night stop of the shared instance could not be confirmed, so the instance was not started.`: run `/aleogr:platform-plan` and send its row `database switch`;
-- the start failed: send its sentence; when it says the instance may be charged, or that the start went through, read the instance's state (the first command of the recovery below) and, if it says `ALWAYS`, stop it with the workflow (step 6) when you stop for the day;
+- the start failed (the item `database` says `the shared instance could not be started`): send its sentence; unless it says the instance is still stopped, read the instance's state (the first command of the recovery below) and, if it says `ALWAYS`, stop it with the workflow (step 6) when you stop for the day;
 - it says `did not accept calls after 30 tries`, or that the wait could not be run: the instance runs; stop it with the workflow (step 6) when you stop for the day;
 - it stopped with the item `database` (send its sentence), or it ended `pending` with an item that says the shared instance is starting (the run should have waited for it);
 - `database` is not `as declared` in its last table (`differs: settings` again right after the run wrote them is the shape of the real settings differing from what the skills read).
