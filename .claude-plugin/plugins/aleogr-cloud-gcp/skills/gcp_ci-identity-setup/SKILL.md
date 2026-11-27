@@ -1,5 +1,6 @@
 ---
 description: Google Cloud (GCP) CI identity setup. Use to create, in the GCP project of an aleogr project and environment, the keyless identity through which one GitHub repository's CI reaches that project - a service account `<project>-ci`, a workload identity federation pool `github` and provider `github` that accept only tokens of the declared repository (by name and by GitHub's numeric ids) on its default branch from a job of the declared reusable deploy workflow, and the binding that lets those tokens act as the account. Updates in place a provider whose condition, issuer or mapping differs (one made before the workflow clause existed included); refuses a deleted or disabled pool or provider, and a pool that holds another provider. Grants the account no project role. Idempotent; plan by default.
+allowed-tools: Bash(aleogr-cloud-gcp gcp_ci-identity-setup), Bash(aleogr-cloud-gcp gcp_ci-identity-setup *)
 ---
 
 # gcp_ci-identity-setup
@@ -20,6 +21,44 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 | `branch=<name>` | The only branch whose runs are accepted: the repository's default branch. |
 | `workflow=<owner>/<name>/.github/workflows/<file>.yml` | The reusable workflow whose jobs alone may act as the account: the deploy workflow, without `@` and what follows it. |
 | `mode=plan\|apply` | `plan` (default) reports and changes nothing; `apply` executes. |
+
+## mode=plan: the command
+
+When `mode` is `plan` or absent, do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
+
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
+
+```
+aleogr-cloud-gcp gcp_ci-identity-setup <arguments>
+```
+
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
+
+It prints two kinds of lines:
+
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
+
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
+
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` followed by this block, and nothing else:
+
+```aleogr-result
+{
+  "aleogr-result": 1,
+  "family": "cloud",
+  "provider": "gcp",
+  "action": "ci-identity-setup",
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-cloud-gcp, then try again" } ]
+}
+```
+
+Everything below is for `mode=apply` only, except the first paragraph of "Result block", which holds in both modes.
 
 ## Validate first
 

@@ -99,7 +99,7 @@ The `project-*` skills work on the declaration `.aleogr/project.json` of the fol
 mkdir ~/<project> && cd ~/<project> && claude
 ```
 
-On later days: `cd ~/<project> && claude`. Claude Code asks once whether to trust the folder: yes. Writing `.aleogr/project.json` and the `gh` and `git` commands the skills show are allowed when asked; the read of the orchestrator's `defaults.json` is answered **"Yes, but ask again next time"**, as above. The folder becomes a git checkout of the project's repository when `project-apply` sends the declaration; it never changes the machine's git configuration.
+On later days: `cd ~/<project> && claude`. Claude Code asks once whether to trust the folder: yes. Writing `.aleogr/project.json` and the `gh` and `git` commands the skills show are allowed when asked; the read of the orchestrator's `defaults.json` is answered **"Yes, but ask again next time"**, as above. `/aleogr:project-plan` and the read-only skills (`tools-check` and the `-describe` skills) are expected to ask for none of these: each runs one command of its plugin, which the skill allows by itself, and that command reads `defaults.json` itself and runs only reads; the real run of step 1 of the scripts is the first to show it ([`DESIGN.md`](DESIGN.md) section 18). The folder becomes a git checkout of the project's repository when `project-apply` sends the declaration; it never changes the machine's git configuration.
 
 Once the repository exists, a change to the project takes three steps:
 

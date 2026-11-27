@@ -28,6 +28,8 @@ Run exactly this command with the Bash tool, once, with every argument given to 
 aleogr-cloud-gcp gcp_environment-describe <arguments>
 ```
 
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
+
 It prints two kinds of lines:
 
 - Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.

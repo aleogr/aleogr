@@ -1,5 +1,6 @@
 ---
 description: GitHub CI setup, with the gh CLI. Use to write a project's `.github/workflows/ci.yml`, which runs a reusable workflow once per declared component (only when that component's folder or the file itself changed) and ends with one job `ci` that is the required status check, plus, when an environment is given, one deploy job per listed component (those whose service exists) that runs only on a push to the default branch, or, in plan mode, to learn whether the file in this folder and in the repository is as declared. The file's first line is a marker built from the components; the reusable workflow is pinned by commit, kept when the file is regenerated. Writes only that file in this folder; never commits or pushes (a pull request carries it). Plan by default.
+allowed-tools: Bash(aleogr-repo-github github_ci-setup), Bash(aleogr-repo-github github_ci-setup *)
 ---
 
 # github_ci-setup
@@ -47,6 +48,44 @@ Free text after the skill name, as `key=value` pairs.
 - `mode`, when given, is `plan` or `apply`.
 
 Below, the components are always taken **sorted by `name`**, in byte order (ASCII), with each empty `path` replaced by its `name`. The **marker** is the text `# aleogr-ci 1 ` followed by the entries `<name>:<path>:<stack>:<version>` of the sorted components, joined by `,`, with no space (for `components=web:web:go:1.27,api:services/api:go:1.27` it is `# aleogr-ci 1 api:services/api:go:1.27,web:web:go:1.27`). With `deploy` not empty, the **marker** is instead the text `# aleogr-ci 2 `, the same entries joined by `,`, one space, `deploy=`, the environment, `:` and the names of `deployComponents` sorted by name and joined by `+`, one space, `project=<project>`, one space, `branch=<defaultBranch>`, one space, `region=<region>` (for the same components, `deploy=dev`, `deployComponents=web,api`, `project=demo`, the default branch `main` and `region=us-central1` it is `# aleogr-ci 2 api:services/api:go:1.27,web:web:go:1.27 deploy=dev:api+web project=demo branch=main region=us-central1`; with `deployComponents=api` it ends `deploy=dev:api project=demo branch=main region=us-central1`). With no component there is no marker, with or without `deploy`.
+
+## mode=plan: the command
+
+When `mode` is `plan` or absent, do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
+
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
+
+```
+aleogr-repo-github github_ci-setup <arguments>
+```
+
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
+
+It prints two kinds of lines:
+
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
+
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
+
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` followed by this block, and nothing else:
+
+```aleogr-result
+{
+  "aleogr-result": 1,
+  "family": "repo",
+  "provider": "github",
+  "action": "ci-setup",
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-repo-github, then try again" } ]
+}
+```
+
+Everything below is for `mode=apply` only, except the first paragraph of "Result block", which holds in both modes.
 
 ## Steps
 

@@ -45,7 +45,6 @@ Each task ends with its scenarios passing in the direct mode, `expect.txt` uncha
    - One `bin/` command per plugin, answering for an unconverted skill or mode with a fixed exit code, so the harness can tell.
    - `run.sh`: the direct mode, which runs the command of the scenario's prompt instead of `claude -p`; a script that runs every scenario whose skill and mode are converted and reports the others as not converted.
    - The workflow `self-test-skills.yml`: on pull requests that change `.claude-plugin/`, `permissions: contents: read`, no secret, pinned action versions as the other workflows.
-   - `dependencies` of the orchestrator's `plugin.json`.
 2. **`aleogr-repo-github`**: its five skills above.
 3. **`aleogr-cloud-gcp`**: its four skills above.
 4. **`aleogr-registry-gcp-artifact-registry`, `aleogr-db-gcp-cloud-sql`, `aleogr-stack-go`**: their four skills above.

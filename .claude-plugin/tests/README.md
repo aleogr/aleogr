@@ -3,7 +3,8 @@
 A headless harness that runs the real skills of `plugins/aleogr`,
 `plugins/aleogr-cloud-gcp`, `plugins/aleogr-db-gcp-cloud-sql`,
 `plugins/aleogr-registry-gcp-artifact-registry`, `plugins/aleogr-repo-github` and
-`plugins/aleogr-stack-go` with `claude -p`, against a fake `gcloud`, a fake
+`plugins/aleogr-stack-go` with `claude -p` (or, in the direct mode below, their
+commands, with no model), against a fake `gcloud`, a fake
 `gh`, a fake `git`, a fake `go` and a fake `sleep`, and checks which calls the skill made and which files it wrote. Nothing is created outside the repository.
 
 ```
@@ -15,11 +16,63 @@ prints each failed line, the call log and Claude's output.
 
 Requirements: an authenticated `claude` CLI, bash and coreutils. **Every run
 costs model usage.** The model is `sonnet`; override it with `TEST_MODEL`.
-Tests are run by hand; no workflow runs them.
+Runs with the model are made by hand; no workflow runs them.
+
+## The direct mode: no model
+
+A converted skill's logic lives in its plugin's command, `plugins/<plugin>/bin/<plugin>`
+(`docs/DESIGN.md` sections 2.2 and 10.4). The same scenarios run against that command
+alone, with no model and no cost:
+
+```
+RUN_MODE=direct bash .claude-plugin/tests/run.sh <scenario>
+bash .claude-plugin/tests/run-direct.sh                  # every scenario, in parallel
+bash .claude-plugin/tests/run-direct.sh -s <skill>       # those whose prompt names the skill
+bash .claude-plugin/tests/run-direct.sh <s1> <s2>        # named scenarios; -j <n> sets the parallelism
+```
+
+`run.sh` in the direct mode reads the scenario's `prompt.txt`, which must be one line
+`/<plugin>:<skill> key=value ...`, splits it as a shell splits words, with no expansion,
+and runs `<plugin> <skill> key=value ...` in the working folder, with `tests/bin` and every
+plugin's `bin/` first on `PATH`, the same fakes and `responses/`. The command's stdout is the
+answer that the `OUTPUT`, `OUTPUT_NOT` and `RESULT_NOT` lines check; its stderr (each
+provider command, `+ ` first, printed before it runs) is shown only on a failure. Every
+other line of `expect.txt` is checked exactly as with the model. It exits 0 for a pass, 1
+for a failure, 2 for bad usage, and **3, printing `NOT CONVERTED <scenario>`**, when the
+scenario cannot be run this way.
+
+"Not converted" means one of: the prompt is not one slash command of a skill (a prompt of
+several lines, such as the `harness-selftest*` scenarios); the plugin has no command; or the
+command answers 64 because that skill, or that mode of it, has no module yet (every writing
+skill, the `mode=apply` of the six skills converted for `mode=plan` only, `project-apply`,
+`platform-plan` and `platform-apply`). `run-direct.sh` counts those apart, never as
+failures, and exits 1 only when a scenario failed. At the end of step 1 it prints
+`passed 180, failed 0, not converted 493`.
+
+**Unit tests**, with the standard library's `unittest`, cover the commands' rules without a
+provider (the declaration's rules, each row's states, the arguments of each skill), that the
+copies of `aleogr_common.py` are byte-identical, that the read-only runner refuses every
+command that is not a read before running it, and that every script parses as Python 3.9:
+
+```
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s .claude-plugin/tests/unit
+```
+
+In a unit test, load a skill's module with `helpers.load_skill(plugin, skill)`, never with
+`from skills import ...`: every plugin has a package named `skills`.
+
+The workflow `self-test-skills.yml` runs the unit tests and `run-direct.sh` on every pull
+request that changes `.claude-plugin/`. A converted skill's command passes its scenarios with
+their `expect.txt` unchanged; a line that pins something only a model does is the only kind
+that may change, and none has.
+
+**A run with the model is needed only** for what the direct mode cannot see: that a shell
+skill runs its command with the arguments it was given and relays the answer with nothing
+added, and every skill or mode that is still prose. A rule is never tested with the model.
 
 ## How it works
 
-`run.sh` runs Claude from an empty temporary directory with `tests/bin` first on
+With the model, `run.sh` runs Claude from an empty temporary directory with `tests/bin` first on
 `PATH`, so the skill's `gcloud`, `gh`, `git` and `go` calls reach `bin/gcloud`, `bin/gh`, `bin/git` and
 `bin/go`, four wrappers of `bin/fake-cli`. The fake appends one line per call to a log and
 prints a canned response. The `gcloud` line is its arguments; the `gh`, `git` and `go` lines are

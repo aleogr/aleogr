@@ -27,7 +27,7 @@ Each plugin ships one executable in `bin/` at its root, named after the plugin: 
 
 - Its first argument is the skill's name, the rest are the skill's own `key=value` arguments, unchanged: `aleogr-cloud-gcp gcp_environment-describe project=demo environment=dev`.
 - **A command reaches another plugin only through that plugin's command**, found on the `PATH`. An installed plugin cannot read another plugin's files, and no path of the plugin cache is used. A command that is not found is a failure with one fixed sentence naming the plugin to install, as a missing tool is today.
-- The orchestrator's `plugin.json` declares the plugins it calls as `dependencies`, so installing it installs them.
+- The orchestrator's `plugin.json` does not list them as `dependencies`: [DESIGN.md](../DESIGN.md) section 2.2 keeps activation per project, and the fixed sentence above covers a plugin that is not installed.
 
 ### Language
 

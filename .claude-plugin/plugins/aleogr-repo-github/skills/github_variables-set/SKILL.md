@@ -1,5 +1,6 @@
 ---
 description: GitHub Actions variables and secrets set, with the gh CLI. Use to make a repository's Actions variables hold the given values, or (kind=secrets) to make sure its Actions secrets exist, such as the identifiers a deploy job reads through `secrets`; in plan mode, to learn which would be set. One read of the repository's variables (or secrets' names), then one set per variable that is missing or differs (per secret that is missing, or every given secret with replace=yes). Only the given names are touched: none is ever deleted. Values never appear in the result block, only names. Plan by default.
+allowed-tools: Bash(aleogr-repo-github github_variables-set), Bash(aleogr-repo-github github_variables-set *)
 ---
 
 # github_variables-set
@@ -34,6 +35,44 @@ Validate before any command, in this order; the first rule broken ends with the 
 - `mode`, when given, is `plan` or `apply`.
 
 Below, the given variables are always taken **sorted by name**, in byte order (ASCII).
+
+## mode=plan: the command
+
+When `mode` is `plan` or absent, do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
+
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
+
+```
+aleogr-repo-github github_variables-set <arguments>
+```
+
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
+
+It prints two kinds of lines:
+
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
+
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
+
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` followed by this block, and nothing else:
+
+```aleogr-result
+{
+  "aleogr-result": 1,
+  "family": "repo",
+  "provider": "github",
+  "action": "variables-set",
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-repo-github, then try again" } ]
+}
+```
+
+Everything below is for `mode=apply` only, except the first paragraph of "Result block", which holds in both modes.
 
 ## Steps
 

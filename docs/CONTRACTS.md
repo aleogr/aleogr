@@ -41,7 +41,7 @@ These rules apply to every action of every family, in addition to [DESIGN.md sec
 
 ### 1.2 Modes
 
-- **`plan` / `apply`** (every action except `*-describe`): `plan` reports what would change, without changing anything; `apply` executes. Both share the same logic, so `project-plan` never diverges from `project-apply`.
+- **`plan` / `apply`** (every action except `*-describe`): `plan` reports what would change, without changing anything; `apply` executes. Both share the same logic, so `project-plan` never diverges from `project-apply`. Until step 2 of the scripts, six skills (`github_checkout-setup`, `github_pull-request-open`, `github_ci-setup`, `github_variables-set`, `gcp_ci-identity-setup`, `go_setup`) hold that logic twice: `plan` in their plugin's command, `apply` in their prose, both pinned by the same reads in the scenarios ([DESIGN.md section 18](DESIGN.md#18-open-items)).
 - **`pending` may be a `plan` result** for a feature the provider's plan forbids (e.g. branch protection on a private repository of a free GitHub organization), or for a step only the owner can take (reason `manual`, [section 1.4](#14-output-the-aleogr-result-block)): `plan` and `apply` both answer `pending`, change nothing and list one item (`plan-limit` or `manual`), so that they do not diverge ([DESIGN.md section 10.3](DESIGN.md#103-extending-contracts)). Only an answer of the provider that names the plan is `pending`; any other refusal is `failed`.
 - **`shared` / `dedicated`** (families that create runtime resources): `shared` = inside the shared platform; `dedicated` = own resources. Default: `shared` in the `dev` project environment, `dedicated` elsewhere. Each family states below what `shared` means for it, or "n/a".
 - **`test` / `live`** (special-care families: payments, registrar, store, sms, publish): `test` by default; `live` only with explicit confirmation.
@@ -55,7 +55,7 @@ These rules apply to every action of every family, in addition to [DESIGN.md sec
 
 ### 1.4 Output: the `aleogr-result` block
 
-Every skill ends with one fenced JSON block tagged `aleogr-result`. The orchestrator's skills read it as input (they never repeat it) and route **requests** to other families.
+Every skill ends with one fenced JSON block tagged `aleogr-result`. The orchestrator's skills read it as input (they never repeat it) and route **requests** to other families. A skill converted to its plugin's command prints the same block, last on stdout; with `--json` the command prints only the result object, with the answer's lines under `answer` (and, where a caller needs more than the block, a `data` object that never reaches the block), for another command to read ([DESIGN.md section 10.4](DESIGN.md#104-behavior-of-every-skill)).
 
 ```json
 {

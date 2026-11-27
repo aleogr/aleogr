@@ -1,5 +1,6 @@
 ---
 description: GitHub checkout setup, with the gh and git CLIs. Use to tie the current folder to a GitHub repository and send one file (by default the project declaration `.aleogr/project.json`) as the repository's first content after its README, or, in plan mode, to learn whether the repository already has that file and whether it equals the local one - and, when it differs, whether this folder has a local change, is behind the repository (it then fast-forwards the folder in apply mode) or needs attention; with head=check, also when the file is equal, whether the folder's last commit is behind the repository's head. Pushes only to a repository whose default branch has exactly one commit and lacks the file; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
+allowed-tools: Bash(aleogr-repo-github github_checkout-setup), Bash(aleogr-repo-github github_checkout-setup *)
 ---
 
 # github_checkout-setup
@@ -29,6 +30,44 @@ Free text after the skill name, as `key=value` pairs. A value with spaces is wri
 - `message`, when given, is not empty and has no line break, no `"`, no `“`, no `”`, no `„`, no backtick, no `$` and no `\` (they could break out of the quotes of the command).
 - `head`, when given, is `check`.
 - `mode`, when given, is `plan` or `apply`.
+
+## mode=plan: the command
+
+When `mode` is `plan` or absent, do not follow the steps below. The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
+
+Run exactly this command with the Bash tool, once, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
+
+```
+aleogr-repo-github github_checkout-setup <arguments>
+```
+
+Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
+
+It prints two kinds of lines:
+
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is this skill's answer, ending with one fenced `aleogr-result` block.
+
+Give that answer exactly as printed, character for character, the fenced block included and last. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command a second time, whatever it printed.
+
+Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` followed by this block, and nothing else:
+
+```aleogr-result
+{
+  "aleogr-result": 1,
+  "family": "repo",
+  "provider": "github",
+  "action": "checkout-setup",
+  "mode": "plan",
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "nothing was run" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-repo-github, then try again" } ]
+}
+```
+
+Everything below is for `mode=apply` only, except the first paragraph of "Result block", which holds in both modes.
 
 ## Steps
 
