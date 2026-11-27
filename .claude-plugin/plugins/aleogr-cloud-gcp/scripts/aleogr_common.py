@@ -307,6 +307,14 @@ def _sleep(rest):
     return "sleep takes one number of seconds"
 
 
+def _only(*allowed):
+    """Accepts the command only when what follows it is exactly `allowed`
+    (`gcloud config get-value account`, and no other property)."""
+    def guard(rest):
+        return None if list(rest) == list(allowed) else "only %s here" % " ".join(allowed)
+    return guard
+
+
 _GIT_NO_OUTPUT = _no_flags("--output", "--ext-diff")
 
 READS = {
@@ -346,6 +354,12 @@ READS = {
         ("sql", "users", "list"),
         ("billing", "budgets", "list"),
         ("billing", "budgets", "describe"),
+        # Added for part 2b (the skills that write to Google Cloud read these too).
+        ("billing", "accounts", "list"),
+        ("config", "get-value", _only("account")),
+        ("organizations", "get-iam-policy"),
+        ("iam", "roles", "describe"),
+        ("scheduler", "jobs", "describe"),
     ],
     "gh": [
         ("--version",),
@@ -420,6 +434,12 @@ def read_refusal(argv):
     shapes = READS.get(tool)
     if shapes is None:
         return "%s is not a provider command" % tool
+    if tool == "gcloud":
+        # What no skill may ever run is not a read either (`auth print-access-token`,
+        # `config set`, `--impersonate-service-account` on a describe, ...).
+        why = _gcloud_refused(argv[1:])
+        if why:
+            return why
     args, reason = _strip_global(tool, argv[1:])
     if reason:
         return reason
@@ -473,18 +493,87 @@ class _T(object):
 
 
 class _PluginFile(object):
-    """One argument that is exactly `<plugin root>/files/<one of names>`."""
+    """One argument that is exactly `<prefix><plugin root>/files/<one of names>`: the
+    path alone (`--input <file>`), or after a flag written with it (`prefix`
+    `--message-body-from-file=`). Real paths are compared."""
 
-    def __init__(self, *names):
+    def __init__(self, *names, **kw):
         self.names = names
-        self.name = "a file of the plugin: " + ", ".join(names)
+        self.prefix = kw.get("prefix", "")
+        self.name = self.prefix + "a file of the plugin: " + ", ".join(names)
 
     def match(self, arg, env):
         root = (env or {}).get("root")
-        if not root:
+        if not root or not arg.startswith(self.prefix):
             return False
-        return any(os.path.realpath(arg) == os.path.realpath(os.path.join(root, "files", n))
+        path = arg[len(self.prefix):]
+        return any(os.path.realpath(path) == os.path.realpath(os.path.join(root, "files", n))
                    for n in self.names)
+
+
+class _TempFile(object):
+    """One argument that is exactly `<prefix><system temporary folder>/<name>`, where
+    `<name>` matches `pattern` in full: a file the skill wrote for this run with
+    write_temp_file (TEMP_FILE_WRITES). Real paths of the folder are compared."""
+
+    def __init__(self, pattern, prefix=""):
+        self.re = re.compile(pattern)
+        self.prefix = prefix
+        self.name = "%s<temporary folder>/%s" % (prefix, pattern)
+
+    def match(self, arg, env):
+        if not arg.startswith(self.prefix):
+            return False
+        path = arg[len(self.prefix):]
+        folder = (env or {}).get("temp") or system_temp_dir()
+        head, base = os.path.split(path)
+        return (bool(head) and self.re.fullmatch(base) is not None
+                and os.path.realpath(head) == os.path.realpath(folder))
+
+
+class _AnyOf(object):
+    """One argument that matches one of `items` (each a `_T`, `_PluginFile`, ...)."""
+
+    def __init__(self, *items):
+        self.items = items
+        self.name = " or ".join(i.name for i in items)
+
+    def match(self, arg, env):
+        return any(i.match(arg, env) for i in self.items)
+
+
+class _Opt(object):
+    """In a shape: these items, in this order, all of them or none."""
+
+    def __init__(self, *items):
+        self.items = items
+
+
+class _Rep(object):
+    """In a shape: one item, `minimum` times or more, one after another."""
+
+    def __init__(self, item, minimum=1):
+        self.item = item
+        self.minimum = minimum
+
+
+class _Shape(object):
+    """A shape whose arguments must also agree with each other: `check(args)` (args:
+    the whole command after the tool) returns None, or the reason they do not (the
+    account's project is not `--project`, a label names another component, ...)."""
+
+    def __init__(self, *items, **kw):
+        self.items = items
+        self.check = kw.get("check")
+
+    def __getitem__(self, i):
+        return self.items[i]
+
+
+def _F(flag, pattern, name=None):
+    """One argument `<flag>=<value>`, the value matching `pattern` in full (gcloud's
+    flags are written with their value in one argument)."""
+    return _T(re.escape(flag) + "=(?:" + pattern + ")", "%s=<%s>" % (flag, name or "value"))
 
 
 _OWNER_RE = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"
@@ -668,6 +757,459 @@ WRITE_TOOLS = {
     "github_variables-set": "gh",
     "go_setup": "go",
 }
+
+
+# ---------------------------------------------------------------------------
+# Writes to Google Cloud (part 2b): the gcloud shapes, one per command each SKILL.md
+# prescribes, its flags in the SKILL.md's order (a value the SKILL.md double-quotes is
+# one argument without its quotes). A role, a member's form, a condition flag and the
+# resource are pinned as the skill writes them; a `_Shape`'s check makes the account,
+# the project and the names of one command agree with each other.
+
+_PID = r"[a-z][a-z0-9-]{4,28}[a-z0-9]"
+_INSTANCE = r"[a-z][a-z0-9-]{0,59}"
+_REGION = r"[a-z]+(?:-[a-z]+)+[0-9]+"
+# The region of instance-create (no rule of its own) and of instance-switch-setup
+# (lowercase letters, digits and -).
+_LOCATION = r"[a-z0-9-]{1,63}"
+_PROJECT_NAME = r"[a-z](?:[a-z0-9-]{0,12}[a-z0-9])?"
+_COMPONENT = r"[a-z](?:[a-z0-9-]{0,18}[a-z0-9])?"
+_SA_ID = r"[a-z][a-z0-9-]{4,28}[a-z0-9]"
+_SERVICE = _SA_ID  # <project>-<component>: a service's name and its account's id
+_SA = _SA_ID + "@" + _PID + r"\.iam\.gserviceaccount\.com"
+_DOMAIN = r"(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{1,63}"
+_EMAIL = r"[A-Za-z0-9._%+-]{1,64}@" + _DOMAIN
+# One person: never a service account.
+_PERSON = r"(?![^@]*@(?:.*\.)?gserviceaccount\.com$)[A-Za-z0-9._+-]{1,64}@" + _DOMAIN
+_ANY_SA = r"[a-z0-9][a-z0-9._-]{0,99}@(?:[a-z0-9-]{1,63}\.)*gserviceaccount\.com"
+# The active gcloud account as a member: `user:` for a person, `serviceAccount:` for an
+# address that ends with .gserviceaccount.com.
+_ACTIVE_MEMBER = "user:" + _PERSON + "|serviceAccount:" + _ANY_SA
+_ROLE = (r"roles/[A-Za-z0-9_.]{1,128}|(?:projects/" + _PID
+         + r"|organizations/[0-9]{1,25})/roles/[A-Za-z0-9_.]{1,64}")
+_GH_REPO = _OWNER_RE + "/" + _NAME_RE
+_SWITCH_REPO = r"[A-Za-z0-9._-]{1,100}/[A-Za-z0-9._-]{1,100}"
+_ISSUER = "--issuer-uri=https://token.actions.githubusercontent.com"
+_BILLING_ACCOUNT = r"[0-9A-Z]{6}-[0-9A-Z]{6}-[0-9A-Z]{6}"
+
+
+def _principal_set(repo):
+    return (r"principalSet://iam\.googleapis\.com/projects/[0-9]{1,20}/locations/global/"
+            r"workloadIdentityPools/github/attribute\.repository/" + repo)
+
+
+PROJECT_FLAG = _F("--project", _PID, "projectId")
+REGION_FLAG = _F("--region", _REGION, "region")
+INSTANCE_ARG = _T(_INSTANCE, "<instance>")
+SERVICE_ARG = _T(_SERVICE, "<service>")
+SA_ARG = _T(_SA, "<account>")
+STOP_BODY_FILE_ARG = _PluginFile("stop-body.json", prefix="--message-body-from-file=")
+CLEANUP_POLICY_FILE_ARG = _AnyOf(
+    _PluginFile("cleanup-policy.json", prefix="--policy="),
+    _TempFile(r"aleogr-cleanup-policy-keep-(?:[1-9]|[1-4][0-9]|50)\.json", prefix="--policy="))
+PLACEHOLDER_IMAGE_RE = (r"us-docker\.pkg\.dev/cloudrun/container/hello"
+                        r"(?::[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})?")
+
+
+def _flag_value(args, flag):
+    """The value of the first `<flag>=<value>` of args, or None."""
+    for a in args:
+        if a.startswith(flag + "="):
+            return a[len(flag) + 1:]
+    return None
+
+
+def _account_project(email):
+    """The project of a service account's address (`serviceAccount:` prefix allowed):
+    `<id>@<project>.iam.gserviceaccount.com`, or None."""
+    if email is None:
+        return None
+    if email.startswith("serviceAccount:"):
+        email = email[len("serviceAccount:"):]
+    m = re.fullmatch(r"[^@]+@([a-z0-9-]+)\.iam\.gserviceaccount\.com", email)
+    return m.group(1) if m else None
+
+
+def _agree(what, *getters):
+    """A check: every getter gives the same value, and none gives None."""
+    def check(args):
+        values = [g(args) for g in getters]
+        if None in values or len(set(values)) != 1:
+            return "%s do not agree" % what
+        return None
+    return check
+
+
+def _all(*checks):
+    def check(args):
+        for c in checks:
+            why = c(args)
+            if why:
+                return why
+        return None
+    return check
+
+
+def _arg(i):
+    return lambda args: args[i] if i < len(args) else None
+
+
+def _flag(name):
+    return lambda args: _flag_value(args, name)
+
+
+def _project_of(getter):
+    return lambda args: _account_project(getter(args))
+
+
+def _after(prefix_re, getter):
+    """The first group of `prefix_re` matched in full on getter's value, or None."""
+    def get(args):
+        v = getter(args)
+        m = re.fullmatch(prefix_re, v) if v is not None else None
+        return m.group(1) if m else None
+    return get
+
+
+_SAME_PROJECT = "the account, the project and --project"
+_LABELS3 = ("aleogr-project=(" + _PROJECT_NAME + "),aleogr-environment=(?:dev|hom|prd),"
+            "aleogr-component=(" + _COMPONENT + ")")
+
+
+def _labels_name(flag):
+    """`<project>-<component>` from the three labels of gcp_deploy-setup."""
+    def get(args):
+        v = _flag_value(args, flag)
+        m = re.fullmatch(_LABELS3, v) if v is not None else None
+        return "%s-%s" % (m.group(1), m.group(2)) if m else None
+    return get
+
+
+def _service_name(args):
+    """The service of `run deploy <service> ...` or `run services <verb> <service> ...`."""
+    i = 2 if args[1:2] == ["deploy"] else 3
+    return args[i] if len(args) > i else None
+
+
+def _service_account_of_service(args):
+    """`<service>@<projectId>.iam.gserviceaccount.com`, the service's own account."""
+    p, s = _flag_value(args, "--project"), _service_name(args)
+    return "%s@%s.iam.gserviceaccount.com" % (s, p) if p and s else None
+
+
+def _deploy_update_check(args):
+    """The repair of gcp_deploy-setup (6d1): at least one of its flags; --scaling=auto
+    and --min-instances=default only with --min=0; the account is the service's own;
+    the labels name this service."""
+    flags = args[4:-3]  # after `run services update <service>`, before the three last
+    if not flags:
+        return "no flag to change"
+    if ("--scaling=auto" in flags or "--min-instances=default" in flags) \
+            and "--min=0" not in flags:
+        return "--scaling=auto and --min-instances=default come with --min=0"
+    account = _flag_value(flags, "--service-account")
+    if account is not None and account != _service_account_of_service(args):
+        return "the account is not the service's own"
+    if _flag_value(flags, "--update-labels") is not None \
+            and _labels_name("--update-labels")(flags) != _service_name(args):
+        return "the labels name another service"
+    return None
+
+
+_DEPLOY_SIZE = [_F("--cpu", "1|2", "cpu"), _F("--memory", "512Mi|1Gi|2Gi", "memory")]
+_DEPLOY_ENV = r"[A-Z][A-Z0-9_]{0,63}=[a-zA-Z0-9._:@-]{1,200}"
+_CI_PROJECT = r"[a-z][a-z0-9-]{1,12}[a-z0-9]"
+_CI_BRANCH = r"(?!/)(?!.*\.\.)[A-Za-z0-9._/-]{1,255}(?<!/)"
+_CI_CONDITION = (
+    r"assertion\.repository=='" + _GH_REPO + r"' && assertion\.repository_id=='[1-9][0-9]{0,19}'"
+    r" && assertion\.repository_owner_id=='[1-9][0-9]{0,19}' && assertion\.ref=='refs/heads/"
+    + _CI_BRANCH + r"' && assertion\.job_workflow_ref\.startsWith\('" + _GH_REPO
+    + r"/\.github/workflows/[a-z0-9_-]{1,60}\.yml@'\)")
+_CI_MAPPING = ("--attribute-mapping=google.subject=assertion.sub,"
+               "attribute.repository=assertion.repository,attribute.ref=assertion.ref,"
+               "attribute.repository_id=assertion.repository_id,"
+               "attribute.repository_owner_id=assertion.repository_owner_id,"
+               "attribute.job_workflow_ref=assertion.job_workflow_ref")
+_POOL_CREATE = ("iam", "workload-identity-pools", "create", "github", PROJECT_FLAG,
+                "--location=global", "--display-name=GitHub", "--quiet")
+_SWITCH_SA = r"aleogr-shared-sql-switch@" + _PID + r"\.iam\.gserviceaccount\.com"
+_SWITCH_JOB = _T("aleogr-shared-stop-weeknight|aleogr-shared-stop-weekend", "<job>")
+_SWITCH_HEADERS = "Content-Type=application/json,X-HTTP-Method-Override=PATCH"
+_SWITCH_URI = r"https://sqladmin\.googleapis\.com/v1/projects/(" + _PID + ")/instances/" \
+              + _INSTANCE
+_SWITCH_JOB_CHECK = _agree("the job's instance, its account and --project",
+                           _after(_SWITCH_URI, _flag("--uri")),
+                           _project_of(_flag("--oauth-service-account-email")),
+                           _flag("--project"))
+_CRON = r"[0-9*,/-]{1,40}(?: [0-9*,/-]{1,40}){4}"
+_STOP_PATCH = ("sql", "instances", "patch", INSTANCE_ARG, PROJECT_FLAG,
+               "--activation-policy=NEVER", "--quiet")
+_BUDGET_AMOUNT = r"(?=[0-9.]*[1-9])[0-9]{1,15}(?:\.[0-9]{1,9})?[A-Z]{3}"
+_THRESHOLD = r"percent=(?:0\.[0-9]{0,8}[1-9][0-9]{0,8}|1(?:\.0{1,9})?)"
+
+WRITE_SHAPES.update({
+    # aleogr-db-gcp-cloud-sql
+    "gcp-cloud-sql_instance-stop": [
+        _STOP_PATCH,
+    ],
+    "gcp-cloud-sql_instance-start": [
+        ("sql", "instances", "patch", INSTANCE_ARG, PROJECT_FLAG, "--activation-policy=ALWAYS",
+         "--async", "--quiet"),
+    ],
+    "gcp-cloud-sql_instance-create": [
+        ("sql", "instances", "create", INSTANCE_ARG, PROJECT_FLAG,
+         _F("--database-version", r"POSTGRES_[0-9]{1,3}", "version"),
+         _F("--edition", "enterprise|enterprise-plus", "edition"),
+         _F("--tier", r"db-[a-z0-9-]{1,60}", "tier"),
+         _F("--region", _LOCATION, "region"),
+         "--availability-type=zonal", "--storage-type=SSD",
+         _F("--storage-size", r"[1-9][0-9]|100", "storageGb"),
+         "--no-storage-auto-increase", "--assign-ip", "--backup",
+         _F("--backup-start-time", r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", "backupStartUtc"),
+         _F("--retained-backups-count", r"[1-9]|[12][0-9]|30", "retainedBackups"),
+         "--no-enable-point-in-time-recovery", "--database-flags=cloudsql.iam_authentication=on",
+         "--no-enable-dataplex-integration", "--deletion-protection", "--async", "--quiet"),
+        # Step 6: the new instance is stopped by this skill's own patch, or by its night
+        # job. The only NEVER outside instance-stop: the SKILL.md prescribes it here.
+        _STOP_PATCH,
+        ("scheduler", "jobs", "run", _T(r"[a-z0-9-]{1,500}", "<stopJob>"), PROJECT_FLAG,
+         _F("--location", _LOCATION, "region"), "--quiet"),
+    ],
+    "gcp-cloud-sql_instance-switch-setup": [
+        ("iam", "roles", "create", "aleogrSharedSqlSwitch", PROJECT_FLAG,
+         "--title=aleogr shared SQL switch",
+         "--permissions=cloudsql.instances.get,cloudsql.instances.update", "--stage=GA",
+         "--quiet"),
+        ("iam", "service-accounts", "create", "aleogr-shared-sql-switch", PROJECT_FLAG,
+         "--display-name=aleogr shared SQL switch", "--quiet"),
+        _Shape("projects", "add-iam-policy-binding", _T(_PID, "<projectId>"),
+               _F("--member", "serviceAccount:" + _SWITCH_SA),
+               _F("--role", "projects/" + _PID + "/roles/aleogrSharedSqlSwitch"),
+               "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _arg(2), _project_of(_flag("--member")),
+                            _after("projects/(.*)/roles/aleogrSharedSqlSwitch",
+                                   _flag("--role")))),
+        _Shape("iam", "service-accounts", "add-iam-policy-binding", _T(_SWITCH_SA, "<account>"),
+               PROJECT_FLAG, _F("--member", "user:" + _EMAIL),
+               "--role=roles/iam.serviceAccountUser", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)), _flag("--project"))),
+        _POOL_CREATE,
+        ("iam", "workload-identity-pools", "providers", "create-oidc", "aleogr", PROJECT_FLAG,
+         "--location=global", "--workload-identity-pool=github", _ISSUER,
+         "--attribute-mapping=google.subject=assertion.sub,"
+         "attribute.repository=assertion.repository,attribute.ref=assertion.ref",
+         _F("--attribute-condition", r"assertion\.repository=='" + _SWITCH_REPO
+            + r"' && assertion\.ref=='refs/heads/main'", "condition"),
+         "--quiet"),
+        _Shape("iam", "service-accounts", "add-iam-policy-binding", _T(_SWITCH_SA, "<account>"),
+               PROJECT_FLAG, _F("--member", _principal_set(_SWITCH_REPO)),
+               "--role=roles/iam.workloadIdentityUser", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)), _flag("--project"))),
+        _Shape("scheduler", "jobs", "create", "http", _SWITCH_JOB, PROJECT_FLAG,
+               _F("--location", _LOCATION, "region"), _F("--schedule", _CRON, "cron"),
+               _F("--time-zone", r"[A-Za-z_]{1,64}/[A-Za-z_]{1,64}", "timeZone"),
+               _F("--uri", _SWITCH_URI, "uri"), "--http-method=POST",
+               "--headers=" + _SWITCH_HEADERS, STOP_BODY_FILE_ARG,
+               _F("--oauth-service-account-email", _SWITCH_SA, "account"),
+               "--oauth-token-scope=https://www.googleapis.com/auth/cloud-platform",
+               "--max-retry-attempts=5", "--min-backoff=5m", "--max-backoff=15m",
+               "--max-doublings=2", "--attempt-deadline=60s", "--quiet",
+               check=_SWITCH_JOB_CHECK),
+        _Shape("scheduler", "jobs", "update", "http", _SWITCH_JOB, PROJECT_FLAG,
+               _F("--location", _LOCATION, "region"), _F("--schedule", _CRON, "cron"),
+               _F("--time-zone", r"[A-Za-z_]{1,64}/[A-Za-z_]{1,64}", "timeZone"),
+               _F("--uri", _SWITCH_URI, "uri"), "--http-method=POST",
+               "--update-headers=" + _SWITCH_HEADERS, STOP_BODY_FILE_ARG,
+               _F("--oauth-service-account-email", _SWITCH_SA, "account"),
+               "--oauth-token-scope=https://www.googleapis.com/auth/cloud-platform", "--quiet",
+               check=_SWITCH_JOB_CHECK),
+        ("scheduler", "jobs", "resume", _SWITCH_JOB, PROJECT_FLAG,
+         _F("--location", _LOCATION, "region"), "--quiet"),
+    ],
+    "gcp-cloud-sql_database-create": [
+        ("sql", "databases", "create", _T(r"[a-z][a-z0-9_]{0,13}_(?:dev|hom|prd)", "<database>"),
+         _F("--instance", _INSTANCE, "instance"), PROJECT_FLAG, "--quiet"),
+    ],
+    "gcp-cloud-sql_access-grant": [
+        ("sql", "users", "create", _T(_SA_ID + "@" + _PID + r"\.iam", "<user>"),
+         _F("--instance", _INSTANCE, "instance"), PROJECT_FLAG,
+         "--type=cloud_iam_service_account", "--quiet"),
+        ("projects", "add-iam-policy-binding", _T(_PID, "<sharedProjectId>"),
+         _F("--member", "serviceAccount:" + _SA),
+         _F("--role", r"roles/cloudsql\.client|roles/cloudsql\.instanceUser", "role"),
+         "--condition=None", "--quiet"),
+    ],
+
+    # aleogr-registry-gcp-artifact-registry
+    "gcp-artifact-registry_repository-create": [
+        _Shape("artifacts", "repositories", "create", _T(_PROJECT_NAME, "<project>"),
+               PROJECT_FLAG, _F("--location", _REGION, "region"), "--repository-format=docker",
+               _F("--labels", "aleogr-project=" + _PROJECT_NAME
+                  + ",aleogr-environment=(?:dev|hom|prd)", "labels"),
+               check=_agree("the repository and its label", _arg(3),
+                            _after("aleogr-project=([^,]*),.*", _flag("--labels")))),
+    ],
+    "gcp-artifact-registry_cleanup-configure": [
+        ("artifacts", "repositories", "set-cleanup-policies", _T(_PROJECT_NAME, "<project>"),
+         _F("--location", _REGION, "region"), PROJECT_FLAG, CLEANUP_POLICY_FILE_ARG,
+         "--no-dry-run"),
+    ],
+    "gcp-artifact-registry_access-grant": [
+        _Shape("artifacts", "repositories", "add-iam-policy-binding",
+               _T(_PROJECT_NAME, "<project>"), _F("--location", _REGION, "region"),
+               PROJECT_FLAG, _F("--member", "serviceAccount:" + _SA),
+               "--role=roles/artifactregistry.writer", "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_flag("--member")),
+                            _flag("--project"))),
+    ],
+
+    # aleogr-cloud-gcp
+    "gcp_environment-create": [
+        ("projects", "create", _T(r"aleogr-shared-[a-z0-9]{4}", "aleogr-shared-<random>"),
+         _F("--organization", r"[0-9]{1,25}", "id"), "--name=shared",
+         "--labels=aleogr-project=shared,aleogr-platform=shared"),
+        _Shape("projects", "create",
+               _T(r"aleogr-(?:dev|hom|prd)-" + _PROJECT_NAME + r"-[a-z0-9]{4}",
+                  "aleogr-<environment>-<project>-<random>"),
+               _F("--folder", r"[0-9]{1,25}", "id"),
+               _F("--name", r"(?:dev|hom|prd) " + _PROJECT_NAME, "environment project"),
+               _F("--labels", "aleogr-project=" + _PROJECT_NAME
+                  + ",aleogr-environment=(?:dev|hom|prd)", "labels"),
+               check=_all(
+                   _agree("the environment of the project id, its name and its labels",
+                          _after(r"aleogr-([a-z]+)-.*-[a-z0-9]{4}", _arg(2)),
+                          _after(r"([a-z]+) .*", _flag("--name")),
+                          _after(r"aleogr-project=.*,aleogr-environment=(.*)",
+                                 _flag("--labels"))),
+                   _agree("the project of the project id, its name and its labels",
+                          _after(r"aleogr-[a-z]+-(.*)-[a-z0-9]{4}", _arg(2)),
+                          _after(r"[a-z]+ (.*)", _flag("--name")),
+                          _after(r"aleogr-project=(.*),aleogr-environment=.*",
+                                 _flag("--labels"))))),
+        ("billing", "projects", "link", _T(_PID, "<projectId>"),
+         _F("--billing-account", _BILLING_ACCOUNT, "id")),
+    ],
+    "gcp_services-enable": [
+        ("services", "enable",
+         _Rep(_T(r"[a-z0-9-][a-z0-9.-]{0,100}\.googleapis\.com", "<service>")), PROJECT_FLAG),
+    ],
+    "gcp_budget-alert-setup": [
+        ("billing", "budgets", "create", _F("--billing-account", _BILLING_ACCOUNT, "id"),
+         _F("--display-name", r"[A-Za-z0-9][A-Za-z0-9._-]{0,59}", "displayName"),
+         _F("--budget-amount", _BUDGET_AMOUNT, "amount><currency"),
+         _Rep(_F("--threshold-rule", _THRESHOLD, "percent=<t>")),
+         _F("--billing-project", _PID, "quotaProject")),
+        ("billing", "budgets", "update", _T(r"[A-Za-z0-9-]{1,64}", "<budgetId>"),
+         _F("--billing-account", _BILLING_ACCOUNT, "id"),
+         _F("--budget-amount", _BUDGET_AMOUNT, "amount><currency"), "--clear-threshold-rules",
+         _Rep(_F("--add-threshold-rule", _THRESHOLD, "percent=<t>")),
+         _F("--billing-project", _PID, "quotaProject")),
+    ],
+    "gcp_login-setup": [
+        ("organizations", "add-iam-policy-binding", _T(r"[0-9]{1,25}", "<organizationId>"),
+         _F("--member", _ACTIVE_MEMBER, "member"), "--role=roles/iap.settingsAdmin",
+         "--condition=None", "--quiet"),
+        ("services", "enable", "iap.googleapis.com", PROJECT_FLAG),
+    ],
+    "gcp_deploy-setup": [
+        # 5.1 and 5.2, the security pass: only allUsers or allAuthenticatedUsers is ever
+        # removed (always_refused refuses any other member of a remove).
+        ("iap", "web", "remove-iam-policy-binding", "--resource-type=cloud-run",
+         _F("--service", _SERVICE, "service"), REGION_FLAG, PROJECT_FLAG,
+         _F("--member", "allUsers|allAuthenticatedUsers"), _F("--role", _ROLE, "role"), "--all",
+         "--quiet"),
+        ("run", "services", "remove-iam-policy-binding", SERVICE_ARG,
+         _F("--member", "allUsers|allAuthenticatedUsers"), _F("--role", _ROLE, "role"),
+         REGION_FLAG, PROJECT_FLAG, "--all", "--quiet"),
+        # 5.3 and 5.4: each flag alone.
+        ("run", "services", "update", SERVICE_ARG, "--iap", REGION_FLAG, PROJECT_FLAG, "--quiet"),
+        ("run", "services", "update", SERVICE_ARG, "--invoker-iam-check", REGION_FLAG,
+         PROJECT_FLAG, "--quiet"),
+        # 6a: the service's account.
+        _Shape("iam", "service-accounts", "create", SERVICE_ARG, PROJECT_FLAG,
+               _F("--display-name", _PROJECT_NAME + " " + _COMPONENT, "project> <name"),
+               "--quiet",
+               check=_agree("the account and its display name", _arg(3),
+                            lambda a: (_flag_value(a, "--display-name") or "").replace(" ", "-")
+                            or None)),
+        # 6b: the CI account may act as the service's account.
+        _Shape("iam", "service-accounts", "add-iam-policy-binding", SA_ARG,
+               _F("--member", "serviceAccount:" + _SA), "--role=roles/iam.serviceAccountUser",
+               PROJECT_FLAG, "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)),
+                            _project_of(_flag("--member")), _flag("--project"))),
+        # 6c: the service, created behind the login, never public, never --min above 0.
+        _Shape("run", "deploy", SERVICE_ARG, _F("--image", PLACEHOLDER_IMAGE_RE, "image"),
+               "--no-allow-unauthenticated", "--iap", _F("--service-account", _SA, "account"),
+               "--min=0", _F("--max", r"[1-9]|10", "maxInstances"), _DEPLOY_SIZE[0],
+               _DEPLOY_SIZE[1], "--cpu-throttling", _F("--labels", _LABELS3, "labels"),
+               REGION_FLAG, PROJECT_FLAG, "--quiet",
+               check=_all(_agree("the service and its account", _flag("--service-account"),
+                                 _service_account_of_service),
+                          _agree("the service and its labels", _service_name,
+                                 _labels_name("--labels")))),
+        # 6d1: the repair, only the flags of what differs, never --image, a setting or a
+        # security flag.
+        _Shape("run", "services", "update", SERVICE_ARG,
+               _Opt(_F("--service-account", _SA, "account")),
+               _Opt("--min=0", _F("--max", r"[1-9]|10", "maxInstances")),
+               _Opt("--scaling=auto"), _Opt("--min-instances=default"),
+               _Opt(_DEPLOY_SIZE[0]), _Opt(_DEPLOY_SIZE[1]), _Opt("--cpu-throttling"),
+               _Opt(_F("--update-labels", _LABELS3, "labels")),
+               REGION_FLAG, PROJECT_FLAG, "--quiet", check=_deploy_update_check),
+        # 6d2: the login's agent may call the service.
+        ("run", "services", "add-iam-policy-binding", SERVICE_ARG,
+         _F("--member", r"serviceAccount:service-[0-9]{1,20}@gcp-sa-iap\.iam\.gserviceaccount\.com",
+            "agent"),
+         "--role=roles/run.invoker", REGION_FLAG, PROJECT_FLAG, "--condition=None", "--quiet"),
+        # 6e: the CI account may deploy this service.
+        _Shape("run", "services", "add-iam-policy-binding", SERVICE_ARG,
+               _F("--member", "serviceAccount:" + _SA), "--role=roles/run.developer",
+               REGION_FLAG, PROJECT_FLAG, "--condition=None", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_flag("--member")),
+                            _flag("--project"))),
+        # 6f: the active account gets in through the login.
+        ("iap", "web", "add-iam-policy-binding", "--resource-type=cloud-run",
+         _F("--service", _SERVICE, "service"), REGION_FLAG, PROJECT_FLAG,
+         _F("--member", _ACTIVE_MEMBER, "me"), "--role=roles/iap.httpsResourceAccessor",
+         "--condition=None", "--quiet"),
+        # 6g: the settings, alone, only ever added or changed.
+        ("run", "services", "update", SERVICE_ARG,
+         _F("--update-env-vars", r"\^##\^" + _DEPLOY_ENV + r"(?:##" + _DEPLOY_ENV + r")*",
+            "^##^NAME=value"),
+         REGION_FLAG, PROJECT_FLAG, "--quiet"),
+    ],
+    "gcp_access-grant": [
+        ("iap", "web", "add-iam-policy-binding", "--resource-type=cloud-run",
+         _F("--service", _SERVICE, "service"), REGION_FLAG, PROJECT_FLAG,
+         _F("--member", "user:" + _PERSON, "person"), "--role=roles/iap.httpsResourceAccessor",
+         "--condition=None", "--quiet"),
+    ],
+    "gcp_ci-identity-setup": [
+        _Shape("iam", "service-accounts", "create", _T(_CI_PROJECT + "-ci", "<project>-ci"),
+               PROJECT_FLAG, _F("--display-name", _CI_PROJECT + " CI", "project> CI"), "--quiet",
+               check=_agree("the account and its display name",
+                            _after("(.*)-ci", _arg(3)),
+                            _after("(.*) CI", _flag("--display-name")))),
+        _POOL_CREATE,
+        ("iam", "workload-identity-pools", "providers", "create-oidc", "github", PROJECT_FLAG,
+         "--location=global", "--workload-identity-pool=github", _ISSUER, _CI_MAPPING,
+         _F("--attribute-condition", _CI_CONDITION, "condition"), "--quiet"),
+        ("iam", "workload-identity-pools", "providers", "update-oidc", "github", PROJECT_FLAG,
+         "--location=global", "--workload-identity-pool=github", _ISSUER, _CI_MAPPING,
+         _F("--attribute-condition", _CI_CONDITION, "condition"), "--quiet"),
+        _Shape("iam", "service-accounts", "add-iam-policy-binding",
+               _T(_CI_PROJECT + "-ci@" + _PID + r"\.iam\.gserviceaccount\.com", "<account>"),
+               PROJECT_FLAG, _F("--member", _principal_set(_GH_REPO), "member"),
+               "--role=roles/iam.workloadIdentityUser", "--quiet",
+               check=_agree(_SAME_PROJECT, _project_of(_arg(3)), _flag("--project"))),
+    ],
+})
+
+for _skill in list(WRITE_SHAPES):
+    if _skill.startswith("gcp"):
+        WRITE_TOOLS[_skill] = "gcloud"
+del _skill
 # Skills whose shapes mix tools: the shape's first word decides (pr is gh, every other
 # word is git).
 _MIXED_GH_WORDS = ("pr", "api", "repo", "secret", "variable")
@@ -762,37 +1304,154 @@ def always_refused(argv):
         if verb == "branch" and any(a in ("-d", "-D", "--delete") for a in args):
             return "git branch delete"
     elif tool == "gcloud":
-        words = [a for a in rest if not a.startswith("-")][:5]
-        if "delete" in words:
-            return "gcloud ... delete"
-        if "set-iam-policy" in words:
-            return "gcloud ... set-iam-policy"
+        return _gcloud_refused(rest)
     return None
+
+
+_GCLOUD_PRIMITIVE_ROLES = ("roles/owner", "roles/editor", "roles/viewer", "owner", "editor",
+                           "viewer")
+_GCLOUD_PUBLIC_MEMBERS = ("allusers", "allauthenticatedusers")
+
+
+def _gcloud_flag_values(rest, flag):
+    """The values of `flag` in `rest`, written `--flag=value` or `--flag value`."""
+    values = []
+    for i, a in enumerate(rest):
+        if a.startswith(flag + "="):
+            values.append(a[len(flag) + 1:])
+        elif a == flag:
+            values.append(rest[i + 1] if i + 1 < len(rest) else "")
+    return values
+
+
+def _gcloud_refused(rest):
+    """The reason when `gcloud <rest>` is a command no skill may ever run, read or write,
+    whatever an entry of WRITE_SHAPES or READS says; None otherwise.
+
+    - a flag before the command (`gcloud --project=x config set ...`), but `--version`;
+    - `delete`, `set-iam-policy` or `set-password` (`sql users set-password`) among the
+      first five words;
+    - `remove-iam-policy-binding`, except with exactly one `--member`, `allUsers` or
+      `allAuthenticatedUsers` (the security pass of gcp_deploy-setup, which only closes
+      a service that is open to everyone);
+    - `allUsers` or `allAuthenticatedUsers` as a member of anything else;
+    - a primitive role (`roles/owner`, `roles/editor`, `roles/viewer`) in an
+      `add-iam-policy-binding`;
+    - `--allow-unauthenticated`, any flag with `password` in its name,
+      `--impersonate-service-account`;
+    - `gcloud auth` other than `auth list`, `gcloud config` other than `config
+      get-value`, `gcloud iam service-accounts keys` (anything)."""
+    if not rest:
+        return None
+    if rest[0].startswith("-") and rest != ["--version"]:
+        return "gcloud with a flag before its command"
+    words = [a for a in rest if not a.startswith("-")]
+    lead = words[:5]
+    if "delete" in lead:
+        return "gcloud ... delete"
+    if "set-iam-policy" in lead:
+        return "gcloud ... set-iam-policy"
+    if "set-password" in lead:
+        return "gcloud ... set-password"
+    for a in rest:
+        if not a.startswith("-"):
+            continue
+        name = a.split("=", 1)[0].lower()
+        if name == "--allow-unauthenticated":
+            return "gcloud --allow-unauthenticated"
+        if "password" in name:
+            return "gcloud %s" % name
+        if name == "--impersonate-service-account":
+            return "gcloud --impersonate-service-account"
+    if words[:1] == ["auth"] and words != ["auth", "list"]:
+        return "gcloud auth other than list"
+    if words[:1] == ["config"] and words[:2] != ["config", "get-value"]:
+        return "gcloud config other than get-value"
+    if words[:3] == ["iam", "service-accounts", "keys"]:
+        return "gcloud iam service-accounts keys"
+    members = _gcloud_flag_values(rest, "--member")
+    public = [m for m in members if m.lower() in _GCLOUD_PUBLIC_MEMBERS]
+    if "remove-iam-policy-binding" in lead:
+        if len(members) != 1 or len(public) != 1:
+            return "gcloud remove-iam-policy-binding of a member other than allUsers or " \
+                   "allAuthenticatedUsers"
+    elif public:
+        return "gcloud with the member %s" % public[0]
+    if "add-iam-policy-binding" in lead:
+        for role in _gcloud_flag_values(rest, "--role"):
+            if role.lower() in _GCLOUD_PRIMITIVE_ROLES:
+                return "gcloud add-iam-policy-binding of the primitive role %s" % role
+    return None
+
+
+def _item_refusal(item, a, env):
+    """None when the one argument `a` matches the one item (a word or a matcher)."""
+    if isinstance(item, str):
+        return None if a == item else "%s where the shape has %s" % (a, item)
+    return None if item.match(a, env) else "%s is not %s" % (a, item.name)
+
+
+def _take(items, args, i, env):
+    """The index after `items` matched one argument each from `i`, or None."""
+    for item in items:
+        if i >= len(args) or _item_refusal(item, args[i], env):
+            return None
+        i += 1
+    return i
 
 
 def _match_shape(shape, args, env):
-    """None when `args` (the command after the tool) matches `shape`, else a reason."""
+    """None when `args` (the command after the tool) matches `shape`, else a reason.
+
+    Items are matched in order, each against one argument, except: an `_Opt` takes its
+    items when they all match there (else none); a `_Rep` takes its item as many times
+    as it matches, at least `minimum`; a guard function, last, takes every remaining
+    argument. Matching is greedy and never goes back: the shapes are written so that
+    the next item never matches what an `_Opt` or a `_Rep` could take. A `_Shape`'s
+    check runs when every item matched."""
+    items = shape.items if isinstance(shape, _Shape) else shape
     i = 0
-    for item in shape:
+    for item in items:
+        if isinstance(item, _Opt):
+            j = _take(item.items, args, i, env)
+            if j is not None:
+                i = j
+            continue
+        if isinstance(item, _Rep):
+            n = 0
+            while True:
+                j = _take((item.item,), args, i, env)
+                if j is None:
+                    break
+                i, n = j, n + 1
+            if n < item.minimum:
+                return "%s is needed %d times at least" % (
+                    getattr(item.item, "name", item.item), item.minimum)
+            continue
         if callable(item) and not hasattr(item, "match"):
-            return item(list(args[i:]), env)
+            why = item(list(args[i:]), env)
+            if why:
+                return why
+            i = len(args)
+            break
         if i >= len(args):
             return "too short"
-        a = args[i]
-        if isinstance(item, str):
-            if a != item:
-                return "%s where the shape has %s" % (a, item)
-        elif not item.match(a, env):
-            return "%s is not %s" % (a, item.name)
+        why = _item_refusal(item, args[i], env)
+        if why:
+            return why
         i += 1
     if i != len(args):
         return "too long"
+    check = getattr(shape, "check", None)
+    if check is not None:
+        return check(list(args))
     return None
 
 
-def write_refusal(skill, argv, root=None):
+def write_refusal(skill, argv, root=None, temp=None):
     """None when `argv` is a write that `skill` may run, otherwise the reason it is not.
-    `root` is the plugin's folder (for the shapes that name a file of the plugin)."""
+    `root` is the plugin's folder (for the shapes that name a file of the plugin);
+    `temp` the temporary folder of write_temp_file (system_temp_dir() when None)."""
     argv = _plain(argv)
     why = always_refused(argv)
     if why:
@@ -801,7 +1460,7 @@ def write_refusal(skill, argv, root=None):
     if not shapes:
         return "%s has no allowed write" % skill
     tool = _tool_name(argv[0])
-    env = {"root": root}
+    env = {"root": root, "temp": temp}
     for shape in shapes:
         if _shape_tool(skill, shape) != tool:
             continue
@@ -810,8 +1469,8 @@ def write_refusal(skill, argv, root=None):
     return "not on the allowlist of writes of %s" % skill
 
 
-def is_write_allowed(skill, argv, root=None):
-    return write_refusal(skill, argv, root) is None
+def is_write_allowed(skill, argv, root=None, temp=None):
+    return write_refusal(skill, argv, root, temp) is None
 
 
 def file_refusal(skill, path):
@@ -997,6 +1656,90 @@ def write_file(skill, path, content, stream=None, folder=None):
     return True
 
 
+# Files a skill writes for one run in the system's temporary folder, never in the
+# working folder (names matched in full): the cleanup policy for a `keep` other than 5.
+TEMP_FILE_WRITES = {
+    "gcp-artifact-registry_cleanup-configure": [
+        r"aleogr-cleanup-policy-keep-(?:[1-9]|[1-4][0-9]|50)\.json"],
+}
+
+
+def system_temp_dir():
+    """The system's temporary folder as the skills name it: `/tmp` on Linux and macOS,
+    the folder of the `TEMP` environment variable on Windows (what `$env:TEMP` or
+    `echo %TEMP%` prints), with no command run."""
+    if os.name == "nt":
+        return os.environ.get("TEMP") or tempfile.gettempdir()
+    return "/tmp"
+
+
+def write_temp_file(skill, name, content, stream=None, folder=None):
+    """Write the file `name` of the system's temporary folder (or `folder`): `content`
+    (str as UTF-8, or bytes) exactly, its whole content replaced. Returns its path, or
+    None when the system refused.
+
+    Prints `+ write <path>` on stderr first. Raises WriteRefused, before printing, for
+    a name `skill` may not write (TEMP_FILE_WRITES) or a name with a folder in it. The
+    file is opened without following a link (a link left at that name by someone else
+    is refused by the system, so None), and is left in the folder afterwards, as the
+    skills say."""
+    patterns = TEMP_FILE_WRITES.get(skill) or ()
+    if not isinstance(name, str) or os.path.basename(name) != name or "\\" in name \
+            or not any(re.fullmatch(p, name) for p in patterns):
+        raise WriteRefused("write %s" % name, "%s may not write %s in the temporary folder"
+                           % (skill, name))
+    path = os.path.join(folder or system_temp_dir(), name)
+    data = content.encode("utf-8") if isinstance(content, str) else bytes(content)
+    stream = stream or sys.stderr
+    stream.write("+ write %s\n" % path)
+    stream.flush()
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0) \
+        | getattr(os, "O_BINARY", 0)
+    try:
+        if os.path.islink(path):
+            return None
+        fd = os.open(path, flags, 0o644)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+    except OSError:
+        return None
+    return path
+
+
+def json_from_base64(text):
+    """The JSON value that `text` (base64, as `gcloud ... describe` prints a body)
+    encodes, or None when it is not base64 of UTF-8 JSON. Spaces and line breaks
+    around it do not count."""
+    import base64
+    import binascii
+    if not isinstance(text, str):
+        return None
+    try:
+        raw = base64.b64decode("".join(text.split()), validate=True)
+        return json.loads(raw.decode("utf-8"))
+    except (binascii.Error, ValueError, UnicodeDecodeError):
+        return None
+
+
+def base64_of_file(path):
+    """The base64 text of a file's bytes (the stop body of a file of the plugin, as a
+    job's describe prints it), or None when it cannot be read."""
+    import base64
+    try:
+        with open(path, "rb") as f:
+            return base64.b64encode(f.read()).decode("ascii")
+    except OSError:
+        return None
+
+
+def random_name_part(length=4, alphabet="abcdefghijklmnopqrstuvwxyz0123456789"):
+    """`length` random characters of `alphabet` (the `<random>` of a project id or a
+    branch), drawn by the system's random source: no command is run, so no `+` line."""
+    import random
+    r = random.SystemRandom()
+    return "".join(r.choice(alphabet) for _ in range(length))
+
+
 class Backup(object):
     """Copies of files of the current folder, kept in a new temporary folder, to put
     back byte for byte (mode and times kept, as `cp -p`): what a skill would do with
@@ -1151,6 +1894,12 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
     not converted for that skill (exit 64) or gives no JSON object, returns a fixed
     failure: `status` `failed`, `callError` `not-found`, `not-converted` or
     `no-result`, and one sentence in `answer`.
+
+    A callee stopped by a refused read or write exits 70 after printing its own
+    `failed` result (refused_result: the sentence of the refusal, and what it had
+    already written). That result is returned as the callee gave it, its answer kept,
+    with `callError` `refused` added, so the caller can relay the callee's sentence.
+    Any other exit 70, or a non-zero exit with no result object, is `no-result`.
     """
     path = shutil.which(command)
     if path is None:
@@ -1171,6 +1920,10 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
         obj = json.loads(p.stdout.decode("utf-8"))
     except ValueError:
         obj = None
+    if p.returncode == EXIT_SOFTWARE and isinstance(obj, dict) \
+            and obj.get("aleogr-result") == 1 and obj.get("status") == "failed":
+        obj["callError"] = "refused"
+        return obj
     if p.returncode != 0 or not isinstance(obj, dict):
         return _call_failure("no-result", command, skill,
                              NO_RESULT_SENTENCE.format(command=command, skill=skill))
@@ -1323,6 +2076,9 @@ class Context(object):
     - ctx.write(argv): the writing runner (allowlist of writes of this skill).
     - ctx.write_file(path, content): a file of the current folder (FILE_WRITES).
     - ctx.backup(paths): copies of files of the folder, to put back (Backup).
+    - ctx.write_temp_file(name, content): a file of the system's temporary folder
+      (TEMP_FILE_WRITES), for a flag that takes a file the plugin does not hold; its
+      path, or None.
 
     Other:
     - ctx.wait(): one wait, `sleep 30`, within the budget of the run (False: the budget
@@ -1395,6 +2151,14 @@ class Context(object):
     def backup(self, paths):
         self._may_write("backup %s" % " ".join(paths))
         return Backup(self.skill, paths, record=self.writes_run)
+
+    def write_temp_file(self, name, content):
+        """A file of the system's temporary folder (TEMP_FILE_WRITES): its path, or
+        None when the system refused. Only when the run may write."""
+        self._may_write("write %s" % name)
+        path = write_temp_file(self.skill, name, content)
+        self.writes_run.append("write %s" % (path or name))
+        return path
 
     def wait(self):
         if not wait_allowed():

@@ -569,9 +569,10 @@ def branch_usable(branch, birth):
     return isinstance(branch, str) and pattern.re.fullmatch(branch) is not None
 
 
-def apply(args, ctx, reader, found):
-    """Step 6 for apply, when it acts: a birth, a folder behind, or a repository that
-    does not exist."""
+def unusable(args, ctx, reader, found):
+    """The `failed` result of a path or a branch that no git command of the apply would
+    take (a fast-forward of a folder behind, or a birth), or None. Both modes run it
+    before anything else, so a plan never announces a write that the apply refuses."""
     owner, name = args["owner"], args["name"]
     full = "%s/%s" % (owner, name)
     path = args.get("path", DEFAULT_PATH)
@@ -581,10 +582,9 @@ def apply(args, ctx, reader, found):
                               resources=[G.repository_resource(owner, name)], cost=G.NO_COST,
                               lines=[BRANCH_UNUSABLE.format(branch=found.branch, full=full,
                                                             extra="")] + reader.notes)
-        return fast_forward(args, ctx, reader, found)
-    if not found.exists:
-        return ctx.result("failed", outputs("not-sent", None, path),
-                          cost=G.NO_COST, lines=[NOT_CREATED % full] + reader.notes)
+        return None
+    if found.state != "not-sent" or not found.exists:
+        return None
     problem = None
     if not path_usable(path):
         problem = PATH_UNUSABLE.format(path=path)
@@ -596,6 +596,23 @@ def apply(args, ctx, reader, found):
                           resources=[G.repository_resource(owner, name)], cost=G.NO_COST,
                           lines=[problem, "No local change was made in this folder."]
                           + reader.notes)
+    return None
+
+
+def apply(args, ctx, reader, found):
+    """Step 6 for apply, when it acts: a birth, a folder behind, or a repository that
+    does not exist."""
+    owner, name = args["owner"], args["name"]
+    full = "%s/%s" % (owner, name)
+    path = args.get("path", DEFAULT_PATH)
+    refused = unusable(args, ctx, reader, found)
+    if refused is not None:
+        return refused
+    if found.state == "behind":
+        return fast_forward(args, ctx, reader, found)
+    if not found.exists:
+        return ctx.result("failed", outputs("not-sent", None, path),
+                          cost=G.NO_COST, lines=[NOT_CREATED % full] + reader.notes)
     return birth(args, ctx, reader, found)
 
 
@@ -615,7 +632,12 @@ def run(args, ctx):
         result.data = {"repositoryCopy": found.copy}
         return result
 
-    # Step 6, plan.
+    # Step 6, plan. A path or a branch the apply would refuse ends the plan the same
+    # way, with the same sentence, instead of announcing its commands.
+    refused = unusable(args, ctx, reader, found)
+    if refused is not None:
+        refused.data = {"repositoryCopy": found.copy}
+        return refused
     resources = [G.repository_resource(owner, name)] if found.exists else []
     out = outputs(found.state, found.branch, path, reason=found.reason)
     state = found.state

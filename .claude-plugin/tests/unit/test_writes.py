@@ -25,8 +25,13 @@ from helpers import PLUGINS, aleogr_common as common  # noqa: E402
 from test_common import StandIns  # noqa: E402
 
 REPO_GITHUB = os.path.join(PLUGINS, "aleogr-repo-github")
+CLOUD = os.path.join(PLUGINS, "aleogr-cloud-gcp")
+DB = os.path.join(PLUGINS, "aleogr-db-gcp-cloud-sql")
+REGISTRY = os.path.join(PLUGINS, "aleogr-registry-gcp-artifact-registry")
 RULESET = os.path.join(REPO_GITHUB, "files", "ruleset-main.json")
 RULESET_CI = os.path.join(REPO_GITHUB, "files", "ruleset-main-ci.json")
+STOP_BODY = os.path.join(DB, "files", "stop-body.json")
+CLEANUP_POLICY = os.path.join(REGISTRY, "files", "cleanup-policy.json")
 CRED = list(common.GIT_CREDENTIAL)
 TITLE = "Change the project declaration"
 
@@ -299,12 +304,641 @@ NEVER = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Part 2b: the writes to Google Cloud. Each command as its SKILL.md writes it (a value
+# the SKILL.md double-quotes is one argument, without its quotes), with sample values.
+
+P = "aleogr-dev-demo-ab12"  # a project's own GCP project
+S = "aleogr-shared-zz99"  # the shared platform's
+SQL = "--project=" + S
+RUN = ["--region=us-central1", "--project=" + P]
+CI_SA = "demo-ci@%s.iam.gserviceaccount.com" % P
+WEB_SA = "demo-web@%s.iam.gserviceaccount.com" % P
+SWITCH_SA = "aleogr-shared-sql-switch@%s.iam.gserviceaccount.com" % S
+SET = "^##^"
+CI_CONDITION = ("assertion.repository=='example-org/example-repo' && "
+                "assertion.repository_id=='123456' && assertion.repository_owner_id=='654321' "
+                "&& assertion.ref=='refs/heads/main' && "
+                "assertion.job_workflow_ref.startsWith("
+                "'example-org/workflows/.github/workflows/deploy.yml@')")
+CI_MAPPING = ("google.subject=assertion.sub,attribute.repository=assertion.repository,"
+              "attribute.ref=assertion.ref,attribute.repository_id=assertion.repository_id,"
+              "attribute.repository_owner_id=assertion.repository_owner_id,"
+              "attribute.job_workflow_ref=assertion.job_workflow_ref")
+PRINCIPAL = ("principalSet://iam.googleapis.com/projects/123456789012/locations/global/"
+             "workloadIdentityPools/github/attribute.repository/example-org/example-repo")
+JOB_URI = "https://sqladmin.googleapis.com/v1/projects/%s/instances/aleogr-shared" % S
+HEADERS = "Content-Type=application/json,X-HTTP-Method-Override=PATCH"
+SCOPE = "--oauth-token-scope=https://www.googleapis.com/auth/cloud-platform"
+STOP = ["gcloud", "sql", "instances", "patch", "aleogr-shared", SQL,
+        "--activation-policy=NEVER", "--quiet"]
+POOL = ["gcloud", "iam", "workload-identity-pools", "create", "github", "--project=" + P,
+        "--location=global", "--display-name=GitHub", "--quiet"]
+ACCESS_ME = ["gcloud", "iap", "web", "add-iam-policy-binding", "--resource-type=cloud-run",
+             "--service=demo-web"] + RUN + ["--member=user:demo-user@example.com",
+                                            "--role=roles/iap.httpsResourceAccessor",
+                                            "--condition=None", "--quiet"]
+IAP_ENABLE = ["gcloud", "services", "enable", "iap.googleapis.com", "--project=" + S]
+
+
+def g(text):
+    """A gcloud command written as words (no value holds a space)."""
+    return ["gcloud"] + text.split(" ")
+
+
+GCLOUD_ALLOWED = {
+    "gcp-cloud-sql_instance-stop": [STOP],
+    "gcp-cloud-sql_instance-start": [
+        g("sql instances patch aleogr-shared " + SQL + " --activation-policy=ALWAYS --async "
+          "--quiet"),
+    ],
+    "gcp-cloud-sql_instance-create": [
+        g("sql instances create aleogr-shared " + SQL + " --database-version=POSTGRES_17 "
+          "--edition=enterprise --tier=db-f1-micro --region=southamerica-east1 "
+          "--availability-type=zonal --storage-type=SSD --storage-size=10 "
+          "--no-storage-auto-increase --assign-ip --backup --backup-start-time=06:00 "
+          "--retained-backups-count=7 --no-enable-point-in-time-recovery "
+          "--database-flags=cloudsql.iam_authentication=on --no-enable-dataplex-integration "
+          "--deletion-protection --async --quiet"),
+        STOP,
+        g("scheduler jobs run aleogr-shared-stop-weeknight " + SQL
+          + " --location=southamerica-east1 --quiet"),
+    ],
+    "gcp-cloud-sql_instance-switch-setup": [
+        ["gcloud", "iam", "roles", "create", "aleogrSharedSqlSwitch", SQL,
+         "--title=aleogr shared SQL switch",
+         "--permissions=cloudsql.instances.get,cloudsql.instances.update", "--stage=GA",
+         "--quiet"],
+        ["gcloud", "iam", "service-accounts", "create", "aleogr-shared-sql-switch", SQL,
+         "--display-name=aleogr shared SQL switch", "--quiet"],
+        g("projects add-iam-policy-binding %s --member=serviceAccount:%s "
+          "--role=projects/%s/roles/aleogrSharedSqlSwitch --condition=None --quiet"
+          % (S, SWITCH_SA, S)),
+        g("iam service-accounts add-iam-policy-binding %s %s --member=user:owner@example.com "
+          "--role=roles/iam.serviceAccountUser --quiet" % (SWITCH_SA, SQL)),
+        # The pool's create is the same command in gcp_ci-identity-setup: one shape.
+        POOL,
+        ["gcloud", "iam", "workload-identity-pools", "providers", "create-oidc", "aleogr", SQL,
+         "--location=global", "--workload-identity-pool=github",
+         "--issuer-uri=https://token.actions.githubusercontent.com",
+         "--attribute-mapping=google.subject=assertion.sub,"
+         "attribute.repository=assertion.repository,attribute.ref=assertion.ref",
+         "--attribute-condition=assertion.repository=='example-org/example-repo' && "
+         "assertion.ref=='refs/heads/main'", "--quiet"],
+        g("iam service-accounts add-iam-policy-binding %s %s --member=%s "
+          "--role=roles/iam.workloadIdentityUser --quiet" % (SWITCH_SA, SQL, PRINCIPAL)),
+        ["gcloud", "scheduler", "jobs", "create", "http", "aleogr-shared-stop-weeknight", SQL,
+         "--location=southamerica-east1", "--schedule=30 22 * * 0-4",
+         "--time-zone=America/Sao_Paulo", "--uri=" + JOB_URI, "--http-method=POST",
+         "--headers=" + HEADERS, "--message-body-from-file=" + STOP_BODY,
+         "--oauth-service-account-email=" + SWITCH_SA, SCOPE, "--max-retry-attempts=5",
+         "--min-backoff=5m", "--max-backoff=15m", "--max-doublings=2",
+         "--attempt-deadline=60s", "--quiet"],
+        ["gcloud", "scheduler", "jobs", "update", "http", "aleogr-shared-stop-weekend", SQL,
+         "--location=southamerica-east1", "--schedule=0 23 * * 5,6",
+         "--time-zone=America/Sao_Paulo", "--uri=" + JOB_URI, "--http-method=POST",
+         "--update-headers=" + HEADERS, "--message-body-from-file=" + STOP_BODY,
+         "--oauth-service-account-email=" + SWITCH_SA, SCOPE, "--quiet"],
+        g("scheduler jobs resume aleogr-shared-stop-weekend " + SQL
+          + " --location=southamerica-east1 --quiet"),
+    ],
+    "gcp-cloud-sql_database-create": [
+        g("sql databases create my_app_dev --instance=aleogr-shared " + SQL + " --quiet"),
+    ],
+    "gcp-cloud-sql_access-grant": [
+        g("sql users create demo-web@%s.iam --instance=aleogr-shared %s "
+          "--type=cloud_iam_service_account --quiet" % (P, SQL)),
+        g("projects add-iam-policy-binding %s --member=serviceAccount:%s "
+          "--role=roles/cloudsql.client --condition=None --quiet" % (S, WEB_SA)),
+        g("projects add-iam-policy-binding %s --member=serviceAccount:%s "
+          "--role=roles/cloudsql.instanceUser --condition=None --quiet" % (S, WEB_SA)),
+    ],
+    "gcp-artifact-registry_repository-create": [
+        g("artifacts repositories create demo --project=%s --location=us-central1 "
+          "--repository-format=docker --labels=aleogr-project=demo,aleogr-environment=dev" % P),
+    ],
+    "gcp-artifact-registry_cleanup-configure": [
+        g("artifacts repositories set-cleanup-policies demo --location=us-central1 "
+          "--project=%s --policy=%s --no-dry-run" % (P, CLEANUP_POLICY)),
+        g("artifacts repositories set-cleanup-policies demo --location=us-central1 "
+          "--project=%s --policy=/tmp/aleogr-cleanup-policy-keep-3.json --no-dry-run" % P),
+    ],
+    "gcp-artifact-registry_access-grant": [
+        g("artifacts repositories add-iam-policy-binding demo --location=us-central1 "
+          "--project=%s --member=serviceAccount:%s --role=roles/artifactregistry.writer "
+          "--condition=None --quiet" % (P, CI_SA)),
+    ],
+    "gcp_environment-create": [
+        g("projects create aleogr-shared-x7k2 --organization=111111111111 --name=shared "
+          "--labels=aleogr-project=shared,aleogr-platform=shared"),
+        ["gcloud", "projects", "create", "aleogr-dev-my-app-x7k2", "--folder=222222222222",
+         "--name=dev my-app", "--labels=aleogr-project=my-app,aleogr-environment=dev"],
+        g("billing projects link %s --billing-account=0X0X0X-0X0X0X-0X0X0X" % P),
+    ],
+    "gcp_services-enable": [
+        g("services enable run.googleapis.com artifactregistry.googleapis.com --project=" + P),
+        g("services enable sqladmin.googleapis.com --project=" + P),
+        IAP_ENABLE,  # the same command as gcp_login-setup's, when only the IAP API is asked
+    ],
+    "gcp_budget-alert-setup": [
+        g("billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X "
+          "--display-name=aleogr-monthly --budget-amount=100BRL --threshold-rule=percent=0.5 "
+          "--threshold-rule=percent=0.9 --threshold-rule=percent=1.0 --billing-project=" + S),
+        g("billing budgets update 1b2c3d4e-0000-4f00-8a00-123456789abc "
+          "--billing-account=0X0X0X-0X0X0X-0X0X0X --budget-amount=150.5BRL "
+          "--clear-threshold-rules --add-threshold-rule=percent=0.5 "
+          "--add-threshold-rule=percent=1 --billing-project=" + S),
+    ],
+    "gcp_login-setup": [
+        g("organizations add-iam-policy-binding 111111111111 --member=user:owner@example.com "
+          "--role=roles/iap.settingsAdmin --condition=None --quiet"),
+        g("organizations add-iam-policy-binding 111111111111 "
+          "--member=serviceAccount:deployer@%s.iam.gserviceaccount.com "
+          "--role=roles/iap.settingsAdmin --condition=None --quiet" % S),
+        IAP_ENABLE,
+    ],
+    "gcp_deploy-setup": [
+        g("iap web remove-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+          "--region=us-central1 --project=%s --member=allUsers "
+          "--role=roles/iap.httpsResourceAccessor --all --quiet" % P),
+        g("iap web remove-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+          "--region=us-central1 --project=%s --member=allAuthenticatedUsers "
+          "--role=projects/%s/roles/custom.viewer --all --quiet" % (P, P)),
+        g("run services remove-iam-policy-binding demo-web --member=allUsers "
+          "--role=roles/run.invoker --region=us-central1 --project=%s --all --quiet" % P),
+        g("run services remove-iam-policy-binding demo-web --member=allAuthenticatedUsers "
+          "--role=roles/viewer --region=us-central1 --project=%s --all --quiet" % P),
+        g("run services update demo-web --iap --region=us-central1 --project=%s --quiet" % P),
+        g("run services update demo-web --invoker-iam-check --region=us-central1 "
+          "--project=%s --quiet" % P),
+        ["gcloud", "iam", "service-accounts", "create", "demo-web", "--project=" + P,
+         "--display-name=demo web", "--quiet"],
+        ["gcloud", "iam", "service-accounts", "create", "my-app-web", "--project=" + P,
+         "--display-name=my-app web", "--quiet"],
+        g("iam service-accounts add-iam-policy-binding %s --member=serviceAccount:%s "
+          "--role=roles/iam.serviceAccountUser --project=%s --condition=None --quiet"
+          % (WEB_SA, CI_SA, P)),
+        g("run deploy demo-web --image=us-docker.pkg.dev/cloudrun/container/hello:latest "
+          "--no-allow-unauthenticated --iap --service-account=%s --min=0 --max=2 --cpu=1 "
+          "--memory=512Mi --cpu-throttling "
+          "--labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=web "
+          "--region=us-central1 --project=%s --quiet" % (WEB_SA, P)),
+        g("run services update demo-web --service-account=%s --min=0 --max=2 --scaling=auto "
+          "--min-instances=default --cpu=2 --memory=1Gi --cpu-throttling "
+          "--update-labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=web "
+          "--region=us-central1 --project=%s --quiet" % (WEB_SA, P)),
+        g("run services update demo-web --memory=2Gi --region=us-central1 --project=%s "
+          "--quiet" % P),
+        g("run services update demo-web --min=0 --max=3 --region=us-central1 --project=%s "
+          "--quiet" % P),
+        g("run services add-iam-policy-binding demo-web "
+          "--member=serviceAccount:service-123456789012@gcp-sa-iap.iam.gserviceaccount.com "
+          "--role=roles/run.invoker --region=us-central1 --project=%s --condition=None "
+          "--quiet" % P),
+        g("run services add-iam-policy-binding demo-web --member=serviceAccount:%s "
+          "--role=roles/run.developer --region=us-central1 --project=%s --condition=None "
+          "--quiet" % (CI_SA, P)),
+        ACCESS_ME,
+        # <me> is whatever account gcloud is logged in as, so this shape takes any
+        # person's user: as gcp_access-grant's does (and a service account besides).
+        g("iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-api "
+          "--region=us-central1 --project=%s --member=user:demo-user+test@example.com "
+          "--role=roles/iap.httpsResourceAccessor --condition=None --quiet" % P),
+        g("iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+          "--region=us-central1 --project=%s "
+          "--member=serviceAccount:deployer@%s.iam.gserviceaccount.com "
+          "--role=roles/iap.httpsResourceAccessor --condition=None --quiet" % (P, P)),
+        g("run services update demo-web --update-env-vars=" + SET + "DB_INSTANCE=" + S
+          + ":southamerica-east1:aleogr-shared##DB_NAME=demo_dev##DB_USER=demo-web@" + P
+          + ".iam --region=us-central1 --project=%s --quiet" % P),
+        g("run services update demo-web --update-env-vars=" + SET + "DB_NAME=demo_dev "
+          "--region=us-central1 --project=%s --quiet" % P),
+    ],
+    "gcp_access-grant": [
+        ACCESS_ME,  # the same command as gcp_deploy-setup's 6f, for a person
+        g("iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-api "
+          "--region=us-central1 --project=%s --member=user:demo-user+test@example.com "
+          "--role=roles/iap.httpsResourceAccessor --condition=None --quiet" % P),
+    ],
+    "gcp_ci-identity-setup": [
+        ["gcloud", "iam", "service-accounts", "create", "demo-ci", "--project=" + P,
+         "--display-name=demo CI", "--quiet"],
+        POOL,
+        ["gcloud", "iam", "workload-identity-pools", "providers", "create-oidc", "github",
+         "--project=" + P, "--location=global", "--workload-identity-pool=github",
+         "--issuer-uri=https://token.actions.githubusercontent.com",
+         "--attribute-mapping=" + CI_MAPPING, "--attribute-condition=" + CI_CONDITION,
+         "--quiet"],
+        ["gcloud", "iam", "workload-identity-pools", "providers", "update-oidc", "github",
+         "--project=" + P, "--location=global", "--workload-identity-pool=github",
+         "--issuer-uri=https://token.actions.githubusercontent.com",
+         "--attribute-mapping=" + CI_MAPPING, "--attribute-condition=" + CI_CONDITION,
+         "--quiet"],
+        g("iam service-accounts add-iam-policy-binding %s --project=%s --member=%s "
+          "--role=roles/iam.workloadIdentityUser --quiet" % (CI_SA, P, PRINCIPAL)),
+    ],
+}
+GCLOUD_SKILLS = sorted(GCLOUD_ALLOWED)
+ALLOWED.update(GCLOUD_ALLOWED)
+
+ALWAYS_REFUSED += [
+    # any delete
+    "gcloud run services delete demo-web --region=us-central1 --quiet",
+    "gcloud iam service-accounts delete demo-web@x.iam.gserviceaccount.com",
+    "gcloud artifacts repositories delete demo --location=us-central1",
+    "gcloud scheduler jobs delete aleogr-shared-stop-weeknight --location=x",
+    "gcloud sql databases delete demo_dev --instance=aleogr-shared",
+    "gcloud iam workload-identity-pools providers delete github --location=global",
+    # set-iam-policy
+    "gcloud run services set-iam-policy demo-web policy.json",
+    "gcloud iap web set-iam-policy policy.json --resource-type=cloud-run",
+    "gcloud iam service-accounts set-iam-policy a@b.iam.gserviceaccount.com p.json",
+    # remove-iam-policy-binding of anyone but everyone
+    "gcloud projects remove-iam-policy-binding demo --member=user:x@example.com "
+    "--role=roles/run.admin",
+    "gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+    "--region=us-central1 --project=" + P + " --member=user:x@example.com "
+    "--role=roles/iap.httpsResourceAccessor --all --quiet",
+    "gcloud run services remove-iam-policy-binding demo-web "
+    "--member=serviceAccount:service-1@gcp-sa-iap.iam.gserviceaccount.com "
+    "--role=roles/run.invoker --region=us-central1 --project=" + P + " --all --quiet",
+    "gcloud run services remove-iam-policy-binding demo-web --member=allUsers "
+    "--member=user:x@example.com --role=roles/run.invoker",
+    "gcloud iam service-accounts remove-iam-policy-binding a@b.iam.gserviceaccount.com "
+    "--member=allUsers --member=user:x@example.com",
+    # a primitive role in any add-iam-policy-binding
+    "gcloud projects add-iam-policy-binding demo --member=user:x@example.com --role=roles/owner",
+    "gcloud projects add-iam-policy-binding demo --member=user:x@example.com --role=roles/editor",
+    "gcloud projects add-iam-policy-binding demo --member=user:x@example.com --role=roles/viewer",
+    "gcloud projects add-iam-policy-binding demo --member=user:x@example.com --role roles/owner",
+    "gcloud organizations add-iam-policy-binding 1 --member=user:x@example.com "
+    "--role=ROLES/OWNER --condition=None --quiet",
+    "gcloud run services add-iam-policy-binding demo-web --member=serviceAccount:" + CI_SA
+    + " --role=roles/editor --region=us-central1 --project=" + P + " --condition=None --quiet",
+    # --allow-unauthenticated
+    "gcloud run deploy demo-web --image=us-docker.pkg.dev/cloudrun/container/hello "
+    "--allow-unauthenticated",
+    "gcloud run services update demo-web --allow-unauthenticated --region=us-central1",
+    "gcloud run deploy demo-web --allow-unauthenticated=true",
+    # allUsers and allAuthenticatedUsers as a member
+    "gcloud run services add-iam-policy-binding demo-web --member=allUsers "
+    "--role=roles/run.invoker --region=us-central1 --project=" + P + " --condition=None --quiet",
+    "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+    "--region=us-central1 --project=" + P + " --member=allAuthenticatedUsers "
+    "--role=roles/iap.httpsResourceAccessor --condition=None --quiet",
+    "gcloud artifacts repositories add-iam-policy-binding demo --member=allUsers "
+    "--role=roles/artifactregistry.reader",
+    "gcloud projects add-iam-policy-binding demo --member=ALLUSERS --role=roles/run.invoker",
+    # any --password* flag, set-password
+    "gcloud sql users create demo --instance=aleogr-shared --password=x",
+    "gcloud sql users create demo --instance=aleogr-shared --password-policy-enable-failed-attempts-check",
+    "gcloud sql instances create aleogr-shared --root-password=x",
+    "gcloud sql users set-password postgres --instance=aleogr-shared --prompt-for-password",
+    "gcloud sql users set-password postgres --instance=aleogr-shared",
+    # gcloud auth other than list
+    "gcloud auth print-access-token",
+    "gcloud auth print-identity-token",
+    "gcloud auth login",
+    "gcloud auth activate-service-account --key-file=k.json",
+    "gcloud auth application-default print-access-token",
+    "gcloud auth revoke",
+    "gcloud auth configure-docker",
+    "gcloud auth list extra",
+    # gcloud config set (and every config change)
+    "gcloud config set project demo",
+    "gcloud config set account x@example.com",
+    "gcloud config unset project",
+    "gcloud config configurations activate other",
+    "gcloud --project=demo config set project demo",
+    # service account keys, impersonation
+    "gcloud iam service-accounts keys create k.json --iam-account=" + CI_SA,
+    "gcloud iam service-accounts keys list --iam-account=" + CI_SA,
+    "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=NEVER --quiet "
+    "--impersonate-service-account=" + CI_SA,
+    "gcloud projects describe demo --impersonate-service-account=" + CI_SA,
+    "gcloud --impersonate-service-account=" + CI_SA + " sql instances patch aleogr-shared",
+]
+
+NOT_ON_THE_LIST.update({
+    "gcp-cloud-sql_instance-stop": [
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=ALWAYS --quiet",
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=NEVER",
+        "gcloud sql instances patch aleogr-shared --activation-policy=NEVER " + SQL + " --quiet",
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=NEVER "
+        "--async --quiet",
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=NEVER "
+        "--tier=db-custom-4-16384 --quiet",
+        "gcloud sql instances patch Aleogr " + SQL + " --activation-policy=NEVER --quiet",
+        "gcloud sql instances restart aleogr-shared " + SQL,
+    ],
+    "gcp-cloud-sql_instance-start": [
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=ALWAYS --quiet",
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=NEVER --quiet",
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=ALWAYS "
+        "--async --quiet --tier=db-custom-8-32768",
+    ],
+    "gcp-cloud-sql_instance-create": [
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=ALWAYS "
+        "--async --quiet",
+        "gcloud sql instances create aleogr-shared " + SQL + " --database-version=POSTGRES_17 "
+        "--edition=enterprise --tier=db-f1-micro --region=southamerica-east1 --async --quiet",
+        "gcloud sql instances create aleogr-shared " + SQL + " --database-version=POSTGRES_17 "
+        "--edition=enterprise --tier=db-f1-micro --region=southamerica-east1 "
+        "--availability-type=regional --storage-type=SSD --storage-size=10 "
+        "--no-storage-auto-increase --assign-ip --backup --backup-start-time=06:00 "
+        "--retained-backups-count=7 --no-enable-point-in-time-recovery "
+        "--database-flags=cloudsql.iam_authentication=on --no-enable-dataplex-integration "
+        "--deletion-protection --async --quiet",
+        "gcloud sql instances create aleogr-shared " + SQL + " --database-version=POSTGRES_17 "
+        "--edition=enterprise --tier=db-f1-micro --region=southamerica-east1 "
+        "--availability-type=zonal --storage-type=SSD --storage-size=500 "
+        "--no-storage-auto-increase --assign-ip --backup --backup-start-time=06:00 "
+        "--retained-backups-count=7 --no-enable-point-in-time-recovery "
+        "--database-flags=cloudsql.iam_authentication=on --no-enable-dataplex-integration "
+        "--deletion-protection --async --quiet",
+        "gcloud sql instances create aleogr-shared " + SQL + " --database-version=POSTGRES_17 "
+        "--edition=enterprise --tier=db-f1-micro --region=southamerica-east1 "
+        "--availability-type=zonal --storage-type=SSD --storage-size=10 "
+        "--no-storage-auto-increase --assign-ip --authorized-networks=0.0.0.0/0 --backup "
+        "--backup-start-time=06:00 --retained-backups-count=7 "
+        "--no-enable-point-in-time-recovery --database-flags=cloudsql.iam_authentication=on "
+        "--no-enable-dataplex-integration --deletion-protection --async --quiet",
+        "gcloud sql instances create aleogr-shared " + SQL + " --database-version=POSTGRES_17 "
+        "--edition=enterprise --tier=db-f1-micro --region=southamerica-east1 "
+        "--availability-type=zonal --storage-type=SSD --storage-size=10 "
+        "--no-storage-auto-increase --assign-ip --backup --backup-start-time=06:00 "
+        "--retained-backups-count=7 --no-enable-point-in-time-recovery "
+        "--database-flags=cloudsql.iam_authentication=on --no-enable-dataplex-integration "
+        "--async --quiet",
+        "gcloud scheduler jobs pause aleogr-shared-stop-weeknight " + SQL
+        + " --location=southamerica-east1 --quiet",
+    ],
+    "gcp-cloud-sql_instance-switch-setup": [
+        "gcloud scheduler jobs create http aleogr-other " + SQL,
+        "gcloud scheduler jobs resume aleogr-other " + SQL + " --location=x --quiet",
+        "gcloud scheduler jobs pause aleogr-shared-stop-weekend " + SQL + " --location=x --quiet",
+        "gcloud projects add-iam-policy-binding " + S + " --member=serviceAccount:" + SWITCH_SA
+        + " --role=roles/cloudsql.admin --condition=None --quiet",
+        "gcloud projects add-iam-policy-binding " + S + " --member=serviceAccount:"
+        + SWITCH_SA.replace(S, P) + " --role=projects/" + S
+        + "/roles/aleogrSharedSqlSwitch --condition=None --quiet",
+        "gcloud projects add-iam-policy-binding " + S + " --member=serviceAccount:" + SWITCH_SA
+        + " --role=projects/" + S + "/roles/aleogrSharedSqlSwitch --quiet",
+        "gcloud iam service-accounts add-iam-policy-binding " + SWITCH_SA + " " + SQL
+        + " --member=serviceAccount:x@" + S + ".iam.gserviceaccount.com "
+        "--role=roles/iam.serviceAccountUser --quiet",
+        "gcloud iam service-accounts add-iam-policy-binding " + SWITCH_SA + " " + SQL
+        + " --member=user:owner@example.com --role=roles/iam.serviceAccountTokenCreator --quiet",
+        "gcloud iam roles update aleogrSharedSqlSwitch " + SQL
+        + " --permissions=cloudsql.instances.get --quiet",
+    ],
+    "gcp-cloud-sql_database-create": [
+        "gcloud sql databases create my_app_dev --instance=aleogr-shared " + SQL
+        + " --charset=UTF8 --quiet",
+        "gcloud sql databases create my_app_dev --instance=aleogr-shared " + SQL
+        + " --async --quiet",
+        "gcloud sql databases patch my_app_dev --instance=aleogr-shared " + SQL + " --quiet",
+        "gcloud sql users create demo-web@" + P + ".iam --instance=aleogr-shared " + SQL
+        + " --type=cloud_iam_service_account --quiet",
+    ],
+    "gcp-cloud-sql_access-grant": [
+        "gcloud sql users create demo-web@" + P + ".iam --instance=aleogr-shared " + SQL
+        + " --type=built_in --quiet",
+        "gcloud sql users create demo-web@" + P + ".iam.gserviceaccount.com "
+        "--instance=aleogr-shared " + SQL + " --type=cloud_iam_service_account --quiet",
+        "gcloud sql users create demo-web@" + P + ".iam --instance=aleogr-shared " + SQL
+        + " --type=cloud_iam_service_account --database-roles=pg_read_all_data --quiet",
+        "gcloud projects add-iam-policy-binding " + S + " --member=serviceAccount:" + WEB_SA
+        + " --role=roles/cloudsql.admin --condition=None --quiet",
+        "gcloud projects add-iam-policy-binding " + S + " --member=user:x@example.com "
+        "--role=roles/cloudsql.client --condition=None --quiet",
+        "gcloud projects add-iam-policy-binding " + S + " --member=serviceAccount:" + WEB_SA
+        + " --role=roles/cloudsql.client --quiet",
+        "gcloud sql instances patch aleogr-shared " + SQL + " --activation-policy=ALWAYS "
+        "--async --quiet",
+    ],
+    "gcp-artifact-registry_repository-create": [
+        "gcloud artifacts repositories create demo --project=" + P + " --location=us-central1 "
+        "--repository-format=maven --labels=aleogr-project=demo,aleogr-environment=dev",
+        "gcloud artifacts repositories create demo --project=" + P + " --location=us-central1 "
+        "--repository-format=docker --labels=aleogr-project=other,aleogr-environment=dev",
+        "gcloud artifacts repositories create demo --project=" + P + " --location=us "
+        "--repository-format=docker --labels=aleogr-project=demo,aleogr-environment=dev",
+        "gcloud artifacts repositories update demo --project=" + P + " --location=us-central1",
+    ],
+    "gcp-artifact-registry_cleanup-configure": [
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=" + CLEANUP_POLICY + " --dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=" + CLEANUP_POLICY,
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/tmp/other.json --no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/tmp/aleogr-cleanup-policy-keep-51.json --no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=aleogr-cleanup-policy-keep-3.json --no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=/var/tmp/aleogr-cleanup-policy-keep-3.json --no-dry-run",
+        "gcloud artifacts repositories set-cleanup-policies demo --location=us-central1 "
+        "--project=" + P + " --policy=" + STOP_BODY + " --no-dry-run",
+    ],
+    "gcp-artifact-registry_access-grant": [
+        "gcloud artifacts repositories add-iam-policy-binding demo --location=us-central1 "
+        "--project=" + P + " --member=serviceAccount:" + CI_SA
+        + " --role=roles/artifactregistry.admin --condition=None --quiet",
+        "gcloud artifacts repositories add-iam-policy-binding demo --location=us-central1 "
+        "--project=" + P + " --member=serviceAccount:" + CI_SA.replace(P, S)
+        + " --role=roles/artifactregistry.writer --condition=None --quiet",
+        "gcloud artifacts repositories add-iam-policy-binding demo --location=us-central1 "
+        "--project=" + P + " --member=user:x@example.com "
+        "--role=roles/artifactregistry.writer --condition=None --quiet",
+        "gcloud projects add-iam-policy-binding " + P + " --member=serviceAccount:" + CI_SA
+        + " --role=roles/artifactregistry.writer --condition=None --quiet",
+    ],
+    "gcp_environment-create": [
+        ["gcloud", "projects", "create", "aleogr-dev-my-app-x7k2", "--folder=222222222222",
+         "--name=hom my-app", "--labels=aleogr-project=my-app,aleogr-environment=dev"],
+        ["gcloud", "projects", "create", "aleogr-dev-my-app-x7k2", "--folder=222222222222",
+         "--name=dev my-app", "--labels=aleogr-project=other,aleogr-environment=dev"],
+        ["gcloud", "projects", "create", "aleogr-dev-my-app-x7k2", "--folder=222222222222",
+         "--name=dev my-app", "--labels=aleogr-project=my-app,aleogr-environment=hom"],
+        ["gcloud", "projects", "create", "aleogr-dev-my-app-x7k2", "--organization=111111111111",
+         "--name=dev my-app", "--labels=aleogr-project=my-app,aleogr-environment=dev"],
+        "gcloud projects create aleogr-shared-x7k2 --folder=222222222222 --name=shared "
+        "--labels=aleogr-project=shared,aleogr-platform=shared",
+        "gcloud projects create other-project --organization=111111111111 --name=shared "
+        "--labels=aleogr-project=shared,aleogr-platform=shared",
+        "gcloud billing projects unlink " + P,
+        "gcloud projects move " + P + " --folder=1",
+    ],
+    "gcp_services-enable": [
+        "gcloud services enable --project=" + P,
+        "gcloud services enable run.googleapis.com",
+        "gcloud services enable example.com --project=" + P,
+        "gcloud services disable run.googleapis.com --project=" + P,
+    ],
+    "gcp_budget-alert-setup": [
+        "gcloud billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X "
+        "--display-name=x --budget-amount=0BRL --threshold-rule=percent=0.5 "
+        "--billing-project=" + S,
+        "gcloud billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X "
+        "--display-name=x --budget-amount=100BRL --threshold-rule=percent=1.5 "
+        "--billing-project=" + S,
+        "gcloud billing budgets create --billing-account=0X0X0X-0X0X0X-0X0X0X "
+        "--display-name=x --budget-amount=100BRL --billing-project=" + S,
+        "gcloud billing budgets update 1b2c --billing-account=0X0X0X-0X0X0X-0X0X0X "
+        "--budget-amount=100BRL --add-threshold-rule=percent=0.5 --billing-project=" + S,
+    ],
+    "gcp_login-setup": [
+        "gcloud organizations add-iam-policy-binding 111111111111 --member=user:owner@example.com "
+        "--role=roles/iap.admin --condition=None --quiet",
+        "gcloud organizations add-iam-policy-binding 111111111111 --member=group:g@example.com "
+        "--role=roles/iap.settingsAdmin --condition=None --quiet",
+        "gcloud organizations add-iam-policy-binding 111111111111 --member=user:owner@example.com "
+        "--role=roles/iap.settingsAdmin --quiet",
+        "gcloud iap settings set settings.yaml --organization=111111111111",
+        "gcloud services enable run.googleapis.com --project=" + S,
+    ],
+    "gcp_deploy-setup": [
+        "gcloud run services update demo-web --set-env-vars=A=1 --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run services update demo-web --remove-env-vars=A --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run services update demo-web --clear-env-vars --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run services update demo-web --env-vars-file=env.yaml --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run services update demo-web --update-env-vars=A=1,B=2 --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run services update demo-web --image=example.com/x --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run services update demo-web --memory=1Gi --update-env-vars=^##^A=1 "
+        "--region=us-central1 --project=" + P + " --quiet",
+        "gcloud run services update demo-web --no-iap --region=us-central1 --project=" + P
+        + " --quiet",
+        "gcloud run services update demo-web --no-invoker-iam-check --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run services update demo-web --ingress=all --region=us-central1 --project=" + P
+        + " --quiet",
+        "gcloud run services update demo-web --min=1 --max=2 --region=us-central1 --project="
+        + P + " --quiet",
+        "gcloud run services update demo-web --min-instances=1 --region=us-central1 --project="
+        + P + " --quiet",
+        "gcloud run services update demo-web --scaling=auto --region=us-central1 --project="
+        + P + " --quiet",
+        "gcloud run services update demo-web --region=us-central1 --project=" + P + " --quiet",
+        "gcloud run services update demo-web --service-account=demo-api@" + P
+        + ".iam.gserviceaccount.com --region=us-central1 --project=" + P + " --quiet",
+        "gcloud run services update demo-web --iap --invoker-iam-check --region=us-central1 "
+        "--project=" + P + " --quiet",
+        "gcloud run deploy demo-web --image=example.com/other:latest --no-allow-unauthenticated "
+        "--iap --service-account=" + WEB_SA + " --min=0 --max=2 --cpu=1 --memory=512Mi "
+        "--cpu-throttling --labels=aleogr-project=demo,aleogr-environment=dev,"
+        "aleogr-component=web --region=us-central1 --project=" + P + " --quiet",
+        "gcloud run deploy demo-web --image=us-docker.pkg.dev/cloudrun/container/hello "
+        "--no-allow-unauthenticated --iap --service-account=" + WEB_SA + " --min=1 --max=2 "
+        "--cpu=1 --memory=512Mi --cpu-throttling --labels=aleogr-project=demo,"
+        "aleogr-environment=dev,aleogr-component=web --region=us-central1 --project=" + P
+        + " --quiet",
+        "gcloud run deploy demo-web --image=us-docker.pkg.dev/cloudrun/container/hello "
+        "--no-allow-unauthenticated --service-account=" + WEB_SA + " --min=0 --max=2 "
+        "--cpu=1 --memory=512Mi --cpu-throttling --labels=aleogr-project=demo,"
+        "aleogr-environment=dev,aleogr-component=web --region=us-central1 --project=" + P
+        + " --quiet",
+        "gcloud run deploy demo-web --image=us-docker.pkg.dev/cloudrun/container/hello "
+        "--no-allow-unauthenticated --iap --service-account=demo-api@" + P
+        + ".iam.gserviceaccount.com --min=0 --max=2 --cpu=1 --memory=512Mi --cpu-throttling "
+        "--labels=aleogr-project=demo,aleogr-environment=dev,aleogr-component=web "
+        "--region=us-central1 --project=" + P + " --quiet",
+        "gcloud run deploy demo-web --image=us-docker.pkg.dev/cloudrun/container/hello "
+        "--no-allow-unauthenticated --iap --service-account=" + WEB_SA + " --min=0 --max=2 "
+        "--cpu=1 --memory=512Mi --cpu-throttling --labels=aleogr-project=demo,"
+        "aleogr-environment=dev,aleogr-component=api --region=us-central1 --project=" + P
+        + " --quiet",
+        "gcloud run services add-iam-policy-binding demo-web --member=serviceAccount:" + CI_SA
+        + " --role=roles/run.admin --region=us-central1 --project=" + P
+        + " --condition=None --quiet",
+        "gcloud run services add-iam-policy-binding demo-web --member=user:x@example.com "
+        "--role=roles/run.invoker --region=us-central1 --project=" + P
+        + " --condition=None --quiet",
+        "gcloud projects add-iam-policy-binding " + P + " --member=serviceAccount:" + CI_SA
+        + " --role=roles/run.developer --condition=None --quiet",
+        "gcloud iam service-accounts add-iam-policy-binding " + WEB_SA
+        + " --member=serviceAccount:" + CI_SA.replace(P, S)
+        + " --role=roles/iam.serviceAccountUser --project=" + P + " --condition=None --quiet",
+        ["gcloud", "iam", "service-accounts", "create", "demo-web", "--project=" + P,
+         "--display-name=demo api", "--quiet"],
+        "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=group:g@example.com "
+        "--role=roles/iap.httpsResourceAccessor --condition=None --quiet",
+        "gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=allUsers "
+        "--role=roles/iap.httpsResourceAccessor --quiet",
+    ],
+    "gcp_access-grant": [
+        "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=group:team@example.com "
+        "--role=roles/iap.httpsResourceAccessor --condition=None --quiet",
+        "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=domain:example.com "
+        "--role=roles/iap.httpsResourceAccessor --condition=None --quiet",
+        "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=serviceAccount:" + CI_SA
+        + " --role=roles/iap.httpsResourceAccessor --condition=None --quiet",
+        "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=user:" + CI_SA
+        + " --role=roles/iap.httpsResourceAccessor --condition=None --quiet",
+        "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=user:demo-user@example.com "
+        "--role=roles/iap.admin --condition=None --quiet",
+        "gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=user:demo-user@example.com "
+        "--role=roles/iap.httpsResourceAccessor --quiet",
+        "gcloud projects add-iam-policy-binding " + P + " --member=user:demo-user@example.com "
+        "--role=roles/iap.httpsResourceAccessor --condition=None --quiet",
+        "gcloud run services add-iam-policy-binding demo-web --member=user:demo-user@example.com "
+        "--role=roles/run.invoker --region=us-central1 --project=" + P
+        + " --condition=None --quiet",
+        "gcloud iap web remove-iam-policy-binding --resource-type=cloud-run --service=demo-web "
+        "--region=us-central1 --project=" + P + " --member=allUsers "
+        "--role=roles/iap.httpsResourceAccessor --all",
+    ],
+    "gcp_ci-identity-setup": [
+        "gcloud projects add-iam-policy-binding " + P + " --member=serviceAccount:" + CI_SA
+        + " --role=roles/run.developer --condition=None --quiet",
+        "gcloud iam service-accounts add-iam-policy-binding " + CI_SA + " --project=" + P
+        + " --member=" + PRINCIPAL + " --role=roles/iam.serviceAccountTokenCreator --quiet",
+        "gcloud iam service-accounts add-iam-policy-binding " + CI_SA + " --project=" + S
+        + " --member=" + PRINCIPAL + " --role=roles/iam.workloadIdentityUser --quiet",
+        "gcloud iam service-accounts add-iam-policy-binding " + CI_SA + " --project=" + P
+        + " --member=" + PRINCIPAL.replace("/github/", "/other/")
+        + " --role=roles/iam.workloadIdentityUser --quiet",
+        "gcloud iam service-accounts create demo-ci --project=" + P + " --quiet",
+        "gcloud iam workload-identity-pools providers update-oidc github --project=" + P
+        + " --location=global --workload-identity-pool=github --attribute-condition=true "
+        "--quiet",
+        "gcloud iam workload-identity-pools undelete github --project=" + P + " --location=global",
+    ],
+})
+
+
 def words(cmd):
     return cmd.split(" ") if isinstance(cmd, str) else list(cmd)
 
 
+def root_of(skill):
+    """The folder of the plugin that holds `skill`."""
+    if skill.startswith("gcp-cloud-sql_"):
+        return DB
+    if skill.startswith("gcp-artifact-registry_"):
+        return REGISTRY
+    if skill.startswith("gcp_"):
+        return CLOUD
+    return REPO_GITHUB
+
+
 def refusal(skill, cmd):
-    return common.write_refusal(skill, words(cmd), root=REPO_GITHUB)
+    return common.write_refusal(skill, words(cmd), root=root_of(skill))
 
 
 class TestAllowlistOfWrites(unittest.TestCase):
@@ -386,6 +1020,355 @@ class TestAllowlistOfWrites(unittest.TestCase):
             self.assertEqual(err.getvalue(), "+ gh variable set GCP_REGION --repo "
                                              "example-org/example-repo --body us-central1\n")
             self.assertEqual(len(s.ran()), 1)
+
+
+class TestPerSkillIsolation(unittest.TestCase):
+    """For each of the 16 skills of part 2b, one test: every write another skill
+    prescribes is refused for it, unless it prescribes the very same command."""
+
+
+def _isolation_test(skill):
+    def test(self):
+        own = ALLOWED[skill]
+        for other, cmds in ALLOWED.items():
+            if other == skill:
+                continue
+            for cmd in cmds:
+                if any(cmd == c for c in own):
+                    continue
+                with self.subTest(other=other, cmd=" ".join(cmd)):
+                    self.assertIsNotNone(refusal(skill, cmd))
+        # Its own writes are accepted, and only with its plugin's files.
+        for cmd in own:
+            self.assertIsNone(refusal(skill, cmd), " ".join(cmd))
+    return test
+
+
+for _s in GCLOUD_SKILLS:
+    setattr(TestPerSkillIsolation, "test_" + _s.replace("-", "_"), _isolation_test(_s))
+del _s
+
+
+class TestGoogleCloudWrites(unittest.TestCase):
+    def test_sixteen_skills_have_gcloud_shapes(self):
+        self.assertEqual(len(GCLOUD_SKILLS), 16)
+        for s in GCLOUD_SKILLS:
+            self.assertEqual(common.WRITE_TOOLS[s], "gcloud", s)
+            self.assertTrue(common.WRITE_SHAPES[s], s)
+
+    def test_activation_policy_only_where_the_skill_writes_it(self):
+        always = GCLOUD_ALLOWED["gcp-cloud-sql_instance-start"][0]
+        for skill in common.WRITE_SHAPES:
+            with self.subTest(skill=skill):
+                if skill == "gcp-cloud-sql_instance-start":
+                    self.assertIsNone(refusal(skill, always))
+                else:
+                    self.assertIsNotNone(refusal(skill, always))
+                if skill in ("gcp-cloud-sql_instance-stop", "gcp-cloud-sql_instance-create"):
+                    self.assertIsNone(refusal(skill, STOP))
+                else:
+                    self.assertIsNotNone(refusal(skill, STOP))
+
+    def test_who_may_grant_which_role(self):
+        # Every add-iam-policy-binding of part 2b, by role: only the skills that name
+        # that role grant it.
+        roles = {}
+        for skill, cmds in GCLOUD_ALLOWED.items():
+            for cmd in cmds:
+                if "add-iam-policy-binding" in cmd:
+                    role = [a for a in cmd if a.startswith("--role=")][0]
+                    roles.setdefault(role.split("=", 1)[1], set()).add(skill)
+        self.assertEqual(roles, {
+            "projects/%s/roles/aleogrSharedSqlSwitch" % S: {"gcp-cloud-sql_instance-switch-setup"},
+            "roles/iam.serviceAccountUser": {"gcp-cloud-sql_instance-switch-setup",
+                                             "gcp_deploy-setup"},
+            "roles/iam.workloadIdentityUser": {"gcp-cloud-sql_instance-switch-setup",
+                                               "gcp_ci-identity-setup"},
+            "roles/cloudsql.client": {"gcp-cloud-sql_access-grant"},
+            "roles/cloudsql.instanceUser": {"gcp-cloud-sql_access-grant"},
+            "roles/artifactregistry.writer": {"gcp-artifact-registry_access-grant"},
+            "roles/iap.settingsAdmin": {"gcp_login-setup"},
+            "roles/run.invoker": {"gcp_deploy-setup"},
+            "roles/run.developer": {"gcp_deploy-setup"},
+            "roles/iap.httpsResourceAccessor": {"gcp_deploy-setup", "gcp_access-grant"},
+        })
+
+    def test_the_plugin_files_must_be_this_plugin_s(self):
+        create = GCLOUD_ALLOWED["gcp-cloud-sql_instance-switch-setup"][7]
+        self.assertIsNone(refusal("gcp-cloud-sql_instance-switch-setup", create))
+        self.assertIsNotNone(common.write_refusal("gcp-cloud-sql_instance-switch-setup", create))
+        other = [a.replace(DB, REGISTRY) for a in create]
+        self.assertIsNotNone(refusal("gcp-cloud-sql_instance-switch-setup", other))
+        policy = GCLOUD_ALLOWED["gcp-artifact-registry_cleanup-configure"][0]
+        self.assertIsNotNone(common.write_refusal("gcp-artifact-registry_cleanup-configure",
+                                                  policy, root=DB))
+
+    def test_the_temporary_policy_file_is_in_the_temporary_folder(self):
+        top = tempfile.mkdtemp()
+        try:
+            cmd = g("artifacts repositories set-cleanup-policies demo --location=us-central1 "
+                    "--project=%s --policy=%s --no-dry-run"
+                    % (P, os.path.join(top, "aleogr-cleanup-policy-keep-7.json")))
+            skill = "gcp-artifact-registry_cleanup-configure"
+            self.assertIsNone(common.write_refusal(skill, cmd, root=REGISTRY, temp=top))
+            self.assertIsNotNone(common.write_refusal(skill, cmd, root=REGISTRY))
+        finally:
+            shutil.rmtree(top)
+
+    def test_the_scheduler_job_names_this_project(self):
+        create = list(GCLOUD_ALLOWED["gcp-cloud-sql_instance-switch-setup"][7])
+        skill = "gcp-cloud-sql_instance-switch-setup"
+        for i, a in enumerate(create):
+            if a.startswith("--uri="):
+                bad = create[:i] + [a.replace(S, P)] + create[i + 1:]
+                self.assertIsNotNone(refusal(skill, bad))
+            if a.startswith("--oauth-service-account-email="):
+                bad = create[:i] + [a.replace(S, P)] + create[i + 1:]
+                self.assertIsNotNone(refusal(skill, bad))
+
+    def test_no_write_of_part_2b_is_a_read(self):
+        for skill, cmds in GCLOUD_ALLOWED.items():
+            for cmd in cmds:
+                with self.subTest(cmd=" ".join(cmd)):
+                    self.assertIsNotNone(common.read_refusal(cmd))
+
+
+# Every read the 16 skills of part 2b prescribe (both modes), as their SKILL.md writes
+# it: the read-only runner accepts each.
+READS_2B = [
+    g("sql instances describe aleogr-shared --project=%s --format=json" % S),
+    g("sql operations list --instance=aleogr-shared --project=%s --filter=status!=DONE "
+      "--limit=10 --format=value(operationType,status)" % S),
+    g("sql databases list --instance=aleogr-shared --project=%s --format=value(name)" % S),
+    g("sql users list --instance=aleogr-shared --project=%s --format=value(name)" % S),
+    g("projects get-iam-policy %s --format=json" % S),
+    g("projects describe %s --format=value(projectNumber)" % S),
+    g("config get-value account"),
+    g("iam roles describe aleogrSharedSqlSwitch --project=%s --format=value(includedPermissions)"
+      % S),
+    g("iam service-accounts describe %s --project=%s --format=value(email)" % (SWITCH_SA, S)),
+    ["gcloud", "projects", "get-iam-policy", S, "--flatten=bindings[].members",
+     "--filter=bindings.role:roles/aleogrSharedSqlSwitch", "--format=value(bindings.members)"],
+    g("iam service-accounts get-iam-policy %s --project=%s --format=json" % (SWITCH_SA, S)),
+    g("iam workload-identity-pools describe github --project=%s --location=global "
+      "--format=value(state)" % S),
+    g("iam workload-identity-pools providers describe aleogr --project=%s --location=global "
+      "--workload-identity-pool=github --format=value(attributeCondition)" % S),
+    g("iam workload-identity-pools providers list --workload-identity-pool=github "
+      "--project=%s --location=global --format=value(name)" % P),
+    g("scheduler jobs describe aleogr-shared-stop-weeknight --project=%s "
+      "--location=southamerica-east1 --format=value(schedule,timeZone,state,httpTarget.uri,"
+      "httpTarget.oauthToken.serviceAccountEmail,httpTarget.httpMethod,httpTarget.headers,"
+      "httpTarget.body,httpTarget.oauthToken.scope,lastAttemptTime,status.code)" % S),
+    g("artifacts repositories describe demo --location=us-central1 --project=%s "
+      "--format=json(name,format,labels)" % P),
+    g("artifacts repositories describe demo --location=us-central1 --project=%s --format=json"
+      % P),
+    g("artifacts repositories get-iam-policy demo --location=us-central1 --project=%s "
+      "--format=json" % P),
+    g("organizations list --format=value(name)"),
+    g("resource-manager folders list --organization=111111111111 --filter=displayName=dev "
+      "--format=value(name)"),
+    g("resource-manager folders list --folder=333333333333 --filter=displayName=dev "
+      "--format=value(name)"),
+    ["gcloud", "projects", "list", "--filter=parent.type=folder AND parent.id=222222222222 AND "
+     "labels.aleogr-project=demo AND labels.aleogr-environment=dev", "--format=value(projectId)"],
+    g("billing projects describe %s --format=value(billingEnabled)" % P),
+    g("billing accounts list --filter=open=true --format=value(name)"),
+    g("projects describe %s --format=value(lifecycleState)" % P),
+    g("services list --enabled --project=%s --format=value(config.name)" % P),
+    g("billing budgets list --billing-account=0X0X0X-0X0X0X-0X0X0X --billing-project=%s "
+      "--format=value(displayName,name)" % S),
+    g("billing budgets describe 1b2c --billing-account=0X0X0X-0X0X0X-0X0X0X "
+      "--billing-project=%s --format=json" % S),
+    ["gcloud", "organizations", "get-iam-policy", "111111111111",
+     "--flatten=bindings[].members",
+     "--filter=bindings.role=roles/iap.settingsAdmin AND bindings.members=user:o@example.com",
+     "--format=value(bindings.members)"],
+    g("services list --enabled --project=%s --filter=config.name=iap.googleapis.com "
+      "--format=value(config.name)" % S),
+    g("iap settings get --organization=111111111111 --billing-project=%s --format=json" % S),
+    g("run services describe demo-web --project=%s --region=us-central1 --format=json" % P),
+    g("run services describe demo-web --project=%s --region=us-central1 "
+      "--format=value(metadata.name)" % P),
+    g("run services get-iam-policy demo-web --project=%s --region=us-central1 --format=json"
+      % P),
+    g("iap web get-iam-policy --resource-type=cloud-run --service=demo-web --region=us-central1 "
+      "--project=%s --format=json" % P),
+    g("iam service-accounts describe %s --project=%s --format=value(email)" % (CI_SA, P)),
+    g("iam workload-identity-pools describe github --project=%s --location=global --format=json"
+      % P),
+    ["sleep", "30"],
+]
+
+READS_REFUSED_2B = [
+    "gcloud config get-value project",
+    "gcloud config get-value account extra",
+    "gcloud config set project demo",
+    "gcloud auth print-access-token",
+    "gcloud auth print-identity-token",
+    "gcloud projects describe demo --impersonate-service-account=" + CI_SA,
+    "gcloud --impersonate-service-account=" + CI_SA + " projects describe demo",
+    "gcloud iam service-accounts keys list --iam-account=" + CI_SA,
+    "gcloud scheduler jobs run aleogr-shared-stop-weeknight --location=x",
+]
+
+
+class TestReadsOfPart2b(unittest.TestCase):
+    def test_every_read_is_accepted(self):
+        for cmd in READS_2B:
+            with self.subTest(cmd=" ".join(cmd)):
+                self.assertIsNone(common.read_refusal(cmd))
+
+    def test_refused_reads(self):
+        for cmd in READS_REFUSED_2B:
+            with self.subTest(cmd=cmd):
+                self.assertIsNotNone(common.read_refusal(words(cmd)))
+
+    def test_a_name_is_not_a_flag(self):
+        # A resource may be named after the owner's project: only flags and the
+        # set-password command are refused, not a name that holds the word.
+        argv = g("sql databases create password_dev --instance=aleogr-shared " + SQL
+                 + " --quiet")
+        self.assertIsNone(refusal("gcp-cloud-sql_database-create", argv))
+
+    def test_auth_list_and_version_stay_reads(self):
+        for cmd in ("gcloud auth list --filter=status:ACTIVE --format=value(account)",
+                    "gcloud --version", "gcloud.cmd --version"):
+            self.assertIsNone(common.read_refusal(words(cmd)), cmd)
+            self.assertIsNone(common.always_refused(words(cmd)), cmd)
+
+
+class TestTemporaryFile(unittest.TestCase):
+    SKILL = "gcp-artifact-registry_cleanup-configure"
+    NAME = "aleogr-cleanup-policy-keep-7.json"
+
+    def setUp(self):
+        self.top = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.top)
+
+    def test_writes_the_exact_content_and_says_so(self):
+        err = io.StringIO()
+        path = common.write_temp_file(self.SKILL, self.NAME, "[\n  1\n]\n", stream=err,
+                                      folder=self.top)
+        self.assertEqual(path, os.path.join(self.top, self.NAME))
+        self.assertEqual(err.getvalue(), "+ write %s\n" % path)
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(), b"[\n  1\n]\n")
+        common.write_temp_file(self.SKILL, self.NAME, "x", stream=io.StringIO(), folder=self.top)
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(), b"x")  # its whole content replaced
+
+    def test_refuses_another_name_before_showing_it(self):
+        for name in ("aleogr-cleanup-policy-keep-51.json", "other.json", "../x.json",
+                     "sub/aleogr-cleanup-policy-keep-7.json", ""):
+            err = io.StringIO()
+            with self.assertRaises(common.WriteRefused):
+                common.write_temp_file(self.SKILL, name, "x", stream=err, folder=self.top)
+            self.assertEqual(err.getvalue(), "")
+        with self.assertRaises(common.WriteRefused):
+            common.write_temp_file("gcp_deploy-setup", self.NAME, "x", stream=io.StringIO(),
+                                   folder=self.top)
+        self.assertEqual(os.listdir(self.top), [])
+
+    def test_a_link_at_that_name_is_not_followed(self):
+        target = os.path.join(self.top, "target")
+        with open(target, "w") as f:
+            f.write("kept")
+        os.symlink(target, os.path.join(self.top, self.NAME))
+        self.assertIsNone(common.write_temp_file(self.SKILL, self.NAME, "x",
+                                                 stream=io.StringIO(), folder=self.top))
+        with open(target) as f:
+            self.assertEqual(f.read(), "kept")
+
+    def test_ctx_only_when_the_run_may_write(self):
+        ctx = common.Context("aleogr-registry-gcp-artifact-registry", REGISTRY, self.SKILL,
+                             Writer, "plan", {})
+        with self.assertRaises(common.WriteRefused):
+            ctx.write_temp_file(self.NAME, "x")
+
+    def test_the_system_temporary_folder(self):
+        if os.name != "nt":
+            self.assertEqual(common.system_temp_dir(), "/tmp")
+
+
+class TestBodiesAndNames(unittest.TestCase):
+    def test_the_stop_body_as_its_skill_names_it(self):
+        b64 = common.base64_of_file(STOP_BODY)
+        self.assertEqual(b64, "eyJzZXR0aW5ncyI6eyJhY3RpdmF0aW9uUG9saWN5IjoiTkVWRVIifX0=")
+        self.assertEqual(common.json_from_base64(b64),
+                         {"settings": {"activationPolicy": "NEVER"}})
+        self.assertEqual(common.json_from_base64(" eyJhIjox\nfQ== \n"), {"a": 1})
+        for bad in ("", "not base64!", "bm90IGpzb24=", None):
+            self.assertIsNone(common.json_from_base64(bad), bad)
+        self.assertIsNone(common.base64_of_file(os.path.join(DB, "files", "nothing.json")))
+
+    def test_random_name_part(self):
+        got = {common.random_name_part() for _ in range(20)}
+        self.assertTrue(all(len(x) == 4 and x.isalnum() and x == x.lower() for x in got))
+        self.assertGreater(len(got), 1)
+        self.assertEqual(len(common.random_name_part(6)), 6)
+
+
+class TestCallPluginRefused(unittest.TestCase):
+    def test_a_refused_callee_keeps_its_answer(self):
+        result = {"aleogr-result": 1, "action": "x", "status": "failed", "outputs": {},
+                  "answer": [common.REFUSED_SENTENCE, common.REFUSED_NOTHING_WRITTEN]}
+        with StandIns() as s:
+            p = os.path.join(s.dir, "aleogr-fake")
+            with open(p, "w") as f:
+                f.write("#!/bin/sh\necho '%s'\nexit 70\n" % json.dumps(result))
+            os.chmod(p, 0o755)
+            got = common.call_plugin("aleogr-fake", "x")
+            self.assertEqual(got["answer"], result["answer"])
+            self.assertEqual((got["status"], got["callError"]), ("failed", "refused"))
+            with open(p, "w") as f:
+                f.write("#!/bin/sh\necho not json\nexit 70\n")
+            self.assertEqual(common.call_plugin("aleogr-fake", "x")["callError"], "no-result")
+            with open(p, "w") as f:
+                f.write("#!/bin/sh\necho '%s'\nexit 1\n" % json.dumps(result))
+            self.assertEqual(common.call_plugin("aleogr-fake", "x")["callError"], "no-result")
+
+    def test_with_a_real_command_stopped_by_a_refusal(self):
+        # The dispatcher of a real plugin: a module whose write is refused exits 70
+        # after its failed result, and the caller gets that result.
+        top = tempfile.mkdtemp()
+        try:
+            plugin = os.path.join(top, "aleogr-demo")
+            os.makedirs(os.path.join(plugin, "scripts", "skills"))
+            os.makedirs(os.path.join(plugin, "bin"))
+            shutil.copy(os.path.join(PLUGINS, "aleogr", "scripts", "aleogr_common.py"),
+                        os.path.join(plugin, "scripts"))
+            shutil.copy(os.path.join(PLUGINS, "aleogr", "bin", "aleogr"),
+                        os.path.join(plugin, "bin", "aleogr-demo"))
+            with open(os.path.join(plugin, "scripts", "skills", "__init__.py"), "w"):
+                pass
+            with open(os.path.join(plugin, "scripts", "skills", "demo_x.py"), "w") as f:
+                f.write("FAMILY = 'cloud'\nPROVIDER = 'gcp'\nACTION = 'x'\nWRITES = True\n"
+                        "def run(args, ctx):\n"
+                        "    ctx.write(['gcloud', 'projects', 'delete', 'demo'])\n")
+            env = dict(os.environ, PATH=os.path.join(plugin, "bin") + os.pathsep
+                       + os.environ.get("PATH", ""), PYTHONDONTWRITEBYTECODE="1")
+            old = os.environ.copy()
+            os.environ.update(env)
+            saved = os.dup(2)  # the callee's stderr goes through to ours: keep it quiet
+            try:
+                with open(os.devnull, "w") as null:
+                    os.dup2(null.fileno(), 2)
+                    got = common.call_plugin("aleogr-demo", "demo_x", {"mode": "apply"})
+            finally:
+                os.dup2(saved, 2)
+                os.close(saved)
+                os.environ.clear()
+                os.environ.update(old)
+            self.assertEqual(got["callError"], "refused")
+            self.assertEqual(got["answer"], [common.REFUSED_SENTENCE,
+                                             common.REFUSED_NOTHING_WRITTEN])
+            self.assertEqual(got["mode"], "apply")
+        finally:
+            shutil.rmtree(top)
 
 
 class Writer(object):

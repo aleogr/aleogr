@@ -446,5 +446,44 @@ class TestValuesNoWriteTakes(unittest.TestCase):
                                                    skill.switch_back_command(branch)))
 
 
+class TestPlanEndsAsTheApplyWould(unittest.TestCase):
+    """mode=plan runs the same checks: a plan never announces a write the apply refuses
+    (docs/DESIGN.md, section 18)."""
+
+    def plan(self, branch="main", changed=("a.json",), mode="plan"):
+        args = dict(ARGS, title="Change")
+        if mode:
+            args["mode"] = mode
+        ctx = FakeContext({}, args)
+        found = skill.Found(branch, None, "ready", list(changed))
+        examine = skill.examine
+        skill.examine = lambda a, c, r: found
+        try:
+            return skill.run(dict(args), ctx), ctx
+        finally:
+            skill.examine = examine
+
+    def test_a_path_the_apply_refuses(self):
+        for mode in ("plan", None, "apply"):
+            with self.subTest(mode=mode):
+                r, ctx = self.plan(changed=["x.json", "a/./b.json"], mode=mode)
+                self.assertEqual((r.status, ctx.writes), ("failed", []))
+                self.assertEqual(r.block["mode"], mode or "plan")
+                self.assertEqual(r.lines, [skill.PATH_UNUSABLE.format(path="a/./b.json"),
+                                           "No local change was made in this folder."])
+
+    def test_a_branch_the_apply_refuses(self):
+        r, ctx = self.plan(branch="main+x")
+        self.assertEqual((r.status, r.block["mode"], ctx.writes), ("failed", "plan", []))
+        self.assertTrue(r.lines[0].startswith(
+            "The default branch main+x of example-org/example-repo has a name"))
+        self.assertNotIn("apply would run, without anything run now:", r.lines)
+
+    def test_a_usable_proposal_is_still_announced(self):
+        r, ctx = self.plan()
+        self.assertEqual(r.status, "would-create")
+        self.assertIn("apply would run, without anything run now:", r.lines)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -351,6 +351,26 @@ def branch_usable(branch):
     return isinstance(branch, str) and common.BRANCH_ARG.re.fullmatch(branch) is not None
 
 
+def unusable(args, ctx, reader, found):
+    """The `failed` result of a changed path or a default branch that no git or gh
+    command of steps 9 to 15 would take, or None: values the SKILL.md's rules let
+    through but that the shapes of aleogr_common's allowlist of writes refuse. Both
+    modes run it when there is something to propose, so a plan never announces a write
+    that the apply refuses."""
+    full = "%s/%s" % (args["owner"], args["name"])
+    sentence = None
+    for p in found.changed:
+        if not path_usable(p):
+            sentence = PATH_UNUSABLE.format(path=p)
+            break
+    if sentence is None and not branch_usable(found.branch):
+        sentence = BRANCH_UNUSABLE.format(branch=found.branch, full=full)
+    if sentence is None:
+        return None
+    return ctx.result("failed", outputs("ready", found.changed, None, None, found.branch),
+                      cost=G.NO_COST, lines=[sentence, _changes_line([])] + reader.notes)
+
+
 def apply(args, ctx, reader, found):
     """Steps 9 to 15: the folder is ready, no tooling pull request is open, and
     `changed` is not empty."""
@@ -370,13 +390,11 @@ def apply(args, ctx, reader, found):
 
     nothing = "Nothing was committed, and nothing reached GitHub."
 
-    # Before any write: values the SKILL.md's rules let through but that no git command
-    # of this skill takes (the shapes of aleogr_common's allowlist of writes).
-    for p in changed:
-        if not path_usable(p):
-            return ending("failed", [PATH_UNUSABLE.format(path=p)])
-    if not branch_usable(branch):
-        return ending("failed", [BRANCH_UNUSABLE.format(branch=branch, full=full)])
+    # Before any write (run() ran it already, for both modes; apply() keeps it so that
+    # it never writes without it).
+    refused = unusable(args, ctx, reader, found)
+    if refused is not None:
+        return refused
 
     # Step 9: the account, then this checkout's commit identity.
     c = reader.gh(["gh", "api", "user"])
@@ -505,6 +523,12 @@ def run(args, ctx):
             lines.append("Changed: %s." % ", ".join(found.changed))
         else:
             lines.append("None of the named files changed.")
+    if not pending and found.changed:
+        # Both modes: a path or the branch that the apply's commands would refuse ends
+        # here, with the apply's sentence, before anything is announced or written.
+        refused = unusable(args, ctx, reader, found)
+        if refused is not None:
+            return refused
     if not pending and found.changed and args.get("mode") == "apply":
         return apply(args, ctx, reader, found)
     if pending:
