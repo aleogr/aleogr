@@ -550,12 +550,19 @@ class TestWriteFile(Folder):
         self.refused("project-declare", ".aleogr/project.json")
         self.assertEqual(os.listdir(self.outside), [])
 
-    def test_a_link_that_stays_inside_is_followed(self):
+    def test_a_link_that_stays_inside_is_refused(self):
+        # Through a link that stays inside the folder a skill would write a path it does
+        # not name: a file under .git, another skill's file.
         os.makedirs("real")
         os.symlink(os.path.join(self.dir, "real"), os.path.join(self.dir, "web"))
-        self.assertTrue(common.write_file("go_setup", "web/go.mod", "module x\n",
-                                          stream=io.StringIO()))
-        self.assertEqual(self.read("real/go.mod"), b"module x\n")
+        self.refused("go_setup", "web/go.mod")
+        self.assertEqual(os.listdir("real"), [])
+        os.makedirs(".git/hooks")
+        os.makedirs(".github/workflows")
+        os.symlink("../../.git/hooks/pre-commit",
+                   os.path.join(self.dir, ".github", "workflows", "ci.yml"))
+        self.refused("github_ci-setup", ".github/workflows/ci.yml")
+        self.assertEqual(os.listdir(".git/hooks"), [])
 
     def test_refuses_a_file_the_skill_does_not_name(self):
         self.refused("github_ci-setup", ".github/workflows/deploy.yml")

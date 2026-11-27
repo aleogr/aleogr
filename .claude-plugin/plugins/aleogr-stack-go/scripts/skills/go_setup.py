@@ -640,7 +640,8 @@ class Apply(object):
 
     def done(self):
         wrote = bool(self.starting or self.check or self.dockerfile == "written"
-                     or self.modules == "added")
+                     or self.modules == "added"
+                     or getattr(self, "modules_removed", False))
         status = "created" if wrote else "unchanged"
         return self.ctx.result(status, self.outputs(False), pending=self.pending(),
                                cost=COST, lines=self.answer())

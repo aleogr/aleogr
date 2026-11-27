@@ -488,13 +488,13 @@ class _PluginFile(object):
 
 
 _OWNER_RE = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?"
-_NAME_RE = r"(?!\.\.?$)[A-Za-z0-9._-]{1,100}"
+_NAME_RE = r"(?!\.\.?(?:/|$))[A-Za-z0-9._-]{1,100}"
 REPO_ARG = _T(_OWNER_RE + "/" + _NAME_RE, "<owner>/<name>")
 ORIGIN_URL = _T(r"https://github\.com/" + _OWNER_RE + "/" + _NAME_RE + r"\.git",
                 "https://github.com/<owner>/<name>.git")
 # A branch read from GitHub (the default branch): no leading `-`, no `..`, none of the
 # characters of a refspec (`+`, `:`, `^`, `~`, `*`, a space).
-BRANCH_ARG = _T(r"(?!-)(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]{1,255}(?<![/.])", "<branch>")
+BRANCH_ARG = _T(r"(?!-)(?!HEAD$)(?!.*\.\.)(?!.*//)[A-Za-z0-9._/-]{1,255}(?<![/.])", "<branch>")
 CHANGE_BRANCH_ARG = _T(r"aleogr/change-[a-z0-9]{6}", "aleogr/change-<random>")
 # The default branch as github_checkout-setup pushes it: never a branch of a proposal.
 DEFAULT_BRANCH_ARG = _T(r"(?!aleogr/change-)" + BRANCH_ARG.re.pattern, "<default branch>")
@@ -836,9 +836,14 @@ def _inside(folder, path):
     """None when `path` (relative to `folder`) leads, through every link on its way,
     to a place inside `folder`; otherwise the reason."""
     base = os.path.realpath(folder)
-    target = os.path.realpath(os.path.join(base, path))
+    plain = os.path.normpath(os.path.join(base, path))
+    target = os.path.realpath(plain)
     if target != base and not target.startswith(base.rstrip(os.sep) + os.sep):
         return "the path leads outside the folder through a link"
+    # A link that stays inside the folder is refused too: through it a skill would
+    # write a path it does not name (a file under .git, another skill's file).
+    if target != plain or os.path.islink(plain):
+        return "the path passes through a link"
     return None
 
 
