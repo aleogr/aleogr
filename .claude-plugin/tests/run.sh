@@ -60,6 +60,13 @@ while IFS= read -r line || [ -n "$line" ]; do
         [ "$(grep -Ec -- "$re" "$log")" -ge "$n" ] || ok=0 ;;
       esac
       ;;
+    AT_MOST)
+      # AT_MOST <n> <regex>: at most <n> logged calls match (COUNT is "at least").
+      n="${arg%% *}"; re="${arg#* }"
+      case "$n" in ''|*[!0-9]*) echo "bad AT_MOST number: $line" >&2; ok=0 ;; *)
+        [ "$(grep -Ec -- "$re" "$log")" -le "$n" ] || ok=0 ;;
+      esac
+      ;;
     OUTPUT)     grep -Eq -- "$arg" "$out" || ok=0 ;;
     OUTPUT_NOT) ! grep -Eq -- "$arg" "$out" || ok=0 ;;
     RESULT_NOT)

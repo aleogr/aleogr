@@ -118,6 +118,7 @@ Create `scenarios/<name>/` with:
 | `CALLED <regex>` | some logged call matches (a `gcloud` line has the arguments only, without `gcloud`; a `gh` line starts with `gh `, a `git` line with `git `, a `go` line with `go `) |
 | `NOT_CALLED <regex>` | no logged call matches |
 | `COUNT <n> <regex>` | at least `<n>` logged calls match (pins a repeated call, such as a check before and after a change) |
+| `AT_MOST <n> <regex>` | at most `<n>` logged calls match (`0` included; pins that a call is not repeated, such as one start or one pull request: `AT_MOST 1 ^sql instances patch`) |
 | `OUTPUT <regex>` | Claude's final answer matches |
 | `OUTPUT_NOT <regex>` | Claude's final answer does not match (keeps raw error text out of the answer) |
 | `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |
