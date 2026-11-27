@@ -147,7 +147,7 @@ With `database=yes` the steps run in this order: 1, 2, then 3 for a new componen
 
 ## Answer
 
-One sentence saying what happened: the files written (`created`), the files that would be written (`would-create`), that `<path>/go.mod` exists and nothing was written (`unchanged`), that `<path>` holds Go files and no `go.mod` (`pending`), or why it failed. With `dockerfile=yes` the sentence also says whether `<path>/Dockerfile` was written, would be written, or was already there and left as it is. With `database=yes` it also says, in the same sentence or one more, what happened to the check's files, the route and the modules, and, with `route` `manual`, that `main.go` was left as it is and the one line to add. Then the result block. The answer ends with exactly one block.
+One sentence saying what happened: the files written (`created`), the files that would be written (`would-create`), that `<path>/go.mod` exists and nothing was written (`unchanged`), that `<path>` holds Go files and no `go.mod` (`pending`), or why it failed. With `dockerfile=yes` the sentence also says whether `<path>/Dockerfile` was written, would be written, or was already there and left as it is. With `database=yes` it also says, in the same sentence or one more, what happened to the check's files, the route and the modules, and, with `route` `manual`, that `main.go` was left as it is and the one line to add. Every sentence this skill prescribes with `exactly` (in the rules of the arguments and in the steps), and the `how` of the item `route`, is said word for word: never reworded, shortened or split, so that an invoking skill can relay it as it is. Then the result block. The answer ends with exactly one block.
 
 ## Result block
 

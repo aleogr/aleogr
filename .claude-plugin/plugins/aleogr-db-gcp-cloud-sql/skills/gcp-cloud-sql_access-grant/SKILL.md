@@ -24,7 +24,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 
 ## Validate first
 
-Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
+Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, word for word, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
 
 - A missing required argument: `<argument> is missing.`
 - `sharedProjectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. Otherwise: `sharedProjectId is not a GCP project id.`
@@ -51,7 +51,7 @@ Show each command before running it. Run only the commands below, in this order,
    gcloud sql instances describe <instance> --project=<sharedProjectId> --format=json
    ```
 
-   Any non-zero exit: say `The instance <instance> in <sharedProjectId> could not be read; nothing was changed. Check that it exists and that the active gcloud account may read it.` and end with `failed`. Exit 0: read the state from `settings.activationPolicy` and `state` with this table:
+   Any non-zero exit: say `The instance <instance> of the shared project could not be read; nothing was changed. Check that it exists and that the active gcloud account may read it.` and end with `failed`. Exit 0: read the state from `settings.activationPolicy` and `state` with this table:
 
    | `settings.activationPolicy` | `state` | Skill's `state` |
    |---|---|---|
@@ -75,7 +75,7 @@ Show each command before running it. Run only the commands below, in this order,
    gcloud projects get-iam-policy <sharedProjectId> --format=json
    ```
 
-   Any non-zero exit: say `The access policy of the shared project <sharedProjectId> could not be read; nothing was changed. Check that the active gcloud account may read it.` and end with `failed`. Exit 0: decide `client` and `instanceUser` as "Names" says. Each role the account does not hold is missing.
+   Any non-zero exit: say `The access policy of the shared project could not be read; nothing was changed. Check that the active gcloud account may read it.` and end with `failed`. Exit 0: decide `client` and `instanceUser` as "Names" says. Each role the account does not hold is missing.
 
 3. Only when the state is `running`, the users of the instance (both modes):
 
@@ -112,7 +112,7 @@ Show each command before running it. Run only the commands below, in this order,
    - Only on the shared project `<sharedProjectId>`, only these two roles, only to `serviceAccount:<account>`, always with `--condition=None` (it adds a binding without a condition, and `gcloud` refuses a grant without it on a policy that holds any conditional binding). Never run `set-iam-policy`, never grant on another project, a service, a service account or the instance, never pass a member other than `serviceAccount:<account>`.
    - The account may have been created moments before, in the project of its component, and not yet be visible to IAM. This skill cannot know whether it was: a non-zero exit whose text says the account does not exist (`does not exist` or `NOT_FOUND`) is taken as the refusal that waiting cures, and the grant is polled: wait 30 seconds, then run the same grant command again, alone; while it is refused that same way, wait and try again; at most 10 tries in all for that role, the first one included (so at most 9 waits, about 5 minutes). The budget is per role: in the worst case there are two polls, one for each role. A refusal of any other kind (a permission denied included) is never waited on. Any other non-zero exit, on any try, ends the poll at once, with no further wait and no further try. The tenth refusal is a failure. The answer says only that the grant was refused, and after how many tries: it never says that the account does not exist, and repeats none of the refusal's words (`does not exist`, `Service account`, `NOT_FOUND`, `PERMISSION_DENIED` or any other). This is the one decision made by an error's text, and it is safe either way: a wrong reading either waits a bounded time or ends with a sentence that a second run repairs.
    - The wait is the command `sleep 30`, the one command of this skill that is not `gcloud`. Show it, then run it with the Bash tool in the background (`run_in_background`: Claude Code refuses a `sleep` in the foreground), run nothing else while it runs, and when its completion notice arrives go on with the next try in this same run. A pending wait is part of the run: while one is pending, never end the answer, never give the result block, and never tell the owner to run anything. A wait that cannot be run, or whose completion notice never comes, counts as the refusal that ends the poll: the skill ends as after the tenth refusal, never loops and never leaves the answer unfinished.
-   - A refused grant (any non-zero exit that is not polled, or the tenth refusal) has the sentence `The account could not be given the role <role> on the shared project <sharedProjectId>. Check that the active gcloud account may change who has access to it.` The run then takes one path: no later grant, and the status is `failed`. When this run granted no role before it, end at once (the user made by step 5, if any, stays). When this run granted the other role before it, what was made stays (nothing is removed): read the policy back once, alone, with the command of step 2, decide `client` and `instanceUser` from it (from step 2's read when this one fails), report in the answer which roles the account now holds, and end; the result carries the item `access`.
+   - A refused grant (any non-zero exit that is not polled, or the tenth refusal) has the sentence `The account could not be given the role <role> on the shared project. Check that the active gcloud account may change who has access to it.` The run then takes one path: no later grant, and the status is `failed`. When this run granted no role before it, end at once (the user made by step 5, if any, stays). When this run granted the other role before it, what was made stays (nothing is removed): read the policy back once, alone, with the command of step 2, decide `client` and `instanceUser` from it (from step 2's read when this one fails), report in the answer which roles the account now holds, and end; the result carries the item `access`.
 
    When every grant of this step succeeded, read the policy back, once, alone, with the command of step 2, and decide `client` and `instanceUser` again. A role granted by this run that is still not held, or a read that fails, gives the item `access`, and the answer says what could not be confirmed.
 

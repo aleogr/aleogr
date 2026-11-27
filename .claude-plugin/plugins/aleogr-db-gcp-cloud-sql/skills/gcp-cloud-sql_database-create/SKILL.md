@@ -22,7 +22,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 
 ## Validate first
 
-Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
+Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, word for word, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
 
 - A missing required argument: `<argument> is missing.`
 - `sharedProjectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. Otherwise: `sharedProjectId is not a GCP project id.`
@@ -33,7 +33,7 @@ Before any command, check every argument, and never ask for anything. Each argum
 
 ## Names
 
-- `<database>` is `<project>_<environment>` with every `-` of the project's name written `_` (`my-app` and `dev` give `my_app_dev`; `pilot` and `dev` give `pilot_dev`). It has at most 18 characters (`project` has at most 14, `environment` 3), so it always fits PostgreSQL's limit of 63 and needs no check of its own.
+- `<database>` is `<project>_<environment>` with every `-` of the project's name written `_` (`my-app` and `dev` give `my_app_dev`; `demo` and `dev` give `demo_dev`). It has at most 18 characters (`project` has at most 14, `environment` 3), so it always fits PostgreSQL's limit of 63 and needs no check of its own.
 
 ## Steps
 
@@ -45,7 +45,7 @@ Show each command before running it. Run only the commands below, in this order,
    gcloud sql instances describe <instance> --project=<sharedProjectId> --format=json
    ```
 
-   Any non-zero exit: say `The instance <instance> in <sharedProjectId> could not be read; nothing was changed. Check that it exists and that the active gcloud account may read it.` and end with `failed`. Exit 0: read the state from `settings.activationPolicy` and `state` with this table:
+   Any non-zero exit: say `The instance <instance> of the shared project could not be read; nothing was changed. Check that it exists and that the active gcloud account may read it.` and end with `failed`. Exit 0: read the state from `settings.activationPolicy` and `state` with this table:
 
    | `settings.activationPolicy` | `state` | Skill's `state` |
    |---|---|---|

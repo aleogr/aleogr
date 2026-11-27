@@ -15,7 +15,7 @@ Free text after the skill name, as `key=value` pairs. Both are required.
 | `projectId=<id>` | The GCP project that holds the instance. |
 | `instance=<name>` | The Cloud SQL instance name (the shared platform uses `aleogr-shared`). |
 
-Validate before any command, and never ask for anything. If one is missing, end with the result block with `status` `failed`, the one sentence `<argument> is missing.` and no command. `projectId` must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. `instance` must be lowercase letters, digits and `-`, starting with a letter, at most 60 characters. If a value is invalid, end with the result block with `status` `failed`, one sentence saying which argument is wrong, and no command.
+Validate before any command, and never ask for anything. If one is missing, end with the result block with `status` `failed`, the one sentence `<argument> is missing.`, word for word, and no command. `projectId` must have 6 to 30 characters of `a-z`, `0-9` and `-`, starting with a letter and not ending with `-`. `instance` must be lowercase letters, digits and `-`, starting with a letter, at most 60 characters. If a value is invalid, end with the result block with `status` `failed`, one sentence saying which argument is wrong, and no command.
 
 ## Steps
 

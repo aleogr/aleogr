@@ -29,7 +29,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 
 ## Validate first
 
-Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
+Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, word for word, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
 
 - A missing required argument: `<argument> is missing.`
 - `projectId` has 6 to 30 characters of `a-z`, `0-9` and `-`, starts with a letter and does not end with `-`. Otherwise: `projectId is not a GCP project id.`
@@ -48,7 +48,7 @@ Before any command, check every argument, and never ask for anything. Each argum
 
 ### The settings
 
-`env` holds one or more entries separated by `;`, with no empty entry. Each entry is `<component>:<NAME>=<value>`: `<component>` is the text before its first `:`, `<NAME>` the text between that `:` and the first `=` after it, `<value>` the rest. A value is a setting's content (a connection name, an account's address) and is never written in a sentence, the answer's text or the result block: every sentence below names a setting by its name or its position only. For each entry that breaks a rule, its one sentence:
+`env` holds one or more entries separated by `;`, with no empty entry. Each entry is `<component>:<NAME>=<value>`: `<component>` is the text before its first `:`, `<NAME>` the text between that `:` and the first `=` after it, `<value>` the rest. A value is a setting's content (a connection name, an account's address) and is never written in a sentence, the answer's text or the result block: every sentence below names a setting by its name or its position only. For each entry that breaks a rule, its one sentence, word for word:
 
 - The entry has no `:` or no `=` after it: `env entry <n> must be <component>:<NAME>=<value>.` (`<n>` is the entry's position, from 1; an empty entry counts.)
 - `<NAME>` is 1 to 64 characters of `A-Z`, `0-9` and `_`, starting with a letter. Otherwise: `env entry <n> has a name that is not 1 to 64 characters of A-Z, 0-9 and _, starting with a letter.`
@@ -238,7 +238,7 @@ Show each command before running it. Run only the commands below, in this order,
 
       - The flag carries, in the order of `env`, each of the component's settings that is missing from the service or holds another value as of the read of step 3, or every one of them for a service this run created: `<NAME>=<value>` items joined by `##`, with `^##^` before the first one, even when there is only one. `^##^` makes `##` the separator of the list (`gcloud topic escaping`); a value may hold `:` and `@` but never `#`, so no value is split, and the items are never joined by `,`.
       - It is its own command, alone: never with `--image`, never with a security flag (`--iap`, `--no-iap`, `--invoker-iam-check`, `--no-invoker-iam-check`, `--ingress`, `--allow-unauthenticated`), never with a flag of d1, and never `--set-env-vars`, `--remove-env-vars`, `--clear-env-vars` or `--env-vars-file`. `--update-env-vars` changes or adds only the settings it carries: every other setting of the service is kept as it is.
-      - A failure has the sentence `The environment settings <NAME>[, <NAME>…] of the service <service> could not be set.`, naming the settings the command carried, never a value.
+      - A failure has the sentence `The environment settings <NAME>[, <NAME>…] of the service <service> could not be set.`, word for word, naming the settings the command carried, never a value.
 
    A failure of any other command of 6 stops the work at once: no later command of 6, for this component or the next ones, and no retry other than the poll of b. What was made stays (nothing is removed). Then step 7 runs, so that every service that exists is reported as it is.
 

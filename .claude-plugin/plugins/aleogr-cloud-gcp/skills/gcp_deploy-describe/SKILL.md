@@ -25,7 +25,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `e
 
 ## Validate first
 
-Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
+Before any command, check every argument, and never ask for anything. Each argument that is missing or breaks its rule gives its one sentence below, word for word, one per line; when there is at least one, the skill ends with the result block, `status` `failed`, those sentences and no `gcloud` call.
 
 - A missing required argument: `<argument> is missing.`
 - `environment`, when given, is `dev`, `hom` or `prd`. Otherwise: `environment must be dev, hom or prd.`
@@ -42,7 +42,7 @@ Before any command, check every argument, and never ask for anything. Each argum
 
 ### The settings
 
-`env` holds one or more entries separated by `;`, with no empty entry. Each entry is `<component>:<NAME>=<value>`: `<component>` is the text before its first `:`, `<NAME>` the text between that `:` and the first `=` after it, `<value>` the rest. A value is a setting's content (a connection name, an account's address) and is never written in a sentence, the answer's text or the result block: every sentence below names a setting by its name or its position only. For each entry that breaks a rule, its one sentence:
+`env` holds one or more entries separated by `;`, with no empty entry. Each entry is `<component>:<NAME>=<value>`: `<component>` is the text before its first `:`, `<NAME>` the text between that `:` and the first `=` after it, `<value>` the rest. A value is a setting's content (a connection name, an account's address) and is never written in a sentence, the answer's text or the result block: every sentence below names a setting by its name or its position only. For each entry that breaks a rule, its one sentence, word for word:
 
 - The entry has no `:` or no `=` after it: `env entry <n> must be <component>:<NAME>=<value>.` (`<n>` is the entry's position, from 1; an empty entry counts.)
 - `<NAME>` is 1 to 64 characters of `A-Z`, `0-9` and `_`, starting with a letter. Otherwise: `env entry <n> has a name that is not 1 to 64 characters of A-Z, 0-9 and _, starting with a letter.`
