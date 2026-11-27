@@ -70,3 +70,14 @@ In Cloud Shell, after the merge and the plugins' update, in `~/pilot`, with the 
 2. `/aleogr:project-apply`: `unchanged`, `nothing to do`.
 
 No cost: nothing is created and the instance is not started.
+
+## Result of the real run
+
+Run by the owner on 2026-11-27, after `/plugin marketplace update aleogr` (six plugins) and `/reload-plugins`.
+
+| Step | Expected | Result |
+|---|---|---|
+| 1. `/aleogr:project-plan` | fourteen rows `none`, the database line, `nothing to do`; no permission asked; its duration | as expected, `unchanged`, one shell command, 53 seconds |
+| 2. `/aleogr:project-apply` | `unchanged`, `nothing to do` | as expected, the three addresses, 55 seconds (the plan's skill loaded with its two allowed tools) |
+
+The same two runs took 1m15s and 1m6s in the real run of stage 4c.
