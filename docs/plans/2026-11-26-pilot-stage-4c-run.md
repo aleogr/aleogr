@@ -249,14 +249,16 @@ Stop at that step and send its whole answer (or the terminal's text), with every
 
 ## Results
 
+Run by the owner on 2026-11-27, in one sitting. The shared instance ran for less than an hour.
+
 | Step | Expected | Result |
 |---|---|---|
-| Ready | 4c merged; `gcloud` and `gh` signed in; `~/pilot` clean on `main`; `cloudsql.iam_authentication` `on` | |
-| 1. Plugins and Go | the six versions above; `go version` prints a version | |
-| 2. Shared platform | `database switch` `ready`; `database instance` `exists, stopped` (or running); `nothing to do` | |
-| 3. Declaration and check | `updated`; the warning sentence, in the answer and the pull request; six files; `go` line unchanged or `.0`, no `toolchain`; the log count `0`; `deploy-admin-dev` green; `/db` `database: not configured` | |
-| 4. The database | `updated`; the start's sentence when stopped; fourteen rows `none`, `nothing to do`; `admin: …/db`; how long the wait took | |
-| 5. `/db` | `database: ok`; `/` `admin: ok`; image count `0` | |
-| 6. Stopped | workflow green, `stopped`; `/db` `may be stopped` within a few seconds; (optional) what the list answers | |
-| 7. Nothing to do | `unchanged` twice; the line `not read: … stopped`; the instance not started | |
-| 8. Cost | `NEVER`; two services, maximum 2, 512Mi, minimum 0 | |
+| Ready | 4c merged; `gcloud` and `gh` signed in; `~/pilot` clean on `main`; `cloudsql.iam_authentication` `on` | as expected: `~/pilot` clean on `main`, the flag `cloudsql.iam_authentication` `on` |
+| 1. Plugins and Go | the six versions above; `go version` prints a version | updated inside Claude Code (`/plugin marketplace update aleogr`, five plugins bumped, then `/reload-plugins`); the versions were not listed one by one; `go version go1.27.3 linux/amd64` |
+| 2. Shared platform | `database switch` `ready`; `database instance` `exists, stopped` (or running); `nothing to do` | `database switch` `ready`, `database instance` `exists, stopped`, `nothing to do` |
+| 3. Declaration and check | `updated`; the warning sentence, in the answer and the pull request; six files; `go` line unchanged or `.0`, no `toolchain`; the log count `0`; `deploy-admin-dev` green; `/db` `database: not configured` | `project-declare` `updated`, only `"database": true` added to `admin`. `project-apply` `updated` in 4m21s: `go_setup admin: created`, `github_pull-request-open: created`, the table as expected, the warning word for word, no item `route`, six files in one pull request. After the merge: `admin / go` and `deploy-admin-dev` green, `status` and `deploy-status-dev` skipped; 1808 log lines, `0` with the id or the number; `/db` `database: not configured`. Not captured: the pull request's description and the `go` line of its diff. The log check was first run before the merge, on an older run, and repeated after it |
+| 4. The database | `updated`; the start's sentence when stopped; fourteen rows `none`, `nothing to do`; `admin: …/db`; how long the wait took | `updated`, about ten minutes from start to end by the owner's estimate, the Cloud Shell session held: `gcp_services-enable: updated`, `gcp-cloud-sql_instance-start: updated`, `gcp-cloud-sql_database-create: created`, `gcp-cloud-sql_access-grant: updated`, `gcp_deploy-setup: updated`; the start's sentence word for word; fourteen rows `none`, `database` `as declared`, `nothing to do`; the three address lines. No `github_checkout-setup` line: the folder was already up to date. How many reads failed during the wait was not captured |
+| 5. `/db` | `database: ok`; `/` `admin: ok`; image count `0` | `database: ok`; `/` `admin: ok`. The image count was not run (`admin: ok` shows the deployed image was kept) |
+| 6. Stopped | workflow green, `stopped`; `/db` `may be stopped` within a few seconds; (optional) what the list answers | workflow green in 1m2s, `aleogr-shared: stopped`; `/db` `database: not reachable (the shared instance may be stopped)`, answered quickly. The optional list on the stopped instance was not run |
+| 7. Nothing to do | `unchanged` twice; the line `not read: … stopped`; the instance not started | `unchanged` twice (1m15s and 1m6s), fourteen rows `none`, the line `The database itself was not read: the shared instance is stopped.`, `nothing to do`; the instance was not started. The first run added one sentence of its own before the table |
+| 8. Cost | `NEVER`; two services, maximum 2, 512Mi, minimum 0 | `NEVER STOPPED`; both services maximum 2, `cpu-throttling` `true`, 512Mi, no minimum |
