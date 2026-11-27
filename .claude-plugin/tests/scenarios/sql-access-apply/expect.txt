@@ -13,6 +13,8 @@ NOT_CALLED ^sql users (set|patch)
 COUNT 2 ^projects get-iam-policy aleogr-shared-ab12
 COUNT 2 ^sql users list
 ORDER ^sql users list >> ^projects add-iam-policy-binding
+# The user first, the roles after it: a role held always means the user exists.
+ORDER ^sql users create >> ^projects add-iam-policy-binding
 OUTPUT "status": "updated"
 OUTPUT "userCreated": true
 OUTPUT "user": true

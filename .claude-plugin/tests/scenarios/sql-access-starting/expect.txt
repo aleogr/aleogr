@@ -1,10 +1,11 @@
-# A starting instance: the missing role is granted, the user is not read; the item instance tells
+# A starting instance: nothing is granted and nothing is made; pending, and the item instance tells
 # to wait and plan again (project-apply would not start a starting instance).
-CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.instanceUser( |$)
-NOT_CALLED roles/cloudsql\.client
+CALLED ^sql operations list
+NOT_CALLED add-iam-policy-binding
 NOT_CALLED ^sql users
-OUTPUT "status": "updated"
+OUTPUT "status": "pending"
 OUTPUT "instanceState": "starting"
+OUTPUT "client": true
 OUTPUT "item": "instance"
 OUTPUT "how": "Wait a few minutes, then /aleogr:project-plan\.?"
 # Review Focus 7, as an allow-list: no role but the two, no binding but on the shared project,

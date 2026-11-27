@@ -1,12 +1,12 @@
-# A stopped instance: the roles are granted all the same (they live on the project); the user is
-# not read and not created; updated, with the item instance.
-CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.client( |$)
-CALLED ^projects add-iam-policy-binding aleogr-shared-ab12 .*--role=roles/cloudsql\.instanceUser( |$)
-COUNT 2 ^projects add-iam-policy-binding aleogr-shared-ab12 .*--condition=None( |$)
+# A stopped instance: nothing is granted and nothing is made (the user comes before the roles, so a
+# role held always means the user exists); pending, with the item instance; the roles still read.
+CALLED ^projects get-iam-policy aleogr-shared-ab12
+NOT_CALLED add-iam-policy-binding
 NOT_CALLED ^sql users
 NOT_CALLED ^sql operations list
-OUTPUT "status": "updated"
+OUTPUT "status": "pending"
 OUTPUT "user": null
+OUTPUT "granted": \[ ?\]
 OUTPUT "item": "instance"
 OUTPUT "how": "/aleogr:project-apply confirm=yes"
 # Every scenario of the database skills: the instance is never started, stopped or changed,
