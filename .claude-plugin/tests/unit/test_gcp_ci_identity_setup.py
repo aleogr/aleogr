@@ -1,8 +1,10 @@
-"""Unit tests of gcp_ci-identity-setup's mode=plan, the cases no scenario covers.
+"""Unit tests of gcp_ci-identity-setup: the golden commands of mode=apply, its gates (no
+write unless mode=apply), and the cases no scenario covers, in both modes.
 
-The skill's run() is given a context whose read() answers from a dict, so no provider
-command runs. The scenarios ci-identity-* of mode=plan cover the rest, in the direct mode;
-those of mode=apply are not converted in step 1.
+The skill's run() is given a context whose read() answers from a dict and whose
+execute() (where ctx.write runs a command that passed the allowlist of writes) records
+the write, so no provider command runs. The scenarios ci-identity-* cover the rest, in
+the direct mode.
 """
 
 import json
@@ -57,20 +59,47 @@ def answers(**over):
 
 
 class FakeContext(common.Context):
-    def __init__(self, answers, args):
-        common.Context.__init__(self, PLUGIN, ROOT, SKILL, skill, "plan", args)
-        self.answers = answers
+    """answers: {prefix: Completed or [Completed, ...] (one per call, the last repeated)};
+    writes: the same, for the writes (a write with no answer exits 0)."""
+
+    def __init__(self, answers, args, writes=None, read_only=False):
+        mode = args.get("mode") or "plan"
+        common.Context.__init__(self, PLUGIN, ROOT, SKILL, skill,
+                                mode if mode in ("plan", "apply") else "plan", args,
+                                read_only=read_only)
+        self.answers = {k: list(v) if isinstance(v, list) else v for k, v in answers.items()}
+        self.write_answers = {k: list(v) if isinstance(v, list) else v
+                              for k, v in (writes or {}).items()}
         self.calls = []
+        self.writes = []
+        self.waits = 0
+
+    @staticmethod
+    def _pick(table, line):
+        best = None
+        for prefix in table:
+            if line.startswith(prefix) and (best is None or len(prefix) > len(best)):
+                best = prefix
+        if best is None:
+            return common.Completed(0, "", "")
+        v = table[best]
+        if isinstance(v, list):
+            return v.pop(0) if len(v) > 1 else v[0]
+        return v
 
     def read(self, argv, timeout=None):
         assert common.read_refusal(argv) is None, argv
+        if argv[0] == "sleep":
+            self.waits += 1
+            return common.Completed(0, "", "")
         line = " ".join(argv[1:])
         self.calls.append(line)
-        best = None
-        for prefix in self.answers:
-            if line.startswith(prefix) and (best is None or len(prefix) > len(best)):
-                best = prefix
-        return self.answers[best] if best is not None else common.Completed(0, "", "")
+        return self._pick(self.answers, line)
+
+    def execute(self, argv, timeout=None):
+        # Reached only through ctx.write, after the allowlist of writes accepted argv.
+        self.writes.append(list(argv))
+        return self._pick(self.write_answers, " ".join(argv[1:]))
 
     def run(self, argv, timeout=None):
         raise AssertionError("plan never calls the plain runner: %s" % argv)
@@ -115,7 +144,17 @@ class TestValidation(unittest.TestCase):
         del args["ownerId"]
         del args["branch"]
         r = skill.run(args, FakeContext({}, args))
-        self.assertEqual(r.lines, ["ownerId is missing."])
+        self.assertEqual(r.lines, ["ownerId is missing.", "branch is missing."])
+
+    def test_every_broken_argument_has_its_sentence(self):
+        args = dict(ARGS, projectId="Aleogr_dev", repository="example-repo",
+                    repositoryId="abc", branch="my branch", mode="apply")
+        ctx = FakeContext({}, args)
+        r = skill.run(args, ctx)
+        self.assertEqual([x.split(" ")[0] for x in r.lines],
+                         ["projectId", "repository", "repositoryId", "branch"])
+        self.assertEqual((r.status, ctx.calls, ctx.writes, r.block["mode"]),
+                         ("failed", [], [], "apply"))
 
     def test_valid_edge_values(self):
         args = dict(ARGS, project="abc", branch="release/v1.2_x",
@@ -218,10 +257,203 @@ class TestFailures(unittest.TestCase):
                                  common.render_answer(r))
                 self.assertIsNone(r.block["outputs"]["ciVariables"])
 
-    def test_apply_is_not_converted(self):
-        self.assertEqual(skill.UNCONVERTED_MODES, ("apply",))
-        self.assertFalse(common._converted(skill, "apply"))
+    def test_apply_is_converted(self):
+        self.assertFalse(hasattr(skill, "UNCONVERTED_MODES"))
+        self.assertTrue(common._converted(skill, "apply"))
         self.assertTrue(common._converted(skill, "plan"))
+        self.assertTrue(skill.WRITES)
+
+
+# ---------------------------------------------------------------------------
+# mode=apply
+
+APPLY = dict(ARGS, mode="apply")
+CONDITION = ("assertion.repository=='example-org/example-repo' && "
+             "assertion.repository_id=='7654321' && assertion.repository_owner_id=='2345678' && "
+             "assertion.ref=='refs/heads/main' && assertion.job_workflow_ref.startsWith("
+             "'aleogr/aleogr/.github/workflows/deploy-cloud-run.yml@')")
+MAPPING = ("google.subject=assertion.sub,attribute.repository=assertion.repository,"
+           "attribute.ref=assertion.ref,attribute.repository_id=assertion.repository_id,"
+           "attribute.repository_owner_id=assertion.repository_owner_id,"
+           "attribute.job_workflow_ref=assertion.job_workflow_ref")
+MEMBER = ("principalSet://iam.googleapis.com/projects/123456789012/locations/global/"
+          "workloadIdentityPools/github/attribute.repository/example-org/example-repo")
+# The SKILL.md's commands of step 4, word for word (a double-quoted value is one argument,
+# without its quotes).
+GOLDEN = {
+    "account": ["gcloud", "iam", "service-accounts", "create", "demo-ci", "--project=" + PID,
+                "--display-name=demo CI", "--quiet"],
+    "pool": ["gcloud", "iam", "workload-identity-pools", "create", "github", "--project=" + PID,
+             "--location=global", "--display-name=GitHub", "--quiet"],
+    "create": ["gcloud", "iam", "workload-identity-pools", "providers", "create-oidc", "github",
+               "--project=" + PID, "--location=global", "--workload-identity-pool=github",
+               "--issuer-uri=https://token.actions.githubusercontent.com",
+               "--attribute-mapping=" + MAPPING, "--attribute-condition=" + CONDITION,
+               "--quiet"],
+    "update": ["gcloud", "iam", "workload-identity-pools", "providers", "update-oidc", "github",
+               "--project=" + PID, "--location=global", "--workload-identity-pool=github",
+               "--issuer-uri=https://token.actions.githubusercontent.com",
+               "--attribute-mapping=" + MAPPING, "--attribute-condition=" + CONDITION,
+               "--quiet"],
+    "binding": ["gcloud", "iam", "service-accounts", "add-iam-policy-binding",
+                "demo-ci@%s.iam.gserviceaccount.com" % PID, "--project=" + PID,
+                "--member=" + MEMBER, "--role=roles/iam.workloadIdentityUser", "--quiet"],
+}
+NOT_VISIBLE = common.Completed(1, "", "ERROR: NOT_FOUND: Service account does not exist.")
+
+
+def nothing_yet(**after):
+    """Nothing exists at the first read; each read after that answers `after` (by part)."""
+    first = {"account": MISSING, "pool": MISSING}
+    a = answers(**first)
+    later = answers(**after)
+    for key in a:
+        a[key] = [a[key], later[key]]
+    return a
+
+
+def apply_run(reads_, writes=None, args=None):
+    a = dict(APPLY if args is None else args)
+    common.reset_wait_budget()
+    ctx = FakeContext(reads_, a, writes)
+    r = skill.run(a, ctx)
+    common.reset_wait_budget()
+    return r, ctx
+
+
+class TestApplyGolden(unittest.TestCase):
+    def test_each_command_as_the_skill_writes_it(self):
+        self.assertEqual(skill.account_command(APPLY), GOLDEN["account"])
+        self.assertEqual(skill.pool_command(APPLY), GOLDEN["pool"])
+        self.assertEqual(skill.provider_command(APPLY, N, "create-oidc"), GOLDEN["create"])
+        self.assertEqual(skill.provider_command(APPLY, N, "update-oidc"), GOLDEN["update"])
+        self.assertEqual(skill.binding_command(APPLY, N), GOLDEN["binding"])
+        for key, argv in GOLDEN.items():
+            with self.subTest(key=key):
+                self.assertIsNone(common.write_refusal(SKILL, argv, root=ROOT))
+                self.assertNotIn("projects", argv[1:3])
+
+    def test_nothing_exists_four_creates_in_order_then_the_reads_again(self):
+        r, ctx = apply_run(nothing_yet())
+        self.assertEqual(ctx.writes, [GOLDEN[k] for k in ("account", "pool", "create",
+                                                          "binding")])
+        self.assertEqual(r.status, "created")
+        self.assertEqual(len(ctx.calls), 1 + 2 + 5)  # number, the first reads, the reads again
+        self.assertEqual(r.block["pending"], [])
+        self.assertIsNotNone(r.block["outputs"]["ciVariables"])
+        self.assertIn(skill.COST_LINE, r.lines)
+
+    def test_a_provider_that_differs_is_updated_once(self):
+        a = answers()
+        a["iam workload-identity-pools providers describe"] = [
+            ok(dict(PROVIDER, attributeCondition="x")), ok(PROVIDER)]
+        r, ctx = apply_run(a)
+        self.assertEqual(ctx.writes, [GOLDEN["update"]])
+        self.assertEqual((r.status, r.block["outputs"]["condition"]), ("updated", "as-declared"))
+
+
+class TestApplyGates(unittest.TestCase):
+    def test_no_write_unless_mode_apply(self):
+        for mode in (None, "plan"):
+            with self.subTest(mode=mode):
+                args = dict(ARGS)
+                if mode is None:
+                    del args["mode"]
+                else:
+                    args["mode"] = mode
+                ctx = FakeContext(nothing_yet(), args)
+                r = skill.run(args, ctx)
+                self.assertEqual((r.status, ctx.writes), ("would-create", []))
+        args = dict(ARGS, mode="Apply")
+        ctx = FakeContext(nothing_yet(), args)
+        r = skill.run(args, ctx)
+        self.assertEqual((r.status, ctx.writes, ctx.calls), ("failed", [], []))
+
+    def test_read_only_refuses_every_write(self):
+        ctx = FakeContext({}, APPLY, read_only=True)
+        self.assertFalse(ctx.writable)
+        for argv in GOLDEN.values():
+            with self.assertRaises(common.WriteRefused):
+                ctx.write(argv)
+        self.assertEqual(ctx.writes, [])
+
+    def test_a_failed_check_writes_nothing(self):
+        for over in ({"pool": {"state": "DELETED"}}, {"provider": dict(PROVIDER, disabled=True)},
+                     {"account": common.Completed(1, "", "PERMISSION_DENIED")}):
+            with self.subTest(over=over):
+                r, ctx = apply_run(answers(**over))
+                self.assertEqual((r.status, ctx.writes), ("failed", []))
+
+
+class TestApplyPaths(unittest.TestCase):
+    def test_unchanged_writes_and_reads_again_nothing(self):
+        r, ctx = apply_run(answers())
+        self.assertEqual((r.status, ctx.writes, len(ctx.calls)), ("unchanged", [], 6))
+        self.assertIn("This run changed nothing.", r.lines)
+
+    def test_a_stop_at_the_first_change_is_failed(self):
+        r, ctx = apply_run(nothing_yet(), writes={"iam service-accounts create":
+                                                  common.Completed(1, "", "secret-text")})
+        self.assertEqual((r.status, len(ctx.writes)), ("failed", 1))
+        self.assertEqual(r.lines, [skill._FAILED["account"] % N])
+        self.assertNotIn("secret-text", common.render_answer(r))
+        self.assertEqual(r.block["pending"], [])
+
+    def test_a_stop_after_a_change_keeps_what_was_made(self):
+        r, ctx = apply_run(nothing_yet(account=MISSING),
+                           writes={"iam workload-identity-pools create":
+                                   common.Completed(1, "", "ERROR")})
+        self.assertEqual(r.status, "created")
+        self.assertEqual(len(ctx.writes), 2)
+        items = [p["item"] for p in r.block["pending"]]
+        self.assertEqual(items[:3], ["pool", "provider", "binding"])
+        for p in r.block["pending"]:
+            self.assertTrue(p["how"].endswith(" mode=apply"))
+            self.assertTrue(p["how"].startswith("/aleogr-cloud-gcp:gcp_ci-identity-setup "))
+
+    def test_permission_denied_is_polled_only_after_this_run_created_the_account(self):
+        denied = common.Completed(1, "", "ERROR: PERMISSION_DENIED")
+        r, ctx = apply_run(nothing_yet(), writes={"iam service-accounts add-iam-policy-binding":
+                                                  [denied, denied, common.Completed(0, "", "")]})
+        self.assertEqual((ctx.waits, r.status), (2, "created"))
+        # The account exists: a binding refused is not polled.
+        r, ctx = apply_run(answers(policy={"bindings": []}),
+                           writes={"iam service-accounts add-iam-policy-binding": NOT_VISIBLE})
+        self.assertEqual((ctx.waits, r.status, len(ctx.writes)), (0, "failed", 1))
+        self.assertIn("refused after 1 try.", r.lines[0])
+
+    def test_the_poll_stops_at_ten_tries(self):
+        r, ctx = apply_run(nothing_yet(policy={"bindings": []}),
+                           writes={"iam service-accounts add-iam-policy-binding": NOT_VISIBLE})
+        self.assertEqual((len([w for w in ctx.writes if "add-iam-policy-binding" in w]),
+                          ctx.waits), (10, 9))
+        self.assertEqual(r.status, "created")
+        self.assertIn("binding", [p["item"] for p in r.block["pending"]])
+
+    def test_the_wait_budget_ends_the_poll_as_the_tenth_refusal(self):
+        a = dict(APPLY)
+        common.reset_wait_budget()
+        ctx = FakeContext(nothing_yet(), a, {"iam service-accounts add-iam-policy-binding":
+                                             NOT_VISIBLE})
+        for _ in range(15):
+            common._waited[0] += common.WAIT_SECONDS
+        r = skill.run(a, ctx)
+        common.reset_wait_budget()
+        self.assertEqual((ctx.waits, r.status), (1, "created"))
+        self.assertIn(common.WAIT_BUDGET_SENTENCE, r.lines)
+        self.assertIn("binding", [p["item"] for p in r.block["pending"]])
+        self.assertIsNone(r.block["outputs"]["ciVariables"])
+
+    def test_a_failed_read_after_the_change(self):
+        a = nothing_yet()
+        a["iam workload-identity-pools describe"] = [MISSING,
+                                                     common.Completed(1, "", "PERMISSION_DENIED")]
+        r, ctx = apply_run(a)
+        self.assertEqual(r.status, "created")
+        items = [p["item"] for p in r.block["pending"]]
+        # The reads stop at the first that fails: the parts after it were not read.
+        self.assertEqual(items, ["pool", "provider", "binding"])
+        self.assertIn("The condition could not be read after the change.", r.lines)
 
 
 if __name__ == "__main__":

@@ -1,20 +1,23 @@
 """gcp_ci-identity-setup: the keyless identity of one repository's CI in one GCP project.
-Step 1 converts mode=plan only; mode=apply is still the SKILL.md's prose (exit 64 here).
 
 The specification is skills/gcp_ci-identity-setup/SKILL.md: the same reads, in the same
 order, the same parts and states, and the same result block. The reads (read_number,
-read_parts) and the checks after them (part_failures) are written for both modes, so
-that apply can be added beside plan() without changing them.
+read_parts) and the checks after them (part_failures) are shared by both modes; plan()
+reports, apply() runs step 4 (the change of each part missing, the update of a provider
+that differs, the poll of the binding on a new account), step 5 (the reads again) and
+step 6 (the status), through the writing runner (ctx.write) only.
 """
 
 import json
 import re
 
+import aleogr_common as common  # noqa: E402  (scripts/ is on sys.path)
+
 FAMILY = "cloud"
 PROVIDER = "gcp"
 ACTION = "ci-identity-setup"
-UNCONVERTED_MODES = ("apply",)
 DEFAULT_MODE = "plan"
+WRITES = True  # mode=apply creates the parts, through ctx.write only
 
 REQUIRED = ("projectId", "project", "repository", "repositoryId", "ownerId", "branch",
             "workflow")
@@ -67,33 +70,35 @@ def _workflow_ok(value):
 
 
 def validate(args):
-    """None, or the one sentence of the first argument missing or rule broken."""
+    """The sentences of every argument missing or rule broken, one per argument, in the
+    order of the table ([] when every argument holds)."""
+    out = []
     for key in REQUIRED:
         if not args.get(key):
-            return "%s is missing." % key
-    if not _PROJECT_ID.match(args["projectId"]):
-        return ("projectId is not a valid GCP project id: it must have 6 to 30 characters of "
-                "a-z, 0-9 and -, start with a letter and not end with -.")
-    if not _PROJECT.match(args["project"]):
-        return ("project must have 3 to 14 characters of a-z, 0-9 and -, start with a letter "
-                "and not end with -.")
-    if not _repository_ok(args["repository"]):
-        return ("repository must be <owner>/<name>: an owner of 1 to 39 characters of A-Z, "
-                "a-z, 0-9 and -, not starting or ending with -, and a name of 1 to 100 "
-                "characters of A-Z, a-z, 0-9, ., _ and -, other than . and ..")
+            out.append("%s is missing." % key)
+    if args.get("projectId") and not _PROJECT_ID.match(args["projectId"]):
+        out.append("projectId is not a valid GCP project id: it must have 6 to 30 characters "
+                   "of a-z, 0-9 and -, start with a letter and not end with -.")
+    if args.get("project") and not _PROJECT.match(args["project"]):
+        out.append("project must have 3 to 14 characters of a-z, 0-9 and -, start with a "
+                   "letter and not end with -.")
+    if args.get("repository") and not _repository_ok(args["repository"]):
+        out.append("repository must be <owner>/<name>: an owner of 1 to 39 characters of "
+                   "A-Z, a-z, 0-9 and -, not starting or ending with -, and a name of 1 to "
+                   "100 characters of A-Z, a-z, 0-9, ., _ and -, other than . and ..")
     for key in ("repositoryId", "ownerId"):
-        if not _NUMERIC_ID.match(args[key]):
-            return "%s must be 1 to 20 digits, not starting with 0." % key
-    if not _branch_ok(args["branch"]):
-        return ("branch must have 1 to 255 characters of A-Z, a-z, 0-9, ., _, - and /, not "
-                "start or end with / and not contain ..")
-    if not _workflow_ok(args["workflow"]):
-        return ("workflow must be <owner>/<name>/.github/workflows/<file>.yml, with <file> of "
-                "1 to 60 characters of a-z, 0-9, - and _, and nothing after it.")
+        if args.get(key) and not _NUMERIC_ID.match(args[key]):
+            out.append("%s must be 1 to 20 digits, not starting with 0." % key)
+    if args.get("branch") and not _branch_ok(args["branch"]):
+        out.append("branch must have 1 to 255 characters of A-Z, a-z, 0-9, ., _, - and /, "
+                   "not start or end with / and not contain ..")
+    if args.get("workflow") and not _workflow_ok(args["workflow"]):
+        out.append("workflow must be <owner>/<name>/.github/workflows/<file>.yml, with <file> "
+                   "of 1 to 60 characters of a-z, 0-9, - and _, and nothing after it.")
     mode = args.get("mode")
     if mode is not None and mode not in ("plan", "apply"):
-        return "mode must be plan or apply."
-    return None
+        out.append("mode must be plan or apply.")
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -404,13 +409,16 @@ def state_lines(parts, n, states):
             lines.append("%s exists as declared." % label)
         elif state == "missing":
             lines.append("%s is missing." % label)
+        elif state == "unread":  # apply only: a read of step 5 failed before this part
+            lines.append("%s could not be read after the change." % label)
         else:
             lines.append("%s differs (%s)." % (label,
                                                 ", ".join(provider_differences(parts, n))))
     condition = condition_state(parts, n)
     lines.append({"as-declared": "The condition is as declared.",
                   "missing": "The condition is missing.",
-                  "differs": "The condition differs."}[condition])
+                  "differs": "The condition differs.",
+                  None: "The condition could not be read after the change."}[condition])
     return lines
 
 
@@ -450,11 +458,226 @@ def plan(args, ctx, n, parts):
                       lines=lines)
 
 
+# ---------------------------------------------------------------------------
+# mode=apply: the commands of step 4
+
+
+def account_command(args):
+    return ["gcloud", "iam", "service-accounts", "create", "%s-ci" % args["project"],
+            "--project=%s" % args["projectId"], "--display-name=%s CI" % args["project"],
+            "--quiet"]
+
+
+def pool_command(args):
+    return ["gcloud", "iam", "workload-identity-pools", "create", "github",
+            "--project=%s" % args["projectId"], "--location=global", "--display-name=GitHub",
+            "--quiet"]
+
+
+def provider_command(args, n, verb):
+    """`create-oidc` for a missing provider, `update-oidc` for one that differs: always
+    the issuer, the whole mapping and the whole condition."""
+    return ["gcloud", "iam", "workload-identity-pools", "providers", verb, "github",
+            "--project=%s" % args["projectId"], "--location=global",
+            "--workload-identity-pool=github", "--issuer-uri=%s" % ISSUER,
+            "--attribute-mapping=%s" % MAPPING_TEXT, "--attribute-condition=%s" % n["condition"],
+            "--quiet"]
+
+
+def binding_command(args, n):
+    return ["gcloud", "iam", "service-accounts", "add-iam-policy-binding", n["account"],
+            "--project=%s" % args["projectId"], "--member=%s" % n["member"],
+            "--role=roles/iam.workloadIdentityUser", "--quiet"]
+
+
+def all_commands(args, n):
+    return [account_command(args), pool_command(args),
+            provider_command(args, n, "create-oidc"), provider_command(args, n, "update-oidc"),
+            binding_command(args, n)]
+
+
+UNUSABLE = ("These arguments give a command this tooling does not allow; nothing was changed. "
+            "Check the arguments, then run this again.")
+MAX_TRIES = 10  # the binding's poll: at most 10 tries, so at most 9 waits
+POLLED_WORDS = ("does not exist", "NOT_FOUND", "PERMISSION_DENIED")
+COST_LINE = "There is no cost: service accounts and workload identity federation are free."
+
+_DONE = {
+    "account": "This run created the service account %(account)s.",
+    "pool": "This run created the workload identity pool github.",
+    "provider": "This run created the workload identity provider %(provider)s.",
+    "update": "This run updated the workload identity provider %(provider)s.",
+    "binding": "This run created the binding that lets the repository's CI act as the account.",
+}
+_FAILED = {
+    "account": "The service account %(account)s could not be created.",
+    "pool": "The workload identity pool github could not be created.",
+    "provider": "The workload identity provider %(provider)s could not be created.",
+    "update": "The workload identity provider %(provider)s could not be updated.",
+}
+_REASON_FAILED = {
+    "account": "The service account could not be created.",
+    "pool": "The workload identity pool could not be created.",
+    "provider": "The workload identity provider could not be created.",
+    "update": "The workload identity provider could not be updated.",
+    "binding": "The binding was refused.",
+}
+REASON_NOT_REACHED = "This run stopped before this part was made."
+REASON_MISSING = "It is still missing after the change."
+REASON_DIFFERS = "It still differs after the change."
+REASON_UNREAD = "It could not be read after the change."
+
+
+def unusable(args, ctx, n):
+    """The `failed` result of arguments that give a write the allowlist refuses, or None.
+    Both modes run it after the project number, so a plan never announces a write the
+    apply would refuse."""
+    for argv in all_commands(args, n):
+        if common.write_refusal(ctx.skill, argv, root=ctx.root):
+            return ctx.failed(UNUSABLE, outputs(Parts(), n, args, False), cost=dict(COST))
+    return None
+
+
+def _tries(count):
+    return "%d %s" % (count, "try" if count == 1 else "tries")
+
+
+def how(args):
+    """This same invocation with mode=apply."""
+    given = dict(args)
+    given["mode"] = "apply"
+    return " ".join(["/aleogr-cloud-gcp:gcp_ci-identity-setup"] + common.format_args(given))
+
+
+def apply(args, ctx, n, parts):
+    """Steps 4 to 6."""
+    states = part_states(parts, n)
+    lines = []
+    done = []  # the change commands that exited 0, by key of _DONE, in order
+    left = []  # (part, reason) of a stop
+    stopped = False
+    account_created = False
+
+    steps = []
+    if states["account"] == "missing":
+        steps.append(("account", "account", account_command(args)))
+    if states["pool"] == "missing":
+        steps.append(("pool", "pool", pool_command(args)))
+    if states["provider"] == "missing":
+        steps.append(("provider", "provider", provider_command(args, n, "create-oidc")))
+    elif states["provider"] == "differs":
+        steps.append(("provider", "update", provider_command(args, n, "update-oidc")))
+    if states["binding"] == "missing":
+        steps.append(("binding", "binding", binding_command(args, n)))
+
+    for i, (part, key, argv) in enumerate(steps):
+        if key == "binding":
+            ok, count, budget = poll_binding(ctx, argv, account_created)
+            if not ok:
+                lines.append("The binding that lets the repository's CI act as the account "
+                             "was refused after %s." % _tries(count))
+                if budget:
+                    lines.append(common.WAIT_BUDGET_SENTENCE)
+        else:
+            ok = ctx.write(argv).ok
+            if not ok:
+                lines.append(_FAILED[key] % n)
+        if not ok:
+            stopped = True
+            left.append((part, _REASON_FAILED[key]))
+            left.extend((p, REASON_NOT_REACHED) for p, _, _ in steps[i + 1:])
+            break
+        done.append(key)
+        if key == "account":
+            account_created = True
+
+    if stopped and not done:
+        # A stop at the first change command, with nothing changed.
+        return ctx.failed(lines, outputs(parts, n, args, False), cost=dict(COST),
+                          resources=resources(parts, args["project"]))
+
+    if not steps:
+        status = "unchanged"
+    else:
+        status = "updated" if done == ["update"] else "created"
+        # Step 5: the reads of step 2 again (not the project number).
+        parts = read_parts(ctx, args, n)
+
+    pending = []
+    named = set()
+    for part, reason in left:
+        named.add(part)
+        pending.append({"item": part, "reason": reason, "how": how(args)})
+    if steps:
+        verified = verified_states(parts, n)
+        for part in ("account", "pool", "provider", "binding"):
+            state = verified[part]
+            if part in named or state == "as declared":
+                continue
+            reason = {"missing": REASON_MISSING, "differs": REASON_DIFFERS}.get(state,
+                                                                              REASON_UNREAD)
+            pending.append({"item": part, "reason": reason, "how": how(args)})
+            named.add(part)
+        if parts.failure:
+            lines.append(parts.failure)
+
+    states = verified_states(parts, n) if steps else states
+    all_declared = not pending and all(s == "as declared" for s in states.values())
+    answer = []
+    if done:
+        answer.append(COST_LINE)
+    answer.extend(_DONE[key] % n for key in done)
+    answer.extend(lines)
+    answer.extend(state_lines(parts, n, states))
+    if not steps:
+        answer.append("This run changed nothing.")
+    answer.extend(members_line(other_members(parts, n)))
+    if all_declared:
+        answer.extend(ci_lines(args, n))
+    return ctx.result(status, outputs(parts, n, args, all_declared),
+                      resources=resources(parts, args["project"]), pending=pending,
+                      cost=dict(COST), lines=answer)
+
+
+def verified_states(parts, n):
+    """The part states after the reads of step 5; a part that was not read (a read
+    failed before it) is "unread"."""
+    states = part_states(parts, n)
+    if parts.failure:
+        if parts.account is None:
+            states["account"] = "unread"
+        if parts.pool is None:
+            states["pool"] = "unread"
+        if parts.provider is None:
+            states["provider"] = "unread"
+        if parts.policy is None:
+            states["binding"] = "unread"
+    return states
+
+
+def poll_binding(ctx, argv, account_created):
+    """The binding, polled only right after this run created the account: (ok, tries,
+    budget spent)."""
+    count = 0
+    while True:
+        count += 1
+        c = ctx.write(argv)
+        if c.ok:
+            return True, count, False
+        if not account_created or not any(w in c.text for w in POLLED_WORDS):
+            return False, count, False
+        if count >= MAX_TRIES:
+            return False, count, False
+        if not ctx.wait():
+            # A wait that cannot be run ends the poll as the tenth refusal does.
+            return False, count, True
+
+
 def run(args, ctx):
     mode = args.get("mode") or DEFAULT_MODE
-    problem = validate(args)
-    if problem:
-        return ctx.failed(problem, _null_outputs(), cost=dict(COST),
+    problems = validate(args)
+    if problems:
+        return ctx.failed(problems, _null_outputs(), cost=dict(COST),
                           mode=mode if mode in ("plan", "apply") else DEFAULT_MODE)
 
     number = read_number(ctx, args)
@@ -462,6 +685,9 @@ def run(args, ctx):
         return ctx.failed(PROJECT_UNREADABLE % args["projectId"], _null_outputs(),
                           cost=dict(COST))
     n = names(args, number)
+    refused = unusable(args, ctx, n)
+    if refused:
+        return refused
 
     parts = read_parts(ctx, args, n)
     failures = [parts.failure] if parts.failure else part_failures(parts, args)
@@ -471,4 +697,4 @@ def run(args, ctx):
 
     if mode == "plan":
         return plan(args, ctx, n, parts)
-    raise NotImplementedError("mode=%s is not converted" % mode)  # exits 64 before this
+    return apply(args, ctx, n, parts)
