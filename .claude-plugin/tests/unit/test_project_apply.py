@@ -794,6 +794,32 @@ STARTING_DB = {"name": "demo_dev", "instanceState": "starting", "start": False,
 RUNNING_DB = dict(STARTING_DB, instanceState="running")
 
 
+
+class TestDeclarationAfterTheUpdate(unittest.TestCase):
+    """Found in the real run of part 3a: after a merge the folder is behind; the update
+    rewrites the declaration, and what the run makes next must come from the declaration
+    as it is then, not from the folder as it was when the command started."""
+
+    def test_the_settings_are_made_from_the_updated_declaration(self):
+        merged = copy.deepcopy(DECL)
+        merged["repo"]["topics"] = ["go", "sample"]
+        merged["repo"]["description"] = "Demo project, merged"
+        before = FakePlan(rows=rows(declaration=("behind", "update")))
+        after = FakePlan(rows=rows(settings=("differs: topics", "update")), decl=merged)
+        done = FakePlan(decl=merged)
+        h = Harness([before, after, done],
+                    {"github_checkout-setup": res("updated"),
+                     "github_repo-configure": res("updated")}).run()
+        configure = h.called("github_repo-configure")
+        self.assertEqual(len(configure), 1)
+        a = configure[0][1]
+        self.assertEqual(a["topics"], "aleogr-demo,go,sample")
+        self.assertEqual(a["description"], "Demo project, merged")
+        self.assertEqual(a["mode"], "apply")
+        self.assertEqual(h.block["status"], "updated")
+        self.assertIn("github_repo-configure: updated", h.lines)
+
+
 class TestDigestAfterTheUpdate(unittest.TestCase):
     """C1: the update of the folder rewrites the declaration; the carry saved at the end of
     that command holds the digest of the declaration as it is then."""
