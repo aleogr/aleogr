@@ -27,7 +27,7 @@ sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from helpers import PLUGINS, aleogr_common as common  # noqa: E402
+from helpers import PLUGINS, aleogr_common as common, suite_line  # noqa: E402
 
 TESTS = os.path.dirname(HERE)
 
@@ -118,7 +118,7 @@ class CarryCase(unittest.TestCase):
             if code != 0 or block_of(out)["status"] != "continue":
                 break
             nxt = next_words(out)
-            self.assertEqual(nxt[0], "aleogr")
+            self.assertEqual(nxt[0], "/x/bin/aleogr")
             words = nxt[1:]
         return got
 
@@ -132,14 +132,16 @@ class TestContinue(CarryCase):
         self.assertEqual((code, err), (0, ""))
         lines = out.splitlines()
         self.assertEqual(lines[0], "Waiting: try 2 of 5.")
-        self.assertTrue(lines[1].startswith("next: aleogr project-apply 'confirm=yes' 'run="))
+        # The full path of the command's own executable, in double quotes.
+        self.assertTrue(lines[1].startswith(
+            "next: \"/x/bin/aleogr\" project-apply 'confirm=yes' 'run="))
         self.assertEqual(lines[2], "")
         self.assertEqual(lines[3], "```aleogr-result")
         block = block_of(out)
         self.assertEqual((block["status"], block["action"], block["mode"]),
                          ("continue", "project-apply", "apply"))
         words = next_words(out)
-        self.assertEqual(words[:3], ["aleogr", "project-apply", "confirm=yes"])
+        self.assertEqual(words[:3], ["/x/bin/aleogr", "project-apply", "confirm=yes"])
         run_id = words[3][len("run="):]
         self.assertRegex(run_id, r"^[a-z0-9]{12}$")
         self.assertEqual(self.files(), [run_id + ".json"])
@@ -152,7 +154,8 @@ class TestContinue(CarryCase):
         obj = json.loads(out)
         self.assertEqual((code, obj["status"]), (0, "continue"))
         self.assertEqual(obj["answer"][0], "Waiting: try 2 of 5.")
-        self.assertTrue(obj["answer"][1].startswith("next: aleogr --json project-apply 'run="))
+        self.assertTrue(obj["answer"][1].startswith(
+            "next: \"/x/bin/aleogr\" --json project-apply 'run="))
 
     def test_quoting_of_the_next_line(self):
         value = "a b=c 'd' $HOME `x` \"q\""
@@ -163,6 +166,9 @@ class TestContinue(CarryCase):
         words = next_words(out)
         self.assertEqual(words[2:4], ["confirm=yes", "note=" + value])
         self.assertEqual(common.quote_argument("it's"), "'it'\\''s'")
+        self.assertEqual(common.quote_path('/a b/"c"/$d/`e`/\\f'),
+                         '"/a b/\\"c\\"/\\$d/\\`e\\`/\\\\f"')
+        self.assertEqual(shlex.split(common.quote_path("/a b/c'd")), ["/a b/c'd"])
         # The second command's next line keeps the same arguments and replaces run=.
         code, out2, _ = self.command(orchestrator(total=9), words[1:])
         words2 = next_words(out2)
@@ -498,7 +504,31 @@ class TestTheClockAcrossCommands(unittest.TestCase):
         self.assertTrue(common.step_allowed())
         self.clock.t += 0.5
         self.assertFalse(common.step_allowed())
+        # A command's first step after its plan is never held by the limit; its second
+        # and later steps are.
         ctx = common.Context("aleogr", "/x", "project-apply", object(), "apply", {})
+        self.assertTrue(ctx.step_allowed())
+        self.assertFalse(ctx.step_allowed())
+        self.assertFalse(ctx.step_allowed())
+        self.assertEqual(ctx.steps_begun, 1)
+
+    def test_the_first_step_is_free_and_the_rest_keep_the_limit(self):
+        # ALEOGR_STEP_LIMIT=1: past one second, exactly one step per command.
+        common.start_clock({"ALEOGR_STEP_LIMIT": "1"})
+        ctx = common.Context("aleogr", "/x", "project-apply", object(), "apply", {})
+        self.clock.t += 0.5
+        self.assertTrue(ctx.step_allowed())  # within the limit: counts as the first
+        self.assertTrue(ctx.step_allowed())  # still within it
+        self.clock.t += 1
+        self.assertFalse(ctx.step_allowed())
+        ctx = common.Context("aleogr", "/x", "project-apply", object(), "apply", {})
+        self.assertTrue(ctx.step_allowed())  # a new command: its first step
+        self.assertFalse(ctx.step_allowed())
+        # Even past the deadline the first step is not held by the step limit (the
+        # deadline bounds every command it runs).
+        self.clock.t += common.RUN_DEADLINE
+        ctx = common.Context("aleogr", "/x", "project-apply", object(), "apply", {})
+        self.assertTrue(ctx.step_allowed())
         self.assertFalse(ctx.step_allowed())
 
     def test_the_environment_may_only_lower_the_step_and_wait_limits(self):
@@ -553,10 +583,11 @@ class TestTheClockAcrossCommands(unittest.TestCase):
         try:
             cmd = os.path.join(top, "aleogr-demo")
             with open(cmd, "w") as f:
-                f.write('#!/bin/sh\necho "{\\"aleogr-result\\": 1, \\"status\\": '
+                f.write('#!/bin/sh\n' + suite_line() + 'echo "{\\"aleogr-result\\": 1, \\"status\\": '
                         '\\"unchanged\\", \\"ends\\": \\"$ALEOGR_RUN_ENDS\\"}"\n')
             os.chmod(cmd, 0o755)
             os.environ["PATH"] = top + os.pathsep + "/bin" + os.pathsep + "/usr/bin"
+            common.reset_suite_checks()
             self.clock.t += 100
             got = common.call_plugin("aleogr-demo", "demo_skill")
             self.assertEqual(float(got["ends"]), self.wall.t + 570 - 100 - 30)
@@ -637,6 +668,16 @@ def run(args, ctx):
         return ctx.result("pending", {}, lines=["The wait was refused."])
     return ctx.result("unchanged", {}, lines=["Waited."])
 ''',
+    "demo_rewrite": '''
+FAMILY, PROVIDER, ACTION = "repo", "demo", "demo-rewrite"
+def text():
+    with open("notes/a.txt") as f:
+        return f.read().strip()
+def run(args, ctx):
+    before = text()
+    ctx.read(["git", "status", "--porcelain"])
+    return ctx.result("unchanged", {}, lines=["before: " + before, "after: " + text()])
+''',
     "demo_slow": '''
 FAMILY, PROVIDER, ACTION = "db", "demo", "demo-slow"
 def run(args, ctx):
@@ -665,10 +706,16 @@ def run(args, ctx):
 }
 
 # A command that misbehaves: `loopy wrong` names another skill in its next: line,
-# `loopy forever` always continues.
+# `loopy bare` names the command by its bare name (not the full path of its own
+# executable), `loopy forever` always continues.
 LOOPY = r'''#!/bin/sh
 echo "loopy $*" >> "$FAKE_LOG"
-case "$1" in wrong) next="loopy other 'a=1' 'run=aaaaaaaaaaaa'" ;; *) next="loopy $1 'a=1' 'run=aaaaaaaaaaaa'" ;; esac
+self="\"$(cd "$(dirname "$0")" && pwd -P)/loopy\""
+case "$1" in
+  wrong) next="$self other 'a=1' 'run=aaaaaaaaaaaa'" ;;
+  bare) next="loopy bare 'a=1' 'run=aaaaaaaaaaaa'" ;;
+  *) next="$self $1 'a=1' 'run=aaaaaaaaaaaa'" ;;
+esac
 printf 'Waiting.\nnext: %s\n\n```aleogr-result\n{ "aleogr-result": 1, "status": "continue" }\n```\n' "$next"
 '''
 
@@ -753,9 +800,20 @@ class TestTheHarnessLoop(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.top)
 
-    def scenario(self, name, prompt, expect, clock=None):
+    def scenario(self, name, prompt, expect, clock=None, step_limit=None, after=None,
+                 files=None):
         d = os.path.join(self.tests, "scenarios", name)
         os.makedirs(os.path.join(d, "responses"))
+        if step_limit is not None:
+            with open(os.path.join(d, "step-limit"), "w") as f:
+                f.write(step_limit)
+        for top, tree in (("after", after), ("files", {"": files} if files else None)):
+            for folder, content in (tree or {}).items():
+                for path, text in content.items():
+                    p = os.path.join(d, top, folder, path)
+                    os.makedirs(os.path.dirname(p), exist_ok=True)
+                    with open(p, "w") as f:
+                        f.write(text)
         with open(os.path.join(d, "prompt.txt"), "w") as f:
             f.write(prompt + "\n")
         with open(os.path.join(d, "expect.txt"), "w") as f:
@@ -791,7 +849,7 @@ class TestTheHarnessLoop(unittest.TestCase):
             "OUTPUT ^Waiting: try 8 of 30\\.$"], clock="sleep-counts\n")
         self.assertEqual(code, 1)
         self.assertIn("commands (4):", out)
-        self.assertIn("  demo demo_apply total=30 run=", out)
+        self.assertIn("/plugins/demo/bin/demo demo_apply total=30 run=", out)
 
     def test_the_bound_of_eight_commands(self):
         code, out = self.scenario("bound", "/demo:demo_apply total=100", [
@@ -805,6 +863,71 @@ class TestTheHarnessLoop(unittest.TestCase):
         self.assertIn("(the answer says continue, but its next: line is not this command)",
                       out)
         self.assertIn("commands (1):", out)
+
+    def test_a_next_line_with_the_bare_command_fails(self):
+        # Another command of the same name may be first on PATH: the next: line must
+        # name this command's own executable by its full path.
+        code, out = self.scenario("bare", "/loopy:bare a=1", ["CALLED ^loopy bare"])
+        self.assertEqual(code, 1)
+        self.assertIn("(the answer says continue, but its next: line is not this command)",
+                      out)
+        self.assertIn("commands (1):", out)
+
+    def test_the_first_command_is_this_repository_s_by_its_full_path(self):
+        # Another `demo` first on PATH is never run: the harness runs the plugin folder's.
+        other = os.path.join(self.top, "other")
+        os.makedirs(other)
+        with open(os.path.join(other, "demo"), "w") as f:
+            f.write("#!/bin/sh\necho other >> \"$FAKE_LOG\"\nexit 1\n")
+        os.chmod(os.path.join(other, "demo"), 0o755)
+        old = os.environ["PATH"]
+        os.environ["PATH"] = other + os.pathsep + old
+        try:
+            code, out = self.scenario("first", "/demo:demo_apply total=2", [
+                "OUTPUT ^Ready after 2 tries in 1 commands\\.$", "NOT_CALLED ^other",
+                "COMMANDS 1"])
+        finally:
+            os.environ["PATH"] = old
+        self.assertEqual((code, out), (0, "PASS first\n"))
+
+    def test_the_commands_line(self):
+        code, out = self.scenario("count", "/demo:demo_apply total=30", [
+            "COMMANDS 4"], clock="sleep-counts\n")
+        self.assertEqual((code, out), (0, "PASS count\n"))
+        code, out = self.scenario("count-wrong", "/demo:demo_apply total=30", [
+            "COMMANDS 3"], clock="sleep-counts\n")
+        self.assertEqual(code, 1)
+        self.assertIn("  COMMANDS 3", out)
+
+    def test_the_step_limit_file(self):
+        # A step limit of one second, and each wait a step of 30 s of the clock: after
+        # its first step a command is past the limit, so one try per command until the
+        # eighth, which may not continue.
+        code, out = self.scenario("stepped", "/demo:demo_apply total=30", [
+            "OUTPUT ^Stopped after 8 tries\\.$", "COMMANDS 8", "COUNT 8 ^sleep 30$",
+            "AT_MOST 8 ^sleep 30$"], clock="sleep-counts\n", step_limit="1\n")
+        self.assertEqual((code, out), (0, "PASS stepped\n"))
+        for i, bad in enumerate(("0\n", "241\n", "fast\n", "1 2\n")):
+            with self.subTest(step_limit=bad):
+                code, out = self.scenario("bad-step-%d" % i, "/demo:demo_apply",
+                                          ["CALLED ."], step_limit=bad)
+                self.assertEqual(code, 2)
+                self.assertIn("bad step-limit file", out)
+
+    def test_a_folder_rewrite_on_a_call(self):
+        # after/<call prefix>/ is copied over the working folder when a matching call is
+        # made, and never before it.
+        code, out = self.scenario("rewrite", "/demo:demo_rewrite", [
+            "OUTPUT ^before: old$", "OUTPUT ^after: new$", "FILE notes/a.txt ^new$",
+            "FILE .hidden ^yes$", "CALLED ^git status --porcelain$"],
+            after={"git_status": {"notes/a.txt": "new\n", ".hidden": "yes\n"},
+                   "git_pus%": {"notes/a.txt": "pushed\n"}},
+            files={"notes/a.txt": "old\n"})
+        self.assertEqual((code, out), (0, "PASS rewrite\n"))
+        # Without after/, a call changes no file.
+        code, out = self.scenario("no-rewrite", "/demo:demo_rewrite", [
+            "OUTPUT ^after: old$", "FILE notes/a.txt ^old$"], files={"notes/a.txt": "old\n"})
+        self.assertEqual((code, out), (0, "PASS no-rewrite\n"))
 
     def test_a_run_that_never_ends_fails_after_eight_commands(self):
         code, out = self.scenario("forever", "/loopy:forever a=1",

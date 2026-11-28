@@ -1,6 +1,6 @@
 ---
 description: Google Cloud (GCP) deploy setup. Use to make each component of an aleogr project run, in the GCP project of an environment, as a Cloud Run service as declared - created with the placeholder image in one command that keeps it behind the login (IAP) and never public, with its own account, no instance always on and billing by request - and to let the CI account replace its image (roles on that service and that account only, never on the project) and the person running it get in. Sets the settings it is given, in their own command, last. Repairs an existing service that differs without ever changing its image. Idempotent; plan by default.
-allowed-tools: Bash(aleogr-cloud-gcp --read-only gcp_deploy-setup), Bash(aleogr-cloud-gcp --read-only gcp_deploy-setup *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_deploy-setup), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_deploy-setup *)
 ---
 
 # gcp_deploy-setup
@@ -39,13 +39,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-cloud-gcp gcp_deploy-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" gcp_deploy-setup <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-cloud-gcp --read-only gcp_deploy-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_deploy-setup <arguments>
   ```
 
 Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
@@ -63,8 +63,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-cloud-gcp ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` and the block is as it is below.
 
 The block:
 

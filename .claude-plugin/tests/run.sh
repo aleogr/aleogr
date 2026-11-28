@@ -3,15 +3,19 @@
 # Usage: .claude-plugin/tests/run.sh <scenario>
 # Env:   TEST_MODEL (default: sonnet)
 #        RUN_MODE=direct: no model. Runs the plugin command that prompt.txt names
-#        (/<plugin>:<skill> args runs <plugin> <skill> args) with the fakes and every
-#        plugin's bin/ on PATH; its stdout is the answer. Exit 3 and "NOT CONVERTED
-#        <scenario>" when the prompt is not one slash command of a skill, or the
-#        command answers 64 (that skill or mode is not converted). While an answer's
-#        block says `continue`, the command of its `next:` line runs next (the same
-#        command and skill, the same arguments and one run=; at most eight commands);
-#        the last command's stdout is the answer.
+#        (/<plugin>:<skill> args runs <this repository>/.claude-plugin/plugins/<plugin>/
+#        bin/<plugin> <skill> args, by its full path, as a shell runs the command of its
+#        own plugin's folder) with the fakes and every plugin's bin/ on PATH; its stdout
+#        is the answer. Exit 3 and "NOT CONVERTED <scenario>" when the prompt is not one
+#        slash command of a skill, or the command answers 64 (that skill or mode is not
+#        converted). While an answer's block says `continue`, the command of its `next:`
+#        line runs next (the full real path of the same command, in double quotes, the
+#        same skill, the same arguments and one run=; at most eight commands); the last
+#        command's stdout is the answer.
 #        In both modes a file `clock` (one line `sleep-counts`) makes each logged
-#        `sleep 30` move the run's clock by 30 s.
+#        `sleep 30` move the run's clock by 30 s, a file `step-limit` (one line: a whole
+#        number of seconds from 1 to 240) sets ALEOGR_STEP_LIMIT, and a folder `after/`
+#        rewrites the working folder on a call (bin/fake-cli: FAKE_AFTER, FAKE_FOLDER).
 set -u
 
 if [ $# -ne 1 ]; then echo "usage: run.sh <scenario>" >&2; exit 2; fi
@@ -21,7 +25,7 @@ case "${RUN_MODE:-}" in
 esac
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-plugins="$(cd "$here/../plugins" && pwd)"
+plugins="$(cd "$here/../plugins" && pwd -P)"
 repo="$(cd "$here/../.." && pwd)"
 scenario="$here/scenarios/$1"
 if [ ! -f "$scenario/prompt.txt" ] || [ ! -f "$scenario/expect.txt" ]; then
@@ -47,6 +51,24 @@ if [ -e "$scenario/clock" ]; then
   if [ "$(cat "$scenario/clock")" = sleep-counts ]; then sleep_clock=1
   else echo "bad clock file (one line: sleep-counts): $scenario/clock" >&2; exit 2; fi
 fi
+# A file `step-limit` holding one whole number of seconds from 1 to 240: the run's step
+# limit (ALEOGR_STEP_LIMIT, a test aid that can only lower it). Every command still
+# makes one step after its plan, so a limit shorter than a plan makes each command of
+# the run make exactly one step. Both modes set it, as for `clock`.
+step_limit=""
+if [ -e "$scenario/step-limit" ]; then
+  step_limit="$(cat "$scenario/step-limit")"
+  case "$step_limit" in
+    [1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-3][0-9]|240) ;;
+    *) echo "bad step-limit file (one line: 1 to 240): $scenario/step-limit" >&2; exit 2 ;;
+  esac
+fi
+# A folder `after/` of the scenario: each of its folders, named as a response file is
+# named (a prefix of the call, spaces and "/" written "_"), holds files that the fake
+# copies over the working folder when a call matching that prefix is made (such as the
+# pull that brings a merged declaration). FAKE_FOLDER is the working folder.
+after=""
+if [ -d "$scenario/after" ]; then after="$scenario/after"; fi
 
 if [ "${RUN_MODE:-}" = direct ]; then
   err="$work/command.err"
@@ -71,14 +93,16 @@ sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
   fi
   argv=()
   while IFS= read -r -d '' w; do argv+=("$w"); done < "$work/argv"
-  if [ ! -x "$plugins/${argv[0]}/bin/${argv[0]}" ]; then echo "NOT CONVERTED $1"; exit 3; fi
+  command_path="$plugins/${argv[0]}/bin/${argv[0]}"
+  if [ ! -x "$command_path" ]; then echo "NOT CONVERTED $1"; exit 3; fi
   bins=""
   for b in "$plugins"/*/bin; do bins="$bins:$b"; done
   # A run in more than one command: while the answer's block says `continue`, run the
-  # command of its `next:` line (the same plugin command and skill, the same arguments
-  # and one `run=`), at most eight commands in all. The answer is the last command's
-  # stdout; the call log and stderr are the whole run's.
-  cmd=("${argv[@]}")
+  # command of its `next:` line (the same plugin command, by the full real path of its
+  # executable, the same skill, the same arguments and one `run=`), at most eight
+  # commands in all. The answer is the last command's stdout; the call log and stderr
+  # are the whole run's.
+  cmd=("$command_path" "${argv[@]:1}")
   commands=0
   loop_error=""
   : > "$err"
@@ -89,7 +113,10 @@ sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
     (
       cd "$work/cwd" || exit 1
       unset ALEOGR_RUN_ENDS ALEOGR_STEP_LIMIT ALEOGR_WAIT_CLOCK_LIMIT ALEOGR_TEST_SLEEP_CLOCK
+      unset FAKE_AFTER FAKE_FOLDER
       if [ -n "$sleep_clock" ]; then export ALEOGR_TEST_SLEEP_CLOCK=1; fi
+      if [ -n "$step_limit" ]; then export ALEOGR_STEP_LIMIT="$step_limit"; fi
+      if [ -n "$after" ]; then export FAKE_AFTER="$after" FAKE_FOLDER="$work/cwd"; fi
       PATH="$here/bin$bins:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
         PYTHONDONTWRITEBYTECODE=1 "${cmd[@]}" < /dev/null > "$out" 2>> "$err"
     )
@@ -99,9 +126,11 @@ sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
     # 0: `continue`, the next command NUL-separated in $work/next; 1: the run ended;
     # 2: a `continue` whose next: line is missing or not this command.
     PYTHONDONTWRITEBYTECODE=1 python3 -I -c '
-import json, shlex, sys
+import json, os, shlex, sys
 out = open(sys.argv[1], encoding="utf-8").read().splitlines()
 argv = [w for w in open(sys.argv[2], encoding="utf-8").read().split("\0")[:-1]]
+# The command is the one this harness ran first, by the full real path of its executable.
+argv[0] = os.path.realpath(sys.argv[3])
 starts = [i for i, l in enumerate(out) if l.strip().startswith("```aleogr-result")]
 if not starts:
     sys.exit(1)
@@ -125,7 +154,7 @@ if words[:2] != argv[:2] or plain(words[2:]) != plain(argv[2:]) \
         or len(words) - len(plain(words)) != 1 or not words[-1].startswith("run="):
     sys.exit(2)
 sys.stdout.write("".join(w + "\0" for w in words))
-' "$out" "$work/argv" > "$work/next"
+' "$out" "$work/argv" "$command_path" > "$work/next"
     case $? in
       0) ;;
       1) break ;;
@@ -140,8 +169,10 @@ sys.stdout.write("".join(w + "\0" for w in words))
 else
 (
   cd "$work/cwd" || exit 1
-  unset ALEOGR_TEST_SLEEP_CLOCK
+  unset ALEOGR_TEST_SLEEP_CLOCK ALEOGR_STEP_LIMIT FAKE_AFTER FAKE_FOLDER
   if [ -n "$sleep_clock" ]; then export ALEOGR_TEST_SLEEP_CLOCK=1; fi
+  if [ -n "$step_limit" ]; then export ALEOGR_STEP_LIMIT="$step_limit"; fi
+  if [ -n "$after" ]; then export FAKE_AFTER="$after" FAKE_FOLDER="$work/cwd"; fi
   PATH="$here/bin:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
     claude -p "$(cat "$scenario/prompt.txt")" \
       --model "${TEST_MODEL:-sonnet}" \
@@ -185,6 +216,14 @@ while IFS= read -r line || [ -n "$line" ]; do
       n="${arg%% *}"; re="${arg#* }"
       case "$n" in ''|*[!0-9]*) echo "bad AT_MOST number: $line" >&2; ok=0 ;; *)
         [ "$(grep -Ec -- "$re" "$log")" -le "$n" ] || ok=0 ;;
+      esac
+      ;;
+    COMMANDS)
+      # COMMANDS <n>: the run took exactly <n> commands (the first and its next: ones).
+      # The direct mode only: with the model the loop is the model's, and the line is
+      # not checked.
+      case "$arg" in ''|*[!0-9]*) echo "bad COMMANDS number: $line" >&2; ok=0 ;; *)
+        if [ "${RUN_MODE:-}" = direct ] && [ "$commands" -ne "$arg" ]; then ok=0; fi ;;
       esac
       ;;
     OUTPUT)     grep -Eq -- "$arg" "$out" || ok=0 ;;

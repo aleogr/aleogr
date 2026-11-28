@@ -1,0 +1,25 @@
+# As project-apply-pull-rewrites-declaration (the pull rewrites the folder's declaration), run as
+# the shell runs it with a step limit of one second (the file step-limit): every command makes
+# exactly one step after its plan, so the run takes three commands: the folder's update, the
+# configure, the last plan. The digest of the carried file is taken after the update, from the
+# declaration as the pull left it, so the second command recalls the first (no sentence that an
+# earlier part could not be recalled). The configure is given the new topics, nothing is made
+# twice, and the final answer is the one-command run's.
+COMMANDS 3
+# Three commands, each plans once (tools-check's gh read opens every plan).
+COUNT 3 ^gh --version
+AT_MOST 3 ^gh --version
+AT_MOST 1 pull --ff-only
+AT_MOST 1 ^gh repo edit
+ORDER ^git -c credential.* pull --ff-only origin main >> ^gh repo edit example-org/demo
+CALLED ^gh repo edit example-org/demo .*--add-topic status-page
+NOT_CALLED ^git (commit|.*push)|^gh pr create
+FILE .aleogr/project.json "topics": \["sample", "status-page"\]
+OUTPUT ^github_checkout-setup: updated$
+OUTPUT ^github_repo-configure: updated$
+OUTPUT "status": "updated"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT_NOT could not be recalled
+OUTPUT_NOT ^next:
+OUTPUT_NOT "status": "continue"
+OUTPUT_NOT "item": "confirm"

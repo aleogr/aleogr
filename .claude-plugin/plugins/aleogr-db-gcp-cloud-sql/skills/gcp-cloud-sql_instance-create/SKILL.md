@@ -1,6 +1,6 @@
 ---
 description: Google Cloud SQL (gcp-cloud-sql) instance create. Use to create the shared platform's Cloud SQL for PostgreSQL instance, leave it stopped (with stopJob, by running the night-stop job, which proves it works) and verify it. Idempotent (an existing instance is never touched); plan by default; apply needs confirm=yes. Fixed cost of about R$ 50 per month while stopped.
-allowed-tools: Bash(aleogr-db-gcp-cloud-sql --read-only gcp-cloud-sql_instance-create), Bash(aleogr-db-gcp-cloud-sql --read-only gcp-cloud-sql_instance-create *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" --read-only gcp-cloud-sql_instance-create), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" --read-only gcp-cloud-sql_instance-create *)
 ---
 
 # gcp-cloud-sql_instance-create
@@ -40,13 +40,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-db-gcp-cloud-sql gcp-cloud-sql_instance-create <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" gcp-cloud-sql_instance-create <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-db-gcp-cloud-sql --read-only gcp-cloud-sql_instance-create <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" --read-only gcp-cloud-sql_instance-create <arguments>
   ```
 
 Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
@@ -62,8 +62,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-db-gcp-cloud-sql ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again. An instance that runs is charged by the hour: stop it with /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-db-gcp-cloud-sql could not be run: update the plugin aleogr-db-gcp-cloud-sql, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again. An instance that runs is charged by the hour: stop it with /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql could not be run: update the plugin aleogr-db-gcp-cloud-sql, then try again.` and the block is as it is below.
 
 The block:
 

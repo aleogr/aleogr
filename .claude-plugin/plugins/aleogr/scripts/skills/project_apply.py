@@ -468,10 +468,11 @@ class Apply(object):
         self.args = dict(args)
         self.ctx = ctx
         self.carry = carry
-        self._plan_fn = plan_fn or (lambda a: PP.plan(a, ctx))
+        self._plan_fn = plan_fn or (lambda a: PP.plan(a, ctx, again=self.again()))
         self._call_fn = call_fn or (lambda command, skill, a, read_only:
                                     common.call_plugin(command, skill, a,
-                                                       read_only=read_only))
+                                                       read_only=read_only,
+                                                       caller=ctx.plugin))
         self.confirm = args.get("confirm") == "yes"
         self.visibility_arg = args.get("confirmVisibility")
         self.sentences = [lost] if lost else []
@@ -566,6 +567,12 @@ class Apply(object):
     def decl(self):
         return self.source.reads.decl if self.source is not None else None
 
+    def again(self):
+        """This skill as the owner ran it: `/aleogr:project-apply` and the arguments it
+        was given, in their order (validated: confirm and confirmVisibility only)."""
+        return " ".join(["/aleogr:project-apply"]
+                        + ["%s=%s" % (k, v) for k, v in self.args.items()])
+
     def defaults(self, dotted):
         return PP.Defaults(self.ctx.plugin_path("defaults.json")).get(dotted, "scalar")
 
@@ -591,6 +598,9 @@ class Apply(object):
         return a
 
     def check_step(self, what):
+        """Before a step (a call, or a plan after the first): the step limit, which never
+        holds the first step after this command's first plan (ctx.step_allowed), so every
+        command of a run makes at least one step."""
         if self.ctx.step_allowed():
             return
         raise Continue(CONTINUE_LINE % what, lambda: self.commands_limit(what))
@@ -604,6 +614,10 @@ class Apply(object):
         if step:
             self.check_step(what or skill)
         r = self._call_fn(command, skill, a, read_only)
+        if isinstance(r, dict) and r.get("callError") == "version":
+            # A command of another suite: nothing else is run, said once, and the item is
+            # this skill as the owner ran it.
+            self.end("failed", [item("plugins", self.again())], sentences=[first_sentence(r)])
         if common.ended_by_limit(r):
             self.cut_line(line or skill, r, cloud=command != GH and command != GO)
             if on_cut is not None:
@@ -789,6 +803,10 @@ class Apply(object):
             p = self.first = self.plan = self.poll_plan(p, self.plan_args())
             self.source = p
         if p.failure is not None:
+            if getattr(p.failure, "called", False):
+                # A failed read of a skill the plan invoked: its sentence is in the table's
+                # lines, once; the item's `how` is this skill as the owner ran it.
+                self.end("failed", [item(p.failure.item, self.again())])
             self.end("failed", p.pending)
         if state(p, "components") == PP.NEEDS_GO:
             self.end("pending", p.pending)

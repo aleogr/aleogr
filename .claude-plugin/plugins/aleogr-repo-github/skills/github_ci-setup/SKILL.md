@@ -1,6 +1,6 @@
 ---
 description: GitHub CI setup, with the gh CLI. Use to write a project's `.github/workflows/ci.yml`, which runs a reusable workflow once per declared component (only when that component's folder or the file itself changed) and ends with one job `ci` that is the required status check, plus, when an environment is given, one deploy job per listed component (those whose service exists) that runs only on a push to the default branch, or, in plan mode, to learn whether the file in this folder and in the repository is as declared. The file's first line is a marker built from the components; the reusable workflow is pinned by commit, kept when the file is regenerated. Writes only that file in this folder; never commits or pushes (a pull request carries it). Plan by default.
-allowed-tools: Bash(aleogr-repo-github --read-only github_ci-setup), Bash(aleogr-repo-github --read-only github_ci-setup *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_ci-setup), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_ci-setup *)
 ---
 
 # github_ci-setup
@@ -38,13 +38,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-repo-github github_ci-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" github_ci-setup <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-repo-github --read-only github_ci-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_ci-setup <arguments>
   ```
 
 Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
@@ -58,8 +58,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
 
 The block:
 

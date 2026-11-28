@@ -1,6 +1,6 @@
 ---
 description: Google Cloud (GCP) access grant. Use to let one person in, through the login (IAP), to the Cloud Run services of an aleogr project's components in the GCP project of an environment - by granting that person's e-mail, as `user:<e-mail>` only, the role that passes the login on each service, never on the project - or to list how many people each service lets in. Never grants a group, a domain, a service account or everyone, and removes nothing. Idempotent; plan by default. No cost.
-allowed-tools: Bash(aleogr-cloud-gcp --read-only gcp_access-grant), Bash(aleogr-cloud-gcp --read-only gcp_access-grant *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_access-grant), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_access-grant *)
 ---
 
 # gcp_access-grant
@@ -34,13 +34,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-cloud-gcp gcp_access-grant <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" gcp_access-grant <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-cloud-gcp --read-only gcp_access-grant <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_access-grant <arguments>
   ```
 
 Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
@@ -54,8 +54,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-cloud-gcp ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` and the block is as it is below.
 
 The block:
 

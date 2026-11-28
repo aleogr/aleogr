@@ -1,6 +1,6 @@
 ---
 description: GitHub pull request open, with the gh and git CLIs. Use, in a folder that is a checkout of a GitHub repository, to propose named files by pull request - commits only those files on a new branch aleogr/change-<random>, pushes that branch, opens the pull request and returns the folder to the default branch - or, in plan mode, to learn whether a tooling pull request is already open, whether the folder is fit for a proposal and which of the named files changed. Never commits on or pushes to the default branch, never merges; one open tooling pull request per repository; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
-allowed-tools: Bash(aleogr-repo-github --read-only github_pull-request-open), Bash(aleogr-repo-github --read-only github_pull-request-open *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_pull-request-open), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_pull-request-open *)
 ---
 
 # github_pull-request-open
@@ -34,13 +34,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-repo-github github_pull-request-open <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" github_pull-request-open <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-repo-github --read-only github_pull-request-open <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_pull-request-open <arguments>
   ```
 
 Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
@@ -58,8 +58,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
 
 The block:
 

@@ -22,7 +22,7 @@ sys.dont_write_bytecode = True
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from helpers import PLUGINS, aleogr_common as common  # noqa: E402
+from helpers import PLUGINS, aleogr_common as common, suite_line  # noqa: E402
 from test_common import StandIns  # noqa: E402
 
 REPO_GITHUB = os.path.join(PLUGINS, "aleogr-repo-github")
@@ -1366,7 +1366,8 @@ class TestCallPluginRefused(unittest.TestCase):
         with StandIns() as s:
             p = os.path.join(s.dir, "aleogr-fake")
             with open(p, "w") as f:
-                f.write("#!/bin/sh\necho '%s'\nexit 70\n" % json.dumps(result))
+                f.write("#!/bin/sh\n" + suite_line()
+                        + "echo '%s'\nexit 70\n" % json.dumps(result))
             os.chmod(p, 0o755)
             got = common.call_plugin("aleogr-fake", "x")
             self.assertEqual(got["answer"], result["answer"])
@@ -1400,6 +1401,7 @@ class TestCallPluginRefused(unittest.TestCase):
                        + os.environ.get("PATH", ""), PYTHONDONTWRITEBYTECODE="1")
             old = os.environ.copy()
             os.environ.update(env)
+            common.reset_suite_checks()  # the copy answers --suite as this suite does
             saved = os.dup(2)  # the callee's stderr goes through to ours: keep it quiet
             try:
                 with open(os.devnull, "w") as null:
@@ -1798,7 +1800,8 @@ class TestReadOnlyOption(unittest.TestCase):
         with StandIns() as s:
             p = os.path.join(s.dir, "aleogr-fake")
             with open(p, "w") as f:
-                f.write('#!/bin/sh\necho \'{"aleogr-result": 1, "args": "\'"$*"\'"}\'\n')
+                f.write('#!/bin/sh\n' + suite_line()
+                        + 'echo \'{"aleogr-result": 1, "args": "\'"$*"\'"}\'\n')
             os.chmod(p, 0o755)
             self.assertEqual(common.call_plugin("aleogr-fake", "x", {"a": "1"},
                                                 read_only=True)["args"],
@@ -2041,9 +2044,11 @@ class TestTheClockOfARun(unittest.TestCase):
         try:
             cmd = os.path.join(top, "aleogr-demo")
             with open(cmd, "w") as f:
-                f.write("#!/bin/sh\nexec %s -c 'import time; time.sleep(5)'\n" % sys.executable)
+                f.write("#!/bin/sh\n" + suite_line()
+                        + "exec %s -c 'import time; time.sleep(5)'\n" % sys.executable)
             os.chmod(cmd, 0o755)
             os.environ["PATH"] = top
+            common.reset_suite_checks()
             with self.assertRaises(common.TimeLimit) as cm:
                 common.call_plugin("aleogr-demo", "demo_skill", {"a": "1"})
             self.assertEqual(cm.exception.shown, "aleogr-demo --json demo_skill a=1")

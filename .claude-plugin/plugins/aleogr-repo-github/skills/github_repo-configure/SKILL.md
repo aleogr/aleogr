@@ -1,6 +1,6 @@
 ---
 description: GitHub repository configure, with the gh CLI. Use to correct the settings of an existing GitHub repository (description, topics, merge methods, delete branch on merge, issues, wiki, projects) and its visibility. Only the given settings are touched; plan by default; a visibility change needs confirmVisibility equal to the requested visibility.
-allowed-tools: Bash(aleogr-repo-github --read-only github_repo-configure), Bash(aleogr-repo-github --read-only github_repo-configure *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_repo-configure), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_repo-configure *)
 ---
 
 # github_repo-configure
@@ -41,13 +41,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-repo-github github_repo-configure <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" github_repo-configure <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-repo-github --read-only github_repo-configure <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_repo-configure <arguments>
   ```
 
 Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
@@ -63,8 +63,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
 
 The block:
 

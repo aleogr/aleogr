@@ -484,6 +484,35 @@ class TestSteps(Base):
                                       "how": "gh auth login"}])
         self.assertIsNone(p.outputs["environment"])
 
+    def test_a_tool_names_the_skill_the_owner_ran(self):
+        # The plan run by itself names itself; invoked by project-apply, the sentence
+        # names the command the owner ran.
+        p, _ = self.plan(decl(environments=True), {}, tools={"gh": "not-authenticated"})
+        self.assertEqual(p.failure.sentence, "gh is not authenticated: the fix is gh auth "
+                         "login, then run /aleogr:project-plan again.")
+        self.assertFalse(p.failure.called)
+        caller = FakeCaller(self.dir, {}, {"gcloud": "missing"})
+        p = skill.decide(skill.gather({}, caller, again="/aleogr:project-apply confirm=yes"))
+        self.assertTrue(p.failure.sentence.endswith(
+            ", then run /aleogr:project-apply confirm=yes again."), p.failure.sentence)
+
+    def test_a_command_of_another_suite_ends_the_plan_at_once(self):
+        a = everything()
+        sentence = common.VERSION_SENTENCE.format(callee="aleogr-cloud-gcp", caller="aleogr")
+
+        def mismatch(args):
+            raise common.PluginVersion({"status": "failed", "answer": [sentence],
+                                        "callError": "version"})
+
+        a["gcp_environment-describe"] = mismatch
+        p, c = self.plan(decl(environments=True), a)
+        self.assertEqual(c.skills()[-1], "gcp_environment-describe")
+        self.assertEqual((p.status, p.items), ("failed", []))
+        self.assertEqual(skill.answer_lines(p), [sentence])
+        self.assertEqual(p.pending, [{"item": "plugins", "reason": "manual",
+                                      "how": sentence[:-1]}])
+        self.assertTrue(p.failure.called)
+
     def test_tools_check_go_never_fails_the_plan(self):
         a = everything(database=True)
         a["go_setup"] = res(status="would-create", route="present", modules="would-add")

@@ -1,6 +1,6 @@
 ---
 description: Google Cloud Artifact Registry (gcp-artifact-registry) repository create. Use to create a project's Docker image repository in Artifact Registry on Google Cloud, in the project's own GCP project and declared region, labelled with the project and the environment, and to learn the image path every component's image starts with. Idempotent (an existing repository is never touched); plan by default. No fixed cost.
-allowed-tools: Bash(aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_repository-create), Bash(aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_repository-create *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-registry-gcp-artifact-registry" --read-only gcp-artifact-registry_repository-create), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-registry-gcp-artifact-registry" --read-only gcp-artifact-registry_repository-create *)
 ---
 
 # gcp-artifact-registry_repository-create
@@ -30,13 +30,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-registry-gcp-artifact-registry gcp-artifact-registry_repository-create <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-registry-gcp-artifact-registry" gcp-artifact-registry_repository-create <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-registry-gcp-artifact-registry --read-only gcp-artifact-registry_repository-create <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-registry-gcp-artifact-registry" --read-only gcp-artifact-registry_repository-create <arguments>
   ```
 
 Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
@@ -50,8 +50,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-registry-gcp-artifact-registry ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-registry-gcp-artifact-registry could not be run: update the plugin aleogr-registry-gcp-artifact-registry, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-registry-gcp-artifact-registry ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-registry-gcp-artifact-registry could not be run: update the plugin aleogr-registry-gcp-artifact-registry, then try again.` and the block is as it is below.
 
 The block:
 

@@ -33,3 +33,10 @@ def load_skill(plugin, skill):
     sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def suite_line():
+    """The line of a stand-in command (a `#!/bin/sh` script) that answers `--suite` as
+    the plugins' commands of this suite do: call_plugin asks it before its first call to
+    a command in a process (aleogr_common.reset_suite_checks forgets the answer)."""
+    return '[ "$1" = --suite ] && { echo %s; exit 0; }\n' % aleogr_common.suite_digest()

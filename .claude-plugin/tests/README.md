@@ -33,8 +33,10 @@ bash .claude-plugin/tests/run-direct.sh <s1> <s2>        # named scenarios; -j <
 
 `run.sh` in the direct mode reads the scenario's `prompt.txt`, which must be one line
 `/<plugin>:<skill> key=value ...`, splits it as a shell splits words, with no expansion,
-and runs `<plugin> <skill> key=value ...` in the working folder, with `tests/bin` and every
-plugin's `bin/` first on `PATH`, the same fakes and `responses/`. The command's stdout is the
+and runs `plugins/<plugin>/bin/<plugin> <skill> key=value ...` of this repository, by the
+full real path of its executable (as a shell runs the command of its own plugin's folder,
+`"${CLAUDE_PLUGIN_ROOT}/bin/<plugin>"`, never a command of that name found on `PATH`), in
+the working folder, with `tests/bin` and every plugin's `bin/` first on `PATH`, the same fakes and `responses/`. The command's stdout is the
 answer that the `OUTPUT`, `OUTPUT_NOT` and `RESULT_NOT` lines check; its stderr (each
 provider command, `+ ` first, printed before it runs) is shown only on a failure. Every
 other line of `expect.txt` is checked exactly as with the model. It exits 0 for a pass, 1
@@ -44,16 +46,20 @@ scenario cannot be run this way.
 **A run in more than one command.** When the command's answer ends with a block whose
 `status` is `continue` (`docs/DESIGN.md` section 10.4), `run.sh` runs the command of its
 `next:` line, as the shell's model will: the line is split with `shlex`, and it must be the
-same plugin command and skill with the same arguments and one `run=<id>`, or the scenario
-fails (`(the answer says continue, but its next: line is not this command)`). It goes on
+same plugin command, written as the full real path of the executable the harness ran first
+(the command prints its own, in double quotes), the same skill, the same arguments and one
+`run=<id>`, or the scenario fails (`(the answer says continue, but its next: line is not this command)`). It goes on
 while the answer says `continue`, at most eight commands in all; a run still at `continue`
 after the eighth fails (`(the run did not end within eight commands)`). The answer that the
 `OUTPUT`, `OUTPUT_NOT` and `RESULT_NOT` lines check is the **last** command's stdout; the
 call log, the files of the working folder and the stderr shown on a failure are the whole
 run's, and a failure lists every command run. Every command must exit 0. The harness unsets
-`ALEOGR_RUN_ENDS`, `ALEOGR_STEP_LIMIT`, `ALEOGR_WAIT_CLOCK_LIMIT` and
-`ALEOGR_TEST_SLEEP_CLOCK` before each command, so a scenario does not depend on the shell
-it is run from.
+`ALEOGR_RUN_ENDS`, `ALEOGR_STEP_LIMIT`, `ALEOGR_WAIT_CLOCK_LIMIT`,
+`ALEOGR_TEST_SLEEP_CLOCK`, `FAKE_AFTER` and `FAKE_FOLDER` before each command (and sets
+them only from the scenario's `clock`, `step-limit` and `after/`, below), so a scenario does
+not depend on the shell it is run from. The line `COMMANDS <n>` of `expect.txt` pins the
+number of commands the run took (the direct mode only: with the model the loop is the
+model's, and the line is not checked).
 
 **The `clock` file.** The fake `sleep` returns at once, so the run's clock does not move and
 every existing scenario runs in one command. A scenario that has a file `clock` holding the
@@ -73,13 +79,42 @@ the first command and ready in the second), `project-apply-continue-already-star
 (an instance someone else started, never started by the run) and
 `project-apply-continue-after-merge` (the run after a merge: the folder updated, an API
 enabled and its wait, the instance started in the first command and ready in the second; the
-last answer keeps every line of the first command, the start's sentence and its cost). The
-fake `git` cannot rewrite the declaration on the pull, so the digest taken after the update
-of the folder is tested by a unit test (`TestDigestAfterTheUpdate` in
-`unit/test_project_apply.py`, through the real dispatcher with a declaration that a call
-rewrites). `project-apply`'s own wait is
-bounded by the clock's limit for waits, not by the step limit, so its commands make thirteen
-waits each.
+last answer keeps every line of the first command, the start's sentence and its cost).
+`project-apply`'s own wait is bounded by the clock's limit for waits, not by the step limit,
+so its commands make thirteen waits each.
+
+**The `step-limit` file.** A scenario that has a file `step-limit` holding one whole number
+of seconds from 1 to 240 runs with `ALEOGR_STEP_LIMIT` set to it, in both modes (any other
+content is a bad scenario, exit 2). The first step of a command after its plan is never held
+by the step limit and every later one is (`docs/DESIGN.md` section 10.4), so a limit of one
+second, shorter than any plan (a plan of the fakes takes more than a second), makes every
+command of a run make exactly one step: that is how a real run proves the loop without a
+wait. `project-apply-continue-step-limit` (as `project-apply-update-then-apply`: the
+folder's update, the configure, the last plan, in three commands) and
+`project-apply-continue-pull-rewrites` (below) have one, and pin `COMMANDS 3` and a final
+answer that is the one-command run's.
+
+**The folder `after/`: a call that rewrites the working folder.** A real `git pull` brings
+the merged declaration into the folder; the fakes print canned text and change no file.
+A scenario that has a folder `after/` holds, in `after/<name>/`, files that the fake
+`gcloud`, `gh`, `git` and `go` (`bin/fake-cli`) copy over the working folder, dotfiles
+included and at the same relative paths, each time a call matching `<name>` is made (after
+the call is logged, before its response is printed). `<name>` is written as a response
+file's name is: a prefix of the call with spaces written `_` (and `/` for `gh`, `git` and
+`go`), `git_`, `gh_` or `go_` first, a `%` standing for one or more of `a-z0-9`; when
+several folders match, all are copied, in glob order. So
+`after/git_-c_credential.helper=_-c_credential.helper=!gh_auth_git-credential_pull/.aleogr/project.json`
+becomes the folder's declaration when `github_checkout-setup` pulls. `run.sh` passes the
+folder to the fakes as `FAKE_AFTER` and the working folder as `FAKE_FOLDER`, in both modes;
+a scenario without `after/` changes no file, as before (the fake `go`'s
+`responses/<prefix>.files/`, below, is the same idea for `go get` and `go mod tidy`, kept as
+it is). `project-apply-pull-rewrites-declaration` (the folder behind, the pull bringing one
+more topic: the repository is configured with the new topics and the run ends `nothing to
+do`; built from the declaration as it was before the pull, the run of 505a827 failed it) and
+`project-apply-continue-pull-rewrites` (the same over three commands: the digest of the
+carried file is taken after the update, so the second command recalls the first) use it. The
+digest taken after the update is also tested by a unit test (`TestDigestAfterTheUpdate` in
+`unit/test_project_apply.py`).
 
 "Not converted" means one of: the prompt is not one slash command of a skill (a prompt of
 several lines, such as the `harness-selftest*` scenarios); the plugin has no command; or the
@@ -92,7 +127,9 @@ of part 2a of step 2, `passed 357, failed 0, not converted 316`; at the end of p
 `passed 635, failed 0, not converted 41` (the 76 scenarios of `project-apply` and the three
 `project-apply-continue-*` pass; the 41 are the 35 scenarios of the three orchestrators still
 prose and the 6 `harness-selftest*`); after the fixes of its final review, `passed 636`, with
-the fourth `project-apply-continue-*`.
+the fourth `project-apply-continue-*`; after task 0 of part 3b, `passed 639`, with
+`project-apply-continue-step-limit`, `project-apply-pull-rewrites-declaration` and
+`project-apply-continue-pull-rewrites`.
 
 A scenario of a command that writes runs in the scenario's working folder, a copy of its
 `files/`, so the `FILE`, `SAME_FILE`, `NO_FILE` and `FILE_NOT` lines check what the command
@@ -204,6 +241,8 @@ Create `scenarios/<name>/` with:
 
 - `prompt.txt`: what the user types, for example `/aleogr-cloud-gcp:gcp_environment-describe project=demo environment=dev`.
 - `files/` (optional): copied, dotfiles included, into the working folder before Claude starts (`files/.aleogr/project.json` becomes `<cwd>/.aleogr/project.json`).
+- `after/` (optional): `after/<name>/` holds files copied over the working folder each time a call matching `<name>` is made (the pull that brings a merged declaration; see "The folder `after/`" above).
+- `clock` and `step-limit` (optional): one line each, `sleep-counts` and a whole number of seconds from 1 to 240 (see above).
 - `responses/`: the canned output of the fake `gcloud`, `gh`, `git` and `go`, and the
   `<prefix>.files/` folders of the fake `go` (above). A file answers a call
   when its name, without extension, is a prefix of the arguments with spaces
@@ -262,6 +301,7 @@ Create `scenarios/<name>/` with:
 | `NOT_CALLED <regex>` | no logged call matches |
 | `COUNT <n> <regex>` | at least `<n>` logged calls match (pins a repeated call, such as a check before and after a change) |
 | `AT_MOST <n> <regex>` | at most `<n>` logged calls match (`0` included; pins that a call is not repeated, such as one start or one pull request: `AT_MOST 1 ^sql instances patch`) |
+| `COMMANDS <n>` | the run took exactly `<n>` commands, the first and the `next:` ones (the direct mode only; with the model the line is not checked) |
 | `OUTPUT <regex>` | Claude's final answer matches |
 | `OUTPUT_NOT <regex>` | Claude's final answer does not match (keeps raw error text out of the answer) |
 | `RESULT_NOT <regex>` | no line inside the fenced `aleogr-result` block(s) of Claude's answer matches (fails when the answer has no such block; use it to keep identifiers out of the result block) |

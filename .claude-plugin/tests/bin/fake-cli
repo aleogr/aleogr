@@ -31,6 +31,17 @@
 # - "{{log:<regex>}}" in a response file's content is replaced by the last text of the
 #   call log (this call's line included) that matches the grep -E regex <regex> (which
 #   must not contain "}}"), or by nothing when none does. Files without it print as before.
+# Folder rewrites, for a call that changes files of the working folder (a pull that
+# brings a merged declaration), additive and off unless both are set:
+# FAKE_AFTER      a scenario's folder after/ (run.sh sets it when the scenario has one)
+# FAKE_FOLDER     the working folder of the run (run.sh's)
+# Each folder after/<name>/, where <name> is written as a response file's name (a prefix
+# of the call's key, "%" standing for [a-z0-9]+, as above), holds files (dotfiles
+# included, at their paths relative to the working folder) that are copied over the
+# working folder, after the call is logged and before its response is printed, each time
+# a call matching <name> is made (after/git_-c_credential.helper=_-c_credential.helper=
+# !gh_auth_git-credential_pull/.aleogr/project.json rewrites the declaration on the
+# pull). When several match, all are copied, in glob order.
 log="${FAKE_LOG:?FAKE_LOG is not set}"
 # matches <key> <name>: <name> is a prefix of <key>, a "%" in <name> standing for [a-z0-9]+.
 matches() {
@@ -56,6 +67,16 @@ emit() {
     content="${content/"{{log:$re}}"/$val}"
   done
   printf '%s' "$content"
+}
+# rewrite: the folder rewrites of this call (FAKE_AFTER, FAKE_FOLDER), when set.
+rewrite() {
+  [ -n "${FAKE_AFTER:-}" ] && [ -d "$FAKE_AFTER" ] && [ -n "${FAKE_FOLDER:-}" ] \
+    && [ -d "$FAKE_FOLDER" ] || return 0
+  local d
+  for d in "$FAKE_AFTER"/*/; do
+    [ -d "$d" ] || continue
+    if matches "$key" "$(basename "$d")"; then cp -a "$d." "$FAKE_FOLDER/"; fi
+  done
 }
 dir="${FAKE_RESPONSES:-}"
 tool="${1:?tool is not set}"; shift
@@ -99,12 +120,14 @@ if [ -d "$dir" ]; then
   done
   if [ -n "$best" ]; then
     echo "$line" >> "$log"
+    rewrite
     emit "$best"
     case "$best" in *.exit1) exit 1 ;; esac
     exit 0
   fi
 fi
 echo "$line" >> "$log"
+rewrite
 [ -d "$dir" ] || exit 0
 # The file with the longest matching name wins (so gh_..._example-repo.txt does not
 # answer "gh api repos/.../example-repo/rulesets" when a _rulesets file exists);

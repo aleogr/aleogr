@@ -24,6 +24,9 @@ sys.path.insert(0, os.path.join(PLUGINS, "aleogr", "scripts"))
 
 import aleogr_common as common  # noqa: E402
 
+sys.path.insert(0, HERE)
+from helpers import suite_line  # noqa: E402
+
 
 def read_bytes(path):
     with open(path, "rb") as f:
@@ -221,6 +224,7 @@ class StandIns(object):
             os.chmod(p, 0o755)
         self.old_path = os.environ["PATH"]
         os.environ["PATH"] = self.dir
+        common.reset_suite_checks()
         return self
 
     def ran(self):
@@ -337,7 +341,7 @@ class TestCallPlugin(unittest.TestCase):
         with StandIns() as s:
             p = os.path.join(s.dir, "aleogr-fake")
             with open(p, "w") as f:
-                f.write('#!/bin/sh\n'
+                f.write('#!/bin/sh\n' + suite_line() +
                         'echo \'{"aleogr-result": 1, "status": "unchanged", "args": "\'"$*"\'"}\'\n')
             os.chmod(p, 0o755)
             got = common.call_plugin("aleogr-fake", "y_describe", {"a": "1", "b": "x y"})
@@ -350,6 +354,105 @@ class TestCallPlugin(unittest.TestCase):
             with open(p, "w") as f:
                 f.write("#!/bin/sh\necho not json\n")
             self.assertEqual(common.call_plugin("aleogr-fake", "z")["callError"], "no-result")
+
+
+class TestSuite(unittest.TestCase):
+    """`<command> --suite` and the check call_plugin makes before its first call to a
+    command of another plugin."""
+
+    def stand_in(self, s, name, suite):
+        """A command that logs every run and answers `--suite` with `suite`."""
+        p = os.path.join(s.dir, name)
+        with open(p, "w") as f:
+            f.write('#!/bin/sh\necho "$*" >> "%s/%s.log"\n'
+                    '[ "$1" = --suite ] && { printf "%%s" \'%s\'; exit 0; }\n'
+                    'echo \'{"aleogr-result": 1, "status": "unchanged"}\'\n'
+                    % (s.dir, name, suite))
+        os.chmod(p, 0o755)
+        return os.path.join(s.dir, name + ".log")
+
+    def log(self, path):
+        if not os.path.exists(path):
+            return []
+        with open(path) as f:
+            return f.read().splitlines()
+
+    def test_the_digest_and_the_option(self):
+        with open(common.__file__, "rb") as f:
+            import hashlib
+            digest = hashlib.sha256(f.read()).hexdigest()[:12]
+        self.assertEqual(common.suite_digest(), digest)
+        self.assertTrue(common.parse_command_line(["--suite"]).suite)
+        for bad in (["--suite", "x"], ["--json", "--suite"]):
+            with self.assertRaises(common.UsageError):
+                common.parse_command_line(bad)
+        for n in NAMES:
+            p = subprocess.run([os.path.join(PLUGINS, n, "bin", n), "--suite"],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual((p.returncode, p.stdout, p.stderr),
+                             (0, (digest + "\n").encode(), b""), n)
+
+    def test_the_same_suite_is_asked_once(self):
+        with StandIns() as s:
+            log = self.stand_in(s, "aleogr-fake", common.suite_digest() + "\n")
+            for _ in range(3):
+                self.assertEqual(common.call_plugin("aleogr-fake", "x")["status"],
+                                 "unchanged")
+            self.assertEqual(self.log(log), ["--suite"] + ["--json x"] * 3)
+
+    def test_another_suite_runs_nothing_on_that_command(self):
+        for answer in ("0123456789ab\n", "", "%s\n%s\n" % (common.suite_digest(),
+                                                            common.suite_digest()),
+                       common.suite_digest().upper(), common.suite_digest() + "0",
+                       "usage: aleogr-fake <skill>\n"):
+            with self.subTest(answer=answer), StandIns() as s:
+                log = self.stand_in(s, "aleogr-fake", answer)
+                sentence = common.VERSION_SENTENCE.format(callee="aleogr-fake",
+                                                          caller="aleogr")
+                for _ in range(2):
+                    got = common.call_plugin("aleogr-fake", "x", {"a": "1"},
+                                             caller="aleogr")
+                    self.assertEqual((got["status"], got["callError"], got["answer"]),
+                                     ("failed", "version", [sentence]))
+                self.assertEqual(self.log(log), ["--suite"])  # no skill was invoked
+                self.assertIn("/plugin marketplace update aleogr", sentence)
+                # ctx.call raises it, with this plugin as the caller.
+                ctx = common.Context("aleogr-db-gcp-cloud-sql", "/x", "s", object(),
+                                     "plan", {})
+                with self.assertRaises(common.PluginVersion) as cm:
+                    ctx.call("aleogr-fake", "x")
+                self.assertIn("as the plugin aleogr-db-gcp-cloud-sql:", cm.exception.sentence)
+                self.assertEqual(self.log(log), ["--suite"])
+
+    def test_a_missing_command_is_not_asked(self):
+        with StandIns() as s:
+            got = common.call_plugin("aleogr-not-installed", "x")
+            self.assertEqual(got["callError"], "not-found")
+            self.assertEqual(s.ran(), [])
+
+    def test_a_module_that_meets_another_suite_ends_failed(self):
+        # Any module that calls another plugin: the run ends failed with the sentence
+        # alone, exit 0, and the module runs nothing after the call.
+        after = []
+
+        def run(args, ctx):
+            ctx.call("aleogr-fake", "x")
+            after.append(True)
+            return ctx.result("unchanged", {})
+
+        module = type("M", (), {"FAMILY": "cloud", "PROVIDER": "gcp", "ACTION": "x",
+                                "run": staticmethod(run)})
+        with StandIns() as s:
+            self.stand_in(s, "aleogr-fake", "ffffffffffff\n")
+            out, err = io.StringIO(), io.StringIO()
+            inv = common.parse_command_line(["--json", "x"])
+            code = common.run_command("aleogr-cloud-gcp", "/x", inv, module, "plan", out,
+                                      err, environ={})
+        obj = json.loads(out.getvalue())
+        self.assertEqual((code, obj["status"], after), (0, "failed", []))
+        self.assertEqual(obj["answer"], [common.VERSION_SENTENCE.format(
+            callee="aleogr-fake", caller="aleogr-cloud-gcp")])
+        self.assertEqual(obj["cost"], common.VERSION_COST)
 
 
 class TestAnswer(unittest.TestCase):
