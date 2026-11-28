@@ -476,6 +476,9 @@ class Apply(object):
         self.visibility_arg = args.get("confirmVisibility")
         self.sentences = [lost] if lost else []
         self.first = None  # the plan of step 1
+        # The plan whose declaration is the folder's: the first, then the one made
+        # after the folder's update (the update rewrites the declaration).
+        self.source = None
         self.plan = None  # the plan whose items are applied
         self.db_plan = None  # the database's plan of sub-step 12a
         self.last = None  # the last plan this run invoked
@@ -561,7 +564,7 @@ class Apply(object):
             and self.carry["visibilityApplied"] == self.visibility_arg
 
     def decl(self):
-        return self.first.reads.decl if self.first is not None else None
+        return self.source.reads.decl if self.source is not None else None
 
     def defaults(self, dotted):
         return PP.Defaults(self.ctx.plugin_path("defaults.json")).get(dotted, "scalar")
@@ -661,7 +664,7 @@ class Apply(object):
         if last is not None and not failed:
             exists = exists or bool(last.reads.exists)
         elif self.first is not None and self.first.failure is None:
-            exists = exists or bool(self.first.reads.exists)
+            exists = exists or bool(self.source.reads.exists)
         return {
             "project": d.name if d else None,
             "repository": d.full if d else None,
@@ -780,9 +783,11 @@ class Apply(object):
         # started, and every command must make progress.
         self.first = self.plan = self.make_plan(self.plan_args(), "the plan", step=False)
         p = self.first
+        self.source = p
         if self.carry["apisTries"] and self.carry["apisEnabled"]:
             # A continuation of the wait for just-enabled APIs: the plan is its next try.
             p = self.first = self.plan = self.poll_plan(p, self.plan_args())
+            self.source = p
         if p.failure is not None:
             self.end("failed", p.pending)
         if state(p, "components") == PP.NEEDS_GO:
@@ -1031,6 +1036,9 @@ class Apply(object):
                 items.append(item("declaration", CONFIRM_HOW))
             self.end("pending", items)
         self.plan = p
+        # The folder now holds the repository's declaration: every argument built
+        # from here on comes from it, not from the folder as it was.
+        self.source = p
 
     # -- the proposal (the `propose` / `generate` step) ------------------------
 
@@ -1042,8 +1050,8 @@ class Apply(object):
             a["dockerfile"] = "yes"
         if c.get("database") is True:
             a["database"] = "yes"
-            a["modules"] = ",".join(self.first.reads.values["modules"])
-            a["minVersion"] = self.first.reads.values["minVersion"]
+            a["modules"] = ",".join(self.source.reads.values["modules"])
+            a["minVersion"] = self.source.reads.values["minVersion"]
         a["mode"] = "apply"
         return a
 
@@ -1176,7 +1184,7 @@ class Apply(object):
         ci_written = False
         if action(plan, "ci") == "generate":
             a = {"owner": d.owner, "name": d.repo_name, "components": d.components_arg(),
-                 "workflows": self.first.reads.values["workflows"],
+                 "workflows": self.source.reads.values["workflows"],
                  "defaultBranch": plan.outputs.get("defaultBranch")}
             deploy = plan.outputs.get("ciDeployComponents") or []
             if deploy:
@@ -1457,7 +1465,7 @@ class Apply(object):
 
     def services_list(self):
         d = self.decl()
-        services = list(self.first.reads.values["services"])
+        services = list(self.source.reads.values["services"])
         if d.database_components:
             services.append("sqladmin.googleapis.com")
         return services
@@ -1582,7 +1590,7 @@ class Apply(object):
         r = self.poll_call(REGISTRY, "gcp-artifact-registry_cleanup-configure",
                            {"projectId": self.current_project_id(), "project": d.name,
                             "region": d.region,
-                            "keep": PP._scalar_text(self.first.reads.values["keep"]),
+                            "keep": PP._scalar_text(self.source.reads.values["keep"]),
                             "mode": "apply"}, "the cleanup policy")
         if _status(r) in ("updated", "unchanged") and not _pending(r):
             self.note("gcp-artifact-registry_cleanup-configure", r)
@@ -1603,7 +1611,7 @@ class Apply(object):
         o = _out(r)
         if _status(r) != "unchanged" or o.get("exists") is not True:
             self.cloud_stop("ci identity", "github_repo-describe", r)
-        v = self.first.reads.values
+        v = self.source.reads.values
         r = self.poll_call(CLOUD, "gcp_ci-identity-setup", {
             "projectId": self.current_project_id(), "project": d.name,
             "repository": d.full, "repositoryId": PP._scalar_text(o.get("id")),
@@ -1649,7 +1657,7 @@ class Apply(object):
 
     def deploy_args(self, env=None):
         d = self.decl()
-        v = self.first.reads.values
+        v = self.source.reads.values
         a = {"projectId": self.current_project_id(), "project": d.name, "environment": "dev",
              "region": d.region, "components": ",".join(d.names),
              "maxInstances": PP._scalar_text(v["maxInstances"]),
@@ -1786,7 +1794,7 @@ class Apply(object):
     def database_0b(self):
         """The shared project, by this skill's own read."""
         r = self.call(CLOUD, "gcp_environment-describe",
-                      {"project": self.first.reads.values["sharedProject"],
+                      {"project": self.source.reads.values["sharedProject"],
                        "platform": "shared"}, read_only=True, what="the shared project")
         o = _out(r)
         services = o.get("enabledServices") if isinstance(o.get("enabledServices"), list) else []
@@ -1812,7 +1820,7 @@ class Apply(object):
     def database_0c(self):
         """The night stop, read right before the start."""
         a = {"projectId": self.shared_project_id,
-             "instance": self.first.reads.values["instance"]}
+             "instance": self.source.reads.values["instance"]}
         a.update(self.switch_arguments())
         a["mode"] = "plan"
         r = self.call(DB, "gcp-cloud-sql_instance-switch-setup", a, read_only=True,
@@ -1836,7 +1844,7 @@ class Apply(object):
         self.register_abort()
         r = self.call(DB, "gcp-cloud-sql_instance-start",
                       {"projectId": self.shared_project_id,
-                       "instance": self.first.reads.values["instance"]},
+                       "instance": self.source.reads.values["instance"]},
                       what="the start of the shared instance", step=False,
                       on_cut=self.start_cut)
         st = _status(r)
@@ -1874,7 +1882,7 @@ class Apply(object):
         d = self.decl()
         accounts = ",".join(d.account(n, self.current_project_id()) for n in self.dbnames)
         args = {"sharedProjectId": self.shared_project_id,
-                "instance": self.first.reads.values["instance"], "project": d.name,
+                "instance": self.source.reads.values["instance"], "project": d.name,
                 "environment": "dev", "accounts": accounts}
         while True:
             tries = self.carry["instanceTries"] + 1
@@ -1898,7 +1906,7 @@ class Apply(object):
         d = self.decl()
         r = self.call(DB, "gcp-cloud-sql_database-create",
                       {"sharedProjectId": self.shared_project_id,
-                       "instance": self.first.reads.values["instance"], "project": d.name,
+                       "instance": self.source.reads.values["instance"], "project": d.name,
                        "environment": "dev", "mode": "apply"}, what="the database")
         if _status(r) in ("created", "unchanged") and not _pending(r):
             self.note("gcp-cloud-sql_database-create", r)
@@ -1912,7 +1920,7 @@ class Apply(object):
         for n in self.dbnames:
             r = self.call(DB, "gcp-cloud-sql_access-grant",
                           {"sharedProjectId": self.shared_project_id,
-                           "instance": self.first.reads.values["instance"],
+                           "instance": self.source.reads.values["instance"],
                            "account": d.account(n, self.current_project_id()),
                            "mode": "apply"}, what="the database user of %s" % n)
             if _status(r) in ("updated", "unchanged") and not _pending(r):
@@ -1925,7 +1933,7 @@ class Apply(object):
     def database_e(self):
         d = self.decl()
         env = PP.database_settings(d.name, d.database_names, self.shared_project_id, d.region,
-                                   self.first.reads.values["instance"],
+                                   self.source.reads.values["instance"],
                                    self.current_project_id())
         r = self.call(CLOUD, "gcp_deploy-setup", self.deploy_args(env=env),
                       what="the database settings")
