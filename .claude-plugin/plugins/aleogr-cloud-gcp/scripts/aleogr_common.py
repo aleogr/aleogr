@@ -18,14 +18,20 @@ It holds what every command needs and nothing of a skill's own rules:
   of them and puts back, and the waits of a run, within one budget;
 - the clock of a run: waits end at seven minutes (WAIT_CLOCK_LIMIT), every provider
   command is bounded by the run's deadline (RUN_DEADLINE, a TimeLimit when it is
-  reached), and an aborted run still ends with a `failed` result (aborted_result);
-- `call_plugin`, which runs another plugin's command with `--json`;
+  reached), an orchestrator begins no step after four minutes (STEP_LIMIT), and an
+  aborted run still ends with a `failed` result (aborted_result);
+- `call_plugin`, which runs another plugin's command with `--json` and passes it this
+  run's deadline (ALEOGR_RUN_ENDS);
+- a run in more than one command, for the skills that declare CONTINUES: the status
+  `continue`, its `next:` line, and the private file carried from one command to the
+  next (ctx.carried, ctx.may_continue, ctx.continue_run);
 - the answer: lines, a table, and the fenced `aleogr-result` block.
 
 Python 3.9 or later, standard library only.
 """
 
 import atexit
+import errno
 import importlib
 import json
 import os
@@ -33,6 +39,7 @@ import re
 import shlex
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -1980,31 +1987,141 @@ class Backup(object):
 
 WAIT_CLOCK_LIMIT = 420  # seven minutes: no wait ends later in a run
 RUN_DEADLINE = 570  # nine and a half minutes: no provider command runs later in a run
-_clock = {"now": time.monotonic, "start": None}
+STEP_LIMIT = 240  # four minutes: an orchestrator begins no new step later (step_allowed)
+# What a caller keeps for itself after the deadline it passes to a command it calls: the
+# called command ends by then, and the caller still has the time to print its answer.
+CALL_MARGIN = 30
+# The environment of a command:
+# - ALEOGR_RUN_ENDS: set by call_plugin for the command it calls, the caller's deadline
+#   (less CALL_MARGIN) as an absolute wall-clock time (seconds since the epoch). The
+#   called command's deadline, wait limit and step limit become the smaller of its own
+#   and what is left of it (clock_limits).
+# - ALEOGR_STEP_LIMIT and ALEOGR_WAIT_CLOCK_LIMIT: test aids that can only shorten a
+#   run, an integer of seconds from 1 to STEP_LIMIT (WAIT_CLOCK_LIMIT); anything else,
+#   a larger number included, is ignored.
+# - ALEOGR_TEST_SLEEP_CLOCK=1: a test aid of the harness, honoured only when FAKE_LOG is
+#   set too (the harness's fake commands are in use): each `sleep <n>` line that the fake
+#   `sleep` logs in FAKE_LOG during the run moves the run's clock by <n> seconds. It only
+#   adds to the clock, so it can only shorten a run.
+RUN_ENDS_ENV = "ALEOGR_RUN_ENDS"
+STEP_LIMIT_ENV = "ALEOGR_STEP_LIMIT"
+WAIT_CLOCK_LIMIT_ENV = "ALEOGR_WAIT_CLOCK_LIMIT"
+TEST_SLEEP_CLOCK_ENV = "ALEOGR_TEST_SLEEP_CLOCK"
+_clock = {"now": time.monotonic, "wall": time.time, "start": None, "limits": None,
+          "sleep_log": None, "sleep_base": 0}
 
 
-def start_clock():
-    """The dispatcher's start of the run: the clock counts from now."""
+def _lowering(value, ceiling):
+    """The integer `value` (a string of digits) when it is from 1 to `ceiling`, else
+    `ceiling`: an environment variable that may only lower a limit."""
+    if isinstance(value, str) and re.fullmatch(r"[0-9]{1,6}", value):
+        n = int(value)
+        if 1 <= n <= ceiling:
+            return n
+    return ceiling
+
+
+def clock_limits(environ, wall_now):
+    """The limits of a run started now (`wall_now`, seconds since the epoch) with the
+    environment `environ`: {"deadline", "wait", "step"}, in seconds of the run.
+
+    Each is the module's own (RUN_DEADLINE, WAIT_CLOCK_LIMIT, STEP_LIMIT), lowered by
+    ALEOGR_WAIT_CLOCK_LIMIT and ALEOGR_STEP_LIMIT and by what is left of a caller's
+    ALEOGR_RUN_ENDS: the deadline is then what is left, and the wait and step limits
+    keep the distance they have to the deadline at the top of a run (150 and 330 seconds
+    before it), never below 0. A value that is not a number is ignored; none of them can
+    raise a limit."""
+    deadline, wait, step = float(RUN_DEADLINE), float(WAIT_CLOCK_LIMIT), float(STEP_LIMIT)
+    ends = environ.get(RUN_ENDS_ENV)
+    if isinstance(ends, str) and re.fullmatch(r"[0-9]{1,12}(?:\.[0-9]{1,6})?", ends):
+        left = max(0.0, float(ends) - wall_now)
+        if left < deadline:
+            deadline = left
+            wait = min(wait, max(0.0, left - (RUN_DEADLINE - WAIT_CLOCK_LIMIT)))
+            step = min(step, max(0.0, left - (RUN_DEADLINE - STEP_LIMIT)))
+    wait = min(wait, float(_lowering(environ.get(WAIT_CLOCK_LIMIT_ENV), WAIT_CLOCK_LIMIT)))
+    step = min(step, float(_lowering(environ.get(STEP_LIMIT_ENV), STEP_LIMIT)))
+    return {"deadline": deadline, "wait": wait, "step": step}
+
+
+_SLEEP_LINE = re.compile(r"sleep ([0-9]{1,6})")
+
+
+def _slept(log):
+    """The seconds of the `sleep <n>` lines of the fake commands' log (0 when unread)."""
+    try:
+        with open(log, encoding="utf-8", errors="replace") as f:
+            return sum(int(m.group(1)) for m in (_SLEEP_LINE.fullmatch(line.rstrip("\n"))
+                                                  for line in f) if m)
+    except OSError:
+        return 0
+
+
+def start_clock(environ=None):
+    """The dispatcher's start of the run: the clock counts from now, with the limits of
+    clock_limits (os.environ when `environ` is None) and, under the harness only, the
+    test aid ALEOGR_TEST_SLEEP_CLOCK."""
+    env = os.environ if environ is None else environ
     _clock["start"] = _clock["now"]()
+    _clock["limits"] = clock_limits(env, _clock["wall"]())
+    log = env.get("FAKE_LOG") if env.get(TEST_SLEEP_CLOCK_ENV) == "1" else None
+    _clock["sleep_log"] = log or None
+    _clock["sleep_base"] = _slept(log) if log else 0
 
 
-def set_clock(now=None, start=None):
-    """For the unit tests only: the time function (time.monotonic when None) and the
-    start of the run (None: the clock is not started and counts 0)."""
+def set_clock(now=None, start=None, wall=None):
+    """For the unit tests only: the time function (time.monotonic when None), the
+    start of the run (None: the clock is not started and counts 0) and the wall clock
+    (time.time when None). The limits are the module's own and no test aid is on."""
     _clock["now"] = now or time.monotonic
+    _clock["wall"] = wall or time.time
     _clock["start"] = start
+    _clock["limits"] = None
+    _clock["sleep_log"] = None
+    _clock["sleep_base"] = 0
+
+
+def _limit(name, default):
+    limits = _clock["limits"]
+    return default if limits is None else limits[name]
+
+
+def run_deadline():
+    """This run's deadline in seconds of the run: RUN_DEADLINE, or less (clock_limits)."""
+    return _limit("deadline", RUN_DEADLINE)
+
+
+def wait_clock_limit():
+    """No wait ends later than this, in seconds of the run: WAIT_CLOCK_LIMIT, or less."""
+    return _limit("wait", WAIT_CLOCK_LIMIT)
+
+
+def step_limit():
+    """No step begins later than this, in seconds of the run: STEP_LIMIT, or less."""
+    return _limit("step", STEP_LIMIT)
 
 
 def elapsed_seconds():
-    """The seconds since the dispatcher started the run (0 before it did)."""
+    """The seconds since the dispatcher started the run (0 before it did), with the
+    seconds of the fake waits when the test aid ALEOGR_TEST_SLEEP_CLOCK is on."""
     if _clock["start"] is None:
         return 0.0
-    return max(0.0, _clock["now"]() - _clock["start"])
+    seconds = max(0.0, _clock["now"]() - _clock["start"])
+    if _clock["sleep_log"]:
+        seconds += max(0, _slept(_clock["sleep_log"]) - _clock["sleep_base"])
+    return seconds
 
 
 def remaining_seconds():
-    """The time a provider command may still run: up to RUN_DEADLINE, at least 1."""
-    return max(1, RUN_DEADLINE - elapsed_seconds())
+    """The time a provider command may still run: up to the run's deadline, at least 1."""
+    return max(1, run_deadline() - elapsed_seconds())
+
+
+def step_allowed():
+    """True while the run's clock has not passed the step limit (four minutes, or
+    less): an orchestrator checks it before each step and, once it is False, ends the
+    command with `continue` (ctx.continue_run) instead of beginning the step."""
+    return elapsed_seconds() <= step_limit()
 
 
 WAIT_SECONDS = 30
@@ -2039,8 +2156,13 @@ def wait_allowed():
     WAIT_CLOCK_LIMIT seconds of the run). With a wait that returns at once (the fake
     `sleep` of the tests) the count decides; with real waits and slow commands, the
     clock does."""
-    return (_waited[0] + WAIT_SECONDS <= WAIT_BUDGET_SECONDS
-            and elapsed_seconds() + WAIT_SECONDS <= WAIT_CLOCK_LIMIT)
+    return _waited[0] + WAIT_SECONDS <= WAIT_BUDGET_SECONDS and wait_clock_allows()
+
+
+def wait_clock_allows():
+    """True when one more wait of WAIT_SECONDS ends within the run's wait limit
+    (wait_clock_limit): the only limit of an uncounted wait (ctx.wait(counted=False))."""
+    return elapsed_seconds() + WAIT_SECONDS <= wait_clock_limit()
 
 
 # ---------------------------------------------------------------------------
@@ -2085,6 +2207,15 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
     The callee runs at most until this run's deadline, as a provider command does:
     when it is reached, the callee and what it started are killed and TimeLimit is
     raised. A shorter `timeout` ends as `no-result` instead.
+
+    The callee is told this run's deadline, less CALL_MARGIN, in its environment
+    (ALEOGR_RUN_ENDS, an absolute wall-clock time): its own deadline, wait limit and
+    step limit are then no later (clock_limits), so it ends first and this run can
+    still print its answer. A callee whose wait was refused (by the count of waits or
+    by the clock) says so in its document as `data.waitRefused: true`, and one stopped
+    by its deadline as `data.timeLimit: true` (with `callError` `time-limit` here
+    instead of `refused`): ended_by_limit(result) tells a caller that may answer
+    `continue` instead of treating it as a failure.
     """
     path = shutil.which(command)
     if path is None:
@@ -2093,8 +2224,11 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
     argv = [path] + (["--read-only"] if read_only else []) + ["--json", skill] + format_args(
         args or {})
     timeout, deadline = _bounded(timeout)
+    env = dict(os.environ)
+    env[RUN_ENDS_ENV] = "%.3f" % (_clock["wall"]() + max(
+        0.0, run_deadline() - elapsed_seconds() - CALL_MARGIN))
     try:
-        code, out, _ = _run_process(argv, timeout, stderr=None)
+        code, out, _ = _run_process(argv, timeout, stderr=None, env=env)
     except subprocess.TimeoutExpired:
         if deadline:
             raise TimeLimit([command] + argv[1:])
@@ -2112,12 +2246,23 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
         obj = None
     if code == EXIT_SOFTWARE and isinstance(obj, dict) \
             and obj.get("aleogr-result") == 1 and obj.get("status") == "failed":
-        obj["callError"] = "refused"
+        data = obj.get("data")
+        obj["callError"] = "time-limit" if isinstance(data, dict) \
+            and data.get("timeLimit") is True else "refused"
         return obj
     if code != 0 or not isinstance(obj, dict):
         return _call_failure("no-result", command, skill,
                              NO_RESULT_SENTENCE.format(command=command, skill=skill))
     return obj
+
+
+def ended_by_limit(result):
+    """True when a called command's result (call_plugin) says that a limit of the run
+    ended it: its wait was refused (`data.waitRefused`) or it reached its deadline
+    (`data.timeLimit`). A caller that can continue then answers `continue`."""
+    data = result.get("data") if isinstance(result, dict) else None
+    return isinstance(data, dict) and (data.get("waitRefused") is True
+                                       or data.get("timeLimit") is True)
 
 
 # ---------------------------------------------------------------------------
@@ -2249,6 +2394,248 @@ def render_json(result):
 
 
 # ---------------------------------------------------------------------------
+# A run in more than one command
+#
+# A skill whose module sets CONTINUES = True (an orchestrator) may end a command with
+# the status `continue` (ctx.continue_run): its answer is one line (what the run waits
+# for), then `next: <the command to run>`, then the block. The next command is the same
+# plugin command and skill with the same arguments, each single-quoted as the shells
+# write them, and `run=<id>`. What the run carries from one command to the next is kept
+# in a private file named by <id> (below); the dispatcher accepts `run=` only for such
+# a skill, takes it out of the arguments the module gets, and removes the file when the
+# run ends with any other status. A run has at most MAX_COMMANDS commands.
+
+MAX_COMMANDS = 8
+CARRY_FOLDER_PREFIX = "aleogr-runs-"  # + the user's id: <system temporary folder>/aleogr-runs-<uid>
+CARRY_MAX_AGE = 24 * 60 * 60  # a carried file older than a day is removed when a run starts
+MAX_CARRY_BYTES = 64 * 1024
+RUN_ID_RE = re.compile(r"[a-z0-9]{12}")
+CARRY_LOST_SENTENCE = "An earlier part of this run could not be recalled: {why}."
+# Why a carried file was not read (ctx.carry_refusal), each the end of CARRY_LOST_SENTENCE.
+CARRY_REFUSALS = {
+    "malformed": "the id of the run is not well formed",
+    "missing": "its file is missing",
+    "unreadable": "its file could not be read",
+    "invalid": "its file is not valid",
+    "not-private": "its file or its folder is not private to this user",
+    "mismatch": "the declaration or the arguments are not the ones it was kept for",
+}
+_carry_top = [None]  # the folder the carried files' folder is made in (None: system_temp_dir)
+
+
+class CarryNotSaved(Exception):
+    """ctx.continue_run could not save the carried file (the folder is not private, the
+    disk refused, the carry is too large): an unexpected error of the run."""
+
+
+def set_carry_folder(top=None):
+    """For the unit tests only: make the folder of carried files in `top` instead of the
+    system's temporary folder (None: back to it)."""
+    _carry_top[0] = top
+
+
+def _uid():
+    return os.getuid() if hasattr(os, "getuid") else None
+
+
+def carry_folder_path():
+    """<system temporary folder>/aleogr-runs-<uid>: the folder of this user's carried
+    files (`aleogr-runs-user` where the system has no user id)."""
+    uid = _uid()
+    return os.path.join(_carry_top[0] or system_temp_dir(),
+                        CARRY_FOLDER_PREFIX + ("user" if uid is None else str(uid)))
+
+
+def _private(st, directory):
+    """True when `st` (an lstat or fstat) is a real folder (a regular file), not a link,
+    owned by this user, with no permission for its group or others. Where the system
+    has no user id (Windows), only the kind is checked."""
+    kind = stat.S_ISDIR if directory else stat.S_ISREG
+    if not kind(st.st_mode):
+        return False
+    uid = _uid()
+    if uid is not None and (st.st_uid != uid or stat.S_IMODE(st.st_mode) & 0o077):
+        return False
+    return True
+
+
+def carry_folder(create=True):
+    """(the folder of carried files, None) when it is private (_private), made 0700 when
+    missing and `create`; (None, "missing") when it is missing and not `create`; (None,
+    "not-private") when it is a link, not a folder, someone else's, open to the group or
+    others, or cannot be made."""
+    path = carry_folder_path()
+    try:
+        st = os.lstat(path)
+    except FileNotFoundError:
+        if not create:
+            return None, "missing"
+        try:
+            os.mkdir(path, 0o700)
+        except FileExistsError:
+            pass
+        except OSError:
+            return None, "not-private"
+        try:
+            st = os.lstat(path)
+        except OSError:
+            return None, "not-private"
+    except OSError:
+        return None, "not-private"
+    if not _private(st, directory=True):
+        return None, "not-private"
+    return path, None
+
+
+def new_run_id():
+    """Twelve random lowercase letters and digits."""
+    return random_name_part(12)
+
+
+def _valid_record(record):
+    return (isinstance(record, dict) and record.get("aleogr-run") == 1
+            and isinstance(record.get("plugin"), str) and isinstance(record.get("skill"), str)
+            and (record.get("digest") is None or isinstance(record.get("digest"), str))
+            and type(record.get("commands")) is int and 1 <= record["commands"] < MAX_COMMANDS
+            and isinstance(record.get("carry"), dict))
+
+
+def read_carry(run_id):
+    """(the record of the carried file `<id>.json`, None), or (None, why): why is a key
+    of CARRY_REFUSALS. The file is opened without following a link and must be a
+    regular file of this user with no permission for others (`not-private`)."""
+    if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
+        return None, "malformed"
+    folder, why = carry_folder(create=False)
+    if folder is None:
+        return None, why
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) \
+        | getattr(os, "O_BINARY", 0)
+    try:
+        fd = os.open(os.path.join(folder, run_id + ".json"), flags)
+    except FileNotFoundError:
+        return None, "missing"
+    except OSError as e:
+        return None, "not-private" if e.errno == errno.ELOOP else "unreadable"
+    try:
+        if not _private(os.fstat(fd), directory=False):
+            return None, "not-private"
+        chunks, size = [], 0
+        while size <= MAX_CARRY_BYTES:
+            chunk = os.read(fd, 65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            size += len(chunk)
+    except OSError:
+        return None, "unreadable"
+    finally:
+        os.close(fd)
+    if size > MAX_CARRY_BYTES:
+        return None, "invalid"
+    try:
+        record = json.loads(b"".join(chunks).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None, "invalid"
+    if not _valid_record(record):
+        return None, "invalid"
+    return record, None
+
+
+def save_carry(run_id, record, replace=False):
+    """Write the carried file `<id>.json`, mode 0600, whole: a new one is created with
+    O_EXCL|O_NOFOLLOW (False when anything is already at that name); a rewrite
+    (`replace`) writes a new file the same way and renames it over the old one. False
+    when the folder is not private, the record is larger than MAX_CARRY_BYTES or the
+    system refused."""
+    folder, _ = carry_folder(create=True)
+    if folder is None or not RUN_ID_RE.fullmatch(run_id or ""):
+        return False
+    data = json.dumps(record, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    if len(data) > MAX_CARRY_BYTES:
+        return False
+    final = os.path.join(folder, run_id + ".json")
+    target = final if not replace else os.path.join(
+        folder, "%s.json.%s.tmp" % (run_id, random_name_part(8)))
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) \
+        | getattr(os, "O_BINARY", 0)
+    try:
+        fd = os.open(target, flags, 0o600)
+    except OSError:
+        return False
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        if replace:
+            os.replace(target, final)
+    except OSError:
+        try:
+            os.remove(target)
+        except OSError:
+            pass
+        return False
+    return True
+
+
+def remove_carry(run_id):
+    """Remove the carried file `<id>.json` (nothing when the id is not well formed or
+    the folder is not private)."""
+    if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
+        return
+    folder, _ = carry_folder(create=False)
+    if folder is None:
+        return
+    try:
+        os.remove(os.path.join(folder, run_id + ".json"))
+    except OSError:
+        pass
+
+
+def sweep_carries(max_age=CARRY_MAX_AGE):
+    """Remove the files of the carried files' folder (a private one only) that were last
+    written more than `max_age` seconds ago."""
+    folder, _ = carry_folder(create=False)
+    if folder is None:
+        return
+    now = time.time()
+    try:
+        names = os.listdir(folder)
+    except OSError:
+        return
+    for name in names:
+        path = os.path.join(folder, name)
+        try:
+            st = os.lstat(path)
+            if not stat.S_ISDIR(st.st_mode) and now - st.st_mtime > max_age:
+                os.remove(path)
+        except OSError:
+            pass
+
+
+def carry_digest(*parts):
+    """A digest (hex SHA-256) of `parts`, each bytes (a file's bytes), a string, or a
+    JSON value (a dict of arguments, in its keys' order): what ctx.carried compares.
+    For project-apply: carry_digest(<the declaration's bytes>, <the arguments without
+    run=>)."""
+    import hashlib
+    h = hashlib.sha256()
+    for p in parts:
+        if isinstance(p, bytes):
+            data, kind = p, b"b"
+        elif isinstance(p, str):
+            data, kind = p.encode("utf-8"), b"s"
+        else:
+            data, kind = json.dumps(p, ensure_ascii=False).encode("utf-8"), b"j"
+        h.update(kind + str(len(data)).encode("ascii") + b":" + data)
+    return h.hexdigest()
+
+
+def quote_argument(text):
+    """One argument as the shells write it: inside single quotes, a `'` written `'\\''`."""
+    return "'" + str(text).replace("'", "'\\''") + "'"
+
+
+# ---------------------------------------------------------------------------
 # The context a skill runs with
 
 
@@ -2274,13 +2661,40 @@ class Context(object):
     Other:
     - ctx.wait(): one wait, `sleep 30`, within the budget of the run (wait_allowed: the
       count of waits and the clock; False: the budget is spent, nothing was run; end `pending` with WAIT_BUDGET_SENTENCE and
-      ctx.wait_budget_item()).
+      ctx.wait_budget_item()). ctx.wait(counted=False): the same wait, limited by the
+      clock only (wait_clock_allows) and not counted in the budget, for an
+      orchestrator's own long wait (thirty tries of the shared instance's start).
+      A refused wait sets ctx.wait_refused, which a `--json` document reports as
+      `data.waitRefused: true`; a run ended by its deadline reports `data.timeLimit`.
+    - ctx.step_allowed(): step_allowed, the step limit of four minutes.
     - ctx.call(command, skill, args): call_plugin (with `--read-only` when this run was
       given it).
+
+    A run in more than one command, for a module that sets CONTINUES = True:
+    - ctx.carried(digest): at the start of every command, what an earlier command of
+      this run carried (a dict), or None: no `run=` was given, or the carried file was
+      refused, and then ctx.carry_refusal says why (a key of CARRY_REFUSALS, None when
+      no `run=` was given) and ctx.carry_lost_sentence() is its one fixed sentence.
+      `digest` (a string, e.g. carry_digest(...)) is compared with the one the file was
+      saved with: a different one refuses it (`mismatch`).
+    - ctx.commands: the number of commands this run has used, this one included.
+    - ctx.may_continue(): False once the run has used MAX_COMMANDS commands, or when
+      the carried file cannot be kept; the module then ends as its SKILL.md ends a
+      wait that passed its limit.
+    - ctx.continue_run(line, carry, ...): the Result of a command that ends `continue`:
+      `line`, `next: <command>`, and the block; `carry` (a small JSON object) is saved
+      for the next command, with `digest=` when what the digest is made of changed
+      during this command (otherwise the one given to carried()).
+    - ctx.refuse_carry(why): the module refuses the content carried() gave; the run
+      goes on as a new one (carry_refusal, carry_lost_sentence) and that file is not
+      removed.
     - ctx.on_abort(lines): the lines that the result of an aborted run (aborted_result:
       the time limit, an unexpected error) prints, from now on, after what the run
       wrote: what may now cost or need doing. Each call replaces the lines given
-      before; an empty list clears them.
+      before; an empty list clears them. For a module that calls other commands
+      (CONTINUES or CALLS_OTHERS), they stand for what its run made: with none, the
+      result says that earlier steps may have been made (REFUSED_UNKNOWN), never that
+      nothing was written.
     - ctx.result(...), ctx.failed(...): build a Result with the module's FAMILY,
       PROVIDER and ACTION.
     - ctx.plugin_path(*parts), ctx.defaults(): files of this plugin.
@@ -2307,6 +2721,135 @@ class Context(object):
         self.writes_run = []
         # The lines of aborted_result, as the module last registered them (on_abort).
         self.abort_lines = []
+        # A wait refused by the budget or the clock, and a run ended by its deadline: in
+        # the `--json` document as data.waitRefused and data.timeLimit (_with_limits).
+        self.wait_refused = False
+        self.time_limit = False
+        # A run in more than one command (begin_run, carried, continue_run).
+        self.continues = bool(getattr(module, "CONTINUES", False))
+        # A module that calls other commands (CONTINUES, or CALLS_OTHERS = True): what
+        # its run made is written by the commands it calls, never in its own writes_run,
+        # so a refusal or an abort never says that nothing was written (_written_lines).
+        self.calls_others = self.continues or bool(getattr(module, "CALLS_OTHERS", False))
+        self.given_args = list(args.items()) if isinstance(args, dict) else []
+        self.run_given = None  # the `run=` value given to this command
+        self.run_id = None  # the id of this run's carried file, once known to be its own
+        self.commands = 1
+        self.carry_refusal = None
+        self._record = None
+        self._digest = None
+        self._digest_given = False
+        self.continued = False
+
+    # A run in more than one command
+
+    def begin_run(self, run_value):
+        """The dispatcher's start of a command of a CONTINUES skill: old carried files
+        are removed (sweep_carries), and the one `run=` names is read (read_carry)."""
+        sweep_carries()
+        self.run_given = run_value
+        if run_value is None:
+            return
+        record, why = read_carry(run_value)
+        if record is not None and (record["plugin"] != self.plugin
+                                   or record["skill"] != self.skill):
+            record, why = None, "mismatch"
+        if record is None:
+            self.carry_refusal = why
+            return
+        self._record = record
+        self.run_id = run_value
+        self.commands = record["commands"] + 1
+
+    def carried(self, digest):
+        """What an earlier command of this run carried (a copy), or None (carry_refusal
+        says why, None when no `run=` was given)."""
+        self._digest = digest
+        self._digest_given = True
+        if self._record is None:
+            return None
+        if self._record.get("digest") != digest:
+            self._record = None
+            self.run_id = None
+            self.commands = 1
+            self.carry_refusal = "mismatch"
+            return None
+        return json.loads(json.dumps(self._record["carry"]))
+
+    def refuse_carry(self, why="invalid"):
+        """The module refuses what carried() gave (its content is not one it writes):
+        the run goes on as a new one, as for a file refused by the dispatcher (`why`, a
+        key of CARRY_REFUSALS). The file is not this run's own any more: it is not
+        removed (the sweep removes it after a day)."""
+        if why not in CARRY_REFUSALS:
+            why = "invalid"
+        self._record = None
+        self.run_id = None
+        self.commands = 1
+        self.carry_refusal = why
+
+    def carry_lost_sentence(self):
+        """CARRY_LOST_SENTENCE for carry_refusal, or None when nothing was refused."""
+        if self.carry_refusal is None:
+            return None
+        return CARRY_LOST_SENTENCE.format(why=CARRY_REFUSALS[self.carry_refusal])
+
+    def may_continue(self):
+        return (self.continues and self.commands < MAX_COMMANDS
+                and carry_folder(create=True)[0] is not None)
+
+    def next_command(self, run_id):
+        """`<plugin> [--read-only] [--json] <skill> '<key>=<value>' ... 'run=<id>'`: the
+        arguments this command was given (without `run=`), in their order."""
+        words = [self.plugin] + (["--read-only"] if self.forced_read_only else []) \
+            + (["--json"] if self.json else []) + [self.skill]
+        words += [quote_argument("%s=%s" % (k, "" if v is None else v))
+                  for k, v in self.given_args]
+        words.append(quote_argument("run=" + run_id))
+        return " ".join(words)
+
+    def continue_run(self, line, carry, outputs=None, resources=(), pending=(), cost=None,
+                     digest=None, **extra):
+        """The Result of a command that ends `continue`: the answer is `line`, then
+        `next: <next_command>`, then the block (status `continue`). `carry`, a dict of
+        JSON values, is saved for the next command with `digest` (a string: what the
+        next command's carried() must give; by default the digest given to carried() in
+        this command) and the count of commands. A module whose run changes what its
+        digest is made of (project-apply's update of the folder rewrites the declaration)
+        computes it again right before this call. Call carried() first and continue only
+        when may_continue(); CarryNotSaved when the file cannot be saved."""
+        if not self.continues:
+            raise CarryNotSaved("%s does not declare CONTINUES" % self.skill)
+        if not self._digest_given:
+            raise CarryNotSaved("carried() was not called in this command")
+        if not self.may_continue():
+            raise CarryNotSaved("this run may not continue")
+        if not isinstance(carry, dict):
+            raise CarryNotSaved("the carry is not a dict")
+        if digest is not None and not isinstance(digest, str):
+            raise CarryNotSaved("the digest is not a string")
+        record = {"aleogr-run": 1, "plugin": self.plugin, "skill": self.skill,
+                  "digest": self._digest if digest is None else digest,
+                  "commands": self.commands,
+                  "carry": json.loads(json.dumps(carry))}
+        if self.run_id is not None:
+            saved = save_carry(self.run_id, record, replace=True)
+        else:
+            saved = False
+            for _ in range(3):
+                run_id = new_run_id()
+                if save_carry(run_id, record):
+                    self.run_id, saved = run_id, True
+                    break
+        if not saved:
+            raise CarryNotSaved("the carried file could not be saved")
+        self.continued = True
+        return self.result("continue", {} if outputs is None else outputs,
+                           resources=resources, pending=pending, cost=cost,
+                           lines=[line, "next: " + self.next_command(self.run_id)], **extra)
+
+    def step_allowed(self):
+        return step_allowed()
 
     # Running
 
@@ -2357,10 +2900,12 @@ class Context(object):
         self.writes_run.append("write %s" % (path or name))
         return path
 
-    def wait(self):
-        if not wait_allowed():
+    def wait(self, counted=True):
+        if not (wait_allowed() if counted else wait_clock_allows()):
+            self.wait_refused = True
             return False
-        _waited[0] += WAIT_SECONDS
+        if counted:
+            _waited[0] += WAIT_SECONDS
         self.read(["sleep", str(WAIT_SECONDS)])
         return True
 
@@ -2441,10 +2986,26 @@ def _written_line(ctx):
     return REFUSED_WRITTEN.format(writes=", ".join("`%s`" % w for w in written))
 
 
+def _written_lines(ctx):
+    """What this run had already made, as lines: for a module that calls other commands
+    (ctx.calls_others), whose own writes_run is always empty, the lines it registered
+    (ctx.on_abort: what its run made so far), or REFUSED_UNKNOWN when it registered
+    none; for any other module, the one sentence of _written_line and then the lines it
+    registered."""
+    registered = list(getattr(ctx, "abort_lines", None) or ())
+    if getattr(ctx, "calls_others", False):
+        return registered or [REFUSED_UNKNOWN]
+    return [_written_line(ctx)] + registered
+
+
 def refused_result(ctx):
     """The result printed when a read or a write was refused (ReadRefused,
     WriteRefused): `failed`, REFUSED_SENTENCE, then what this run had already written
-    (ctx.writes_run), and never the refused command itself."""
+    (ctx.writes_run; for a module that calls other commands, _written_lines), and never
+    the refused command itself."""
+    if getattr(ctx, "calls_others", False):
+        return ctx.result("failed", {}, cost=dict(REFUSED_COST),
+                          lines=[REFUSED_SENTENCE] + _written_lines(ctx))
     return ctx.result("failed", {}, cost=dict(REFUSED_COST),
                       lines=[REFUSED_SENTENCE, _written_line(ctx)])
 
@@ -2460,8 +3021,10 @@ def aborted_result(ctx, sentence):
     """The result printed when a run was aborted (TimeLimit, or any unexpected
     exception): `failed`, `sentence` (TIME_LIMIT_SENTENCE or UNEXPECTED_SENTENCE), what
     this run had already written, the lines the module registered (ctx.on_abort), then
-    READ_STATE_SENTENCE. Nothing of the exception's text: it may hold values."""
-    lines = [sentence, _written_line(ctx)] + list(getattr(ctx, "abort_lines", None) or ())
+    READ_STATE_SENTENCE. For a module that calls other commands, never that nothing was
+    written: the lines it registered, or REFUSED_UNKNOWN (_written_lines). Nothing of
+    the exception's text: it may hold values."""
+    lines = [sentence] + _written_lines(ctx)
     lines.append(READ_STATE_SENTENCE)
     return ctx.result("failed", {}, cost=dict(ABORTED_COST), lines=lines)
 
@@ -2479,6 +3042,10 @@ def run_skill(module, args, ctx):
     except WriteRefused:
         return refused_result(ctx), EXIT_SOFTWARE, "refused, not an allowed write"
     except TimeLimit:
+        try:
+            ctx.time_limit = True
+        except AttributeError:
+            pass
         return aborted_result(ctx, TIME_LIMIT_SENTENCE), EXIT_SOFTWARE, "time limit reached"
     except Exception:  # noqa: BLE001 - never a traceback: its text may hold values
         return aborted_result(ctx, UNEXPECTED_SENTENCE), EXIT_SOFTWARE, "unexpected error"
@@ -2528,29 +3095,82 @@ def main(plugin, root, argv, stdout=None, stderr=None):
         what = inv.skill if module is None else "%s mode=%s" % (inv.skill, mode)
         stderr.write("%s: not converted: %s\n" % (plugin, what))
         return EXIT_NOT_CONVERTED
-    before = _clock["start"]
-    start_clock()
+    return run_command(plugin, root, inv, module, mode, stdout, stderr)
+
+
+def run_command(plugin, root, inv, module, mode, stdout=None, stderr=None, environ=None):
+    """Run the parsed command `inv` with the skill's `module` (a module, or any object
+    with its names: the unit tests give one): start the run's clock (start_clock, with
+    `environ`), dispatch, and give the clock back as it was. Returns the exit code."""
+    stdout = stdout or sys.stdout
+    stderr = stderr or sys.stderr
+    before = dict(_clock)
+    start_clock(environ)
     try:
         return _dispatch(plugin, root, inv, module, mode, stdout, stderr)
     finally:
-        _clock["start"] = before  # a process ends here; an in-process test goes on
+        _clock.update(before)  # a process ends here; an in-process test goes on
+
+
+CONTINUE_UNEXPECTED = "ended continue without ctx.continue_run"
+
+
+def _end_run(ctx, result, code, plugin, stderr):
+    """The end of a command and its carried file: a `continue` is accepted only from
+    ctx.continue_run; any other status removes the run's file. Only this run's own file
+    is ever removed: the one this command accepted (ctx.run_id after carried() took it)
+    or created. A file `run=` named that was refused (another run's, by its digest, or
+    one the module refused) is left to the sweep (sweep_carries)."""
+    if result.status == "continue" and not getattr(ctx, "continued", False):
+        stderr.write("%s: %s: %s\n" % (plugin, ctx.skill, CONTINUE_UNEXPECTED))
+        stderr.flush()
+        result, code = aborted_result(ctx, UNEXPECTED_SENTENCE), EXIT_SOFTWARE
+    if ctx.continues and result.status != "continue" and ctx.run_id is not None:
+        remove_carry(ctx.run_id)
+    return result, code
+
+
+def _with_limits(result, ctx):
+    """data.waitRefused and data.timeLimit (only when true) in the `--json` document."""
+    flags = {}
+    if getattr(ctx, "wait_refused", False):
+        flags["waitRefused"] = True
+    if getattr(ctx, "time_limit", False):
+        flags["timeLimit"] = True
+    if flags and (result.data is None or isinstance(result.data, dict)):
+        data = dict(result.data or {})
+        data.update(flags)
+        result.data = data
+    return result
 
 
 def _dispatch(plugin, root, inv, module, mode, stdout, stderr):
-    ctx = Context(plugin, root, inv.skill, module, mode, inv.args, inv.json,
+    args = inv.args
+    run_value = None
+    continues = bool(getattr(module, "CONTINUES", False))
+    if continues and "run" in args:
+        # `run=` is the dispatcher's for a skill that can continue; for any other skill
+        # it is an argument like any other (the module refuses it as unknown).
+        args = dict(args)
+        run_value = args.pop("run")
+    ctx = Context(plugin, root, inv.skill, module, mode, args, inv.json,
                   read_only=inv.read_only)
+    if continues:
+        ctx.begin_run(run_value)
     code = EXIT_OK
     if inv.repeated:
         result = repeated_result(ctx, inv.repeated)
     elif inv.read_only and mode == "apply":
         result = read_only_refusal(ctx)
     else:
-        result, code, why = run_skill(module, inv.args, ctx)
+        result, code, why = run_skill(module, args, ctx)
         if why:
             # A bug of the command, or its time limit: loud (exit 70), but never without
             # a result. The line shows no value of a command and no exception's text.
             stderr.write("%s: %s: %s\n" % (plugin, inv.skill, why))
             stderr.flush()
+    result, code = _end_run(ctx, result, code, plugin, stderr)
+    result = _with_limits(result, ctx)
     try:
         text = render_json(result) if inv.json else render_answer(result)
     except Exception:  # noqa: BLE001 - a result that cannot be printed (too deep, ...)

@@ -1,6 +1,6 @@
 {
   "name": "aleogr-registry-gcp-artifact-registry",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "description": "Artifact Registry family: a project's Docker image repository in its own Google Cloud project.",
   "author": { "name": "aleogr" }
 }

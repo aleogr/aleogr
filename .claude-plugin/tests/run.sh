@@ -6,7 +6,12 @@
 #        (/<plugin>:<skill> args runs <plugin> <skill> args) with the fakes and every
 #        plugin's bin/ on PATH; its stdout is the answer. Exit 3 and "NOT CONVERTED
 #        <scenario>" when the prompt is not one slash command of a skill, or the
-#        command answers 64 (that skill or mode is not converted).
+#        command answers 64 (that skill or mode is not converted). While an answer's
+#        block says `continue`, the command of its `next:` line runs next (the same
+#        command and skill, the same arguments and one run=; at most eight commands);
+#        the last command's stdout is the answer.
+#        In both modes a file `clock` (one line `sleep-counts`) makes each logged
+#        `sleep 30` move the run's clock by 30 s.
 set -u
 
 if [ $# -ne 1 ]; then echo "usage: run.sh <scenario>" >&2; exit 2; fi
@@ -32,6 +37,16 @@ if [ -d "$scenario/files" ]; then cp -a "$scenario/files/." "$work/cwd/"; fi
 log="$work/calls.log"
 out="$work/claude.out"
 : > "$log"
+
+# A file `clock` holding the one line `sleep-counts`: each `sleep <n>` the fake logs
+# moves the run's clock by <n> seconds (ALEOGR_TEST_SLEEP_CLOCK, a test aid of the
+# shared module that only shortens a run and only works with FAKE_LOG set). Both modes
+# set it: in the default mode the model's commands inherit it from claude.
+sleep_clock=""
+if [ -e "$scenario/clock" ]; then
+  if [ "$(cat "$scenario/clock")" = sleep-counts ]; then sleep_clock=1
+  else echo "bad clock file (one line: sleep-counts): $scenario/clock" >&2; exit 2; fi
+fi
 
 if [ "${RUN_MODE:-}" = direct ]; then
   err="$work/command.err"
@@ -59,16 +74,74 @@ sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
   if [ ! -x "$plugins/${argv[0]}/bin/${argv[0]}" ]; then echo "NOT CONVERTED $1"; exit 3; fi
   bins=""
   for b in "$plugins"/*/bin; do bins="$bins:$b"; done
-  (
-    cd "$work/cwd" || exit 1
-    PATH="$here/bin$bins:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
-      PYTHONDONTWRITEBYTECODE=1 "${argv[@]}" < /dev/null > "$out" 2> "$err"
-  )
-  claude_status=$?
-  if [ "$claude_status" -eq 64 ]; then echo "NOT CONVERTED $1"; exit 3; fi
+  # A run in more than one command: while the answer's block says `continue`, run the
+  # command of its `next:` line (the same plugin command and skill, the same arguments
+  # and one `run=`), at most eight commands in all. The answer is the last command's
+  # stdout; the call log and stderr are the whole run's.
+  cmd=("${argv[@]}")
+  commands=0
+  loop_error=""
+  : > "$err"
+  : > "$work/commands"
+  while :; do
+    commands=$((commands + 1))
+    printf '%s\n' "${cmd[*]}" >> "$work/commands"
+    (
+      cd "$work/cwd" || exit 1
+      unset ALEOGR_RUN_ENDS ALEOGR_STEP_LIMIT ALEOGR_WAIT_CLOCK_LIMIT ALEOGR_TEST_SLEEP_CLOCK
+      if [ -n "$sleep_clock" ]; then export ALEOGR_TEST_SLEEP_CLOCK=1; fi
+      PATH="$here/bin$bins:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
+        PYTHONDONTWRITEBYTECODE=1 "${cmd[@]}" < /dev/null > "$out" 2>> "$err"
+    )
+    claude_status=$?
+    if [ "$commands" -eq 1 ] && [ "$claude_status" -eq 64 ]; then echo "NOT CONVERTED $1"; exit 3; fi
+    [ "$claude_status" -eq 0 ] || break
+    # 0: `continue`, the next command NUL-separated in $work/next; 1: the run ended;
+    # 2: a `continue` whose next: line is missing or not this command.
+    PYTHONDONTWRITEBYTECODE=1 python3 -I -c '
+import json, shlex, sys
+out = open(sys.argv[1], encoding="utf-8").read().splitlines()
+argv = [w for w in open(sys.argv[2], encoding="utf-8").read().split("\0")[:-1]]
+starts = [i for i, l in enumerate(out) if l.strip().startswith("```aleogr-result")]
+if not starts:
+    sys.exit(1)
+start = starts[-1]
+end = next((i for i in range(start + 1, len(out)) if out[i].strip() == "```"), None)
+try:
+    block = json.loads("\n".join(out[start + 1:end]))
+except ValueError:
+    sys.exit(1)
+if not isinstance(block, dict) or block.get("status") != "continue":
+    sys.exit(1)
+nexts = [l for l in out[:start] if l.startswith("next: ")]
+if not nexts:
+    sys.exit(2)
+try:
+    words = shlex.split(nexts[-1][len("next: "):])
+except ValueError:
+    sys.exit(2)
+plain = lambda ws: [w for w in ws if not w.startswith("run=")]
+if words[:2] != argv[:2] or plain(words[2:]) != plain(argv[2:]) \
+        or len(words) - len(plain(words)) != 1 or not words[-1].startswith("run="):
+    sys.exit(2)
+sys.stdout.write("".join(w + "\0" for w in words))
+' "$out" "$work/argv" > "$work/next"
+    case $? in
+      0) ;;
+      1) break ;;
+      *) loop_error="(the answer says continue, but its next: line is not this command)"; break ;;
+    esac
+    if [ "$commands" -ge 8 ]; then
+      loop_error="(the run did not end within eight commands)"; break
+    fi
+    cmd=()
+    while IFS= read -r -d '' w; do cmd+=("$w"); done < "$work/next"
+  done
 else
 (
   cd "$work/cwd" || exit 1
+  unset ALEOGR_TEST_SLEEP_CLOCK
+  if [ -n "$sleep_clock" ]; then export ALEOGR_TEST_SLEEP_CLOCK=1; fi
   PATH="$here/bin:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
     claude -p "$(cat "$scenario/prompt.txt")" \
       --model "${TEST_MODEL:-sonnet}" \
@@ -91,6 +164,7 @@ mv "$log.skill" "$log"
 failed=()
 if [ "${RUN_MODE:-}" = direct ]; then
   if [ "$claude_status" -ne 0 ]; then failed+=("(the command exited with status $claude_status)"); fi
+  if [ -n "$loop_error" ]; then failed+=("$loop_error"); fi
 elif [ "$claude_status" -ne 0 ]; then failed+=("(claude exited with status $claude_status)"); fi
 while IFS= read -r line || [ -n "$line" ]; do
   case "$line" in ''|'#'*) continue ;; esac
@@ -176,9 +250,10 @@ printf '  %s\n' "${failed[@]}"
 echo "call log:"
 if [ -s "$log" ]; then sed -E -e '/^(gh|git|go|sleep) /!s/^/gcloud /' -e 's/^/  /' "$log"; else echo "  (no calls)"; fi
 if [ "${RUN_MODE:-}" = direct ]; then
-  echo "command: ${argv[*]}"
+  echo "commands ($commands):"
+  sed 's/^/  /' "$work/commands"
   echo "command exit status: $claude_status"
-  echo "command output:"
+  echo "command output (the last command's):"
   sed 's/^/  /' "$out"
   echo "command stderr:"
   sed 's/^/  /' "$err"

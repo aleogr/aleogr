@@ -478,9 +478,17 @@ class Declaration(object):
 
 def database_settings(project, components, shared_project_id, region, instance, project_id,
                       environment="dev"):
-    """The `env` argument of the service skills, by "The database's settings":
-    `<c>:DB_INSTANCE=...;<c>:DB_NAME=...;<c>:DB_USER=...` for each component that uses
-    the database, sorted by name, all joined by `;`."""
+    """The database's settings: the `env` argument of the service skills, the one rule
+    project-plan (step 13) and project-apply (sub-step 12a, step e) both use.
+
+    A component <c> that uses the database gets exactly three settings on its service:
+    DB_INSTANCE=<shared project id>:<region>:<instance> (the shared instance's connection
+    name), DB_NAME=<project>_<environment> with every `-` of the project's name written
+    `_` (`demo_dev`; `my-app` gives `my_app_dev`), and DB_USER=<project>-<c>@<project
+    id>.iam (the database user of the component's service account). They are written
+    `<c>:DB_INSTANCE=...;<c>:DB_NAME=...;<c>:DB_USER=...` for each such component, the
+    components sorted by name, all joined by `;`; a component that does not use the
+    database gets none, and no other setting is given."""
     database = "%s_%s" % (project.replace("-", "_"), environment)
     entries = []
     for c in sorted(components):

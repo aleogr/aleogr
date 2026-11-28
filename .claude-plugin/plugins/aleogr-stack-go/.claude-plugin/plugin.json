@@ -1,6 +1,6 @@
 {
   "name": "aleogr-stack-go",
-  "version": "0.5.2",
+  "version": "0.5.4",
   "description": "Go stack: the starting point of a Go component, its Dockerfile and its database check.",
   "author": { "name": "aleogr" }
 }

@@ -191,9 +191,9 @@ class TestArgumentGivenTwice(unittest.TestCase):
             shutil.rmtree(folder)
 
     def test_not_converted_still_comes_first(self):
-        sql = "aleogr"  # project-apply is prose until step 3
+        sql = "aleogr"  # platform-plan is prose until part 3b
         p = subprocess.run([sys.executable, os.path.join(PLUGINS, sql, "bin", sql),
-                            "project-apply", "a=1", "a=2"],
+                            "platform-plan", "a=1", "a=2"],
                            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE,
                            env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))

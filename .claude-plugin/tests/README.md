@@ -41,15 +41,58 @@ other line of `expect.txt` is checked exactly as with the model. It exits 0 for 
 for a failure, 2 for bad usage, and **3, printing `NOT CONVERTED <scenario>`**, when the
 scenario cannot be run this way.
 
+**A run in more than one command.** When the command's answer ends with a block whose
+`status` is `continue` (`docs/DESIGN.md` section 10.4), `run.sh` runs the command of its
+`next:` line, as the shell's model will: the line is split with `shlex`, and it must be the
+same plugin command and skill with the same arguments and one `run=<id>`, or the scenario
+fails (`(the answer says continue, but its next: line is not this command)`). It goes on
+while the answer says `continue`, at most eight commands in all; a run still at `continue`
+after the eighth fails (`(the run did not end within eight commands)`). The answer that the
+`OUTPUT`, `OUTPUT_NOT` and `RESULT_NOT` lines check is the **last** command's stdout; the
+call log, the files of the working folder and the stderr shown on a failure are the whole
+run's, and a failure lists every command run. Every command must exit 0. The harness unsets
+`ALEOGR_RUN_ENDS`, `ALEOGR_STEP_LIMIT`, `ALEOGR_WAIT_CLOCK_LIMIT` and
+`ALEOGR_TEST_SLEEP_CLOCK` before each command, so a scenario does not depend on the shell
+it is run from.
+
+**The `clock` file.** The fake `sleep` returns at once, so the run's clock does not move and
+every existing scenario runs in one command. A scenario that has a file `clock` holding the
+one line `sleep-counts` runs with `ALEOGR_TEST_SLEEP_CLOCK=1`, in both modes (with the model,
+the commands the model runs inherit it from `claude`): each `sleep <n>` that the fake
+logs during a command moves that command's clock by `<n>` seconds (the shared module counts
+the `sleep` lines of `FAKE_LOG`, and honours the variable only when `FAKE_LOG` is set, so
+only under these fakes; it only adds to the clock, so it can only shorten a run). Thirty
+seconds per wait reach the step limit of four minutes after eight waits, so such a scenario
+continues over several commands, as a real run would. A `clock` file with any other content
+is a bad scenario (exit 2). The loop and the `clock` file are tested on a copy of the
+harness with stand-in commands (`unit/test_continue.py`). Four scenarios have a `clock`
+file, all of `project-apply`, each made from a one-command scenario whose final answer it
+pins: `project-apply-continue-start-wait-limit` (the instance's wait over three commands, to
+its limit of thirty tries), `project-apply-continue-create-stopped` (the instance started in
+the first command and ready in the second), `project-apply-continue-already-starting`
+(an instance someone else started, never started by the run) and
+`project-apply-continue-after-merge` (the run after a merge: the folder updated, an API
+enabled and its wait, the instance started in the first command and ready in the second; the
+last answer keeps every line of the first command, the start's sentence and its cost). The
+fake `git` cannot rewrite the declaration on the pull, so the digest taken after the update
+of the folder is tested by a unit test (`TestDigestAfterTheUpdate` in
+`unit/test_project_apply.py`, through the real dispatcher with a declaration that a call
+rewrites). `project-apply`'s own wait is
+bounded by the clock's limit for waits, not by the step limit, so its commands make thirteen
+waits each.
+
 "Not converted" means one of: the prompt is not one slash command of a skill (a prompt of
 several lines, such as the `harness-selftest*` scenarios); the plugin has no command; or the
-command answers 64 because that skill has no module yet (the four orchestrators that are
-still prose: `project-apply`, `project-access`, `platform-plan` and `platform-apply`).
+command answers 64 because that skill has no module yet (the three orchestrators that are
+still prose: `project-access`, `platform-plan` and `platform-apply`).
 `run-direct.sh` counts those apart, never as failures, and exits 1 only when a scenario
 failed. At the end of step 1 it printed `passed 180, failed 0, not converted 493`; at the end
-of part 2a of step 2, `passed 357, failed 0, not converted 316`; at the end of part 2b it
-prints `passed 556, failed 0, not converted 117` (111 scenarios of the four orchestrators and
-the 6 `harness-selftest*`).
+of part 2a of step 2, `passed 357, failed 0, not converted 316`; at the end of part 2b,
+`passed 556, failed 0, not converted 117`; at the end of part 3a of step 3 it prints
+`passed 635, failed 0, not converted 41` (the 76 scenarios of `project-apply` and the three
+`project-apply-continue-*` pass; the 41 are the 35 scenarios of the three orchestrators still
+prose and the 6 `harness-selftest*`); after the fixes of its final review, `passed 636`, with
+the fourth `project-apply-continue-*`.
 
 A scenario of a command that writes runs in the scenario's working folder, a copy of its
 `files/`, so the `FILE`, `SAME_FILE`, `NO_FILE` and `FILE_NOT` lines check what the command
@@ -88,6 +131,12 @@ Every provider command is bounded by the run's deadline (`RUN_DEADLINE`, nine an
 past it the command is killed and the run ends with the `failed` result of an aborted run
 (`aborted_result`), which any unexpected exception also gets, with no traceback; a unit test moves
 the clock (`common.set_clock`) or raises `TimeLimit` from a context to reach these endings.
+A run in more than one command (the status `continue`, its `next:` line, the carried file and
+each of its refusals, the bound of eight commands, the deadline passed to a called command and
+its `data.waitRefused` / `data.timeLimit`, the step limit, the environment variables that only
+lower a limit, the uncounted wait `ctx.wait(counted=False)`) is tested in `test_continue.py`
+with module objects given to `common.run_command`, an injected clock and a temporary folder
+for the carried files (`common.set_carry_folder`).
 A unit test replaces `ctx.execute(argv)`, the one place a command runs, to record each write.
 
 **Golden commands.** Each writing skill's unit test holds its write commands exactly as the
@@ -106,7 +155,9 @@ that may change, and none has.
 
 **A run with the model is needed only** for what the direct mode cannot see: that a shell
 skill runs the right one of its commands with the arguments it was given and relays the answer
-with nothing added, and the four orchestrators that are still prose. A rule is never tested
+with nothing added, that `project-apply`'s shell runs each `next:` command while the answer
+says `continue` and gives the last answer (a `project-apply-continue-*` scenario run with the
+model), and the three orchestrators that are still prose. A rule is never tested
 with the model.
 
 ## How it works
