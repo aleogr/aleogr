@@ -514,6 +514,43 @@ class TestAnswer(unittest.TestCase):
                           "| repository | a\\|b |  |"])
 
 
+UNCONVERTED = "demo-not-converted"
+
+
+class UnconvertedPlugin(object):
+    """A plugin folder `demo` built for the test: the real bin/ and shared module, and one
+    skill, UNCONVERTED, that has a SKILL.md and no module: the example of a skill that is
+    not converted, which no real skill has to stay."""
+
+    def __enter__(self):
+        import shutil
+        self.top = tempfile.mkdtemp()
+        root = os.path.join(self.top, "demo")
+        os.makedirs(os.path.join(root, "bin"))
+        os.makedirs(os.path.join(root, "scripts", "skills"))
+        os.makedirs(os.path.join(root, "skills", UNCONVERTED))
+        shutil.copy(os.path.join(PLUGINS, "aleogr", "bin", "aleogr"),
+                    os.path.join(root, "bin", "demo"))
+        shutil.copy(os.path.join(PLUGINS, "aleogr", "scripts", "aleogr_common.py"),
+                    os.path.join(root, "scripts"))
+        open(os.path.join(root, "scripts", "skills", "__init__.py"), "w").close()
+        with open(os.path.join(root, "skills", UNCONVERTED, "SKILL.md"), "w") as f:
+            f.write("---\ndescription: a skill with no module.\n---\n")
+        self.command = os.path.join(root, "bin", "demo")
+        return self
+
+    def run(self, *args):
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+        p = subprocess.run([sys.executable, self.command] + list(args),
+                           stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, env=env, cwd=tempfile.gettempdir())
+        return p.returncode, p.stdout.decode(), p.stderr.decode()
+
+    def __exit__(self, *exc):
+        import shutil
+        shutil.rmtree(self.top)
+
+
 class TestCommands(unittest.TestCase):
     def call(self, plugin, *args):
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
@@ -527,12 +564,16 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(self.call(sql, "--has", "gcp-cloud-sql_instance-describe")[0], 0)
         self.assertEqual(self.call(sql, "--has", "gcp-cloud-sql_instance-describe",
                                    "plan")[0], 0)
-        # platform-plan is prose until part 3b: the example of a skill not converted.
-        self.assertEqual(self.call("aleogr", "--has", "platform-plan")[0], 64)
-        self.assertEqual(self.call("aleogr", "--has", "project-apply")[0], 0)
-        code, out, err = self.call("aleogr", "platform-plan")
-        self.assertEqual((code, out), (64, ""))
-        self.assertEqual(len(err.splitlines()), 1)
+        # A skill with a SKILL.md and no module, in a plugin built for the test: the
+        # example of a skill not converted.
+        with UnconvertedPlugin() as demo:
+            self.assertEqual(demo.run("--has", UNCONVERTED)[0], 64)
+            code, out, err = demo.run(UNCONVERTED)
+            self.assertEqual((code, out), (64, ""))
+            self.assertEqual(len(err.splitlines()), 1)
+            self.assertEqual(demo.run("no-such-skill")[0], 2)
+        for converted in ("project-apply", "platform-plan", "platform-apply"):
+            self.assertEqual(self.call("aleogr", "--has", converted)[0], 0, converted)
         self.assertEqual(self.call(sql, "no-such-skill")[0], 2)
         self.assertEqual(self.call(sql, "--bogus")[0], 2)
         self.assertEqual(self.call(sql, "gcp-cloud-sql_instance-describe", "x")[0], 2)

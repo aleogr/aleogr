@@ -1,0 +1,23 @@
+# platform-apply-continue-instance-create with an instance that never leaves its creation:
+# every command after the first plans again, finds it creating and invokes the create with
+# resume=yes, whose wait the clock ends again. The eighth command may not continue: the run
+# ends pending as the create ends a wait that passed its limit, with the instance item
+# blocked. The answer says the instance runs and is charged by the hour, its fixed cost,
+# and the command that stops it; the instance is created once and never stopped.
+COMMANDS 8
+COUNT 1 ^sql instances create aleogr-shared
+AT_MOST 1 ^sql instances create
+# Seven resumed creates, each reading the instance's last operations first.
+COUNT 7 ^sql operations list .*--sort-by=~insertTime
+AT_MOST 7 ^sql operations list .*--sort-by=~insertTime
+NOT_CALLED ^sql instances patch
+NOT_CALLED ^scheduler jobs run
+OUTPUT This run reached its limit of eight commands before the database instance was stopped; nothing after it was made\.
+OUTPUT It is not stopped: it runs and is charged by the hour until it is stopped\. Stop it with /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=aleogr-shared-zz99 instance=aleogr-shared\.
+OUTPUT about R\$ 50 per month while stopped
+OUTPUT "item": "database instance", "state": "exists, creating", "action": "blocked"
+OUTPUT "how": "/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=aleogr-shared-zz99 instance=aleogr-shared"
+OUTPUT "status": "pending"
+OUTPUT "fixed": true
+OUTPUT_NOT [Nn]othing to do
+OUTPUT_NOT ^next:

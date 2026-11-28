@@ -1,0 +1,13 @@
+# resume=yes on an instance this skill has just created (it is still being created and its
+# only operation is its CREATE): the creation is skipped, and the run goes on as after a
+# creation: it waits until the instance runs, stops it by running the night job (the night
+# stop is tested) and verifies it.
+CALLED ^sql operations list --instance=aleogr-shared --project=aleogr-shared-zz99 --sort-by=~insertTime --limit=10 --format=value\(operationType\)$
+NOT_CALLED ^sql instances create
+NOT_CALLED ^sql instances patch
+CALLED ^scheduler jobs run aleogr-shared-stop-weeknight .*--location=southamerica-east1
+ORDER ^sql operations list .*--sort-by=~insertTime >> ^scheduler jobs run
+COUNT 1 ^sleep 30
+OUTPUT The night stop is proven
+OUTPUT "status": "created"
+OUTPUT "state": "stopped"

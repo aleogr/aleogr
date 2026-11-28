@@ -20,6 +20,23 @@ From the moment the create command exits zero until a describe shows the instanc
 stopped, a run aborted by its time limit or an unexpected error (common.aborted_result)
 says what its own timeout says: the instance exists, runs and is charged by the hour
 until it is stopped, and the command that stops it (ctx.on_abort).
+
+`resume=yes` (with mode=apply and confirm=yes; any other value fails validation) is for
+the caller whose own run asked for this creation in an earlier command, ended by the
+run's clock before the instance was stopped (aleogr:platform-apply passes it only then):
+when the instance exists, the creation is skipped and the run goes on as its text does
+after a creation: it waits for the instance, stops it (with stopJob, by running the job,
+which tests the night stop) and verifies it, with the same endings. It is honoured only
+for an instance that is not stopped and has had no operation since its creation but its
+creation (and automated backups): `gcloud sql operations list` shows its CREATE among its
+last ten operations and nothing else but BACKUP_VOLUME. The skill sets no labels, so this
+is how it tells an instance it just created, not stopped yet, from one someone started
+or changed: an instance that was ever stopped, started or patched is never stopped by
+resume=yes (gcp-cloud-sql_instance-stop is for that). When it is not honoured, the run
+answers as without it (unchanged, the instance's state, its cost and how to stop it) and
+says why in one sentence. Without the instance, resume=yes changes nothing: the creation
+runs as usual. Without resume=yes nothing differs from the skill's text. The write
+commands are the same in every case.
 """
 
 import json
@@ -55,7 +72,7 @@ _STOP_JOB = re.compile(r"^[a-z0-9-]+$")
 
 REQUIRED = ("projectId", "instance", "platform", "version", "tier", "edition", "region",
             "storageGb", "backupStartUtc", "retainedBackups")
-ORDER = REQUIRED + ("mode", "confirm", "stopJob")
+ORDER = REQUIRED + ("mode", "confirm", "stopJob", "resume")
 
 PLATFORM_NOT_SHARED = ("platform must be shared: this skill only creates the shared "
                        "platform's instance.")
@@ -65,6 +82,20 @@ NOT_RUNNABLE = ("These values cannot be passed to the create command of this ski
                 "digits, storageGb written without a leading zero), so nothing was created.")
 NIGHT_STOP_HOW = ("the night stop does not work: send this output; until it is fixed, stop the "
                   "instance by hand after each use")
+
+# resume=yes (fixed here: the SKILL.md predates it).
+RESUME_INVALID = "resume, when given, must be yes."
+RESUME_NEEDS_APPLY = "resume=yes needs mode=apply and confirm=yes."
+RESUME_LINE = ("The Cloud SQL instance %s in %s exists and is %s: this run goes on from its "
+               "creation, with its wait, its stop and its check.")
+RESUME_REFUSED = "resume=yes was not used: %s; nothing was changed."
+RESUME_STOPPED = "the instance is stopped"
+RESUME_CHANGED = ("the instance has had other operations since its creation (it was stopped, "
+                  "started or changed), so it is not one this skill has just created")
+RESUME_UNREAD = "the operations of the instance could not be read"
+# What an instance this skill created and has not stopped yet may show among its last
+# operations, besides its CREATE.
+RESUME_OPERATIONS = ("CREATE", "BACKUP_VOLUME")
 
 
 def _validate(args):
@@ -98,6 +129,11 @@ def _validate(args):
         return "confirm, when given, must be yes."
     if "stopJob" in args and not _STOP_JOB.match(args["stopJob"]):
         return "stopJob is not valid: it must be lowercase letters, digits and -."
+    if "resume" in args:
+        if args["resume"] != "yes":
+            return RESUME_INVALID
+        if args.get("mode") != "apply" or args.get("confirm") != "yes":
+            return RESUME_NEEDS_APPLY
     return None
 
 
@@ -156,6 +192,26 @@ def patch_command(project_id, instance):
     """Step 6, without stopJob (and the fallback after a job that did not stop it)."""
     return ["gcloud", "sql", "instances", "patch", instance, "--project=%s" % project_id,
             "--activation-policy=NEVER", "--quiet"]
+
+
+def operations_command(project_id, instance):
+    """resume=yes: the instance's last ten operations, newest first (a read)."""
+    return ["gcloud", "sql", "operations", "list", "--instance=%s" % instance,
+            "--project=%s" % project_id, "--sort-by=~insertTime", "--limit=10",
+            "--format=value(operationType)"]
+
+
+def resume_refusal(ctx, project_id, instance, state):
+    """None when resume=yes is honoured for this existing instance, else the reason."""
+    if state == "stopped":
+        return RESUME_STOPPED
+    c = ctx.read(operations_command(project_id, instance))
+    if not c.ok:
+        return RESUME_UNREAD
+    types = [line.strip() for line in c.out.splitlines() if line.strip()]
+    if "CREATE" not in types or any(t not in RESUME_OPERATIONS for t in types):
+        return RESUME_CHANGED
+    return None
 
 
 def job_run_command(args):
@@ -219,10 +275,21 @@ def run(args, ctx):
         cause = answer[0] if answer and isinstance(answer[0], str) else (
             "The instance %s could not be read." % instance)
         return ctx.failed(cause, outputs(), cost=dict(COST))
+    resume = args.get("resume") == "yes"
+    refused = None
+    if out.get("exists") is True and resume and not unrunnable(args, ctx.root):
+        refused = resume_refusal(ctx, project_id, instance, out.get("state"))
+        if refused is None:
+            # resume=yes: the creation is skipped; the run goes on after it.
+            return _after_creation(ctx, args, [RESUME_LINE % (instance, project_id,
+                                                              out.get("state"))],
+                                   resources, outputs)
     if out.get("exists") is True:
         state = out.get("state")
         lines = ["The Cloud SQL instance %s already exists in %s and is %s; nothing was "
                  "changed." % (instance, project_id, state)]
+        if refused is not None:
+            lines.append(RESUME_REFUSED % refused)
         if state == "stopped":
             lines.append(COST_LINE)
         else:
@@ -271,7 +338,15 @@ def run(args, ctx):
         lines.append("The instance %s could not be created: %s; nothing was created."
                      % (instance, _cause(c, "create")))
         return ctx.result("failed", outputs(False, None), cost=dict(COST), lines=lines)
+    return _after_creation(ctx, args, lines, resources, outputs)
 
+
+def _after_creation(ctx, args, lines, resources, outputs):
+    """Steps 5 to 7, after the create command (or, with resume=yes, after an earlier
+    run's): the wait, the stop, the verification, and every ending of them."""
+    project_id = args["projectId"]
+    instance = args["instance"]
+    stop_job = args.get("stopJob")
     stop_item = {"item": "instance", "reason": "manual", "how": stop_how(project_id, instance)}
     running_line = ("It is not stopped: it runs and is charged by the hour until it is "
                     "stopped. Stop it with %s." % stop_how(project_id, instance))
