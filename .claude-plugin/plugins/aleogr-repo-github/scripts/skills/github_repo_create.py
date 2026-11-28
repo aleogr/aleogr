@@ -2,12 +2,15 @@
 description and optional topics, and verifies it (mode=apply), or says what a run would
 do (mode=plan). An existing repository is never changed.
 
-The specification is skills/github_repo-create/SKILL.md: the same read (step 1), the same
-comparison (step 2), the same stop for a public repository (step 3), the same create
-(step 4), the same topics command (step 5) and the same verification (step 6), in that
-order, each at most once, and the same result block. The writes run through the writing
-runner only (Reader.write, then ctx.write), so only in mode=apply.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_github_repo_create.py) and its scenarios. It was built from
+skills/github_repo-create/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that change):
+the same read (step 1), the same comparison (step 2), the same stop for a public
+repository (step 3), the same create (step 4), the same topics command (step 5) and the
+same verification (step 6), in that order, each at most once, and the same result block.
+The writes run through the writing runner only (Reader.write, then ctx.write), so only in
+mode=apply."""
 
 import importlib.util
 import os

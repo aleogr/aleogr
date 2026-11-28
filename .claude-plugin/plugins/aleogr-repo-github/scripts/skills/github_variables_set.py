@@ -1,11 +1,14 @@
 """github_variables-set: makes the given Actions variables (or secrets) of a repository
 hold the given values (mode=apply), or says which a run would set (mode=plan).
 
-The specification is skills/github_variables-set/SKILL.md: the same read, the same
-comparison, the same sets and the same result block. examine() holds steps 1 and 2,
-shared by both modes; plan() holds the plan's answer and apply() step 3, the sets, run
-through the writing runner (ctx.write), one per variable to set, in order, stopping at
-the first that GitHub refuses.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_github_variables_set.py) and its scenarios. It was built from
+skills/github_variables-set/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same read, the same comparison, the same sets and the same result block.
+examine() holds steps 1 and 2, shared by both modes; plan() holds the plan's answer and
+apply() step 3, the sets, run through the writing runner (ctx.write), one per variable
+to set, in order, stopping at the first that GitHub refuses.
 
 No value is ever printed: the answer and the block name variables only, and the value
 of a set is passed as Hidden, so its `+ ` line shows `<value>`.

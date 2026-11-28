@@ -1,0 +1,12 @@
+# resume=yes given by hand on a running instance that was started after its creation (its
+# last operations hold an UPDATE): it is not one this skill has just created, so the skill
+# answers as without resume=yes: nothing is changed, and the instance is never stopped by
+# it (gcp-cloud-sql_instance-stop is for that). One sentence says why.
+CALLED ^sql operations list .*--sort-by=~insertTime
+NOT_CALLED ^sql instances (create|patch)
+NOT_CALLED ^scheduler jobs run
+NOT_CALLED ^sleep
+OUTPUT resume=yes was not used: the instance has had other operations since its creation
+OUTPUT charged by the hour until it is stopped
+OUTPUT "status": "unchanged"
+OUTPUT "state": "running"

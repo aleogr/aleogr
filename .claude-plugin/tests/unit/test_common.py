@@ -24,6 +24,9 @@ sys.path.insert(0, os.path.join(PLUGINS, "aleogr", "scripts"))
 
 import aleogr_common as common  # noqa: E402
 
+sys.path.insert(0, HERE)
+from helpers import suite_line  # noqa: E402
+
 
 def read_bytes(path):
     with open(path, "rb") as f:
@@ -221,6 +224,7 @@ class StandIns(object):
             os.chmod(p, 0o755)
         self.old_path = os.environ["PATH"]
         os.environ["PATH"] = self.dir
+        common.reset_suite_checks()
         return self
 
     def ran(self):
@@ -337,7 +341,7 @@ class TestCallPlugin(unittest.TestCase):
         with StandIns() as s:
             p = os.path.join(s.dir, "aleogr-fake")
             with open(p, "w") as f:
-                f.write('#!/bin/sh\n'
+                f.write('#!/bin/sh\n' + suite_line() +
                         'echo \'{"aleogr-result": 1, "status": "unchanged", "args": "\'"$*"\'"}\'\n')
             os.chmod(p, 0o755)
             got = common.call_plugin("aleogr-fake", "y_describe", {"a": "1", "b": "x y"})
@@ -350,6 +354,148 @@ class TestCallPlugin(unittest.TestCase):
             with open(p, "w") as f:
                 f.write("#!/bin/sh\necho not json\n")
             self.assertEqual(common.call_plugin("aleogr-fake", "z")["callError"], "no-result")
+
+
+class TestSuite(unittest.TestCase):
+    """`<command> --suite` and the check call_plugin makes before its first call to a
+    command of another plugin."""
+
+    def stand_in(self, s, name, suite):
+        """A command that logs every run and answers `--suite` with `suite`."""
+        p = os.path.join(s.dir, name)
+        with open(p, "w") as f:
+            f.write('#!/bin/sh\necho "$*" >> "%s/%s.log"\n'
+                    '[ "$1" = --suite ] && { printf "%%s" \'%s\'; exit 0; }\n'
+                    'echo \'{"aleogr-result": 1, "status": "unchanged"}\'\n'
+                    % (s.dir, name, suite))
+        os.chmod(p, 0o755)
+        return os.path.join(s.dir, name + ".log")
+
+    def log(self, path):
+        if not os.path.exists(path):
+            return []
+        with open(path) as f:
+            return f.read().splitlines()
+
+    def test_the_digest_and_the_option(self):
+        with open(common.__file__, "rb") as f:
+            import hashlib
+            digest = hashlib.sha256(f.read()).hexdigest()[:12]
+        self.assertEqual(common.suite_digest(), digest)
+        self.assertTrue(common.parse_command_line(["--suite"]).suite)
+        for bad in (["--suite", "x"], ["--json", "--suite"]):
+            with self.assertRaises(common.UsageError):
+                common.parse_command_line(bad)
+        for n in NAMES:
+            p = subprocess.run([os.path.join(PLUGINS, n, "bin", n), "--suite"],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertEqual((p.returncode, p.stdout, p.stderr),
+                             (0, (digest + "\n").encode(), b""), n)
+
+    def test_the_same_suite_is_asked_once(self):
+        with StandIns() as s:
+            log = self.stand_in(s, "aleogr-fake", common.suite_digest() + "\n")
+            for _ in range(3):
+                self.assertEqual(common.call_plugin("aleogr-fake", "x")["status"],
+                                 "unchanged")
+            self.assertEqual(self.log(log), ["--suite"] + ["--json x"] * 3)
+
+    def test_another_suite_runs_nothing_on_that_command(self):
+        for answer in ("0123456789ab\n", "", "%s\n%s\n" % (common.suite_digest(),
+                                                            common.suite_digest()),
+                       common.suite_digest().upper(), common.suite_digest() + "0",
+                       "usage: aleogr-fake <skill>\n"):
+            with self.subTest(answer=answer), StandIns() as s:
+                log = self.stand_in(s, "aleogr-fake", answer)
+                sentence = common.VERSION_SENTENCE.format(callee="aleogr-fake",
+                                                          caller="aleogr")
+                for _ in range(2):
+                    got = common.call_plugin("aleogr-fake", "x", {"a": "1"},
+                                             caller="aleogr")
+                    self.assertEqual((got["status"], got["callError"], got["answer"]),
+                                     ("failed", "version", [sentence]))
+                self.assertEqual(self.log(log), ["--suite"])  # no skill was invoked
+                self.assertIn("/plugin marketplace update aleogr", sentence)
+                # ctx.call raises it, with this plugin as the caller.
+                ctx = common.Context("aleogr-db-gcp-cloud-sql", "/x", "s", object(),
+                                     "plan", {})
+                with self.assertRaises(common.PluginVersion) as cm:
+                    ctx.call("aleogr-fake", "x")
+                self.assertIn("as the plugin aleogr-db-gcp-cloud-sql:", cm.exception.sentence)
+                self.assertEqual(self.log(log), ["--suite"])
+
+    def test_a_missing_command_is_not_asked(self):
+        with StandIns() as s:
+            got = common.call_plugin("aleogr-not-installed", "x")
+            self.assertEqual(got["callError"], "not-found")
+            self.assertEqual(s.ran(), [])
+
+    def test_check_suites_probes_each_command_once_before_any_call(self):
+        with StandIns() as s:
+            logs = [self.stand_in(s, n, common.suite_digest() + "\n")
+                    for n in ("aleogr-fa", "aleogr-fb")]
+            self.assertIsNone(common.check_suites(["aleogr-fa", "aleogr-fb", "aleogr-fa"]))
+            self.assertIsNone(common.check_suites(["aleogr-fa", "aleogr-fb"]))
+            self.assertEqual([self.log(l) for l in logs], [["--suite"], ["--suite"]])
+            # The probe is the one call_plugin makes: it is not asked again.
+            common.call_plugin("aleogr-fb", "x")
+            self.assertEqual(self.log(logs[1]), ["--suite", "--json x"])
+
+    def test_check_suites_a_mismatch_is_the_version_failure(self):
+        with StandIns() as s:
+            good = self.stand_in(s, "aleogr-fa", common.suite_digest() + "\n")
+            bad = self.stand_in(s, "aleogr-fb", "0123456789ab\n")
+            got = common.check_suites(["aleogr-fa", "aleogr-fb"], caller="aleogr")
+            self.assertEqual((got["status"], got["callError"], got["answer"]),
+                             ("failed", "version", [common.VERSION_SENTENCE.format(
+                                 callee="aleogr-fb", caller="aleogr")]))
+            self.assertEqual((self.log(good), self.log(bad)), (["--suite"], ["--suite"]))
+            # call_plugin keeps the answer: nothing is ever run on that command.
+            self.assertEqual(common.call_plugin("aleogr-fb", "x")["callError"], "version")
+            self.assertEqual(self.log(bad), ["--suite"])
+            ctx = common.Context("aleogr", "/x", "s", object(), "plan", {})
+            with self.assertRaises(common.PluginVersion) as cm:
+                ctx.check_suites(["aleogr-fa", "aleogr-fb"])
+            self.assertEqual(cm.exception.sentence, common.VERSION_SENTENCE.format(
+                callee="aleogr-fb", caller="aleogr"))
+            self.assertEqual(s.ran(), [])
+
+    def test_check_suites_a_command_not_installed_is_not_a_failure(self):
+        with StandIns() as s:
+            log = self.stand_in(s, "aleogr-fa", common.suite_digest() + "\n")
+            self.assertIsNone(common.check_suites(["aleogr-not-installed", "aleogr-fa"]))
+            ctx = common.Context("aleogr", "/x", "s", object(), "plan", {})
+            self.assertIsNone(ctx.check_suites(["aleogr-not-installed", "aleogr-fa"]))
+            self.assertEqual(self.log(log), ["--suite"])
+            # Unless the module names it as required: then its not-found failure.
+            got = ctx.check_suites(["aleogr-fa", "aleogr-not-installed"],
+                                   required=["aleogr-not-installed"])
+            self.assertEqual((got["callError"], got["answer"]), ("not-found", [
+                common.NOT_FOUND_SENTENCE.format(command="aleogr-not-installed")]))
+
+    def test_a_module_that_meets_another_suite_ends_failed(self):
+        # Any module that calls another plugin: the run ends failed with the sentence
+        # alone, exit 0, and the module runs nothing after the call.
+        after = []
+
+        def run(args, ctx):
+            ctx.call("aleogr-fake", "x")
+            after.append(True)
+            return ctx.result("unchanged", {})
+
+        module = type("M", (), {"FAMILY": "cloud", "PROVIDER": "gcp", "ACTION": "x",
+                                "run": staticmethod(run)})
+        with StandIns() as s:
+            self.stand_in(s, "aleogr-fake", "ffffffffffff\n")
+            out, err = io.StringIO(), io.StringIO()
+            inv = common.parse_command_line(["--json", "x"])
+            code = common.run_command("aleogr-cloud-gcp", "/x", inv, module, "plan", out,
+                                      err, environ={})
+        obj = json.loads(out.getvalue())
+        self.assertEqual((code, obj["status"], after), (0, "failed", []))
+        self.assertEqual(obj["answer"], [common.VERSION_SENTENCE.format(
+            callee="aleogr-fake", caller="aleogr-cloud-gcp")])
+        self.assertEqual(obj["cost"], common.VERSION_COST)
 
 
 class TestAnswer(unittest.TestCase):
@@ -411,6 +557,43 @@ class TestAnswer(unittest.TestCase):
                           "| repository | a\\|b |  |"])
 
 
+UNCONVERTED = "demo-not-converted"
+
+
+class UnconvertedPlugin(object):
+    """A plugin folder `demo` built for the test: the real bin/ and shared module, and one
+    skill, UNCONVERTED, that has a SKILL.md and no module: the example of a skill that is
+    not converted, which no real skill has to stay."""
+
+    def __enter__(self):
+        import shutil
+        self.top = tempfile.mkdtemp()
+        root = os.path.join(self.top, "demo")
+        os.makedirs(os.path.join(root, "bin"))
+        os.makedirs(os.path.join(root, "scripts", "skills"))
+        os.makedirs(os.path.join(root, "skills", UNCONVERTED))
+        shutil.copy(os.path.join(PLUGINS, "aleogr", "bin", "aleogr"),
+                    os.path.join(root, "bin", "demo"))
+        shutil.copy(os.path.join(PLUGINS, "aleogr", "scripts", "aleogr_common.py"),
+                    os.path.join(root, "scripts"))
+        open(os.path.join(root, "scripts", "skills", "__init__.py"), "w").close()
+        with open(os.path.join(root, "skills", UNCONVERTED, "SKILL.md"), "w") as f:
+            f.write("---\ndescription: a skill with no module.\n---\n")
+        self.command = os.path.join(root, "bin", "demo")
+        return self
+
+    def run(self, *args):
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+        p = subprocess.run([sys.executable, self.command] + list(args),
+                           stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, env=env, cwd=tempfile.gettempdir())
+        return p.returncode, p.stdout.decode(), p.stderr.decode()
+
+    def __exit__(self, *exc):
+        import shutil
+        shutil.rmtree(self.top)
+
+
 class TestCommands(unittest.TestCase):
     def call(self, plugin, *args):
         env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
@@ -424,12 +607,16 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(self.call(sql, "--has", "gcp-cloud-sql_instance-describe")[0], 0)
         self.assertEqual(self.call(sql, "--has", "gcp-cloud-sql_instance-describe",
                                    "plan")[0], 0)
-        # platform-plan is prose until part 3b: the example of a skill not converted.
-        self.assertEqual(self.call("aleogr", "--has", "platform-plan")[0], 64)
-        self.assertEqual(self.call("aleogr", "--has", "project-apply")[0], 0)
-        code, out, err = self.call("aleogr", "platform-plan")
-        self.assertEqual((code, out), (64, ""))
-        self.assertEqual(len(err.splitlines()), 1)
+        # A skill with a SKILL.md and no module, in a plugin built for the test: the
+        # example of a skill not converted.
+        with UnconvertedPlugin() as demo:
+            self.assertEqual(demo.run("--has", UNCONVERTED)[0], 64)
+            code, out, err = demo.run(UNCONVERTED)
+            self.assertEqual((code, out), (64, ""))
+            self.assertEqual(len(err.splitlines()), 1)
+            self.assertEqual(demo.run("no-such-skill")[0], 2)
+        for converted in ("project-apply", "platform-plan", "platform-apply"):
+            self.assertEqual(self.call("aleogr", "--has", converted)[0], 0, converted)
         self.assertEqual(self.call(sql, "no-such-skill")[0], 2)
         self.assertEqual(self.call(sql, "--bogus")[0], 2)
         self.assertEqual(self.call(sql, "gcp-cloud-sql_instance-describe", "x")[0], 2)

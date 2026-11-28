@@ -3,11 +3,14 @@ for it, leave it stopped (by this skill's patch, or by running the night-stop jo
 `stopJob`, which proves the night stop) and verify it (mode=apply with confirm=yes), or
 say what would be created (mode=plan).
 
-The specification is skills/gcp-cloud-sql_instance-create/SKILL.md: the same check (the
-describe skill, invoked), the same create, the same waits, the same stop and the same one
-verification, the same states and the same result block. The instance has a fixed
-monthly cost: nothing is created without mode=apply and confirm=yes, checked in code
-before the create command is built.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_instance_create.py) and its scenarios. It was built from
+skills/gcp-cloud-sql_instance-create/SKILL.md as that text was before the skill became a
+shell over this command (the text is in the repository's history, at the commit before
+that change): the same check (the describe skill, invoked), the same create, the same
+waits, the same stop and the same one verification, the same states and the same result
+block. The instance has a fixed monthly cost: nothing is created without mode=apply and
+confirm=yes, checked in code before the create command is built.
 
 Waits go through ctx.wait() only, inside the eight-minute budget of one run (16 waits).
 The SKILL.md waits up to 20 minutes for the creation and up to 5 for the night stop: a
@@ -20,6 +23,29 @@ From the moment the create command exits zero until a describe shows the instanc
 stopped, a run aborted by its time limit or an unexpected error (common.aborted_result)
 says what its own timeout says: the instance exists, runs and is charged by the hour
 until it is stopped, and the command that stops it (ctx.on_abort).
+
+`resume=yes` (with mode=apply and confirm=yes; any other value fails validation) is for
+the caller whose own run asked for this creation in an earlier command, ended by the
+run's clock before the instance was stopped (aleogr:platform-apply passes it only then):
+when the instance exists, the creation is skipped and the run goes on as its text does
+after a creation: it waits for the instance, stops it (with stopJob, by running the job,
+which tests the night stop) and verifies it, with the same endings. It is honoured only
+for an instance that is not stopped and whose last ten operations (`gcloud sql operations
+list`) show its CREATE and nothing else but BACKUP_VOLUME. The skill sets no labels, so
+this rule is all it has: an instance whose last ten operations show a stop, a start or
+a change is never stopped by resume=yes (gcp-cloud-sql_instance-stop is for that), but an
+instance of the same name made by hand, never stopped and recent, would meet the rule
+and be stopped. That is why only platform-apply gives the argument, and only for a creation
+its own run asked for. When it is not honoured, the run answers as without it (unchanged,
+the instance's state, its cost and how to stop it) and says why in one sentence.
+
+With resume=yes the instance is NEVER created: when the check does not find it (a
+describe that may lag behind the creation the caller's run asked for) or cannot read it,
+the run ends failed, running no write, with one sentence (RESUME_NOT_FOUND): resume=yes
+was given and the instance was not found (or could not be read), so nothing was created;
+it may exist and run, what it costs, and how to read its state and stop it. Without
+resume=yes nothing differs from the skill's text. The write commands are the same in
+every case.
 """
 
 import json
@@ -55,7 +81,7 @@ _STOP_JOB = re.compile(r"^[a-z0-9-]+$")
 
 REQUIRED = ("projectId", "instance", "platform", "version", "tier", "edition", "region",
             "storageGb", "backupStartUtc", "retainedBackups")
-ORDER = REQUIRED + ("mode", "confirm", "stopJob")
+ORDER = REQUIRED + ("mode", "confirm", "stopJob", "resume")
 
 PLATFORM_NOT_SHARED = ("platform must be shared: this skill only creates the shared "
                        "platform's instance.")
@@ -65,6 +91,30 @@ NOT_RUNNABLE = ("These values cannot be passed to the create command of this ski
                 "digits, storageGb written without a leading zero), so nothing was created.")
 NIGHT_STOP_HOW = ("the night stop does not work: send this output; until it is fixed, stop the "
                   "instance by hand after each use")
+
+# resume=yes (fixed here: the SKILL.md predates it).
+RESUME_INVALID = "resume, when given, must be yes."
+RESUME_NEEDS_APPLY = "resume=yes needs mode=apply and confirm=yes."
+RESUME_LINE = ("The Cloud SQL instance %s in %s exists and is %s: this run goes on from its "
+               "creation, with its wait, its stop and its check.")
+RESUME_REFUSED = "resume=yes was not used: %s; nothing was changed."
+RESUME_STOPPED = "the instance is stopped"
+RESUME_CHANGED = ("the instance has had other operations since its creation (it was stopped, "
+                  "started or changed), so it is not one this skill has just created")
+RESUME_UNREAD = "the operations of the instance could not be read"
+# resume=yes and the check does not find the instance (or cannot read it): the caller's own
+# plan read it as existing, so a describe that says missing may lag behind its creation.
+# The instance is never created then: one sentence, no write. The third %s is "was not
+# found" or "could not be read".
+RESUME_NOT_FOUND = ("resume=yes was given and the Cloud SQL instance %s in %s %s, so nothing "
+                    "was created: it may exist and run, with a fixed cost of about R$ 50 per "
+                    "month while stopped, charged by the hour while it runs; read its state "
+                    "with %s and stop it with %s.")
+RESUME_MISSING = "was not found"
+RESUME_NOT_READ = "could not be read"
+# What an instance this skill created and has not stopped yet may show among its last
+# operations, besides its CREATE.
+RESUME_OPERATIONS = ("CREATE", "BACKUP_VOLUME")
 
 
 def _validate(args):
@@ -98,6 +148,11 @@ def _validate(args):
         return "confirm, when given, must be yes."
     if "stopJob" in args and not _STOP_JOB.match(args["stopJob"]):
         return "stopJob is not valid: it must be lowercase letters, digits and -."
+    if "resume" in args:
+        if args["resume"] != "yes":
+            return RESUME_INVALID
+        if args.get("mode") != "apply" or args.get("confirm") != "yes":
+            return RESUME_NEEDS_APPLY
     return None
 
 
@@ -158,6 +213,26 @@ def patch_command(project_id, instance):
             "--activation-policy=NEVER", "--quiet"]
 
 
+def operations_command(project_id, instance):
+    """resume=yes: the instance's last ten operations, newest first (a read)."""
+    return ["gcloud", "sql", "operations", "list", "--instance=%s" % instance,
+            "--project=%s" % project_id, "--sort-by=~insertTime", "--limit=10",
+            "--format=value(operationType)"]
+
+
+def resume_refusal(ctx, project_id, instance, state):
+    """None when resume=yes is honoured for this existing instance, else the reason."""
+    if state == "stopped":
+        return RESUME_STOPPED
+    c = ctx.read(operations_command(project_id, instance))
+    if not c.ok:
+        return RESUME_UNREAD
+    types = [line.strip() for line in c.out.splitlines() if line.strip()]
+    if "CREATE" not in types or any(t not in RESUME_OPERATIONS for t in types):
+        return RESUME_CHANGED
+    return None
+
+
 def job_run_command(args):
     """Step 6, with stopJob."""
     return ["gcloud", "scheduler", "jobs", "run", args["stopJob"],
@@ -195,6 +270,10 @@ def stop_how(project_id, instance):
         PLUGIN, project_id, instance)
 
 
+def describe_how(project_id, instance):
+    return "/%s:%s projectId=%s instance=%s" % (PLUGIN, DESCRIBE, project_id, instance)
+
+
 def run(args, ctx):
     mode = args.get("mode") or DEFAULT_MODE
 
@@ -214,15 +293,34 @@ def run(args, ctx):
     # Step 1: the check, by the describe skill (its block is input only).
     found = ctx.call(PLUGIN, DESCRIBE, {"projectId": project_id, "instance": instance})
     out = found.get("outputs") if isinstance(found.get("outputs"), dict) else {}
+    resume = args.get("resume") == "yes"
+    if resume and (found.get("status") == "failed" or out.get("exists") is not True):
+        # resume=yes never creates: the instance may exist and run (a lagging read).
+        why = RESUME_MISSING if (found.get("status") != "failed"
+                                 and out.get("exists") is False) else RESUME_NOT_READ
+        return ctx.failed(RESUME_NOT_FOUND % (instance, project_id, why,
+                                              describe_how(project_id, instance),
+                                              stop_how(project_id, instance)),
+                          outputs(), cost=dict(COST))
     if found.get("status") == "failed" or out.get("exists") not in (True, False):
         answer = found.get("answer") or []
         cause = answer[0] if answer and isinstance(answer[0], str) else (
             "The instance %s could not be read." % instance)
         return ctx.failed(cause, outputs(), cost=dict(COST))
+    refused = None
+    if out.get("exists") is True and resume and not unrunnable(args, ctx.root):
+        refused = resume_refusal(ctx, project_id, instance, out.get("state"))
+        if refused is None:
+            # resume=yes: the creation is skipped; the run goes on after it.
+            return _after_creation(ctx, args, [RESUME_LINE % (instance, project_id,
+                                                              out.get("state"))],
+                                   resources, outputs)
     if out.get("exists") is True:
         state = out.get("state")
         lines = ["The Cloud SQL instance %s already exists in %s and is %s; nothing was "
                  "changed." % (instance, project_id, state)]
+        if refused is not None:
+            lines.append(RESUME_REFUSED % refused)
         if state == "stopped":
             lines.append(COST_LINE)
         else:
@@ -271,7 +369,15 @@ def run(args, ctx):
         lines.append("The instance %s could not be created: %s; nothing was created."
                      % (instance, _cause(c, "create")))
         return ctx.result("failed", outputs(False, None), cost=dict(COST), lines=lines)
+    return _after_creation(ctx, args, lines, resources, outputs)
 
+
+def _after_creation(ctx, args, lines, resources, outputs):
+    """Steps 5 to 7, after the create command (or, with resume=yes, after an earlier
+    run's): the wait, the stop, the verification, and every ending of them."""
+    project_id = args["projectId"]
+    instance = args["instance"]
+    stop_job = args.get("stopJob")
     stop_item = {"item": "instance", "reason": "manual", "how": stop_how(project_id, instance)}
     running_line = ("It is not stopped: it runs and is charged by the hour until it is "
                     "stopped. Stop it with %s." % stop_how(project_id, instance))

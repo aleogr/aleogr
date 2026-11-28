@@ -2,12 +2,15 @@
 Artifact Registry when it is missing (mode=apply), or say what a run would create
 (mode=plan, the default).
 
-The specification is skills/gcp-artifact-registry_repository-create/SKILL.md: the same
-check (the describe skill, invoked), the same create, the same one read back, the same
-states and the same result block. The create runs through ctx.write only, and only in
-mode=apply; it is checked against this skill's allowlist of writes in both modes before
-the plan announces it or the apply runs it.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_artifact_registry_repository_create.py) and its scenarios. It was
+built from skills/gcp-artifact-registry_repository-create/SKILL.md as that text was
+before the skill became a shell over this command (the text is in the repository's
+history, at the commit before that change): the same check (the describe skill,
+invoked), the same create, the same one read back, the same states and the same result
+block. The create runs through ctx.write only, and only in mode=apply; it is checked
+against this skill's allowlist of writes in both modes before the plan announces it or
+the apply runs it."""
 
 import json
 import re

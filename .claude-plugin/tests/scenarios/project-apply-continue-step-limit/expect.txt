@@ -1,0 +1,23 @@
+# As project-apply-update-then-apply (the run after a merge: the folder is brought up to date,
+# then the repository's settings change), run as the shell runs it with a step limit of one
+# second (the file step-limit). The first step of a command after its plan is never held by the
+# step limit, and every later one is: so every command makes exactly one step, and the run takes
+# three commands: the folder's update, the configure, the last plan. Nothing is made twice, and
+# the final answer is the one-command run's: the two lines of the skills, the table, nothing to
+# do, updated.
+COMMANDS 3
+# Three commands, each plans once (tools-check's gh read opens every plan).
+COUNT 3 ^gh --version
+AT_MOST 3 ^gh --version
+AT_MOST 1 pull --ff-only
+AT_MOST 1 ^gh repo edit
+ORDER ^git -c credential.* pull --ff-only origin main >> ^gh repo edit example-org/demo
+CALLED ^gh repo edit example-org/demo .*--add-topic status-page
+NOT_CALLED ^git (commit|.*push)|^gh pr create
+OUTPUT ^github_checkout-setup: updated$
+OUTPUT ^github_repo-configure: updated$
+OUTPUT "status": "updated"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT_NOT could not be recalled
+OUTPUT_NOT ^next:
+OUTPUT_NOT "status": "continue"

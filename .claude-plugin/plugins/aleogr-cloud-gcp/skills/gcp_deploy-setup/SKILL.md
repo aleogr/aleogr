@@ -1,11 +1,11 @@
 ---
 description: Google Cloud (GCP) deploy setup. Use to make each component of an aleogr project run, in the GCP project of an environment, as a Cloud Run service as declared - created with the placeholder image in one command that keeps it behind the login (IAP) and never public, with its own account, no instance always on and billing by request - and to let the CI account replace its image (roles on that service and that account only, never on the project) and the person running it get in. Sets the settings it is given, in their own command, last. Repairs an existing service that differs without ever changing its image. Idempotent; plan by default.
-allowed-tools: Bash(aleogr-cloud-gcp --read-only gcp_deploy-setup), Bash(aleogr-cloud-gcp --read-only gcp_deploy-setup *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_deploy-setup), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_deploy-setup *)
 ---
 
 # gcp_deploy-setup
 
-Makes each component's Cloud Run service `<project>-<component>` exist as declared in one GCP project. A missing service is created with the placeholder image, behind the login from its first moment: one `gcloud run deploy` with `--no-allow-unauthenticated --iap`. An existing service that differs is repaired with only the settings that differ, and its image is never changed: replacing the image is CI's job. The CI account gets `roles/run.developer` on each service and `roles/iam.serviceAccountUser` on each service's account, never a role on the project, and the active `gcloud` account (the person running this) gets `roles/iap.httpsResourceAccessor` on each service, so that it can get in through the login. The settings (environment variables) given in `env` are set last, in their own command, without touching the image; a setting it was not given is never removed, changed or reported.
+Makes each component's Cloud Run service `<project>-<component>` exist as declared in one GCP project. A missing service is created with the placeholder image, behind the login from its first moment: one `gcloud run deploy` with `--no-allow-unauthenticated --iap`. An existing service that differs is repaired with only the settings that differ, and its image is never changed: replacing the image is CI's job. The CI account gets `roles/run.developer` on each service and `roles/iam.serviceAccountUser` on each service's account, never a role on the project, and the active `gcloud` account (the person running this) gets `roles/iap.httpsResourceAccessor` on each service, so that it can get in through the login; a refusal of that grant stops nothing (the component's settings are still set, and the result carries the item `access`). The settings (environment variables) given in `env` are set last, in their own command, without touching the image; a setting it was not given is never removed, changed or reported.
 
 Before it makes anything, a security pass closes every existing service that is open (to anyone through its login, or to anyone through its access policy) or without the login. It never passes `--allow-unauthenticated`, `--no-iap`, `--no-invoker-iam-check` or `--ingress`, never passes `--image` to an existing service, never adds `allUsers` or `allAuthenticatedUsers` to anything, never sets a minimum above 0, never deletes a service or an account, never removes or replaces a setting (no `--set-env-vars`, `--remove-env-vars`, `--clear-env-vars` or `--env-vars-file`), and never runs `set-iam-policy`. There is no fixed cost: with a minimum of 0 instances and billing by request, a service costs only while it answers requests.
 
@@ -39,13 +39,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-cloud-gcp gcp_deploy-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" gcp_deploy-setup <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-cloud-gcp --read-only gcp_deploy-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp" --read-only gcp_deploy-setup <arguments>
   ```
 
 Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
@@ -63,8 +63,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-cloud-gcp ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-cloud-gcp could not be run: update the plugin aleogr-cloud-gcp, then try again.` and the block is as it is below.
 
 The block:
 
@@ -82,7 +82,3 @@ The block:
   "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-cloud-gcp, then try again" } ]
 }
 ```
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

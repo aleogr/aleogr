@@ -3,8 +3,11 @@ environments are declared, with its GCP environment dev; print a table of items,
 and action. Read-only: it runs no provider command of its own, only tools-check (in this
 plugin, called as a function) and the read modes of the other plugins' commands.
 
-The specification is skills/project-plan/SKILL.md: the same invocations, in the same
-order, the same items, states, actions, lines and result block.
+The rules are this module's, pinned by its unit tests (tests/unit/test_project_plan.py)
+and its scenarios. It was built from skills/project-plan/SKILL.md as that text was
+before the skill became a shell over this command (the text is in the repository's
+history, at the commit before that change): the same invocations, in the same order, the
+same items, states, actions, lines and result block.
 
 The module keeps three things apart, so that project-apply (step 3) can call the plan
 as a function and get the same object:
@@ -43,6 +46,11 @@ CLOUD = "aleogr-cloud-gcp"
 REGISTRY = "aleogr-registry-gcp-artifact-registry"
 DB = "aleogr-db-gcp-cloud-sql"
 GO = "aleogr-stack-go"
+# Every other plugin's command this skill can call, in any path, in the order it first
+# calls them: asked `--suite` (ctx.check_suites) right after the arguments are validated
+# and before the first read, so that a plugin of another release ends the run before
+# anything is read or written. A unit test checks the list against the module's calls.
+SUITE_COMMANDS = (GH, GO, CLOUD, REGISTRY, DB)
 
 
 def _tools_check():
@@ -63,6 +71,8 @@ TC = _tools_check()
 # ---------------------------------------------------------------------------
 # Fixed sentences (prescribed ones word for word; the others fixed here)
 
+# The command a tool that is not ready names, when the owner ran the plan itself.
+PLAN_AGAIN = "/aleogr:project-plan"
 NO_DECLARATION = ("There is no .aleogr/project.json in this folder: declare the project first "
                   "with /aleogr:project-declare.")
 NO_DECLARATION_HOW = "declare the project first with /aleogr:project-declare"
@@ -158,10 +168,13 @@ class Failure(object):
     """A step that ended the plan with failed: the sentence of the answer and the one
     pending item."""
 
-    def __init__(self, sentence, item, how):
+    def __init__(self, sentence, item, how, called=False):
         self.sentence = sentence
         self.item = item
         self.how = how
+        # The plan ended on a failed read of a skill it invoked (its sentence is that
+        # skill's), or on a command of another suite (PluginVersion).
+        self.called = called
 
 
 def pending_item(item, how):
@@ -632,6 +645,11 @@ class Caller(object):
     def call(self, command, skill, args):
         return self.ctx.call(command, skill, args)
 
+    def suites(self, commands):
+        """Every command the plan can call, asked `--suite` before its first read
+        (ctx.check_suites): PluginVersion on a command of another suite."""
+        self.ctx.check_suites(commands)
+
     def tools(self, command):
         return TC.check(command, self.ctx.read)
 
@@ -730,16 +748,20 @@ def _capital(s):
     return s[:1].upper() + s[1:]
 
 
-def _tool_failure(chk, item):
+def _tool_failure(chk, item, again=None):
+    """A tool that is not ready (tools-check): its fix, then the command the owner ran
+    (`again`: the plan's own by default; the skill that invoked the plan passes its own,
+    as the owner gave it)."""
     tool = chk.tool
     words = TC.STATE_WORDS[tool["state"]]
-    return Failure("%s is %s: the fix is %s, then run /aleogr:project-plan again."
-                   % (tool["name"], words, tool["fix"]), item, tool["fix"])
+    return Failure("%s is %s: the fix is %s, then run %s again."
+                   % (tool["name"], words, tool["fix"], again or PLAN_AGAIN), item,
+                   tool["fix"])
 
 
 def _call_failure(result, item):
     sentence = cause(result)
-    return Failure(sentence, item, _how(sentence))
+    return Failure(sentence, item, _how(sentence), called=True)
 
 
 def note_repository_copy(r):
@@ -769,9 +791,22 @@ def note_repository_copy(r):
                                                                             str))
 
 
-def gather(args, caller):
-    """Steps 1 to 16. Returns a Reads; r.failure is set when a step ended the plan."""
+def gather(args, caller, again=None):
+    """Steps 1 to 16. Returns a Reads; r.failure is set when a step ended the plan.
+    `again`: the command the owner ran, named by the sentence of a tool that is not
+    ready (_tool_failure). A called command of another suite (PluginVersion) ends the
+    plan at once with its sentence: nothing after it is read, and no row is decided
+    from what was read before it."""
     r = Reads(args)
+    r.again = again
+    try:
+        _gather(args, caller, r)
+    except aleogr_common.PluginVersion as e:
+        r.failure = Failure(e.sentence, "plugins", _how(e.sentence), called=True)
+    return r
+
+
+def _gather(args, caller, r):
     # Step 1
     read_declaration(r, caller)
     if r.failure:
@@ -780,17 +815,19 @@ def gather(args, caller):
     if problem:
         r.failure = Failure(problem, "arguments", _how(problem))
         return r
+    # The versions, before the first read (PluginVersion ends the plan, as in gather).
+    caller.suites(SUITE_COMMANDS)
     d = r.decl
 
     # Step 2
     r.gh = caller.tools("gh")
     if not r.gh.ok:
-        r.failure = _tool_failure(r.gh, "gh")
+        r.failure = _tool_failure(r.gh, "gh", r.again)
         return r
     if d.environments:
         r.gcloud = caller.tools("gcloud")
         if not r.gcloud.ok:
-            r.failure = _tool_failure(r.gcloud, "gcloud")
+            r.failure = _tool_failure(r.gcloud, "gcloud", r.again)
             return r
 
     # Step 3
@@ -1615,9 +1652,11 @@ def decide(r):
                 resources(r))
 
 
-def plan(args, ctx, caller=None):
-    """The whole plan, read and decided, not printed."""
-    return decide(gather(args, caller or Caller(ctx)))
+def plan(args, ctx, caller=None, again=None):
+    """The whole plan, read and decided, not printed. `again`: the command the owner ran
+    when another skill invokes the plan (project-apply), for the sentence of a tool that
+    is not ready; by default the plan's own, /aleogr:project-plan."""
+    return decide(gather(args, caller or Caller(ctx), again))
 
 
 # ---------------------------------------------------------------------------

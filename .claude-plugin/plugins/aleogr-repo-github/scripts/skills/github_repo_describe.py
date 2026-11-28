@@ -1,9 +1,11 @@
 """github_repo-describe: the state of a GitHub repository and of its ruleset `main`.
 Read-only.
 
-The specification is skills/github_repo-describe/SKILL.md: the same reads, in the same
-order, the same states and the same result block.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_github_repo_describe.py) and its scenarios. It was built from
+skills/github_repo-describe/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same reads, in the same order, the same states and the same result block."""
 
 import importlib.util
 import json

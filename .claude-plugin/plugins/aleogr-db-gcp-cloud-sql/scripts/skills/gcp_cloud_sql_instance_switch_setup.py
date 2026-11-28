@@ -3,14 +3,17 @@ role, a service account, its grants, a GitHub Actions workload identity pool and
 and the two Cloud Scheduler jobs that stop the instance at night. mode=plan only reads;
 mode=apply creates what is missing, updates or resumes the jobs that differ, and verifies.
 
-The specification is skills/gcp-cloud-sql_instance-switch-setup/SKILL.md: the same reads
-in the order of the nine parts (a part whose dependency is missing is missing too, with no
-command), the same change commands in the same order, the single retry of a job's creation
-after about one minute (two waits of ctx.wait()), the same verification and the same
-result block. The jobs' body is the plugin's own file files/stop-body.json, passed by its
-real path, never inline. The project number and the e-mails appear only in the commands
-shown and in the `GitHub secrets` section, never in the block.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_instance_switch_setup.py) and its scenarios. It was built
+from skills/gcp-cloud-sql_instance-switch-setup/SKILL.md as that text was before the skill
+became a shell over this command (the text is in the repository's history, at the commit
+before that change): the same reads in the order of the nine parts (a part whose
+dependency is missing is missing too, with no command), the same change commands in the
+same order, the single retry of a job's creation after about one minute (two waits of
+ctx.wait()), the same verification and the same result block. The jobs' body is the
+plugin's own file files/stop-body.json, passed by its real path, never inline. The project
+number and the e-mails appear only in the commands shown and in the `GitHub secrets`
+section, never in the block."""
 
 import json
 import re

@@ -3,12 +3,15 @@ the shared Cloud SQL instance when it is missing (mode=apply), or say whether it
 made (mode=plan). It never starts, stops or changes the instance: on an instance that is
 not running it runs no other command and ends pending.
 
-The specification is skills/gcp-cloud-sql_database-create/SKILL.md: the same reads in the
-same order (the instance, its pending operations only for ALWAYS with RUNNABLE, the
-databases only while running), the one create, the one list after it that decides, the
-prescribed sentences word for word and the same result block. The create runs through
-ctx.write only. No failure's text is ever read to decide or quoted.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_database_create.py) and its scenarios. It was built from
+skills/gcp-cloud-sql_database-create/SKILL.md as that text was before the skill became a
+shell over this command (the text is in the repository's history, at the commit before
+that change): the same reads in the same order (the instance, its pending operations only
+for ALWAYS with RUNNABLE, the databases only while running), the one create, the one list
+after it that decides, the prescribed sentences word for word and the same result block.
+The create runs through ctx.write only. No failure's text is ever read to decide or
+quoted."""
 
 import json
 import re

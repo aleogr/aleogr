@@ -1,0 +1,27 @@
+# platform-apply-continue-instance-create, except that in the second command the create's
+# own check (the 17th describe) reads the instance as missing, a read that lags behind
+# the creation, while the plan just before it read it as creating. With resume=yes the
+# create never creates: it ends failed, running no write, and says the instance may run;
+# platform-apply keeps its own "may run" sentence and sends the owner to plan again.
+COMMANDS 2
+COUNT 1 ^sql instances create aleogr-shared
+AT_MOST 1 ^sql instances create
+NOT_CALLED ^scheduler jobs run
+NOT_CALLED ^sql instances patch
+NOT_CALLED ^sql operations list .*--sort-by=~insertTime
+NOT_CALLED ^iam (roles|service-accounts) create
+NOT_CALLED ^scheduler jobs (create|update)
+# Two plans: one per command; no last plan after the stop.
+COUNT 2 ^--version
+AT_MOST 2 ^--version
+OUTPUT ^gcp-cloud-sql_instance-create: failed$
+OUTPUT resume=yes was given and the Cloud SQL instance aleogr-shared in aleogr-shared-zz99 was not found, so nothing was created: it may exist and run
+OUTPUT read its state with /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe projectId=aleogr-shared-zz99 instance=aleogr-shared and stop it with /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=aleogr-shared-zz99 instance=aleogr-shared\.
+OUTPUT ^This run asked to create the database instance aleogr-shared: it may exist and run, charged by the hour until it is stopped
+OUTPUT about R\$ 50 per month while stopped
+OUTPUT \| database instance \| exists, creating \| blocked \|
+OUTPUT "how": "run /aleogr:platform-plan, then /aleogr:platform-apply confirm=yes"
+OUTPUT "status": "failed"
+OUTPUT "fixed": true
+OUTPUT_NOT ^gcp-cloud-sql_instance-create: created$
+OUTPUT_NOT ^next:

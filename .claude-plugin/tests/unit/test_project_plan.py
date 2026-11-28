@@ -18,6 +18,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from helpers import aleogr_common as common, load_skill, plugin_root  # noqa: E402
+from helpers import called_commands, run_with_other_suite  # noqa: E402
 
 PLUGIN = "aleogr"
 ROOT = plugin_root(PLUGIN)
@@ -124,6 +125,9 @@ class FakeCaller(object):
         if callable(a):
             return a(args)
         return copy.deepcopy(a)
+
+    def suites(self, commands):
+        self.suites_asked = list(commands)  # the versions, before the first read
 
     def tools(self, command):
         self.calls.append(("tools-check", {"command": command}))
@@ -483,6 +487,35 @@ class TestSteps(Base):
         self.assertEqual(p.pending, [{"item": "gh", "reason": "manual",
                                       "how": "gh auth login"}])
         self.assertIsNone(p.outputs["environment"])
+
+    def test_a_tool_names_the_skill_the_owner_ran(self):
+        # The plan run by itself names itself; invoked by project-apply, the sentence
+        # names the command the owner ran.
+        p, _ = self.plan(decl(environments=True), {}, tools={"gh": "not-authenticated"})
+        self.assertEqual(p.failure.sentence, "gh is not authenticated: the fix is gh auth "
+                         "login, then run /aleogr:project-plan again.")
+        self.assertFalse(p.failure.called)
+        caller = FakeCaller(self.dir, {}, {"gcloud": "missing"})
+        p = skill.decide(skill.gather({}, caller, again="/aleogr:project-apply confirm=yes"))
+        self.assertTrue(p.failure.sentence.endswith(
+            ", then run /aleogr:project-apply confirm=yes again."), p.failure.sentence)
+
+    def test_a_command_of_another_suite_ends_the_plan_at_once(self):
+        a = everything()
+        sentence = common.VERSION_SENTENCE.format(callee="aleogr-cloud-gcp", caller="aleogr")
+
+        def mismatch(args):
+            raise common.PluginVersion({"status": "failed", "answer": [sentence],
+                                        "callError": "version"})
+
+        a["gcp_environment-describe"] = mismatch
+        p, c = self.plan(decl(environments=True), a)
+        self.assertEqual(c.skills()[-1], "gcp_environment-describe")
+        self.assertEqual((p.status, p.items), ("failed", []))
+        self.assertEqual(skill.answer_lines(p), [sentence])
+        self.assertEqual(p.pending, [{"item": "plugins", "reason": "manual",
+                                      "how": sentence[:-1]}])
+        self.assertTrue(p.failure.called)
 
     def test_tools_check_go_never_fails_the_plan(self):
         a = everything(database=True)
@@ -980,6 +1013,29 @@ class TestCommand(unittest.TestCase):
             "changed", "environment", "repositoryEnvironments",
             "repositoryDatabaseComponents", "ciVariables", "urls", "ciDeployComponents",
             "defaultBranch", "database"])
+
+
+class TestSuites(unittest.TestCase):
+    """The versions are checked before the first read: every plugin command this
+    orchestrator can call is asked `--suite` right after its arguments are validated."""
+
+    def test_every_command_it_calls_is_in_its_list(self):
+        listed = list(skill.SUITE_COMMANDS)
+        self.assertEqual(len(listed), len(set(listed)))
+        self.assertEqual(called_commands(skill) - set(listed), set())
+        self.assertEqual(set(listed) - called_commands(skill), set())
+
+    def test_another_suite_on_the_last_plugin_ends_before_anything(self):
+        other = skill.SUITE_COMMANDS[-1]
+        result, logs, ran = run_with_other_suite(PLUGIN, "project-plan", skill, {},
+                                                 other, declaration=decl([WEB], environments=True))
+        sentence = common.VERSION_SENTENCE.format(callee=other, caller="aleogr")
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.lines.count(sentence), 1)
+        self.assertEqual([l for l in result.lines if l.startswith("|")], [])  # no table
+        # Each command asked once for its suite, and nothing invoked or run.
+        self.assertEqual(logs, dict((c, ["--suite"]) for c in skill.SUITE_COMMANDS))
+        self.assertEqual(ran, [])
 
 
 if __name__ == "__main__":

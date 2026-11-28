@@ -1,12 +1,14 @@
 """project-apply: make what the plan says is missing, in a fixed order, under one
 confirmation, and end with a plan that proves it.
 
-The specification is skills/project-apply/SKILL.md: the same invocations, in the same
-order, the same gates, the same prescribed sentences and the same result block. This
-module runs no provider command that changes something: every write is a called
-skill's, through its plugin's command in `mode=apply`; its own commands are the plan's
-reads (the plan is called as a function of this plugin, project_plan.plan) and the wait
-`sleep 30`.
+The rules are this module's, pinned by its unit tests (tests/unit/test_project_apply.py)
+and its scenarios. It was built from skills/project-apply/SKILL.md as that text was
+before the skill became a shell over this command (the text is in the repository's
+history, at the commit before that change): the same invocations, in the same order, the
+same gates, the same prescribed sentences and the same result block. This module runs no
+provider command that changes something: every write is a called skill's, through its
+plugin's command in `mode=apply`; its own commands are the plan's reads (the plan is
+called as a function of this plugin, project_plan.plan) and the wait `sleep 30`.
 
 Layout, by the SKILL.md's steps:
 
@@ -48,6 +50,11 @@ CLOUD = "aleogr-cloud-gcp"
 REGISTRY = "aleogr-registry-gcp-artifact-registry"
 DB = "aleogr-db-gcp-cloud-sql"
 GO = "aleogr-stack-go"
+# Every other plugin's command this skill can call, in any path, in the order it first
+# calls them: asked `--suite` (ctx.check_suites) right after the arguments are validated
+# and before the first read, so that a plugin of another release ends the run before
+# anything is read or written. A unit test checks the list against the module's calls.
+SUITE_COMMANDS = (GH, GO, CLOUD, REGISTRY, DB)  # its own and its plan's
 
 API_TRIES = 10  # the wait for just-enabled APIs: tries, the first one included
 INSTANCE_TRIES = 30  # the wait for the shared instance, for the whole run
@@ -340,10 +347,13 @@ def new_carry():
         "visibilityApplied": None,  # the confirmVisibility this run applied (I1)
         "access": None,  # the item access of gcp_deploy-setup, as it gave it
         "route": [],  # the items route of go_setup in this run
+        "lost": None,  # CARRY_LOST_SENTENCE of a carry a command of this run refused
     }
 
 
 # What a carried file may hold (_valid_carry): exactly what this module writes.
+LOST_SENTENCES = tuple(common.CARRY_LOST_SENTENCE.format(why=why)
+                       for why in common.CARRY_REFUSALS.values())
 PROJECT_ID_RE = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")  # as the skills require it
 LINE_STATUSES = ("created", "updated", "pending", "failed")
 # Every skill this module calls, by the name its line gives it.
@@ -423,6 +433,8 @@ def _valid_carry(c):
         return None
     if c["access"] is not None and c["access"] != ACCESS_ITEM:
         return None
+    if c["lost"] is not None and c["lost"] not in LOST_SENTENCES:
+        return None
     route = c["route"]
     if not isinstance(route, list) or len(route) > MAX_CARRIED_LINES or not all(
             isinstance(x, dict) and set(x) == {"item", "reason", "how"}
@@ -468,13 +480,19 @@ class Apply(object):
         self.args = dict(args)
         self.ctx = ctx
         self.carry = carry
-        self._plan_fn = plan_fn or (lambda a: PP.plan(a, ctx))
+        self._plan_fn = plan_fn or (lambda a: PP.plan(a, ctx, again=self.again()))
         self._call_fn = call_fn or (lambda command, skill, a, read_only:
                                     common.call_plugin(command, skill, a,
-                                                       read_only=read_only))
+                                                       read_only=read_only,
+                                                       caller=ctx.plugin))
         self.confirm = args.get("confirm") == "yes"
         self.visibility_arg = args.get("confirmVisibility")
-        self.sentences = [lost] if lost else []
+        # A carry refused by this command, or by an earlier one of the run (carried in
+        # `lost`): the sentence is in the run's last answer, once, whichever command
+        # gives it.
+        if lost:
+            carry["lost"] = lost
+        self.sentences = [carry["lost"]] if carry["lost"] else []
         self.first = None  # the plan of step 1
         # The plan whose declaration is the folder's: the first, then the one made
         # after the folder's update (the update rewrites the declaration).
@@ -566,6 +584,12 @@ class Apply(object):
     def decl(self):
         return self.source.reads.decl if self.source is not None else None
 
+    def again(self):
+        """This skill as the owner ran it: `/aleogr:project-apply` and the arguments it
+        was given, in their order (validated: confirm and confirmVisibility only)."""
+        return " ".join(["/aleogr:project-apply"]
+                        + ["%s=%s" % (k, v) for k, v in self.args.items()])
+
     def defaults(self, dotted):
         return PP.Defaults(self.ctx.plugin_path("defaults.json")).get(dotted, "scalar")
 
@@ -591,6 +615,9 @@ class Apply(object):
         return a
 
     def check_step(self, what):
+        """Before a step (a call, or a plan after the first): the step limit, which never
+        holds the first step after this command's first plan (ctx.step_allowed), so every
+        command of a run makes at least one step."""
         if self.ctx.step_allowed():
             return
         raise Continue(CONTINUE_LINE % what, lambda: self.commands_limit(what))
@@ -604,6 +631,10 @@ class Apply(object):
         if step:
             self.check_step(what or skill)
         r = self._call_fn(command, skill, a, read_only)
+        if isinstance(r, dict) and r.get("callError") == "version":
+            # A command of another suite: nothing else is run, said once, and the item is
+            # this skill as the owner ran it.
+            self.end("failed", [item("plugins", self.again())], sentences=[first_sentence(r)])
         if common.ended_by_limit(r):
             self.cut_line(line or skill, r, cloud=command != GH and command != GO)
             if on_cut is not None:
@@ -789,6 +820,10 @@ class Apply(object):
             p = self.first = self.plan = self.poll_plan(p, self.plan_args())
             self.source = p
         if p.failure is not None:
+            if getattr(p.failure, "called", False):
+                # A failed read of a skill the plan invoked: its sentence is in the table's
+                # lines, once; the item's `how` is this skill as the owner ran it.
+                self.end("failed", [item(p.failure.item, self.again())])
             self.end("failed", p.pending)
         if state(p, "components") == PP.NEEDS_GO:
             self.end("pending", p.pending)
@@ -2213,4 +2248,8 @@ def run(args, ctx):
                                      "items": [], "pullRequest": None},
                           pending=[item("arguments", ARGUMENTS_HOW)], cost=dict(NO_COST),
                           lines=[problem])
+    # The versions of every plugin this run can call, before its first read: a plugin of
+    # another release ends it here (PluginVersion: failed, its one sentence), before the
+    # plan reads anything and before any step writes.
+    ctx.check_suites(SUITE_COMMANDS)
     return Apply(args, ctx, carry, lost=lost).run()

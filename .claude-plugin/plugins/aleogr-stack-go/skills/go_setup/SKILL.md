@@ -1,6 +1,6 @@
 ---
 description: Go stack setup. Use to write the minimal starting point of a Go component in its folder - go.mod, main.go (an HTTP server with GET / and GET /healthz on the port in PORT, default 8080) and main_test.go - from templates the plugin ships, once and only when the folder has no go.mod and no Go file; with dockerfile=yes it also writes the component's Dockerfile (a static binary built with the component's Go version, on a distroless base, as a non-root user) when it is missing, also for a component whose module already exists; with database=yes it also writes the component's database check (db.go and db_test.go when missing, and the route GET /db in main.go only while main.go is still byte for byte the plugin's own file) and adds the pinned Cloud SQL connector and pgx modules with go get and go mod tidy, which needs Go. Otherwise it never overwrites anything and needs no Go toolchain. Returns the component's Go CI parameters (the reusable workflow ci-go.yml and its inputs). Plan by default.
-allowed-tools: Bash(aleogr-stack-go --read-only go_setup), Bash(aleogr-stack-go --read-only go_setup *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-stack-go" --read-only go_setup), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-stack-go" --read-only go_setup *)
 ---
 
 # go_setup
@@ -36,13 +36,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-stack-go go_setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-stack-go" go_setup <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-stack-go --read-only go_setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-stack-go" --read-only go_setup <arguments>
   ```
 
 Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
@@ -58,8 +58,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-stack-go ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-stack-go could not be run: update the plugin aleogr-stack-go, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-stack-go ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-stack-go could not be run: update the plugin aleogr-stack-go, then try again.` and the block is as it is below.
 
 The block:
 
@@ -77,7 +77,3 @@ The block:
   "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-stack-go, then try again" } ]
 }
 ```
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

@@ -19,6 +19,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from helpers import aleogr_common as common, load_skill, plugin_root  # noqa: E402
+from helpers import called_commands, run_with_other_suite  # noqa: E402
 
 PLUGIN = "aleogr"
 ROOT = plugin_root(PLUGIN)
@@ -108,8 +109,10 @@ def res(status="unchanged", answer=(), pending=(), data=None, **outputs):
 class FakeCtx(object):
     """The parts of a Context that project-apply uses, with the limits injected."""
 
-    def __init__(self, step=True, waits=None, may_continue=True):
+    def __init__(self, step=True, waits=None, may_continue=True, plugin="aleogr"):
+        self.plugin = plugin
         self.step = step  # bool, or a list of answers, one per step_allowed()
+        self.steps_begun = 0
         self.waits = waits  # None: every wait allowed; else a list of answers
         self.may = may_continue
         self.slept = 0
@@ -117,9 +120,16 @@ class FakeCtx(object):
         self.continued = None
 
     def step_allowed(self):
+        # As common.Context.step_allowed: the first step of a command is never held by
+        # the step limit; `step` answers for the limit itself.
         if isinstance(self.step, list):
-            return self.step.pop(0) if self.step else True
-        return self.step
+            ok = self.step.pop(0) if self.step else True
+        else:
+            ok = self.step
+        if self.steps_begun == 0 or ok:
+            self.steps_begun += 1
+            return True
+        return False
 
     def wait(self, counted=True):
         if self.waits is not None:
@@ -496,22 +506,98 @@ class TestInstanceWait(unittest.TestCase):
         self.assertEqual(h.block["cost"], skill.NO_COST)
 
 
+class TestPluginsAndSentences(unittest.TestCase):
+    """Part 3b: a command of another suite, and the two sentences of section 18."""
+
+    VERSION = common.VERSION_SENTENCE.format(callee="aleogr-repo-github", caller="aleogr")
+
+    def test_a_command_of_another_suite_stops_the_run(self):
+        version = {"aleogr-result": 1, "status": "failed", "answer": [self.VERSION],
+                   "pending": [], "outputs": {}, "callError": "version"}
+        plan = FakePlan(rows=rows(settings=("differs", "update"),
+                                  protection=("protected", "update")))
+        h = Harness([plan], {"github_repo-configure": version}).run()
+        self.assertEqual(names(h), ["github_repo-configure"])  # nothing after it
+        self.assertEqual(len(h.plan_calls), 1)
+        self.assertEqual(h.block["status"], "failed")
+        self.assertEqual(h.lines.count(self.VERSION), 1)
+        self.assertEqual(h.block["pending"],
+                         [skill.item("plugins", "/aleogr:project-apply confirm=yes")])
+
+    def test_a_failed_read_is_said_once_and_its_how_is_the_skill_as_run(self):
+        sentence = ("The repository's Actions secrets could not be read; nothing was set. "
+                    "Check ..., then run this skill again.")
+        failed = FakePlan(failure=PP.Failure(sentence, "ci secrets", sentence[:-1],
+                                             called=True),
+                          pending=[skill.item("ci secrets", sentence[:-1])])
+        h = Harness([failed], {}, args={"confirmVisibility": "public",
+                                        "confirm": "yes"}).run()
+        self.assertEqual(h.block["status"], "failed")
+        self.assertEqual(h.block["pending"], [skill.item(
+            "ci secrets", "/aleogr:project-apply confirmVisibility=public confirm=yes")])
+        self.assertNotIn(sentence[:-1], h.lines)
+        # A failure of the plan's own (not a called read) keeps its own item.
+        own = FakePlan(failure=PP.Failure("No declaration.", "declaration", "declare it"),
+                       pending=[skill.item("declaration", "declare it")])
+        h = Harness([own], {}).run()
+        self.assertEqual(h.block["pending"], [skill.item("declaration", "declare it")])
+
+    def test_the_plan_is_told_the_skill_as_the_owner_ran_it(self):
+        a = skill.Apply({"confirm": "yes"}, FakeCtx(), skill.new_carry())
+        self.assertEqual(a.again(), "/aleogr:project-apply confirm=yes")
+        a = skill.Apply({}, FakeCtx(), skill.new_carry())
+        self.assertEqual(a.again(), "/aleogr:project-apply")
+
+
 class TestContinue(unittest.TestCase):
     PLAN = dict(rows=rows(ci_secrets=("missing: GCP_IMAGE_PATH", "set")))
 
     def test_step_limit_before_a_step(self):
+        # The limit has passed: the first step after the plan is still made (every
+        # command makes one), and the command continues before the next one.
         ctx = FakeCtx(step=False)
-        h = Harness([FakePlan(**self.PLAN)], {}, ctx=ctx).run()
-        self.assertEqual(h.calls, [])
+        h = Harness([FakePlan(**self.PLAN)], {"github_variables-set": res("updated")},
+                    ctx=ctx).run()
+        self.assertEqual(names(h), ["github_variables-set"])
+        self.assertEqual(len(h.plan_calls), 1)
         self.assertEqual(h.block["status"], "continue")
-        self.assertEqual(ctx.continued[0], skill.CONTINUE_LINE % "the CI secrets")
+        self.assertEqual(ctx.continued[0], skill.CONTINUE_LINE % "the last plan")
+        self.assertEqual(ctx.continued[1]["made"], ["github_variables-set: updated"])
 
     def test_step_limit_on_the_eighth_command(self):
         ctx = FakeCtx(step=False, may_continue=False)
-        h = Harness([FakePlan(**self.PLAN)], {}, ctx=ctx).run()
-        self.assertEqual(h.calls, [])
-        self.assertIn(skill.COMMANDS_LIMIT % "the CI secrets", h.lines)
+        h = Harness([FakePlan(**self.PLAN)], {"github_variables-set": res("updated")},
+                    ctx=ctx).run()
+        self.assertEqual(names(h), ["github_variables-set"])
+        self.assertIn(skill.COMMANDS_LIMIT % "the last plan", h.lines)
         self.assertEqual(h.block["pending"], [skill.item("run", skill.COMMANDS_LIMIT_HOW)])
+
+    def test_a_step_limit_of_one_step_per_command(self):
+        # ALEOGR_STEP_LIMIT=1 with a plan longer than a second: after a merge, the run
+        # takes three commands, one step each: the update, the configure, the last plan.
+        behind = dict(rows=rows(declaration=("behind", "update")))
+        after = dict(rows=rows(settings=("differs", "update")))
+        answers = {"github_checkout-setup": res("updated"),
+                   "github_repo-configure": res("updated")}
+        h1 = Harness([FakePlan(**behind), FakePlan(**after)], answers,
+                     ctx=FakeCtx(step=False)).run()
+        self.assertEqual(names(h1), ["github_checkout-setup"])
+        self.assertEqual(len(h1.plan_calls), 1)
+        self.assertEqual(h1.ctx.continued[0], skill.CONTINUE_LINE % "the plan after the update")
+        h2 = Harness([FakePlan(**after), FakePlan()], answers, ctx=FakeCtx(step=False),
+                     carry=h1.ctx.continued[1]).run()
+        self.assertEqual(names(h2), ["github_repo-configure"])
+        self.assertEqual(h2.ctx.continued[0], skill.CONTINUE_LINE % "the last plan")
+        h3 = Harness([FakePlan()], answers, ctx=FakeCtx(step=False),
+                     carry=h2.ctx.continued[1]).run()
+        self.assertEqual(h3.calls, [])
+        self.assertEqual(h3.block["status"], "updated")
+        self.assertEqual(h3.lines[:2], ["github_checkout-setup: updated",
+                                        "github_repo-configure: updated"])
+        # The same run in one command: the same lines and status.
+        one = Harness([FakePlan(**behind), FakePlan(**after), FakePlan()], answers).run()
+        self.assertEqual(names(one), ["github_checkout-setup", "github_repo-configure"])
+        self.assertEqual((one.lines, one.block), (h3.lines, h3.block))
 
     def test_a_called_command_ended_by_a_limit(self):
         ctx = FakeCtx()
@@ -1157,6 +1243,40 @@ class TestCarryContent(unittest.TestCase):
                          (0, False, []))
         self.assertIn(name, run.carried_files())  # not this run's own: left to the sweep
 
+    def test_a_refusal_in_a_command_that_continues_reaches_the_last_answer_once(self):
+        # Command 1 continues; its file is edited by hand; command 2 refuses it, goes on
+        # as a new run and continues itself; command 3 ends the run. The sentence of the
+        # refusal is in the run's last answer, once, and in no `continue` answer.
+        run = RealRun(self, [FakePlan(**START_PLAN), FakePlan(**START_PLAN), FakePlan()],
+                      start_answers(**{"gcp-cloud-sql_database-describe":
+                                       [NOT_READ, NOT_READ, READY]}),
+                      waits=[False, False])
+        code, out = run.command(["project-apply", "confirm=yes"])
+        self.assertEqual(block_of(out)["status"], "continue")
+        words = next_words(out)[1:]
+        path = os.path.join(common.carry_folder_path(), run.carried_files()[0])
+        with open(path) as f:
+            record = json.load(f)
+        record["carry"]["instanceTries"] = 31
+        with open(path, "w") as f:
+            json.dump(record, f)
+        lost = common.CARRY_LOST_SENTENCE.format(why=common.CARRY_REFUSALS["invalid"])
+        code, out = run.command(words)
+        self.assertEqual(block_of(out)["status"], "continue")
+        self.assertNotIn(lost, out)
+        self.assertEqual(run.applies[-1].carry["lost"], lost)
+        code, out = run.command(next_words(out)[1:])
+        self.assertNotEqual(block_of(out)["status"], "continue")
+        self.assertEqual(out.split("```aleogr-result")[0].splitlines().count(lost), 1)
+
+    def test_the_sentence_carried_must_be_one_of_the_fixed_ones(self):
+        for why in common.CARRY_REFUSALS.values():
+            c = self.valid(lost=common.CARRY_LOST_SENTENCE.format(why=why))
+            self.assertEqual(skill._valid_carry(c), c)
+        for v in ("An earlier part of this run could not be recalled: rm -rf.", "", 1, True):
+            with self.subTest(value=v):
+                self.assertIsNone(skill._valid_carry(self.valid(lost=v)))
+
 
 class TestApiTriesAcrossCommands(unittest.TestCase):
     """M2: the ten tries of the wait for just-enabled APIs are the run's, and its sentence
@@ -1250,6 +1370,29 @@ class TestLineOfACutCommand(unittest.TestCase):
         Harness([plan], {"go_setup": res("created", data={"waitRefused": True})},
                 ctx=ctx).run()
         self.assertEqual(ctx.continued[1]["made"], ["go_setup component=web: created"])
+
+
+class TestSuites(unittest.TestCase):
+    """The versions are checked before the first read: every plugin command this
+    orchestrator can call is asked `--suite` right after its arguments are validated."""
+
+    def test_every_command_it_calls_is_in_its_list(self):
+        listed = list(skill.SUITE_COMMANDS)
+        self.assertEqual(len(listed), len(set(listed)))
+        self.assertEqual(called_commands(skill, PP) - set(listed), set())
+        self.assertEqual(set(listed) - called_commands(skill, PP), set())
+
+    def test_another_suite_on_the_last_plugin_ends_before_anything(self):
+        other = skill.SUITE_COMMANDS[-1]
+        result, logs, ran = run_with_other_suite(PLUGIN, "project-apply", skill, {"confirm": "yes"},
+                                                 other, declaration=DECL)
+        sentence = common.VERSION_SENTENCE.format(callee=other, caller="aleogr")
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.lines.count(sentence), 1)
+        self.assertEqual([l for l in result.lines if l.startswith("|")], [])  # no table
+        # Each command asked once for its suite, and nothing invoked or run.
+        self.assertEqual(logs, dict((c, ["--suite"]) for c in skill.SUITE_COMMANDS))
+        self.assertEqual(ran, [])
 
 
 if __name__ == "__main__":

@@ -1,9 +1,12 @@
 """go_setup: the starting point of a Go component, in mode=plan and mode=apply.
 
-The specification is skills/go_setup/SKILL.md. The reads (steps 1, 2 and the reads of
-step 5) are done by survey(), shared by both modes: plan only turns what survey() found
-into the statuses of the result block, and never writes or runs anything; apply() then
-does the writes of steps 3, 4 and 5, the Go check of step 0 and the modules of step 6.
+The rules are this module's, pinned by its unit tests (tests/unit/test_go_setup.py) and
+its scenarios. It was built from skills/go_setup/SKILL.md as that text was before the
+skill became a shell over this command (the text is in the repository's history, at the
+commit before that change). The reads (steps 1, 2 and the reads of step 5) are done by
+survey(), shared by both modes: plan only turns what survey() found into the statuses of
+the result block, and never writes or runs anything; apply() then does the writes of
+steps 3, 4 and 5, the Go check of step 0 and the modules of step 6.
 
 The SKILL.md has the model use the Read tool, the Write tool, one `ls`, two `cmp`, the
 Grep tool and, in step 6, `mktemp -d`, `cp -p`, `rm -f` and `rm -rf`. None of them is a

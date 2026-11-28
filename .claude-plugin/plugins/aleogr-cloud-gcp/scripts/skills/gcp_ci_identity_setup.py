@@ -1,12 +1,15 @@
 """gcp_ci-identity-setup: the keyless identity of one repository's CI in one GCP project.
 
-The specification is skills/gcp_ci-identity-setup/SKILL.md: the same reads, in the same
-order, the same parts and states, and the same result block. The reads (read_number,
-read_parts) and the checks after them (part_failures) are shared by both modes; plan()
-reports, apply() runs step 4 (the change of each part missing, the update of a provider
-that differs, the poll of the binding on a new account), step 5 (the reads again) and
-step 6 (the status), through the writing runner (ctx.write) only.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_ci_identity_setup.py) and its scenarios. It was built from
+skills/gcp_ci-identity-setup/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same reads, in the same order, the same parts and states, and the same
+result block. The reads (read_number, read_parts) and the checks after them
+(part_failures) are shared by both modes; plan() reports, apply() runs step 4 (the
+change of each part missing, the update of a provider that differs, the poll of the
+binding on a new account), step 5 (the reads again) and step 6 (the status), through the
+writing runner (ctx.write) only."""
 
 import json
 import re

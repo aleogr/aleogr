@@ -7,7 +7,8 @@ its own files. Change one copy, then copy it over the five others.
 It holds what every command needs and nothing of a skill's own rules:
 
 - the command line (`<command> [--read-only] [--json] <skill> [key=value ...]`,
-  `<command> --has <skill> [mode]`) and the dispatch to `scripts/skills/<module>.py`;
+  `<command> --has <skill> [mode]`, `<command> --suite`) and the dispatch to
+  `scripts/skills/<module>.py`;
 - `key=value` arguments;
 - a runner that shows a provider command on stderr, then runs it, and returns its exit
   code, stdout and stderr; a READ-ONLY runner that refuses, before running it, any
@@ -18,10 +19,13 @@ It holds what every command needs and nothing of a skill's own rules:
   of them and puts back, and the waits of a run, within one budget;
 - the clock of a run: waits end at seven minutes (WAIT_CLOCK_LIMIT), every provider
   command is bounded by the run's deadline (RUN_DEADLINE, a TimeLimit when it is
-  reached), an orchestrator begins no step after four minutes (STEP_LIMIT), and an
-  aborted run still ends with a `failed` result (aborted_result);
+  reached), an orchestrator begins no step after four minutes (STEP_LIMIT), except the
+  first step of a command after its plan (ctx.step_allowed), and an aborted run still
+  ends with a `failed` result (aborted_result);
 - `call_plugin`, which runs another plugin's command with `--json` and passes it this
-  run's deadline (ALEOGR_RUN_ENDS);
+  run's deadline (ALEOGR_RUN_ENDS), once that command said it is of the same suite
+  (`--suite`: the digest of this file, suite_digest), and `check_suites`, by which an
+  orchestrator asks every command it can call before its first read;
 - a run in more than one command, for the skills that declare CONTINUES: the status
   `continue`, its `next:` line, and the private file carried from one command to the
   next (ctx.carried, ctx.may_continue, ctx.continue_run);
@@ -151,7 +155,8 @@ class Invocation(object):
     """A parsed command line."""
 
     def __init__(self, skill, args, json_mode=False, has=False, mode=None, read_only=False,
-                 repeated=()):
+                 repeated=(), suite=False):
+        self.suite = suite
         self.skill = skill
         self.args = args
         self.json = json_mode
@@ -165,12 +170,16 @@ def parse_command_line(argv):
     """Parse the arguments of `<command> ...` (without the command itself).
 
     `[--read-only] [--json] <skill> [key=value ...]` (the two options in either order,
-    each at most once) or `--has <skill> [mode]`. Raises UsageError. A key=value
-    argument given twice is not a UsageError: it is listed in `repeated`.
+    each at most once), `--has <skill> [mode]` or `--suite` alone. Raises UsageError. A
+    key=value argument given twice is not a UsageError: it is listed in `repeated`.
     """
     argv = list(argv)
     if not argv:
         raise UsageError("no skill given")
+    if argv[0] == "--suite":
+        if len(argv) != 1:
+            raise UsageError("usage: --suite")
+        return Invocation(None, {}, suite=True)
     if argv[0] == "--has":
         if len(argv) not in (2, 3):
             raise UsageError("usage: --has <skill> [mode]")
@@ -1878,9 +1887,25 @@ def base64_of_file(path):
         return None
 
 
-def random_name_part(length=4, alphabet="abcdefghijklmnopqrstuvwxyz0123456789"):
+# ALEOGR_TEST_RANDOM: a test aid of the harness (a scenario's file `random`), honoured
+# only when FAKE_LOG is set too (the harness's fake commands are in use): a value of
+# exactly the length asked, every character of the alphabet asked, is the `<random>`
+# itself (the suffix of a new project id, so that a scenario can pin it). Any other value
+# is ignored, so the run's id and a temporary file's name, of other lengths, stay random.
+TEST_RANDOM_ENV = "ALEOGR_TEST_RANDOM"
+
+
+def random_name_part(length=4, alphabet="abcdefghijklmnopqrstuvwxyz0123456789",
+                     environ=None):
     """`length` random characters of `alphabet` (the `<random>` of a project id or a
-    branch), drawn by the system's random source: no command is run, so no `+` line."""
+    branch), drawn by the system's random source: no command is run, so no `+` line.
+    Under the harness only, the test aid ALEOGR_TEST_RANDOM (os.environ when `environ`
+    is None)."""
+    env = os.environ if environ is None else environ
+    fixed = env.get(TEST_RANDOM_ENV)
+    if env.get("FAKE_LOG") and isinstance(fixed, str) and len(fixed) == length \
+            and all(ch in alphabet for ch in fixed):
+        return fixed
     import random
     r = random.SystemRandom()
     return "".join(r.choice(alphabet) for _ in range(length))
@@ -2120,7 +2145,8 @@ def remaining_seconds():
 def step_allowed():
     """True while the run's clock has not passed the step limit (four minutes, or
     less): an orchestrator checks it before each step and, once it is False, ends the
-    command with `continue` (ctx.continue_run) instead of beginning the step."""
+    command with `continue` (ctx.continue_run) instead of beginning the step. Through
+    ctx.step_allowed, the first step of a command is never held by it."""
     return elapsed_seconds() <= step_limit()
 
 
@@ -2173,6 +2199,67 @@ NOT_FOUND_SENTENCE = ("The command {command} was not found: install the plugin {
                       "run this again.")
 NOT_CONVERTED_SENTENCE = "The command {command} cannot run {skill} yet: update the plugin {command}."
 NO_RESULT_SENTENCE = "The command {command} gave no result for {skill}."
+VERSION_SENTENCE = ("The plugin {callee} is not the same version as the plugin {caller}: "
+                    "update the plugins (/plugin marketplace update aleogr), start Claude Code "
+                    "again, and run this again.")
+VERSION_COST = {"fixed": False, "notes": "the plugins are not the same version"}
+
+# The suite: every plugin's command holds a copy of this file, and the copies of one
+# release are byte-identical. `<command> --suite` prints the first SUITE_LENGTH hex
+# characters of the SHA-256 of its own copy (suite_digest); call_plugin asks it of a
+# command before its first call to that command in this process (once per command) and
+# compares it with its own: another answer means the two plugins are not of the same
+# release (an older command found first on PATH), and nothing is run on that command.
+SUITE_LENGTH = 12
+SUITE_TIMEOUT = 10  # seconds: the probe starts a command that only prints a line
+_SUITE_ANSWER = re.compile(r"[0-9a-f]{%d}\n?" % SUITE_LENGTH)
+_suite = {"own": None, "checked": {}, "plugin": None}
+
+
+def suite_digest():
+    """The first SUITE_LENGTH hex characters of the SHA-256 of this file's bytes."""
+    if _suite["own"] is None:
+        import hashlib
+        with open(os.path.abspath(__file__), "rb") as f:
+            _suite["own"] = hashlib.sha256(f.read()).hexdigest()[:SUITE_LENGTH]
+    return _suite["own"]
+
+
+def reset_suite_checks():
+    """For the unit tests only: forget which commands were asked for their suite."""
+    _suite["checked"].clear()
+
+
+class PluginVersion(Exception):
+    """A called command is not of this command's suite (call_plugin's callError
+    `version`): ctx.call raises it, and the run ends `failed` with its one sentence
+    (version_result), running nothing further."""
+
+    def __init__(self, result):
+        Exception.__init__(self, "plugin version")
+        self.result = result
+        lines = result.get("answer") if isinstance(result, dict) else None
+        self.sentence = lines[0] if lines else ""
+
+
+def _same_suite(path):
+    """True when the command at `path` answers `--suite` with this file's digest. Bounded
+    by SUITE_TIMEOUT and by the run's deadline (TimeLimit when that is reached first)."""
+    timeout, deadline = _bounded(SUITE_TIMEOUT)
+    try:
+        code, out, _ = _run_process([path, "--suite"], timeout)
+    except subprocess.TimeoutExpired:
+        if deadline:
+            raise TimeLimit([os.path.basename(path), "--suite"])
+        return False
+    except OSError:
+        return False
+    try:
+        text = out.decode("ascii")
+    except UnicodeDecodeError:
+        return False
+    return code == 0 and bool(_SUITE_ANSWER.fullmatch(text)) \
+        and text.rstrip("\n") == suite_digest()
 
 
 def _call_failure(kind, command, skill, sentence):
@@ -2188,9 +2275,56 @@ def _call_failure(kind, command, skill, sentence):
     }
 
 
-def call_plugin(command, skill, args=None, timeout=None, read_only=False):
+def _suite_failure(command, path, skill, caller):
+    """None when the command at `path` is of this suite (asked once per command in this
+    process), else the fixed `version` failure: nothing else is ever run on it."""
+    if command not in _suite["checked"]:
+        _suite["checked"][command] = _same_suite(path)
+    if not _suite["checked"][command]:
+        return _call_failure("version", command, skill, VERSION_SENTENCE.format(
+            callee=command, caller=caller or _suite["plugin"] or "that calls it"))
+    return None
+
+
+def check_suites(commands, caller=None, required=()):
+    """Ask each of `commands` (another plugin's commands, found on PATH) `--suite` once,
+    before a run calls any of them: the same probe, the same rules and the same fixed
+    failure as call_plugin's, which then asks none of them again. An orchestrator calls
+    it (ctx.check_suites) right after it validates its arguments and before its first
+    read, with every command it can call in any path, so that a command of another
+    release ends the run before anything is read or written. Returns None, or the first
+    `version` failure (call_plugin's), or else, for a command of `required` that is not
+    installed, its `not-found` failure. A command that is not installed and not required
+    is not a failure here: it is probed by nothing, and its `not-found` failure comes
+    where the run first needs it."""
+    seen = []
+    missing = None
+    for command in commands:
+        if command in seen:
+            continue
+        seen.append(command)
+        path = shutil.which(command)
+        if path is None:
+            if command in required and missing is None:
+                missing = _call_failure("not-found", command, None,
+                                        NOT_FOUND_SENTENCE.format(command=command))
+            continue
+        failure = _suite_failure(command, path, None, caller)
+        if failure is not None:
+            return failure
+    return missing
+
+
+def call_plugin(command, skill, args=None, timeout=None, read_only=False, caller=None):
     """Run `<command> --json <skill> key=value ...`, the command found on PATH (with
     `--read-only` first when `read_only`).
+
+    Before the first call to `command` in this process, the command is asked `--suite`
+    (once per command): when its answer is not this file's digest (suite_digest) or not
+    well formed, nothing else is ever run on that command in this process, and every
+    call to it returns a fixed failure, `callError` `version`, whose one sentence is
+    VERSION_SENTENCE (the callee's plugin is `command`, the caller's `caller`, by
+    default the plugin of this run). ctx.call raises PluginVersion on it.
 
     Its stderr (the provider commands it shows) goes through to ours. Returns the
     parsed result object (with its `answer` lines). When the command is not found, is
@@ -2221,6 +2355,9 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False):
     if path is None:
         return _call_failure("not-found", command, skill,
                              NOT_FOUND_SENTENCE.format(command=command))
+    failure = _suite_failure(command, path, skill, caller)
+    if failure is not None:
+        return failure
     argv = [path] + (["--read-only"] if read_only else []) + ["--json", skill] + format_args(
         args or {})
     timeout, deadline = _bounded(timeout)
@@ -2635,6 +2772,12 @@ def quote_argument(text):
     return "'" + str(text).replace("'", "'\\''") + "'"
 
 
+def quote_path(path):
+    """A path inside double quotes, as the shells write the command (`"${CLAUDE_PLUGIN_ROOT}/
+    bin/<plugin>"`): a `\\`, `"`, `$` or backquote in it is written with a `\\` before it."""
+    return '"' + re.sub(r'([\\"$`])', r"\\\1", str(path)) + '"'
+
+
 # ---------------------------------------------------------------------------
 # The context a skill runs with
 
@@ -2666,9 +2809,17 @@ class Context(object):
       orchestrator's own long wait (thirty tries of the shared instance's start).
       A refused wait sets ctx.wait_refused, which a `--json` document reports as
       `data.waitRefused: true`; a run ended by its deadline reports `data.timeLimit`.
-    - ctx.step_allowed(): step_allowed, the step limit of four minutes.
+    - ctx.step_allowed(): asked before each step of an orchestrator (never before its
+      first plan): the first time in a command it is always True (every command of a
+      run makes at least one step after its plan; the deadline still bounds every
+      command it runs), and from the second time on step_allowed, the step limit of
+      four minutes (or less).
     - ctx.call(command, skill, args): call_plugin (with `--read-only` when this run was
-      given it).
+      given it), with this plugin as the caller; raises PluginVersion when the command
+      is not of this suite (callError `version`).
+    - ctx.check_suites(commands, required=()): every command an orchestrator can call
+      asked `--suite` at once, right after its arguments are validated and before its
+      first read (check_suites); raises PluginVersion on a command of another suite.
 
     A run in more than one command, for a module that sets CONTINUES = True:
     - ctx.carried(digest): at the start of every command, what an earlier command of
@@ -2740,6 +2891,7 @@ class Context(object):
         self._digest = None
         self._digest_given = False
         self.continued = False
+        self.steps_begun = 0  # the steps step_allowed() let begin in this command
 
     # A run in more than one command
 
@@ -2798,10 +2950,19 @@ class Context(object):
         return (self.continues and self.commands < MAX_COMMANDS
                 and carry_folder(create=True)[0] is not None)
 
+    def command_path(self):
+        """The full path of this command's executable, as it runs: `<plugin root>/bin/
+        <plugin>` (the root is found from the executable's real path)."""
+        return os.path.join(self.root, "bin", self.plugin)
+
     def next_command(self, run_id):
-        """`<plugin> [--read-only] [--json] <skill> '<key>=<value>' ... 'run=<id>'`: the
-        arguments this command was given (without `run=`), in their order."""
-        words = [self.plugin] + (["--read-only"] if self.forced_read_only else []) \
+        """`"<command path>" [--read-only] [--json] <skill> '<key>=<value>' ...
+        'run=<id>'`: the full path of this command's own executable (command_path) in
+        double quotes, so the next command is this one and not another of the same name
+        found first on PATH; then the arguments this command was given (without `run=`),
+        in their order."""
+        words = [quote_path(self.command_path())] \
+            + (["--read-only"] if self.forced_read_only else []) \
             + (["--json"] if self.json else []) + [self.skill]
         words += [quote_argument("%s=%s" % (k, "" if v is None else v))
                   for k, v in self.given_args]
@@ -2849,7 +3010,10 @@ class Context(object):
                            lines=[line, "next: " + self.next_command(self.run_id)], **extra)
 
     def step_allowed(self):
-        return step_allowed()
+        if self.steps_begun == 0 or step_allowed():
+            self.steps_begun += 1
+            return True
+        return False
 
     # Running
 
@@ -2915,9 +3079,20 @@ class Context(object):
     def on_abort(self, lines):
         self.abort_lines = [lines] if isinstance(lines, str) else list(lines or ())
 
+    def check_suites(self, commands, required=()):
+        """check_suites with this plugin as the caller: raises PluginVersion on a command
+        of another suite; returns None, or the not-found failure of a required command."""
+        result = check_suites(commands, caller=self.plugin, required=required)
+        if result is not None and result.get("callError") == "version":
+            raise PluginVersion(result)
+        return result
+
     def call(self, command, skill, args=None, timeout=None):
-        return call_plugin(command, skill, args, timeout=timeout,
-                           read_only=self.forced_read_only)
+        result = call_plugin(command, skill, args, timeout=timeout,
+                             read_only=self.forced_read_only, caller=self.plugin)
+        if result.get("callError") == "version":
+            raise PluginVersion(result)
+        return result
 
     # Files of this plugin
 
@@ -3029,6 +3204,18 @@ def aborted_result(ctx, sentence):
     return ctx.result("failed", {}, cost=dict(ABORTED_COST), lines=lines)
 
 
+def version_result(ctx, sentence):
+    """The result of a run that called a command of another suite (PluginVersion):
+    `failed`, its one sentence (VERSION_SENTENCE), then what this run had written or
+    registered (ctx.on_abort), when it had; nothing else was run on that command."""
+    lines = [sentence]
+    if ctx.writes_run:
+        lines.append(_written_line(ctx))
+    lines += [l for l in ctx.abort_lines if l not in lines]
+    cost = dict(ABORTED_COST) if len(lines) > 1 else dict(VERSION_COST)
+    return ctx.result("failed", {}, cost=cost, lines=lines)
+
+
 def run_skill(module, args, ctx):
     """module.run(args, ctx), and every way it can end: (Result, exit code, the kind of
     ending or None). A refused read or write gives refused_result, the time limit and
@@ -3037,6 +3224,8 @@ def run_skill(module, args, ctx):
     limit`, `unexpected error`) is for the one line on stderr."""
     try:
         result = module.run(args, ctx)
+    except PluginVersion as e:
+        return version_result(ctx, e.sentence), EXIT_OK, None
     except ReadRefused:
         return refused_result(ctx), EXIT_SOFTWARE, "refused, not a read"
     except WriteRefused:
@@ -3081,8 +3270,13 @@ def main(plugin, root, argv, stdout=None, stderr=None):
         inv = parse_command_line(argv)
     except UsageError as e:
         stderr.write("%s: %s\nusage: %s [--read-only] [--json] <skill> [key=value ...]\n"
-                     "       %s --has <skill> [mode]\n" % (plugin, e, plugin, plugin))
+                     "       %s --has <skill> [mode]\n"
+                     "       %s --suite\n" % (plugin, e, plugin, plugin, plugin))
         return EXIT_USAGE
+    if inv.suite:
+        stdout.write(suite_digest() + "\n")
+        stdout.flush()
+        return EXIT_OK
     module = _load(inv.skill)
     if module is None and not os.path.isfile(os.path.join(root, "skills", inv.skill,
                                                           "SKILL.md")):
@@ -3105,11 +3299,14 @@ def run_command(plugin, root, inv, module, mode, stdout=None, stderr=None, envir
     stdout = stdout or sys.stdout
     stderr = stderr or sys.stderr
     before = dict(_clock)
+    caller = _suite["plugin"]
     start_clock(environ)
+    _suite["plugin"] = plugin
     try:
         return _dispatch(plugin, root, inv, module, mode, stdout, stderr)
     finally:
         _clock.update(before)  # a process ends here; an in-process test goes on
+        _suite["plugin"] = caller
 
 
 CONTINUE_UNEXPECTED = "ended continue without ctx.continue_run"

@@ -422,6 +422,24 @@ class TestPaths(unittest.TestCase):
         self.assertIn(skill.ACCESS_ITEM, r.block["pending"])
         self.assertEqual(r.block["pending"].count(skill.ACCESS_ITEM), 1)
 
+    def test_a_refused_access_goes_on_with_the_settings_then_the_next_component(self):
+        # The reading of step 6f chosen in part 3b (docs/DESIGN.md section 18): a refused
+        # grant is not a stop; the component's settings (6g, last for it) are still set,
+        # right after the refusal.
+        a = reads(login=ok({}))
+        r, ctx = run(a, writes={"iap web add-iam-policy-binding": DENIED},
+                     env="web:DB_NAME=demo_dev;web:DB_USER=demo-web@%s.iam" % PID)
+        writes = lines_of(ctx)
+        grant = [i for i, w in enumerate(writes) if w.startswith("gcloud iap web add")]
+        update = [i for i, w in enumerate(writes) if "--update-env-vars=" in w]
+        self.assertEqual(len(grant), 1)
+        self.assertEqual(update, [grant[0] + 1])
+        self.assertIn(skill.ACCESS_FAILED % "demo-web", r.lines)
+        self.assertIn("Its settings DB_NAME, DB_USER were set.", r.lines)
+        self.assertEqual(r.block["outputs"]["envSet"], {"web": ["DB_NAME", "DB_USER"]})
+        self.assertEqual(r.block["pending"].count(skill.ACCESS_ITEM), 1)
+        self.assertEqual(r.status, "updated")
+
     def test_only_a_refused_access_is_unchanged(self):
         r, ctx = run(reads(login=ok({})), writes={"iap web add-iam-policy-binding": DENIED})
         self.assertEqual(r.status, "unchanged")

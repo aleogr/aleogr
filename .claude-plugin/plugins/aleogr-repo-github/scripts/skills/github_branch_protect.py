@@ -1,13 +1,15 @@
 """github_branch-protect: makes the repository ruleset `main` equal to the plugin's
 ruleset file and verifies it (mode=apply), or says what a run would do (mode=plan).
 
-The specification is skills/github_branch-protect/SKILL.md: the same reads (steps 1, 2
-and 4), the same file (step 3), the same decision (step 5), the same write (step 6, POST
-or PUT, its body always the plugin's file passed with --input) and the same verification
-(step 7), each at most once, and the same result block. The write runs through the
-writing runner only (Reader.write, then ctx.write), so only in mode=apply. A ruleset with
-another name is never read, changed or deleted.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_github_branch_protect.py) and its scenarios. It was built from
+skills/github_branch-protect/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same reads (steps 1, 2 and 4), the same file (step 3), the same decision
+(step 5), the same write (step 6, POST or PUT, its body always the plugin's file passed
+with --input) and the same verification (step 7), each at most once, and the same result
+block. The write runs through the writing runner only (Reader.write, then ctx.write), so
+only in mode=apply. A ruleset with another name is never read, changed or deleted."""
 
 import importlib.util
 import json

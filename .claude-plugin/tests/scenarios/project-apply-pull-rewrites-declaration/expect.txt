@@ -1,0 +1,20 @@
+# The run after a merge, with the folder really behind: the folder holds the declaration as it
+# was (topic sample), the repository holds the merged one (topics sample and status-page), and the
+# pull rewrites the folder's declaration (the folder after/ of this scenario: the fake git copies
+# it over the working folder when the pull runs). The run updates the folder, plans again, and
+# configures the repository with the NEW topics, built from the declaration as the pull left it,
+# then ends nothing to do. Built from the declaration as it was when the command started (the
+# defect the real run of part 3a found), the configure is given the old topics, adds none, and
+# the run ends asking again for a confirmation already given.
+ORDER ^git -c credential.* pull --ff-only origin main >> ^gh repo edit example-org/demo
+CALLED ^gh repo edit example-org/demo .*--add-topic status-page
+AT_MOST 1 pull --ff-only
+AT_MOST 1 ^gh repo edit
+NOT_CALLED ^git (commit|.*push)|^gh pr create
+FILE .aleogr/project.json "topics": \["sample", "status-page"\]
+OUTPUT ^github_checkout-setup: updated$
+OUTPUT ^github_repo-configure: updated$
+OUTPUT "status": "updated"
+OUTPUT ^[[:space:]]*nothing to do[[:space:]]*$
+OUTPUT_NOT "item": "confirm"
+OUTPUT_NOT "status": "(pending|failed)"

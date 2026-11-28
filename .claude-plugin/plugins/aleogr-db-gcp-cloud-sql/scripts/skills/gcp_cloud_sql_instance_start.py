@@ -2,13 +2,17 @@
 ALWAYS, asynchronous). It has no mode: it acts when invoked, so it runs as mode=apply and
 `--read-only` refuses it. A started instance is charged by the hour until it is stopped.
 
-The specification is skills/gcp-cloud-sql_instance-start/SKILL.md: the same check (the
-describe skill, invoked), the same patch, the one read after a failed patch (decided by
-the activation policy alone, never by the failure's text), the same one verification,
-the same states, the prescribed sentences word for word and the same result block. The
-patch runs through ctx.write only: its shape (the only ALWAYS of any skill) is on this
-skill's allowlist of writes alone. The SKILL.md names no confirm argument: the gates
-before the patch are the arguments and the check of step 1 (state stopped only).
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_instance_start.py) and its scenarios. It was built from
+skills/gcp-cloud-sql_instance-start/SKILL.md as that text was before the skill became a
+shell over this command (the text is in the repository's history, at the commit before
+that change): the same check (the describe skill, invoked), the same patch, the one read
+after a failed patch (decided by the activation policy alone, never by the failure's
+text), the same one verification, the same states, the prescribed sentences word for
+word and the same result block. The patch runs through ctx.write only: its shape (the
+only ALWAYS of any skill) is on this skill's allowlist of writes alone. The SKILL.md
+names no confirm argument: the gates before the patch are the arguments and the check of
+step 1 (state stopped only).
 
 From just before the patch until the run ends with its own answer, a run aborted by its
 time limit or an unexpected error (common.aborted_result) also says that a running

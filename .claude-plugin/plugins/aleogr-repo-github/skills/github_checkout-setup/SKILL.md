@@ -1,6 +1,6 @@
 ---
 description: GitHub checkout setup, with the gh and git CLIs. Use to tie the current folder to a GitHub repository and send one file (by default the project declaration `.aleogr/project.json`) as the repository's first content after its README, or, in plan mode, to learn whether the repository already has that file and whether it equals the local one - and, when it differs, whether this folder has a local change, is behind the repository (it then fast-forwards the folder in apply mode) or needs attention; with head=check, also when the file is equal, whether the folder's last commit is behind the repository's head. Pushes only to a repository whose default branch has exactly one commit and lacks the file; sets this checkout's commit identity to the account's no-reply address; changes no global configuration. Plan by default.
-allowed-tools: Bash(aleogr-repo-github --read-only github_checkout-setup), Bash(aleogr-repo-github --read-only github_checkout-setup *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_checkout-setup), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_checkout-setup *)
 ---
 
 # github_checkout-setup
@@ -33,13 +33,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-repo-github github_checkout-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" github_checkout-setup <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-repo-github --read-only github_checkout-setup <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_checkout-setup <arguments>
   ```
 
 Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
@@ -57,8 +57,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
 
 The block:
 
@@ -76,7 +76,3 @@ The block:
   "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-repo-github, then try again" } ]
 }
 ```
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

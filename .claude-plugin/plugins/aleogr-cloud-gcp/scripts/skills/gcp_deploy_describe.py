@@ -1,10 +1,13 @@
 """gcp_deploy-describe: whether each component runs as a Cloud Run service as declared.
 Read-only; a service that does not exist is not a failure.
 
-The specification is skills/gcp_deploy-describe/SKILL.md: the same reads, in the same
-order, the same words of difference, the same sentences and the same result block. The
-answer and the block hold no member of a policy and no setting's value.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_deploy_describe.py) and its scenarios. It was built from
+skills/gcp_deploy-describe/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same reads, in the same order, the same words of difference, the same
+sentences and the same result block. The answer and the block hold no member of a policy
+and no setting's value."""
 
 import json
 import re

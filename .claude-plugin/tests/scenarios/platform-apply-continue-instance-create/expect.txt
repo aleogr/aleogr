@@ -1,0 +1,33 @@
+# platform-apply-resume-instance (only the instance is missing) over more than one command:
+# each `sleep 30` counts as thirty seconds of the clock (clock), so the create's wait for the
+# new instance is ended by the run's clock while the instance is still being created. The
+# describes answer in order (numbered): missing for the plan and the create's own check,
+# creating up to the 19th read, running from the 20th, stopped once the night job has run.
+# The next command plans again, finds the instance creating, and invokes the create with
+# resume=yes: it is not created a second time, the create waits, the night job stops it
+# (the night stop is tested), and the last plan proves it. The final answer is the
+# one-command run's.
+COMMANDS 2
+COUNT 1 ^sql instances create aleogr-shared
+AT_MOST 1 ^sql instances create
+COUNT 1 ^scheduler jobs run aleogr-shared-stop-weeknight .*--location=us-central1
+AT_MOST 1 ^scheduler jobs run
+# resume=yes reads the instance's last operations before it goes on, after the create.
+COUNT 1 ^sql operations list --instance=aleogr-shared --project=aleogr-shared-zz99 --sort-by=~insertTime --limit=10
+AT_MOST 1 ^sql operations list .*--sort-by=~insertTime
+ORDER ^sql instances create >> ^sql operations list .*--sort-by=~insertTime
+ORDER ^sql operations list .*--sort-by=~insertTime >> ^scheduler jobs run
+NOT_CALLED ^sql instances patch
+NOT_CALLED ^iam (roles|service-accounts) create
+NOT_CALLED ^scheduler jobs (create|update)
+# Three plans: the first command's, and the second command's first and last.
+COUNT 3 ^--version
+AT_MOST 3 ^--version
+OUTPUT ^gcp-cloud-sql_instance-create: created$
+OUTPUT about R\$ 50 per month while stopped
+OUTPUT GitHub secrets
+OUTPUT [Nn]othing to do
+OUTPUT "status": "created"
+OUTPUT "fixed": true
+OUTPUT_NOT resume=yes was not used
+OUTPUT_NOT ^next:

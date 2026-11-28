@@ -4,14 +4,17 @@ service-account type first, then the roles roles/cloudsql.client and
 roles/cloudsql.instanceUser on the shared project, each when missing (mode=apply), or say
 what would be done (mode=plan).
 
-The specification is skills/gcp-cloud-sql_access-grant/SKILL.md: the same reads in the
-same order, the user before the roles, nothing made or granted on an instance that is not
-running, the one poll of a grant refused because the account is not visible yet (at most
-10 tries and 9 waits per role, through ctx.wait() only), the prescribed sentences word for
-word and the same result block. Writes run through ctx.write only. No password is ever
-set, read or printed: the user's type is always cloud_iam_service_account. The result
-block never holds the account, the user or the member.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_access_grant.py) and its scenarios. It was built from
+skills/gcp-cloud-sql_access-grant/SKILL.md as that text was before the skill became a
+shell over this command (the text is in the repository's history, at the commit before
+that change): the same reads in the same order, the user before the roles, nothing made or
+granted on an instance that is not running, the one poll of a grant refused because the
+account is not visible yet (at most 10 tries and 9 waits per role, through ctx.wait()
+only), the prescribed sentences word for word and the same result block. Writes run
+through ctx.write only. No password is ever set, read or printed: the user's type is
+always cloud_iam_service_account. The result block never holds the account, the user or
+the member."""
 
 import json
 import re

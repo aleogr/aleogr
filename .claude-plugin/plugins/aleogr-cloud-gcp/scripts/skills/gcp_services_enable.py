@@ -1,13 +1,15 @@
 """gcp_services-enable: enable the Google APIs a GCP project needs, only the ones still
 missing (mode=apply), or say which a run would enable (mode=plan, the default).
 
-The specification is skills/gcp_services-enable/SKILL.md: the same check (the describe
-skill, invoked), the same comparison, one enable for all the missing services, one
-verification, the same states and the same result block. The enable runs only with
-mode=apply, through ctx.write, after the command passed the allowlist of writes of this
-skill (checked in both modes, so a plan never announces an enable the apply refuses).
-The SKILL.md prescribes no wait.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_services_enable.py) and its scenarios. It was built from
+skills/gcp_services-enable/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same check (the describe skill, invoked), the same comparison, one enable
+for all the missing services, one verification, the same states and the same result
+block. The enable runs only with mode=apply, through ctx.write, after the command passed
+the allowlist of writes of this skill (checked in both modes, so a plan never announces
+an enable the apply refuses). The SKILL.md prescribes no wait."""
 
 import re
 

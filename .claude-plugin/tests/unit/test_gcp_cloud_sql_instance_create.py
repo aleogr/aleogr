@@ -47,6 +47,8 @@ GOLDEN_JOB = ("gcloud scheduler jobs run aleogr-shared-stop-weeknight --project=
               "--location=southamerica-east1 --quiet")
 STOP_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=aleogr-shared-zz99 "
             "instance=aleogr-shared")
+DESCRIBE_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe "
+                "projectId=aleogr-shared-zz99 instance=aleogr-shared")
 
 JSON = {"stopped": ("NEVER", "RUNNABLE"), "running": ("ALWAYS", "RUNNABLE"),
         "creating": ("ALWAYS", "PENDING_CREATE"), "starting": ("ALWAYS", "MAINTENANCE")}
@@ -421,6 +423,176 @@ class TestAborted(unittest.TestCase):
         self.assertEqual(r.lines[0], common.UNEXPECTED_SENTENCE)
         self.assertEqual(r.lines[2:-1], self.CREATED)
         self.assertNotIn("s3cr3t", "\n".join(r.lines))
+
+
+GOLDEN_OPERATIONS = ("gcloud sql operations list --instance=aleogr-shared "
+                     "--project=aleogr-shared-zz99 --sort-by=~insertTime --limit=10 "
+                     "--format=value(operationType)")
+
+
+class ResumeContext(FakeContext):
+    """FakeContext whose read also answers the instance's last operations (resume=yes):
+    `operations` is their text, or None for a read that fails."""
+
+    def __init__(self, args, found, states, operations="CREATE\n", fail=()):
+        FakeContext.__init__(self, args, found, states, fail)
+        self.operations = operations
+
+    def read(self, argv, timeout=None):
+        if argv[:4] == ["gcloud", "sql", "operations", "list"]:
+            assert common.read_refusal(argv) is None, argv
+            line = " ".join(argv)
+            self.log.append(line)
+            if self.operations is None:
+                return common.Completed(1, "", "ERROR")
+            return common.Completed(0, self.operations, "")
+        return FakeContext.read(self, argv, timeout)
+
+
+def resume(found, states=("running", "stopped"), operations="CREATE\n", **over):
+    common.reset_wait_budget()
+    args = dict(ARGS, resume="yes", stopJob="aleogr-shared-stop-weeknight")
+    args.update(over)
+    args = {k: v for k, v in args.items() if v is not None}
+    ctx = ResumeContext(args, found, states, operations)
+    return skill.run(dict(args), ctx), ctx
+
+
+class TestResume(unittest.TestCase):
+    """resume=yes: given by the caller whose own run asked for this creation in an earlier
+    command. The creation is skipped for an instance that exists; the run goes on with the
+    wait, the stop by the night job and the verification, only for an instance this skill
+    has just created and not stopped yet. The write commands are the same."""
+
+    def test_validated(self):
+        for value in ("no", "YES", "true", ""):
+            with self.subTest(value=value):
+                r, ctx = resume(described(True, "creating"), resume=value)
+                self.assertEqual(r.status, "failed")
+                self.assertEqual(r.lines, [skill.RESUME_INVALID])
+                self.assertEqual((ctx.writes, ctx.called, ctx.log), ([], [], []))
+        for over in ({"mode": "plan"}, {"mode": None}, {"confirm": None}):
+            with self.subTest(over=over):
+                r, ctx = resume(described(True, "creating"), **over)
+                self.assertEqual(r.lines, [skill.RESUME_NEEDS_APPLY])
+                self.assertEqual((ctx.writes, ctx.log), ([], []))
+
+    def test_without_resume_an_existing_instance_is_never_touched(self):
+        for state in ("creating", "running", "starting", "stopped"):
+            with self.subTest(state=state):
+                r, ctx = run(found=described(True, state), stopJob="aleogr-shared-stop-weeknight")
+                self.assertEqual(r.status, "unchanged")
+                self.assertEqual((ctx.writes, ctx.log), ([], []))
+
+    def test_it_goes_on_after_the_creation(self):
+        r, ctx = resume(described(True, "creating"), states=("creating", "running", "stopped"))
+        self.assertEqual(r.status, "created")
+        self.assertNotIn(GOLDEN_CREATE, ctx.writes)
+        self.assertEqual(ctx.writes, [GOLDEN_JOB])  # the night stop, tested
+        self.assertEqual(ctx.log, [GOLDEN_OPERATIONS, GOLDEN_DESCRIBE, "sleep 30",
+                                   GOLDEN_DESCRIBE, GOLDEN_JOB, GOLDEN_DESCRIBE])
+        self.assertEqual(r.lines[0], skill.RESUME_LINE % ("aleogr-shared", "aleogr-shared-zz99",
+                                                          "creating"))
+        self.assertIn("The night stop is proven: the job aleogr-shared-stop-weeknight stopped "
+                      "the new instance.", r.lines)
+        self.assertEqual(r.block["outputs"], {"exists": True, "state": "stopped"})
+        self.assertEqual(r.block["cost"], skill.COST)
+
+    def test_running_instance_just_created(self):
+        r, ctx = resume(described(True, "running"),
+                        operations="BACKUP_VOLUME\nCREATE\n")
+        self.assertEqual(r.status, "created")
+        self.assertEqual(ctx.writes, [GOLDEN_JOB])
+
+    def test_the_endings_of_the_wait_are_the_creations(self):
+        # The budget of waiting spent while it is still being created: pending, it runs.
+        r, ctx = resume(described(True, "creating"), states=("creating",))
+        self.assertEqual(r.status, "pending")
+        self.assertEqual(ctx.writes, [])
+        self.assertEqual(r.block["pending"], [{"item": "instance", "reason": "manual",
+                                               "how": STOP_HOW}])
+        self.assertIn("The night stop was not tested.", r.lines)
+        self.assertTrue(any("charged by the hour until it is stopped" in l for l in r.lines))
+        self.assertTrue(ctx.wait_refused)
+
+    def test_refused_for_an_instance_it_did_not_just_create(self):
+        cases = (("running", "UPDATE\nCREATE\n", skill.RESUME_CHANGED),
+                 ("running", "UPDATE\n", skill.RESUME_CHANGED),
+                 ("running", "", skill.RESUME_CHANGED),
+                 ("starting", "RESTART\nCREATE\n", skill.RESUME_CHANGED),
+                 ("running", None, skill.RESUME_UNREAD),
+                 ("stopped", "CREATE\n", skill.RESUME_STOPPED))
+        for state, ops, why in cases:
+            with self.subTest(state=state, ops=ops):
+                r, ctx = resume(described(True, state), operations=ops)
+                self.assertEqual(r.status, "unchanged")
+                self.assertEqual(ctx.writes, [])  # never stopped by resume=yes
+                self.assertNotIn("sleep 30", ctx.log)
+                self.assertEqual(r.lines[1], skill.RESUME_REFUSED % why)
+                self.assertEqual(r.block["outputs"], {"exists": True, "state": state})
+                if state != "stopped":
+                    self.assertIn(STOP_HOW, r.lines[2])
+                    self.assertEqual(ctx.log, [GOLDEN_OPERATIONS])
+                else:
+                    self.assertEqual(ctx.log, [])  # a stopped instance: nothing read
+
+    def test_a_missing_instance_is_never_created(self):
+        # The caller's plan read the instance as existing: a describe that now says
+        # missing may lag behind its creation, so with resume=yes it is never created
+        # (this replaces the test that pinned "the creation runs as usual").
+        r, ctx = resume(described(False), states=("running", "stopped"))
+        self.assertEqual(r.status, "failed")
+        self.assertEqual((ctx.writes, ctx.log), ([], []))  # no create, no read, no wait
+        self.assertEqual(r.lines, [skill.RESUME_NOT_FOUND % (
+            "aleogr-shared", "aleogr-shared-zz99", "was not found", DESCRIBE_HOW, STOP_HOW)])
+        self.assertIn("nothing was created", r.lines[0])
+        self.assertIn("charged by the hour while it runs", r.lines[0])
+        self.assertEqual(r.block["outputs"], {"exists": None, "state": None})
+        self.assertEqual(r.block["cost"], skill.COST)
+        self.assertEqual(r.block["pending"], [])
+
+    def test_a_failed_read_ends_the_same_way(self):
+        for found in ({"status": "failed", "outputs": {"exists": None},
+                       "answer": ["The instance aleogr-shared could not be read: gcloud "
+                                  "failed."]},
+                      {"status": "unchanged", "outputs": {}, "answer": []}):
+            with self.subTest(found=found):
+                r, ctx = resume(found)
+                self.assertEqual(r.status, "failed")
+                self.assertEqual((ctx.writes, ctx.log), ([], []))
+                self.assertEqual(r.lines, [skill.RESUME_NOT_FOUND % (
+                    "aleogr-shared", "aleogr-shared-zz99", "could not be read",
+                    DESCRIBE_HOW, STOP_HOW)])
+                self.assertEqual(r.block["cost"], skill.COST)
+
+    def test_without_resume_a_missing_instance_is_created(self):
+        r, ctx = run(found=described(False), stopJob="aleogr-shared-stop-weeknight")
+        self.assertEqual(r.status, "created")
+        self.assertEqual(ctx.writes, [GOLDEN_CREATE, GOLDEN_JOB])
+        self.assertNotIn(GOLDEN_OPERATIONS, ctx.log)
+
+    def test_the_operations_read_is_a_read(self):
+        argv = skill.operations_command("aleogr-shared-zz99", "aleogr-shared")
+        self.assertEqual(" ".join(argv), GOLDEN_OPERATIONS)
+        self.assertIsNone(common.read_refusal(argv))
+        self.assertEqual(skill.invocation(dict(ARGS, resume="yes")).split(" ")[-1],
+                         "resume=yes")
+
+    def test_aborted_after_resume_says_it_runs(self):
+        common.reset_wait_budget()
+        args = dict(ARGS, resume="yes")
+        ctx = ResumeContext(args, described(True, "creating"), ["creating"])
+        real = ctx.read
+
+        def read(argv, timeout=None):
+            if argv[0] == "sleep":
+                raise common.TimeLimit(argv)
+            return real(argv, timeout)
+        ctx.read = read
+        r, code, why = common.run_skill(skill, dict(args), ctx)
+        self.assertEqual((code, why), (common.EXIT_SOFTWARE, "time limit reached"))
+        self.assertIn("It is not stopped: it runs and is charged by the hour until it is "
+                      "stopped. Stop it with %s." % STOP_HOW, r.lines)
 
 
 if __name__ == "__main__":

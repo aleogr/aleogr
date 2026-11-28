@@ -3,13 +3,16 @@ project push to the project's image repository, by granting it
 roles/artifactregistry.writer on that one repository (mode=apply), or say whether a run
 would (mode=plan, the default).
 
-The specification is skills/gcp-artifact-registry_access-grant/SKILL.md: the same read of
-the repository's policy, the same grant (polled while the new account is not visible
-yet: at most 10 tries, 9 waits of `sleep 30` through ctx.wait), the same read back, the
-same states and the same result block. The grant runs through ctx.write only; it is
-checked against this skill's allowlist of writes in both modes before the plan announces
-it or the apply runs it. Never on the GCP project, never another role, never a removal.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_artifact_registry_access_grant.py) and its scenarios. It was built
+from skills/gcp-artifact-registry_access-grant/SKILL.md as that text was before the skill
+became a shell over this command (the text is in the repository's history, at the commit
+before that change): the same read of the repository's policy, the same grant (polled
+while the new account is not visible yet: at most 10 tries, 9 waits of `sleep 30` through
+ctx.wait), the same read back, the same states and the same result block. The grant runs
+through ctx.write only; it is checked against this skill's allowlist of writes in both
+modes before the plan announces it or the apply runs it. Never on the GCP project, never
+another role, never a removal."""
 
 import json
 import re

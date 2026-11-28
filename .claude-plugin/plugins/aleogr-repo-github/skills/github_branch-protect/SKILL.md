@@ -1,6 +1,6 @@
 ---
 description: GitHub branch protect, with the gh CLI. Use to protect the default branch of a GitHub repository with the repository ruleset `main` (no deletion, no force push, changes through a pull request, 0 approvals), creating or updating it from the plugin's ruleset-main.json, or with checks=ci from ruleset-main-ci.json (the same ruleset plus the required status check `ci`), then verify it. Idempotent; plan by default; reports pending when the GitHub plan does not allow rulesets on the repository. Never touches a ruleset with another name.
-allowed-tools: Bash(aleogr-repo-github --read-only github_branch-protect), Bash(aleogr-repo-github --read-only github_branch-protect *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_branch-protect), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_branch-protect *)
 ---
 
 # github_branch-protect
@@ -29,13 +29,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-repo-github github_branch-protect <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" github_branch-protect <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-repo-github --read-only github_branch-protect <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github" --read-only github_branch-protect <arguments>
   ```
 
 Write each argument inside single quotes, whatever it holds (`'project=demo'`, `'env=web:A=1;web:B=2'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
@@ -49,8 +49,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-repo-github could not be run: update the plugin aleogr-repo-github, then try again.` and the block is as it is below.
 
 The block:
 
@@ -68,7 +68,3 @@ The block:
   "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-repo-github, then try again" } ]
 }
 ```
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

@@ -2,12 +2,15 @@
 repository, is as declared (mode=plan); in mode=apply, writes that file when it is
 missing or differs.
 
-The specification is skills/github_ci-setup/SKILL.md: the same reads, in the same order,
-the same states and the same result block. examine() holds steps 1 to 3, shared by both
-modes, and kept_commit() the part of step 4 that reads the local file; run() holds the
-plan's answer; apply() holds steps 4 to 6 (the head read, the write through
-ctx.write_file, the verification), and ci_yml() the text of step 5.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_github_ci_setup.py) and its scenarios. It was built from
+skills/github_ci-setup/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that
+change): the same reads, in the same order, the same states and the same result block.
+examine() holds steps 1 to 3, shared by both modes, and kept_commit() the part of step 4
+that reads the local file; run() holds the plan's answer; apply() holds steps 4 to 6
+(the head read, the write through ctx.write_file, the verification), and ci_yml() the
+text of step 5."""
 
 import importlib.util
 import os

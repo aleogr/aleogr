@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from helpers import PLUGINS, aleogr_common as common  # noqa: E402
-from test_common import StandIns  # noqa: E402
+from test_common import UNCONVERTED, StandIns, UnconvertedPlugin  # noqa: E402
 
 SECRET = "s3cr3t-value"
 
@@ -191,13 +191,10 @@ class TestArgumentGivenTwice(unittest.TestCase):
             shutil.rmtree(folder)
 
     def test_not_converted_still_comes_first(self):
-        sql = "aleogr"  # platform-plan is prose until part 3b
-        p = subprocess.run([sys.executable, os.path.join(PLUGINS, sql, "bin", sql),
-                            "platform-plan", "a=1", "a=2"],
-                           stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE,
-                           env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"))
-        self.assertEqual((p.returncode, p.stdout), (64, b""))
+        # A skill with a SKILL.md and no module, in a plugin built for the test.
+        with UnconvertedPlugin() as demo:
+            code, out, _err = demo.run(UNCONVERTED, "a=1", "a=2")
+        self.assertEqual((code, out), (64, ""))
 
 
 class TestRefusedCommand(unittest.TestCase):

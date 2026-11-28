@@ -3,10 +3,13 @@ is fit for a proposal and which of the named files changed (mode=plan); in mode=
 commits the changed files on a new branch aleogr/change-<random>, pushes it, opens the
 pull request and returns the folder to the default branch.
 
-The specification is skills/github_pull-request-open/SKILL.md: the same reads, in the
-same order, the same states and the same result block. examine() holds steps 1 to 7,
-shared by both modes; run() holds step 8; apply() holds steps 9 to 15, run through the
-writing runner (ctx.write) only in mode=apply.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_github_pull_request_open.py) and its scenarios. It was built from
+skills/github_pull-request-open/SKILL.md as that text was before the skill became a
+shell over this command (the text is in the repository's history, at the commit before
+that change): the same reads, in the same order, the same states and the same result
+block. examine() holds steps 1 to 7, shared by both modes; run() holds step 8; apply()
+holds steps 9 to 15, run through the writing runner (ctx.write) only in mode=apply.
 
 The login, the id and the no-reply address are never printed: the two `git config`
 commands pass them as Hidden, so their `+ ` lines show `<login>` and `<id>`.

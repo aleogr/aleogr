@@ -1,0 +1,19 @@
+# The run of platform-apply-continue-instance-create, its second command with its carried
+# file lost (another machine, a cleaned temporary folder): run= names a file that does not
+# exist. The cloud is as the first command left it: the instance exists and is still being
+# created. The run goes on as a new one: it does not know that it asked for the creation,
+# so it never passes resume=yes and never stops the instance; the plan's running instance
+# is never a difference. The answer says that the earlier part was lost, that the instance
+# runs and is charged by the hour, and how to stop it; the block says its fixed cost.
+COMMANDS 1
+NOT_CALLED ^sql instances (create|patch)
+NOT_CALLED ^scheduler jobs (run|create|update)
+NOT_CALLED ^sql operations list .*--sort-by=~insertTime
+NOT_CALLED ^sleep
+OUTPUT An earlier part of this run could not be recalled: its file is missing\.
+OUTPUT \| *database instance *\| *exists, creating *\| *none *\|
+OUTPUT The database instance is running and is charged by the hour until it is stopped: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=aleogr-shared-zz99 instance=aleogr-shared
+OUTPUT "fixed": true
+OUTPUT "status": "unchanged"
+OUTPUT_NOT gcp-cloud-sql_instance-create:
+OUTPUT_NOT resume=yes

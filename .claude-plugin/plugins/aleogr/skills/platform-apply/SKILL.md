@@ -6,6 +6,13 @@ description: aleogr platform apply. Use to create the free part of the owner's s
 
 Creates what `platform-plan` lists as missing, in order: the shared project, its APIs, the budget alert, the database switch, the database instance; last, it prepares the login of the organization as far as a command can. Everything but the instance is free; the instance has a fixed cost of `about R$ 50 per month while stopped`. Then it plans again to prove nothing is left.
 
+The instance's fixed cost starts with its creation, and only a run given `confirm=yes` creates anything: without it, the run changes nothing, says what a confirmed run would create and what it costs, and ends `pending` with the command that confirms. While the instance is being created it runs and is charged by the hour; the run stops it and tests the night stop before it ends, also when that takes more than one command.
+
+Its answer may hold two sections for the owner, both part of the answer and given as printed:
+
+- `GitHub secrets`: the three secrets of the database switch, with their values and where to paste them in the repository on GitHub, once, by hand.
+- `Login`: the few clicks left in the console and one command for the owner to paste in a terminal. Never run that command, never fill a value into it and never ask for one. Never ask for a client id or a secret in the conversation; if the owner pastes one, do not use, repeat or store it: point to the command of the list instead.
+
 ## Arguments
 
 Free text after the skill name, as `key=value` pairs.
@@ -14,51 +21,30 @@ Free text after the skill name, as `key=value` pairs.
 |---|---|
 | `confirm=yes` | Makes the changes. Without it, the run shows the plan and its cost, changes nothing and ends `pending` with the command that confirms. Any other value of `confirm` fails validation. |
 
-## Steps
+The command checks the arguments itself: pass them as they were given, and never ask for one that is missing.
 
-Show each command before running it. Other skills end with their own `aleogr-result` block: use those blocks only as input, never repeat them. Your answer ends with exactly one block, its own. Never ask a question and never wait for an answer: a confirmation that is missing ends the run `pending`.
+## Run
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/defaults.json`. If `cloud.provider` is not `gcp`, stop with `failed`: only GCP is implemented. Run no command. Take the same values `platform-plan` takes, `platform.database` and `platform.switch` included.
-2. Invoke `aleogr:platform-plan`. Every `gcloud` command in the skills run below uses the command name the plan's tools-check reported (`gcloud` or `gcloud.cmd`). Its `status`:
-   - `failed`: stop with `failed` and carry its `pending[].how`.
-   - `unchanged`: write the line `nothing to do` (in exactly those words) and end with `unchanged`, with the `GitHub secrets` section (see "GitHub secrets" below). Run no creating step.
-3. Confirmation. Never wait for an answer. Without `confirm=yes`, change nothing and invoke nothing more; your next output is this skill's answer: the plan's table with the lines it printed under it, the cost line when `database instance` is `create` (`Cost: the database instance has a fixed cost of about R$ 50 per month while stopped, from its creation.`), when `login` is `prepare` the one sentence `Preparing the login grants the account that runs this the role roles/iap.settingsAdmin on the organization and enables the IAP API in the shared project; both are free.`, the `how` of the item below, and the result block, with status `pending` and `pending` holding the one item `{ "item": "confirm", "reason": "manual", "how": "/aleogr:platform-apply confirm=yes" }`. No question, in any wording. With `confirm=yes`, go on.
-4. Create, in this order (the services come before the budget because the budget commands need the Budget API enabled on the quota project):
-   1. `aleogr-cloud-gcp:gcp_environment-create` with `project=<shared.project> platform=shared mode=apply` (the shared project has no environment). Take `projectId` from its result.
-   2. `aleogr-cloud-gcp:gcp_services-enable` with `projectId=<projectId> services=<comma-separated> mode=apply` (by id: a search by labels may not show a project created seconds ago).
-   3. `aleogr-cloud-gcp:gcp_budget-alert-setup` with `displayName=<..> amount=<..> currency=<..> thresholds=<comma-separated> quotaProject=<projectId> mode=apply`.
-   4. `aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-switch-setup` with `projectId=<projectId> instance=<database.instance> region=<cloud.region> timeZone=<switch.timeZone> weeknightStop="<switch.weeknightStop>" weekendStop="<switch.weekendStop>" repository=<switch.repository> mode=apply`. Its `GitHub secrets` section goes into the answer as "GitHub secrets" below says.
-   5. Before this step, write the cost line: `Cost: the database instance has a fixed cost of about R$ 50 per month while stopped, from its creation.` Then invoke `aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-create` with `projectId=<projectId> instance=<database.instance> platform=shared mode=apply confirm=yes version=<database.version> tier=<database.tier> edition=<database.edition> region=<cloud.region> storageGb=<database.storageGb> backupStartUtc=<database.backupStartUtc> retainedBackups=<database.retainedBackups> stopJob=aleogr-shared-stop-weeknight`. `stopJob` is the switch's weeknight job (its fixed name; the switch step created it in `cloud.region`, the instance's region): the create skill stops the new instance by running that job, which proves the night stop works. When the step ends `pending` (for example because the job did not stop the instance), it stops the run like any `pending`, and its one-sentence cause and its `pending` items go into the answer as the step wrote them.
+Run exactly this command with the Bash tool, with every argument given to this skill, unchanged and in the same order (no argument given: the command alone):
 
-   6. Login, last, after every other step: when the plan's `login` has action `prepare` (also when its state is `not checked`: the setup makes its own read), invoke `aleogr-cloud-gcp:gcp_login-setup` with `projectId=<projectId> mode=apply`. It may grant the active account the role `roles/iap.settingsAdmin` on the organization and enable the IAP API in the shared project, both free; it never sees the client's secret. Write nothing of that skill's answer: not its list, not its sentences, not its result block. They are input, never the end of the run; the `Login` section of this skill's answer is the only place the list appears. After it, go on to step 5. Its `status`:
-      - `unchanged`: the login is prepared (by this run or by someone else). Nothing to keep.
-      - `updated`: it granted the role or enabled the API. Then either the login is prepared (its read after the change named a client: no list, no item, nothing to keep), or it is not prepared yet (only the owner's clicks and one command are left, or the skill could not read the setting yet). It does not stop the run (see the exception after the rule below). Keep its `outputs.steps`, for the `Login` section of the answer only, and every item of its `pending` (`login`, or `api`) as it gave them, for the answer and the result block; go on to step 5.
-      - `pending`: the role and the API were already right and nothing was changed; only the clicks are left. The same as `updated`: it does not stop the run; keep its `outputs.steps` and its `pending` items the same way; go on to step 5.
-      - `failed`: stop like any failed step (the rule below); its one sentence goes into the answer as the step wrote it.
-      - `would-update` cannot come from `mode=apply`; if it does, treat it as `failed`.
+```
+"${CLAUDE_PLUGIN_ROOT}/bin/aleogr" platform-apply <arguments>
+```
 
-      Never run the command of its list, never fill a value into it and never ask for one. If the owner pastes a client id or a secret into the conversation, do not use, repeat or store it: point to the command of the list instead.
+Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds: never in the background.
 
-   `projectId` is the one the create step returned when it ran; when it was skipped (the plan marked the project `none`), it is the plan's `outputs.projectId`. Never guess it and never run a describe only to find it. If it is `null` when the services, budget, switch, instance or login step is due, stop with `failed`.
+Write each argument inside single quotes, whatever it holds (`'confirm=yes'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
-   Run each skill in full, including the describe it starts with: the plan's results are stale once an earlier step has changed something. Skip a step whose item the plan marked `none`. The switch comes before the instance: the night jobs must exist before an instance that could be left running does. If a step ends `failed` or `pending`, stop: run no later step, end with that same status, mark that item `blocked` and the later ones with the plan's action, and carry the step's `pending[].how` into `pending`. The one exception is the login step (6): its `updated` and `pending` never stop the run, because it is the last step and what it leaves is the owner's clicks and one command.
-5. Run `aleogr:platform-plan projectId=<projectId>` again (without `projectId` if the project still does not exist), in full, even when every step succeeded: its own commands are the proof. Only if every action in that last plan is `none`, write the line `nothing to do`, in exactly those words (not paraphrased); otherwise never write those words, not even to say that they do not apply. Otherwise list the leftover items and end with `pending`, `pending[].how` being `/aleogr:platform-apply confirm=yes`. The one exception: a `login` that is still `prepare` after the login step ended `updated` or `pending` is not such a leftover. Its items from the login step stand in its place (never a second item for it), and the run ends with the status the other steps give (see Result block).
+It prints two kinds of lines:
 
-## GitHub secrets
+- Lines that begin with `+ ` are the commands it ran. They are shown by the tool already: never repeat them.
+- Every other line is its answer, ending with one fenced `aleogr-result` block.
 
-Whenever the database switch is `ready` at the end of the run (whether this run created it, updated it, or found it ready, and also when a later step stopped the run), the answer has a section titled `GitHub secrets`: the three secrets with their values and where to paste them, repeated from the last `GitHub secrets` section the switch skill printed in this run (its own step, or the switch check of the plan). Say that pasting them is needed once, by hand; running `/aleogr:platform-apply confirm=yes` again shows them again and changes nothing when everything exists. The values never go into the result block. When the switch is not `ready` at the end, there is no such section.
+A run may take more than one command. After a command ends, look at the `status` in its `aleogr-result` block. When it is `continue`, show the owner only the first line of that answer (the line that says what the run waits for, such as `Waiting for the database instance created in this run: it is creating. It has a fixed monthly cost and is charged by the hour while it runs; to stop it: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=<projectId> instance=<instance>.`), then run, with the Bash tool, again in the foreground with the same `timeout` of 600000 milliseconds, exactly the command written after `next: ` in that answer, character for character (it begins with the full path of this plugin's command, in double quotes: keep it as it is written), and look at its status in the same way; repeat. Never change, reorder, re-quote or drop an argument of the `next:` command, never add `confirm=yes` or any other argument yourself, never run anything else between two commands (no other command, no file read), never answer the owner or stop while the status is `continue`, and never run a `next:` command more than once. A run has at most eight commands: the command itself ends the run at that bound.
 
-## Login
+When the status is anything else, that command's answer is this skill's answer: give it exactly as printed, character for character, from its very first line to the fenced block, which comes last. Its first lines are usually one line per skill that made something (`gcp_services-enable: updated`, `gcp-cloud-sql_instance-create: created`, …), and in a run of several commands the last command prints them for the whole run: they are part of the answer, never leave them out. Only the answers whose status was `continue` (their one line, their `next:` line and their block) are left out. Add nothing before it, between its lines or after it; do not summarize, reword, translate or explain it. Run no other command, read no file, and do not run the command again, whatever it printed.
 
-When the login step gave a list in this run (its `outputs.steps` is not empty), the answer has a section titled `Login`: those lines, once and only here, exactly as the skill gave them (the two addresses, the values of the fields, the one command in a fenced `bash` block of its own, byte for byte), never restated in your own words. When the list's last line does not already say to run `/aleogr:platform-plan` once the clicks and the command are done, add that one line after it. The list never goes into the result block: `outputs.steps` is kept for this section only. When the login step did not run or gave no list, there is no such section (its one sentence and its `pending` item say what is left).
-
-## Answer
-
-Whichever step led here, the last skill invoked is over: your next output is this skill's answer, with nothing before it, not that skill's lines, table or block.
-
-The answer is short. In every path (including `nothing to do`), in this order, and nothing else: one line per step of step 4 that ran, with the skill's name and its status (`gcp_services-enable: updated`); the table of the last plan (item, state, action) with the lines it printed under it (the cost line, the running-instance line, the login line) and the line `nothing to do` when step 5 says to write it; the sentences this skill prescribes, each once (the cost line before the instance, the cause of a stop in one sentence); the `GitHub secrets` section when it applies; the `Login` section when it applies; the `how` of each `pending` item; and the result block. The table of the first plan is not repeated when a later plan ran. The nested skills' lines and result blocks are never part of the answer, and the answer never ends at one.
-
-## Result block
+Only when a command (the first or a `next:` one) printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is the sentence `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr ended without an answer: it may have changed something before it stopped. Read the state (run /aleogr:platform-plan) before running it again. The shared database instance, if it was created, has a fixed monthly cost and is charged by the hour while it runs: /aleogr:platform-plan shows its state and how to stop it (/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop).` followed by this block, and nothing else:
 
 ```aleogr-result
 {
@@ -67,28 +53,10 @@ The answer is short. In every path (including `nothing to do`), in this order, a
   "provider": "aleogr",
   "action": "platform-apply",
   "mode": "apply",
-  "status": "created",
-  "resources": [
-    { "type": "project", "id": "<projectId>", "name": "shared", "labels": {} }
-  ],
-  "outputs": {
-    "projectId": "<projectId>",
-    "items": [
-      { "item": "shared project", "state": "created", "action": "none" },
-      { "item": "services", "state": "enabled", "action": "none" },
-      { "item": "budget alert", "state": "created", "action": "none" },
-      { "item": "database switch", "state": "ready", "action": "none" },
-      { "item": "database instance", "state": "exists, stopped", "action": "none" },
-      { "item": "login", "state": "prepared", "action": "none" }
-    ]
-  },
-  "cost": { "fixed": true, "notes": "about R$ 50 per month while stopped" },
-  "pending": []
+  "status": "failed",
+  "resources": [],
+  "outputs": {},
+  "cost": { "fixed": false, "notes": "the run may have changed something" },
+  "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr, then try again" } ]
 }
 ```
-
-- `mode` is `apply`. `status`: `created` only when the project, the switch or the instance was created; `updated` when only other things changed (services enabled, the budget alert created, jobs updated, the login's role granted or its API enabled) — a run that created only the budget alert is `updated`; `unchanged` when there was nothing to do, otherwise `pending` or `failed` as taken from the step that stopped (or the confirmation that was not given). Every step succeeded but the final plan still shows an action other than `none`: `pending`, with each leftover item in `pending`. When the login step ended `updated` or `pending`, its `pending` items are in `pending` and the status is the one the other steps give: `created` or `updated` when this run changed something (the login step's `updated` included), `pending` when nothing at all was changed in the run (only the clicks are left). `unchanged` and the line `nothing to do` only when the login is `prepared` too.
-- `cost`: `fixed` true with the notes above when the instance exists at the end (the final plan shows it, or this run created it); otherwise `"fixed": false` and `"notes": "everything created here is free"`.
-- The result block holds no line of the login's list: no console address and no command (the `pending` item `login` is the setup's own, as it gave it).
-- Each item's `state` and `action` come from the final plan; for a stopped run, the stopped item is `blocked`.
-- `outputs.projectId` and `resources` carry the shared project whenever it exists, also when a later step ended `pending` or `failed`; `projectId` is `null` and `resources` empty when it does not exist. No organization, folder or billing identifiers except inside `pending[].how`.

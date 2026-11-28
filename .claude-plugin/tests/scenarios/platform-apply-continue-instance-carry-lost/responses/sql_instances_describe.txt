@@ -1,0 +1,22 @@
+{
+  "name": "aleogr-shared",
+  "project": "aleogr-shared-zz99",
+  "databaseVersion": "POSTGRES_18",
+  "region": "us-central1",
+  "state": "PENDING_CREATE",
+  "settings": {
+    "tier": "db-f1-micro",
+    "edition": "ENTERPRISE",
+    "activationPolicy": "ALWAYS",
+    "dataDiskSizeGb": "10",
+    "storageAutoResize": false,
+    "deletionProtectionEnabled": true,
+    "backupConfiguration": {
+      "enabled": true,
+      "startTime": "23:00"
+    },
+    "ipConfiguration": {
+      "ipv4Enabled": true
+    }
+  }
+}

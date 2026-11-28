@@ -1,6 +1,6 @@
 ---
 description: Google Cloud SQL (gcp-cloud-sql) instance create. Use to create the shared platform's Cloud SQL for PostgreSQL instance, leave it stopped (with stopJob, by running the night-stop job, which proves it works) and verify it. Idempotent (an existing instance is never touched); plan by default; apply needs confirm=yes. Fixed cost of about R$ 50 per month while stopped.
-allowed-tools: Bash(aleogr-db-gcp-cloud-sql --read-only gcp-cloud-sql_instance-create), Bash(aleogr-db-gcp-cloud-sql --read-only gcp-cloud-sql_instance-create *)
+allowed-tools: Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" --read-only gcp-cloud-sql_instance-create), Bash("${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" --read-only gcp-cloud-sql_instance-create *)
 ---
 
 # gcp-cloud-sql_instance-create
@@ -9,7 +9,7 @@ Creates the shared platform's Cloud SQL instance, waits for it, stops it (activa
 
 ## Arguments
 
-Free text after the skill name, as `key=value` pairs. All are required except `mode`, `confirm` and `stopJob`.
+Free text after the skill name, as `key=value` pairs. All are required except `mode`, `confirm`, `stopJob` and `resume`.
 
 | Argument | Meaning |
 |---|---|
@@ -26,6 +26,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 | `mode=plan\|apply` | `plan` (default) reports and changes nothing; `apply` executes. |
 | `confirm=yes` | Required for `apply` to create anything. |
 | `stopJob=<job>` | Optional. The Cloud Scheduler job, in the location `region`, that stops this instance at night (the shared platform uses `aleogr-shared-stop-weeknight`). When given, the new instance is stopped by running this job instead of by this skill's own command (step 6). |
+| `resume=yes` | Optional, given only by `platform-apply`, with `mode=apply` and `confirm=yes`, when its own run asked for the creation in an earlier command: the run skips the creation and goes on from it (the wait, the stop, the check). It never creates: when the instance is not found or cannot be read, the run ends `failed` and nothing was created. It is honoured only for an instance that is not stopped and whose last ten operations show only its creation and backups (an instance of that name made by hand, never stopped and recent, would meet that rule, which is why only `platform-apply` gives it); otherwise nothing is changed, and the answer says why it was not used. |
 
 Nothing is created without `mode=apply` and `confirm=yes` both: with `mode=apply` and no `confirm`, the run creates nothing and ends `pending` with the item `confirm`, whose `how` is the same invocation with `confirm=yes`; any other value of `confirm` fails. Creating the instance starts its fixed cost (about R$ 50 per month while stopped), and it is charged by the hour while it runs, until it is stopped.
 
@@ -40,13 +41,13 @@ Run one of these two commands with the Bash tool, once, with every argument give
 - When the arguments hold `mode=apply`, run exactly:
 
   ```
-  aleogr-db-gcp-cloud-sql gcp-cloud-sql_instance-create <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" gcp-cloud-sql_instance-create <arguments>
   ```
 
 - In every other case (no `mode`, `mode=plan`, or any other value of `mode`), run exactly:
 
   ```
-  aleogr-db-gcp-cloud-sql --read-only gcp-cloud-sql_instance-create <arguments>
+  "${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql" --read-only gcp-cloud-sql_instance-create <arguments>
   ```
 
 Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
@@ -62,8 +63,8 @@ Give that answer exactly as printed, character for character, the fenced block i
 
 Only when the command printed no `aleogr-result` block at all (it was not found, or it stopped with an error), the answer is one sentence followed by the block below, and nothing else:
 
-- When the command was the one for `mode=apply`, the sentence is `The command aleogr-db-gcp-cloud-sql ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again. An instance that runs is charged by the hour: stop it with /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
-- When it was the `--read-only` command, the sentence is `The command aleogr-db-gcp-cloud-sql could not be run: update the plugin aleogr-db-gcp-cloud-sql, then try again.` and the block is as it is below.
+- When the command was the one for `mode=apply`, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql ended without an answer: it may have changed something before it stopped. Read the state (run this skill with mode=plan, or the plan of the orchestrator) before running it again. An instance that runs is charged by the hour: stop it with /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop.` In the block, `"mode": "apply"` takes the place of `"mode": "plan"` and `"notes": "the run may have changed something"` the place of `"notes": "nothing was run"`.
+- When it was the `--read-only` command, the sentence is `The command ${CLAUDE_PLUGIN_ROOT}/bin/aleogr-db-gcp-cloud-sql could not be run: update the plugin aleogr-db-gcp-cloud-sql, then try again.` and the block is as it is below.
 
 The block:
 
@@ -81,7 +82,3 @@ The block:
   "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-db-gcp-cloud-sql, then try again" } ]
 }
 ```
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

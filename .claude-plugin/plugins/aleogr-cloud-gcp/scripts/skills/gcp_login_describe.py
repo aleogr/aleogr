@@ -1,10 +1,12 @@
 """gcp_login-describe: whether the login of the organization is prepared (its IAP setting
 names an OAuth client). Read-only.
 
-The specification is skills/gcp_login-describe/SKILL.md: the same reads, in the same
-order, the same states, the same sentences and the same result block. No organization
-id, client id or hash of a secret is ever printed.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_login_describe.py) and its scenarios. It was built from
+skills/gcp_login-describe/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that
+change): the same reads, in the same order, the same states, the same sentences and the
+same result block. No organization id, client id or hash of a secret is ever printed."""
 
 import json
 import re
