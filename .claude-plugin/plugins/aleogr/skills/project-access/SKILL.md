@@ -31,6 +31,8 @@ Run exactly this command with the Bash tool, once, with every argument given to 
 "${CLAUDE_PLUGIN_ROOT}/bin/aleogr" project-access <arguments>
 ```
 
+Run it in the foreground, with the Bash tool's `timeout` set to 600000 milliseconds, once: never in the background, and never a second time.
+
 Write each argument inside single quotes, whatever it holds (`'person=name@example.com'`, `'list=yes'`), so the shell passes it as it is and reads nothing in it; a single quote inside an argument is written `'\''`. Never leave an argument unquoted and never use double quotes.
 
 It prints two kinds of lines:

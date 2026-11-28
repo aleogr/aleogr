@@ -18,6 +18,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from helpers import aleogr_common as common, load_skill, plugin_root  # noqa: E402
+from helpers import called_commands, run_with_other_suite  # noqa: E402
 
 PLUGIN = "aleogr"
 ROOT = plugin_root(PLUGIN)
@@ -104,6 +105,18 @@ class Base(unittest.TestCase):
     def assertFailed(self, result, sentence):
         self.assertEqual(result.status, "failed")
         self.assertEqual(result.lines, [sentence])
+
+
+class TestShell(unittest.TestCase):
+    def test_runs_in_the_foreground_with_the_long_timeout(self):
+        # The run makes one grant per component and environment, as the other writing
+        # shells, it is run in the foreground with the Bash tool's longest timeout.
+        with open(os.path.join(ROOT, "skills", "project-access", "SKILL.md"),
+                  encoding="utf-8") as f:
+            text = f.read()
+        self.assertIn("Run it in the foreground, with the Bash tool's `timeout` set to 600000 "
+                      "milliseconds, once: never in the background, and never a second time.",
+                      text)
 
 
 class TestValidateFirst(Base):
@@ -492,6 +505,37 @@ class TestAnswer(Base):
         self.write(DECL)
         skill.run({"person": PERSON}, ctx, calls=FakeCalls(), cwd=self.dir)
         self.assertEqual(ctx.abort_lines, ["dev: updated"])
+
+
+class TestSuites(unittest.TestCase):
+    """The versions are checked before the first read: every plugin command this
+    orchestrator can call is asked `--suite` right after its arguments are validated."""
+
+    def test_every_command_it_calls_is_in_its_list(self):
+        listed = list(skill.SUITE_COMMANDS)
+        self.assertEqual(len(listed), len(set(listed)))
+        self.assertEqual(called_commands(skill) - set(listed), set())
+        self.assertEqual(set(listed) - called_commands(skill), set())
+
+    def test_another_suite_on_the_last_plugin_ends_before_anything(self):
+        other = skill.SUITE_COMMANDS[-1]
+        result, logs, ran = run_with_other_suite(PLUGIN, "project-access", skill, {"list": "yes"},
+                                                 other, declaration=DECL)
+        sentence = common.VERSION_SENTENCE.format(callee=other, caller="aleogr")
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.lines.count(sentence), 1)
+        self.assertEqual([l for l in result.lines if l.startswith("|")], [])  # no table
+        # Each command asked once for its suite, and nothing invoked or run.
+        self.assertEqual(logs, dict((c, ["--suite"]) for c in skill.SUITE_COMMANDS))
+        self.assertEqual(ran, [])
+
+    def test_checked_before_the_declaration_is_read(self):
+        # No declaration in the folder: the version is the run's one sentence.
+        result, logs, ran = run_with_other_suite(PLUGIN, "project-access", skill,
+                                                 {"list": "yes"}, skill.CLOUD)
+        self.assertEqual(result.lines, [common.VERSION_SENTENCE.format(
+            callee=skill.CLOUD, caller="aleogr")])
+        self.assertEqual((logs, ran), ({skill.CLOUD: ["--suite"]}, []))
 
 
 if __name__ == "__main__":

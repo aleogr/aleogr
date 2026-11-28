@@ -30,16 +30,22 @@ run's clock before the instance was stopped (aleogr:platform-apply passes it onl
 when the instance exists, the creation is skipped and the run goes on as its text does
 after a creation: it waits for the instance, stops it (with stopJob, by running the job,
 which tests the night stop) and verifies it, with the same endings. It is honoured only
-for an instance that is not stopped and has had no operation since its creation but its
-creation (and automated backups): `gcloud sql operations list` shows its CREATE among its
-last ten operations and nothing else but BACKUP_VOLUME. The skill sets no labels, so this
-is how it tells an instance it just created, not stopped yet, from one someone started
-or changed: an instance that was ever stopped, started or patched is never stopped by
-resume=yes (gcp-cloud-sql_instance-stop is for that). When it is not honoured, the run
-answers as without it (unchanged, the instance's state, its cost and how to stop it) and
-says why in one sentence. Without the instance, resume=yes changes nothing: the creation
-runs as usual. Without resume=yes nothing differs from the skill's text. The write
-commands are the same in every case.
+for an instance that is not stopped and whose last ten operations (`gcloud sql operations
+list`) show its CREATE and nothing else but BACKUP_VOLUME. The skill sets no labels, so
+this rule is all it has: an instance whose last ten operations show a stop, a start or
+a change is never stopped by resume=yes (gcp-cloud-sql_instance-stop is for that), but an
+instance of the same name made by hand, never stopped and recent, would meet the rule
+and be stopped. That is why only platform-apply gives the argument, and only for a creation
+its own run asked for. When it is not honoured, the run answers as without it (unchanged,
+the instance's state, its cost and how to stop it) and says why in one sentence.
+
+With resume=yes the instance is NEVER created: when the check does not find it (a
+describe that may lag behind the creation the caller's run asked for) or cannot read it,
+the run ends failed, running no write, with one sentence (RESUME_NOT_FOUND): resume=yes
+was given and the instance was not found (or could not be read), so nothing was created;
+it may exist and run, what it costs, and how to read its state and stop it. Without
+resume=yes nothing differs from the skill's text. The write commands are the same in
+every case.
 """
 
 import json
@@ -96,6 +102,16 @@ RESUME_STOPPED = "the instance is stopped"
 RESUME_CHANGED = ("the instance has had other operations since its creation (it was stopped, "
                   "started or changed), so it is not one this skill has just created")
 RESUME_UNREAD = "the operations of the instance could not be read"
+# resume=yes and the check does not find the instance (or cannot read it): the caller's own
+# plan read it as existing, so a describe that says missing may lag behind its creation.
+# The instance is never created then: one sentence, no write. The third %s is "was not
+# found" or "could not be read".
+RESUME_NOT_FOUND = ("resume=yes was given and the Cloud SQL instance %s in %s %s, so nothing "
+                    "was created: it may exist and run, with a fixed cost of about R$ 50 per "
+                    "month while stopped, charged by the hour while it runs; read its state "
+                    "with %s and stop it with %s.")
+RESUME_MISSING = "was not found"
+RESUME_NOT_READ = "could not be read"
 # What an instance this skill created and has not stopped yet may show among its last
 # operations, besides its CREATE.
 RESUME_OPERATIONS = ("CREATE", "BACKUP_VOLUME")
@@ -254,6 +270,10 @@ def stop_how(project_id, instance):
         PLUGIN, project_id, instance)
 
 
+def describe_how(project_id, instance):
+    return "/%s:%s projectId=%s instance=%s" % (PLUGIN, DESCRIBE, project_id, instance)
+
+
 def run(args, ctx):
     mode = args.get("mode") or DEFAULT_MODE
 
@@ -273,12 +293,20 @@ def run(args, ctx):
     # Step 1: the check, by the describe skill (its block is input only).
     found = ctx.call(PLUGIN, DESCRIBE, {"projectId": project_id, "instance": instance})
     out = found.get("outputs") if isinstance(found.get("outputs"), dict) else {}
+    resume = args.get("resume") == "yes"
+    if resume and (found.get("status") == "failed" or out.get("exists") is not True):
+        # resume=yes never creates: the instance may exist and run (a lagging read).
+        why = RESUME_MISSING if (found.get("status") != "failed"
+                                 and out.get("exists") is False) else RESUME_NOT_READ
+        return ctx.failed(RESUME_NOT_FOUND % (instance, project_id, why,
+                                              describe_how(project_id, instance),
+                                              stop_how(project_id, instance)),
+                          outputs(), cost=dict(COST))
     if found.get("status") == "failed" or out.get("exists") not in (True, False):
         answer = found.get("answer") or []
         cause = answer[0] if answer and isinstance(answer[0], str) else (
             "The instance %s could not be read." % instance)
         return ctx.failed(cause, outputs(), cost=dict(COST))
-    resume = args.get("resume") == "yes"
     refused = None
     if out.get("exists") is True and resume and not unrunnable(args, ctx.root):
         refused = resume_refusal(ctx, project_id, instance, out.get("state"))

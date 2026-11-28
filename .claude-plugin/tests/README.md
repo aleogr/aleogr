@@ -72,13 +72,16 @@ only under these fakes; it only adds to the clock, so it can only shorten a run)
 seconds per wait reach the step limit of four minutes after eight waits, so such a scenario
 continues over several commands, as a real run would. A `clock` file with any other content
 is a bad scenario (exit 2). The loop and the `clock` file are tested on a copy of the
-harness with stand-in commands (`unit/test_continue.py`). Eight scenarios have a `clock`
-file. Two are of `platform-apply`: `platform-apply-continue-instance-create` (the instance's
+harness with stand-in commands (`unit/test_continue.py`). Nine scenarios have a `clock`
+file. Three are of `platform-apply`: `platform-apply-continue-instance-create` (the instance's
 creation cut by the clock in the first command and resumed with `resume=yes` in the second,
-with the one-command answer) and `platform-apply-continue-instance-commands-limit` (an
-instance that never leaves its creation: eight commands, one create and seven resumes, the
-eighth `pending`); `platform-apply-continue-instance-carry-lost` is the second command of
-that run with its carried file lost. Six are of `project-apply`: the two of the
+with the one-command answer), `platform-apply-continue-instance-resume-missing` (the same,
+but the resumed create's own check reads the instance as missing: it creates nothing and
+the run ends `failed`, saying the instance may run) and
+`platform-apply-continue-instance-commands-limit` (an instance that never leaves its
+creation: eight commands, one create and seven resumes, the eighth `pending`);
+`platform-apply-continue-instance-carry-lost` is the second command of that run with its
+carried file lost. Six are of `project-apply`: the two of the
 `step-limit` file (below), and four, each made from a one-command scenario whose final
 answer it pins: `project-apply-continue-start-wait-limit` (the instance's wait over three commands, to
 its limit of thirty tries), `project-apply-continue-create-stopped` (the instance started in
@@ -155,7 +158,8 @@ not converted 6`: every scenario of every skill passes with no model (the 38 of
 `platform-apply-continue-instance-*`, and the new `sql-create-resume`,
 `sql-create-resume-refused` and `deploy-setup-env-access-refused` among them); the 6 left are the `harness-selftest*`
 scenarios, which test `run.sh` with the model and whose prompts are not a slash command of a
-skill.
+skill. After the fixes of part 3b's final review it prints `passed 681, failed 0, not
+converted 6`, with the new `platform-apply-continue-instance-resume-missing`.
 
 A scenario of a command that writes runs in the scenario's working folder, a copy of its
 `files/`, so the `FILE`, `SAME_FILE`, `NO_FILE` and `FILE_NOT` lines check what the command

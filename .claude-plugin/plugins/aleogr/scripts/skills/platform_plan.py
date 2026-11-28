@@ -40,6 +40,11 @@ COST = {"fixed": False, "notes": "read-only plan"}
 
 CLOUD = "aleogr-cloud-gcp"
 DB = "aleogr-db-gcp-cloud-sql"
+# Every other plugin's command this skill can call, in any path, in the order it first
+# calls them: asked `--suite` (ctx.check_suites) right after the arguments are validated
+# and before the first read, so that a plugin of another release ends the run before
+# anything is read or written. A unit test checks the list against the module's calls.
+SUITE_COMMANDS = (CLOUD, DB)
 
 
 def _tools_check():
@@ -316,6 +321,11 @@ class Caller(object):
             raise common.PluginVersion(r)
         return r
 
+    def suites(self, commands):
+        """Every command the plan can call, asked `--suite` before its first read
+        (ctx.check_suites): PluginVersion on a command of another suite."""
+        self.ctx.check_suites(commands)
+
     def tools(self, command):
         return TC.check(command, self.ctx.read)
 
@@ -363,6 +373,8 @@ def _gather(args, caller, r, wanted):
     if problem:
         r.failure = Failure(problem, "arguments", [pending_item("arguments", ARGUMENTS_HOW)])
         return
+    # The versions, before the first read (PluginVersion ends the plan, as in gather).
+    caller.suites(SUITE_COMMANDS)
 
     # Step 1: the defaults.
     defaults = Defaults(caller.defaults_path())

@@ -19,6 +19,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from helpers import aleogr_common as common, load_skill, plugin_root  # noqa: E402
+from helpers import called_commands, run_with_other_suite  # noqa: E402
 
 PLUGIN = "aleogr"
 ROOT = plugin_root(PLUGIN)
@@ -1369,6 +1370,29 @@ class TestLineOfACutCommand(unittest.TestCase):
         Harness([plan], {"go_setup": res("created", data={"waitRefused": True})},
                 ctx=ctx).run()
         self.assertEqual(ctx.continued[1]["made"], ["go_setup component=web: created"])
+
+
+class TestSuites(unittest.TestCase):
+    """The versions are checked before the first read: every plugin command this
+    orchestrator can call is asked `--suite` right after its arguments are validated."""
+
+    def test_every_command_it_calls_is_in_its_list(self):
+        listed = list(skill.SUITE_COMMANDS)
+        self.assertEqual(len(listed), len(set(listed)))
+        self.assertEqual(called_commands(skill, PP) - set(listed), set())
+        self.assertEqual(set(listed) - called_commands(skill, PP), set())
+
+    def test_another_suite_on_the_last_plugin_ends_before_anything(self):
+        other = skill.SUITE_COMMANDS[-1]
+        result, logs, ran = run_with_other_suite(PLUGIN, "project-apply", skill, {"confirm": "yes"},
+                                                 other, declaration=DECL)
+        sentence = common.VERSION_SENTENCE.format(callee=other, caller="aleogr")
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.lines.count(sentence), 1)
+        self.assertEqual([l for l in result.lines if l.startswith("|")], [])  # no table
+        # Each command asked once for its suite, and nothing invoked or run.
+        self.assertEqual(logs, dict((c, ["--suite"]) for c in skill.SUITE_COMMANDS))
+        self.assertEqual(ran, [])
 
 
 if __name__ == "__main__":

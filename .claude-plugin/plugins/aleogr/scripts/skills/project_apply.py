@@ -50,6 +50,11 @@ CLOUD = "aleogr-cloud-gcp"
 REGISTRY = "aleogr-registry-gcp-artifact-registry"
 DB = "aleogr-db-gcp-cloud-sql"
 GO = "aleogr-stack-go"
+# Every other plugin's command this skill can call, in any path, in the order it first
+# calls them: asked `--suite` (ctx.check_suites) right after the arguments are validated
+# and before the first read, so that a plugin of another release ends the run before
+# anything is read or written. A unit test checks the list against the module's calls.
+SUITE_COMMANDS = (GH, GO, CLOUD, REGISTRY, DB)  # its own and its plan's
 
 API_TRIES = 10  # the wait for just-enabled APIs: tries, the first one included
 INSTANCE_TRIES = 30  # the wait for the shared instance, for the whole run
@@ -2243,4 +2248,8 @@ def run(args, ctx):
                                      "items": [], "pullRequest": None},
                           pending=[item("arguments", ARGUMENTS_HOW)], cost=dict(NO_COST),
                           lines=[problem])
+    # The versions of every plugin this run can call, before its first read: a plugin of
+    # another release ends it here (PluginVersion: failed, its one sentence), before the
+    # plan reads anything and before any step writes.
+    ctx.check_suites(SUITE_COMMANDS)
     return Apply(args, ctx, carry, lost=lost).run()

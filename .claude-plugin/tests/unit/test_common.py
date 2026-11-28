@@ -430,6 +430,49 @@ class TestSuite(unittest.TestCase):
             self.assertEqual(got["callError"], "not-found")
             self.assertEqual(s.ran(), [])
 
+    def test_check_suites_probes_each_command_once_before_any_call(self):
+        with StandIns() as s:
+            logs = [self.stand_in(s, n, common.suite_digest() + "\n")
+                    for n in ("aleogr-fa", "aleogr-fb")]
+            self.assertIsNone(common.check_suites(["aleogr-fa", "aleogr-fb", "aleogr-fa"]))
+            self.assertIsNone(common.check_suites(["aleogr-fa", "aleogr-fb"]))
+            self.assertEqual([self.log(l) for l in logs], [["--suite"], ["--suite"]])
+            # The probe is the one call_plugin makes: it is not asked again.
+            common.call_plugin("aleogr-fb", "x")
+            self.assertEqual(self.log(logs[1]), ["--suite", "--json x"])
+
+    def test_check_suites_a_mismatch_is_the_version_failure(self):
+        with StandIns() as s:
+            good = self.stand_in(s, "aleogr-fa", common.suite_digest() + "\n")
+            bad = self.stand_in(s, "aleogr-fb", "0123456789ab\n")
+            got = common.check_suites(["aleogr-fa", "aleogr-fb"], caller="aleogr")
+            self.assertEqual((got["status"], got["callError"], got["answer"]),
+                             ("failed", "version", [common.VERSION_SENTENCE.format(
+                                 callee="aleogr-fb", caller="aleogr")]))
+            self.assertEqual((self.log(good), self.log(bad)), (["--suite"], ["--suite"]))
+            # call_plugin keeps the answer: nothing is ever run on that command.
+            self.assertEqual(common.call_plugin("aleogr-fb", "x")["callError"], "version")
+            self.assertEqual(self.log(bad), ["--suite"])
+            ctx = common.Context("aleogr", "/x", "s", object(), "plan", {})
+            with self.assertRaises(common.PluginVersion) as cm:
+                ctx.check_suites(["aleogr-fa", "aleogr-fb"])
+            self.assertEqual(cm.exception.sentence, common.VERSION_SENTENCE.format(
+                callee="aleogr-fb", caller="aleogr"))
+            self.assertEqual(s.ran(), [])
+
+    def test_check_suites_a_command_not_installed_is_not_a_failure(self):
+        with StandIns() as s:
+            log = self.stand_in(s, "aleogr-fa", common.suite_digest() + "\n")
+            self.assertIsNone(common.check_suites(["aleogr-not-installed", "aleogr-fa"]))
+            ctx = common.Context("aleogr", "/x", "s", object(), "plan", {})
+            self.assertIsNone(ctx.check_suites(["aleogr-not-installed", "aleogr-fa"]))
+            self.assertEqual(self.log(log), ["--suite"])
+            # Unless the module names it as required: then its not-found failure.
+            got = ctx.check_suites(["aleogr-fa", "aleogr-not-installed"],
+                                   required=["aleogr-not-installed"])
+            self.assertEqual((got["callError"], got["answer"]), ("not-found", [
+                common.NOT_FOUND_SENTENCE.format(command="aleogr-not-installed")]))
+
     def test_a_module_that_meets_another_suite_ends_failed(self):
         # Any module that calls another plugin: the run ends failed with the sentence
         # alone, exit 0, and the module runs nothing after the call.

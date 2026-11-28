@@ -21,11 +21,13 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from helpers import aleogr_common as common, load_skill, plugin_root  # noqa: E402
+from helpers import called_commands, run_with_other_suite  # noqa: E402
 
 PLUGIN = "aleogr"
 ROOT = plugin_root(PLUGIN)
 skill = load_skill(PLUGIN, "platform-apply")
 PP = skill.PP
+CREATE = load_skill("aleogr-db-gcp-cloud-sql", "gcp-cloud-sql_instance-create")
 
 PID = "aleogr-shared-ab12"
 SERVICES = ["cloudresourcemanager.googleapis.com", "billingbudgets.googleapis.com",
@@ -46,6 +48,8 @@ LOGIN_ITEM = {"item": "login", "reason": "manual",
               "how": "In the Google Cloud console of %s, ..., then run /aleogr:platform-plan" % PID}
 STOP_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=%s "
             "instance=aleogr-shared" % PID)
+DESCRIBE_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe projectId=%s "
+                "instance=aleogr-shared" % PID)
 CREATE_ARGS = {"projectId": PID, "instance": "aleogr-shared", "platform": "shared",
                "mode": "apply", "confirm": "yes", "version": "POSTGRES_18",
                "tier": "db-f1-micro", "edition": "enterprise", "region": "us-central1",
@@ -166,6 +170,9 @@ class Caller(object):
             assert isinstance(v, str), (name, args)
         assert "mode" not in args or args["mode"] == "plan", (name, args)
         return copy.deepcopy(self.cloud.read(name, args))
+
+    def suites(self, commands):
+        pass  # the versions: test_platform_apply.TestSuites runs the real check
 
     def tools(self, command):
         class Check(object):
@@ -296,6 +303,27 @@ class TestDeclarations(unittest.TestCase):
         self.assertEqual(skill.validate_args({"confirm": "YES"}), skill.CONFIRM_INVALID)
         self.assertEqual(skill.validate_args({"mode": "apply"}),
                          skill.ARGUMENT_UNKNOWN % "mode")
+
+
+class TestShell(unittest.TestCase):
+    def text(self):
+        with open(os.path.join(ROOT, "skills", "platform-apply", "SKILL.md"),
+                  encoding="utf-8") as f:
+            return f.read()
+
+    def test_the_fallback_says_the_instance_costs_and_how_to_read_it(self):
+        # M5: a command that printed no block may have left the instance running.
+        para = [l for l in self.text().splitlines()
+                if l.startswith("Only when a command (the first or a `next:` one) printed no")]
+        self.assertEqual(len(para), 1)
+        for words in ("The shared database instance, if it was created, has a fixed monthly "
+                      "cost and is charged by the hour while it runs",
+                      "/aleogr:platform-plan shows its state and how to stop it"):
+            self.assertIn(words, para[0])
+
+    def test_the_continue_example_is_the_module_line(self):
+        self.assertIn("`%s`" % (skill.INSTANCE_CONTINUE % ("creating", "<projectId>",
+                                                           "<instance>")), self.text())
 
 
 class TestConfirmGate(unittest.TestCase):
@@ -660,7 +688,8 @@ class TestInstance(unittest.TestCase):
         cloud.answers["gcp-cloud-sql_instance-create"] = [self.cut(), None]
         first = run(cloud)
         self.assertEqual(first.block["status"], "continue")
-        self.assertEqual(first.ctx.continued[0], skill.INSTANCE_CONTINUE % "creating")
+        self.assertEqual(first.ctx.continued[0],
+                         skill.INSTANCE_CONTINUE % ("creating", PID, "aleogr-shared"))
         carry = json.loads(json.dumps(first.ctx.continued[1]))
         self.assertTrue(carry["createAsked"])
         self.assertFalse(carry["instanceDone"])
@@ -710,6 +739,81 @@ class TestInstance(unittest.TestCase):
         self.assertEqual(names(cloud), ["gcp-cloud-sql_instance-create"])
         self.assertEqual(h.block["status"], "pending")
         self.assertIn(skill.INSTANCE_GONE % "aleogr-shared", h.lines)
+
+    def test_found_missing_still_says_it_may_run(self):
+        # A plan that reads the instance as missing after a create was asked may lag
+        # behind it: the answer keeps what it costs and how to read and stop it (M4).
+        cloud = Cloud(instance=None)
+
+        def vanished(c, a):
+            c.instance = None
+            return res("pending", data={"waitRefused": True}, exists=True, state="creating")
+        cloud.answers["gcp-cloud-sql_instance-create"] = vanished
+        carry = run(cloud).ctx.continued[1]
+        h = run(cloud, carry=carry)
+        self.assertEqual(names(cloud), ["gcp-cloud-sql_instance-create"])
+        self.assertIn(skill.INSTANCE_MAY_RUN % ("aleogr-shared", PID, "aleogr-shared"),
+                      h.lines)
+        self.assertIn(STOP_HOW, "\n".join(h.lines))
+        self.assertIn(skill.COST_LINE, h.lines)
+        self.assertEqual(h.block["cost"], skill.INSTANCE_COST)
+        self.assertNotIn("does not exist", "\n".join(h.lines))
+        self.assertIn(skill.INSTANCE_MAY_RUN % ("aleogr-shared", PID, "aleogr-shared"),
+                      h.ctx.abort)
+
+    def test_a_resumed_create_that_does_not_find_it_says_it_may_run(self):
+        # I1: the create with resume=yes reads the instance as missing (or cannot read
+        # it): it creates nothing and ends failed; the instance stays open (it may run).
+        for why in (CREATE.RESUME_MISSING, CREATE.RESUME_NOT_READ):
+            with self.subTest(why=why):
+                cloud = Cloud(instance=None)
+                sentence = CREATE.RESUME_NOT_FOUND % ("aleogr-shared", PID, why,
+                                                      DESCRIBE_HOW, STOP_HOW)
+                cloud.answers["gcp-cloud-sql_instance-create"] = [
+                    self.cut(), res("failed", answer=[sentence], exists=None, state=None)]
+                carry = run(cloud).ctx.continued[1]
+                h = run(cloud, carry=carry)
+                self.assertEqual([a.get("resume") for _n, a in cloud.calls], [None, "yes"])
+                self.assertEqual(h.block["status"], "failed")
+                self.assertIn(sentence, h.lines)
+                self.assertIn(skill.INSTANCE_MAY_RUN % ("aleogr-shared", PID,
+                                                        "aleogr-shared"), h.lines)
+                self.assertEqual(h.block["pending"], [
+                    {"item": "database instance", "reason": "manual",
+                     "how": "run /aleogr:platform-plan, then /aleogr:platform-apply "
+                            "confirm=yes"}])
+                self.assertEqual(h.block["cost"], skill.INSTANCE_COST)
+                self.assertIn(skill.INSTANCE_MAY_RUN % ("aleogr-shared", PID,
+                                                        "aleogr-shared"), h.ctx.abort)
+                self.assertEqual(len(h.plans), 1)  # no last plan after the stop
+                items = dict((x["item"], x["action"]) for x in h.block["outputs"]["items"])
+                self.assertEqual(items["database instance"], "blocked")
+
+    def test_a_failed_create_how_is_its_cause(self):
+        # M3: the create's first line is its cost line; the how is built from the cause.
+        cloud = Cloud(instance=None)
+        cause = ("The instance aleogr-shared could not be created: the active gcloud account "
+                 "is not allowed to create it; nothing was created.")
+        cloud.answers["gcp-cloud-sql_instance-create"] = res(
+            "failed", answer=[CREATE.CREATE_COST_LINE, cause], exists=False, state=None)
+        h = run(cloud)
+        self.assertEqual(h.block["status"], "failed")
+        self.assertIn(cause, h.lines)
+        self.assertEqual(h.block["pending"], [
+            {"item": "database instance", "reason": "manual",
+             "how": skill.STEP_FAILED_HOW % PP.as_how(cause)}])
+        self.assertNotIn("Creating the instance", h.block["pending"][0]["how"])
+
+    def test_the_continue_line_says_the_cost_and_how_to_stop(self):
+        # M5: the one line shown between two commands while the instance is created.
+        cloud = Cloud(instance=None)
+        cloud.answers["gcp-cloud-sql_instance-create"] = self.cut()
+        first = run(cloud)
+        line = first.ctx.continued[0]
+        self.assertEqual(line, skill.INSTANCE_CONTINUE % ("creating", PID, "aleogr-shared"))
+        self.assertEqual(line, "Waiting for the database instance created in this run: it is "
+                               "creating. It has a fixed monthly cost and is charged by the "
+                               "hour while it runs; to stop it: %s." % STOP_HOW)
 
     def test_found_unreadable_says_it_may_run(self):
         cloud = Cloud(instance=None)
@@ -774,6 +878,29 @@ class TestInstance(unittest.TestCase):
         self.assertIn("The night-stop job did NOT stop the instance aleogr-shared.", h.lines)
         self.assertNotIn("Creating the instance takes several minutes.", h.lines)
         self.assertEqual(h.block["pending"][0]["item"], "night stop")
+
+
+class TestSuites(unittest.TestCase):
+    """The versions are checked before the first read: every plugin command this
+    orchestrator can call is asked `--suite` right after its arguments are validated."""
+
+    def test_every_command_it_calls_is_in_its_list(self):
+        listed = list(skill.SUITE_COMMANDS)
+        self.assertEqual(len(listed), len(set(listed)))
+        self.assertEqual(called_commands(skill, PP) - set(listed), set())
+        self.assertEqual(set(listed) - called_commands(skill, PP), set())
+
+    def test_another_suite_on_the_last_plugin_ends_before_anything(self):
+        other = skill.SUITE_COMMANDS[-1]
+        result, logs, ran = run_with_other_suite(PLUGIN, "platform-apply", skill, {"confirm": "yes"},
+                                                 other, declaration=None)
+        sentence = common.VERSION_SENTENCE.format(callee=other, caller="aleogr")
+        self.assertEqual(result.status, "failed")
+        self.assertEqual(result.lines.count(sentence), 1)
+        self.assertEqual([l for l in result.lines if l.startswith("|")], [])  # no table
+        # Each command asked once for its suite, and nothing invoked or run.
+        self.assertEqual(logs, dict((c, ["--suite"]) for c in skill.SUITE_COMMANDS))
+        self.assertEqual(ran, [])
 
 
 if __name__ == "__main__":

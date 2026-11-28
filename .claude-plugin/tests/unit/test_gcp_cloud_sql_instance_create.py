@@ -47,6 +47,8 @@ GOLDEN_JOB = ("gcloud scheduler jobs run aleogr-shared-stop-weeknight --project=
               "--location=southamerica-east1 --quiet")
 STOP_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=aleogr-shared-zz99 "
             "instance=aleogr-shared")
+DESCRIBE_HOW = ("/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-describe "
+                "projectId=aleogr-shared-zz99 instance=aleogr-shared")
 
 JSON = {"stopped": ("NEVER", "RUNNABLE"), "running": ("ALWAYS", "RUNNABLE"),
         "creating": ("ALWAYS", "PENDING_CREATE"), "starting": ("ALWAYS", "MAINTENANCE")}
@@ -534,8 +536,37 @@ class TestResume(unittest.TestCase):
                 else:
                     self.assertEqual(ctx.log, [])  # a stopped instance: nothing read
 
-    def test_a_missing_instance_is_created_as_usual(self):
+    def test_a_missing_instance_is_never_created(self):
+        # The caller's plan read the instance as existing: a describe that now says
+        # missing may lag behind its creation, so with resume=yes it is never created
+        # (this replaces the test that pinned "the creation runs as usual").
         r, ctx = resume(described(False), states=("running", "stopped"))
+        self.assertEqual(r.status, "failed")
+        self.assertEqual((ctx.writes, ctx.log), ([], []))  # no create, no read, no wait
+        self.assertEqual(r.lines, [skill.RESUME_NOT_FOUND % (
+            "aleogr-shared", "aleogr-shared-zz99", "was not found", DESCRIBE_HOW, STOP_HOW)])
+        self.assertIn("nothing was created", r.lines[0])
+        self.assertIn("charged by the hour while it runs", r.lines[0])
+        self.assertEqual(r.block["outputs"], {"exists": None, "state": None})
+        self.assertEqual(r.block["cost"], skill.COST)
+        self.assertEqual(r.block["pending"], [])
+
+    def test_a_failed_read_ends_the_same_way(self):
+        for found in ({"status": "failed", "outputs": {"exists": None},
+                       "answer": ["The instance aleogr-shared could not be read: gcloud "
+                                  "failed."]},
+                      {"status": "unchanged", "outputs": {}, "answer": []}):
+            with self.subTest(found=found):
+                r, ctx = resume(found)
+                self.assertEqual(r.status, "failed")
+                self.assertEqual((ctx.writes, ctx.log), ([], []))
+                self.assertEqual(r.lines, [skill.RESUME_NOT_FOUND % (
+                    "aleogr-shared", "aleogr-shared-zz99", "could not be read",
+                    DESCRIBE_HOW, STOP_HOW)])
+                self.assertEqual(r.block["cost"], skill.COST)
+
+    def test_without_resume_a_missing_instance_is_created(self):
+        r, ctx = run(found=described(False), stopJob="aleogr-shared-stop-weeknight")
         self.assertEqual(r.status, "created")
         self.assertEqual(ctx.writes, [GOLDEN_CREATE, GOLDEN_JOB])
         self.assertNotIn(GOLDEN_OPERATIONS, ctx.log)

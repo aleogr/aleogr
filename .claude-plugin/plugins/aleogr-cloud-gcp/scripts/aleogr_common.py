@@ -24,7 +24,8 @@ It holds what every command needs and nothing of a skill's own rules:
   ends with a `failed` result (aborted_result);
 - `call_plugin`, which runs another plugin's command with `--json` and passes it this
   run's deadline (ALEOGR_RUN_ENDS), once that command said it is of the same suite
-  (`--suite`: the digest of this file, suite_digest);
+  (`--suite`: the digest of this file, suite_digest), and `check_suites`, by which an
+  orchestrator asks every command it can call before its first read;
 - a run in more than one command, for the skills that declare CONTINUES: the status
   `continue`, its `next:` line, and the private file carried from one command to the
   next (ctx.carried, ctx.may_continue, ctx.continue_run);
@@ -2274,6 +2275,46 @@ def _call_failure(kind, command, skill, sentence):
     }
 
 
+def _suite_failure(command, path, skill, caller):
+    """None when the command at `path` is of this suite (asked once per command in this
+    process), else the fixed `version` failure: nothing else is ever run on it."""
+    if command not in _suite["checked"]:
+        _suite["checked"][command] = _same_suite(path)
+    if not _suite["checked"][command]:
+        return _call_failure("version", command, skill, VERSION_SENTENCE.format(
+            callee=command, caller=caller or _suite["plugin"] or "that calls it"))
+    return None
+
+
+def check_suites(commands, caller=None, required=()):
+    """Ask each of `commands` (another plugin's commands, found on PATH) `--suite` once,
+    before a run calls any of them: the same probe, the same rules and the same fixed
+    failure as call_plugin's, which then asks none of them again. An orchestrator calls
+    it (ctx.check_suites) right after it validates its arguments and before its first
+    read, with every command it can call in any path, so that a command of another
+    release ends the run before anything is read or written. Returns None, or the first
+    `version` failure (call_plugin's), or else, for a command of `required` that is not
+    installed, its `not-found` failure. A command that is not installed and not required
+    is not a failure here: it is probed by nothing, and its `not-found` failure comes
+    where the run first needs it."""
+    seen = []
+    missing = None
+    for command in commands:
+        if command in seen:
+            continue
+        seen.append(command)
+        path = shutil.which(command)
+        if path is None:
+            if command in required and missing is None:
+                missing = _call_failure("not-found", command, None,
+                                        NOT_FOUND_SENTENCE.format(command=command))
+            continue
+        failure = _suite_failure(command, path, None, caller)
+        if failure is not None:
+            return failure
+    return missing
+
+
 def call_plugin(command, skill, args=None, timeout=None, read_only=False, caller=None):
     """Run `<command> --json <skill> key=value ...`, the command found on PATH (with
     `--read-only` first when `read_only`).
@@ -2314,11 +2355,9 @@ def call_plugin(command, skill, args=None, timeout=None, read_only=False, caller
     if path is None:
         return _call_failure("not-found", command, skill,
                              NOT_FOUND_SENTENCE.format(command=command))
-    if command not in _suite["checked"]:
-        _suite["checked"][command] = _same_suite(path)
-    if not _suite["checked"][command]:
-        return _call_failure("version", command, skill, VERSION_SENTENCE.format(
-            callee=command, caller=caller or _suite["plugin"] or "that calls it"))
+    failure = _suite_failure(command, path, skill, caller)
+    if failure is not None:
+        return failure
     argv = [path] + (["--read-only"] if read_only else []) + ["--json", skill] + format_args(
         args or {})
     timeout, deadline = _bounded(timeout)
@@ -2778,6 +2817,9 @@ class Context(object):
     - ctx.call(command, skill, args): call_plugin (with `--read-only` when this run was
       given it), with this plugin as the caller; raises PluginVersion when the command
       is not of this suite (callError `version`).
+    - ctx.check_suites(commands, required=()): every command an orchestrator can call
+      asked `--suite` at once, right after its arguments are validated and before its
+      first read (check_suites); raises PluginVersion on a command of another suite.
 
     A run in more than one command, for a module that sets CONTINUES = True:
     - ctx.carried(digest): at the start of every command, what an earlier command of
@@ -3036,6 +3078,14 @@ class Context(object):
 
     def on_abort(self, lines):
         self.abort_lines = [lines] if isinstance(lines, str) else list(lines or ())
+
+    def check_suites(self, commands, required=()):
+        """check_suites with this plugin as the caller: raises PluginVersion on a command
+        of another suite; returns None, or the not-found failure of a required command."""
+        result = check_suites(commands, caller=self.plugin, required=required)
+        if result is not None and result.get("callError") == "version":
+            raise PluginVersion(result)
+        return result
 
     def call(self, command, skill, args=None, timeout=None):
         result = call_plugin(command, skill, args, timeout=timeout,

@@ -27,8 +27,18 @@ The creation of the instance is resumable: when this run asked for the creation 
 earlier command (`createAsked`, set before the create is invoked) and the plan of a
 later command finds the instance existing and not stopped, the create is invoked again
 with `resume=yes`: it skips the creation, waits for the instance, stops it and tests the
-night stop. Without the carried file the run does not pass `resume=yes`, and the answer
-is the plan's: the instance exists, whether it runs, what it costs and how to stop it.
+night stop. With `resume=yes` the create never creates: when it does not find the
+instance (a read that may lag behind the creation) or cannot read it, it ends failed, and
+so does this run, still saying that the instance may exist and run, what it costs and how
+to stop it, with the item to plan again; a plan of a later command that reads the
+instance as missing says the same and never creates it a second time. Without the
+carried file the run does not pass `resume=yes`, and the answer is the plan's: the
+instance exists, whether it runs, what it costs and how to stop it.
+
+Before its first read, right after its arguments are validated, the run asks every
+plugin command it can call (SUITE_COMMANDS) for its suite (ctx.check_suites): a plugin of
+another release ends the run failed, with the version sentence alone, before anything is
+read or written.
 """
 
 import importlib.util
@@ -48,6 +58,11 @@ CONTINUES = True  # a run may take more than one command
 
 CLOUD = "aleogr-cloud-gcp"
 DB = "aleogr-db-gcp-cloud-sql"
+# Every other plugin's command this skill can call, in any path, in the order it first
+# calls them: asked `--suite` (ctx.check_suites) right after the arguments are validated
+# and before the first read, so that a plugin of another release ends the run before
+# anything is read or written. A unit test checks the list against the module's calls.
+SUITE_COMMANDS = (CLOUD, DB)  # its own and its plan's
 STOP_JOB = "aleogr-shared-stop-weeknight"
 
 
@@ -98,7 +113,10 @@ NO_PROJECT_ID_HOW = "run /aleogr:platform-plan, then /aleogr:platform-apply conf
 STEP_FAILED_HOW = "%s, then run /aleogr:platform-apply confirm=yes"
 LOGIN_WOULD_UPDATE = "gcp_login-setup ended would-update in mode=apply."
 CONTINUE_LINE = "This run goes on in its next command: %s comes next."
-INSTANCE_CONTINUE = "Waiting for the database instance created in this run: it is %s."
+INSTANCE_CONTINUE = ("Waiting for the database instance created in this run: it is %s. It has "
+                     "a fixed monthly cost and is charged by the hour while it runs; to stop "
+                     "it: /aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=%s "
+                     "instance=%s.")
 COMMANDS_LIMIT = ("This run reached its limit of eight commands before %s; nothing after it was "
                   "made.")
 COMMANDS_LIMIT_HOW = ("this run reached its limit of eight commands: run /aleogr:platform-plan, "
@@ -109,9 +127,13 @@ INSTANCE_MAY_RUN = ("This run asked to create the database instance %s: it may e
                     "/aleogr-db-gcp-cloud-sql:gcp-cloud-sql_instance-stop projectId=%s "
                     "instance=%s")
 INSTANCE_GONE = ("The database instance %s that this run asked to create in an earlier command "
-                 "does not exist: its creation did not finish, and it was not created again.")
-INSTANCE_GONE_HOW = ("the creation of the database instance did not finish: run "
+                 "was not found by the plan: its creation may not have finished, or the read "
+                 "may lag behind it; it was not created again.")
+INSTANCE_GONE_HOW = ("the database instance this run asked to create was not found: run "
                      "/aleogr:platform-plan, then /aleogr:platform-apply confirm=yes")
+# A create invoked with resume=yes that ended failed (it never creates: it did not find the
+# instance, or could not read it): the instance may still exist and run.
+RESUME_FAILED_HOW = "run /aleogr:platform-plan, then /aleogr:platform-apply confirm=yes"
 INSTANCE_NOT_READ = ("The database instance %s that this run asked to create in an earlier "
                      "command was not read by the plan, so this run did not go on with it.")
 NIGHT_STOP_UNKNOWN = ("The database instance created in this run is stopped, but this run "
@@ -336,7 +358,9 @@ class Apply(object):
 
     @property
     def values(self):
-        p = self.first
+        # The first plan's; while it is being marked (mark(), before step_2 holds it),
+        # the plan just made, so what is registered for an abort names the instance.
+        p = self.first if self.first is not None else self.last
         return p.reads.values if p is not None else {}
 
     def project_id(self):
@@ -735,9 +759,11 @@ class Apply(object):
             return
         if c["createAsked"]:
             if p.instance_exists is False:
+                # A read that may lag behind the creation: the instance may exist and run.
                 self.stopped_item = ITEM_OF[skill]
                 self.end("pending", [item("database instance", INSTANCE_GONE_HOW)],
-                         sentences=[INSTANCE_GONE % self.values["instance"]])
+                         sentences=[INSTANCE_GONE % self.values["instance"],
+                                    self.instance_sentence()])
             if p.instance_exists is not True:
                 self.stopped_item = ITEM_OF[skill]
                 name = self.values["instance"]
@@ -764,10 +790,17 @@ class Apply(object):
             return _out(r).get("state") != "stopped"
 
         def line(r):
-            return INSTANCE_CONTINUE % (_out(r).get("state") or "being created")
+            return INSTANCE_CONTINUE % (_out(r).get("state") or "being created", pid,
+                                        self.values["instance"])
         r = self.call(skill, self.create_args(pid, resume), cut=cut, line=line,
                       limit=self.instance_limit)
         st = _status(r)
+        if resume and st == "failed" and _out(r).get("state") != "stopped":
+            # resume=yes never creates; a failed ending (the instance not found, or not
+            # read) leaves its outcome unknown: it may exist and run (stop() says so).
+            self.ran(skill, r)
+            self.stop(skill, r, sentences=self.relayed(r),
+                      items=[item(ITEM_OF[skill], RESUME_FAILED_HOW)])
         c["instanceDone"] = True
         self.ran(skill, r)
         if st == "unchanged":
@@ -775,11 +808,15 @@ class Apply(object):
             return
         if st == "created":
             return
-        self.stop(skill, r, sentences=self.relayed(r))
+        said = self.relayed(r)
+        items = None if _pending(r) else [
+            item(ITEM_OF[skill], STEP_FAILED_HOW % PP.as_how(said[0]))]
+        self.stop(skill, r, sentences=said, items=items)
 
     def relayed(self, r):
         """The create's sentences as it wrote them, without its two cost sentences (this
-        skill's cost line says it)."""
+        skill's cost line says it): the first is its cause, which a failed create's `how`
+        is built from."""
         drop = ("Creating the instance takes several minutes.", "It costs about R$ 50 per "
                 "month while stopped.")
         return [l for l in _answer(r) if not l.startswith(drop)
@@ -875,4 +912,8 @@ def run(args, ctx):
         return ctx.result("failed", {"projectId": None, "items": []},
                           pending=[item("arguments", ARGUMENTS_HOW)], cost=dict(FREE_COST),
                           lines=[problem])
+    # The versions of every plugin this run can call, before its first read: a plugin of
+    # another release ends it here (PluginVersion: failed, its one sentence), before the
+    # plan reads anything and before any step writes.
+    ctx.check_suites(SUITE_COMMANDS)
     return Apply(args, ctx, carry, lost=lost).run()

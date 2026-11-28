@@ -41,6 +41,11 @@ WRITES = False  # the orchestrator writes nothing itself
 CALLS_OTHERS = True  # what a run made is the called skills': an abort never says "nothing"
 
 CLOUD = "aleogr-cloud-gcp"
+# Every other plugin's command this skill can call, in any path, in the order it first
+# calls them: asked `--suite` (ctx.check_suites) right after the arguments are validated
+# and before the first read, so that a plugin of another release ends the run before
+# anything is read or written. A unit test checks the list against the module's calls.
+SUITE_COMMANDS = (CLOUD,)
 DESCRIBE = "gcp_environment-describe"
 GRANT = "gcp_access-grant"
 
@@ -349,6 +354,9 @@ def run(args, ctx, calls=None, cwd="."):
         return ctx.result("failed", outputs(None, []),
                           pending=[{"item": "arguments", "reason": "manual", "how": how}],
                           cost=dict(COST), lines=[sentence])
+    # The version of the plugin it calls, before its first read (PluginVersion: failed,
+    # its one sentence).
+    ctx.check_suites(SUITE_COMMANDS)
     person = args.get("person")
     calls = calls or Calls(ctx)
 
