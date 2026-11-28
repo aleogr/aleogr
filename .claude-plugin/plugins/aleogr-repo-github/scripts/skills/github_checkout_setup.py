@@ -2,10 +2,14 @@
 project declaration) and whether it equals the local one (mode=plan); in mode=apply,
 sends the file at the repository's birth, or fast-forwards a folder that is behind.
 
-The specification is skills/github_checkout-setup/SKILL.md: the same reads, in the same
-order, the same states and the same result block. examine() holds steps 1 to 5, shared
-by both modes; run() holds step 6; birth() holds steps 7 to 16 and fast_forward() steps
-17 and 18, run through the writing runner (ctx.write) only in mode=apply.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_github_checkout_setup.py) and its scenarios. It was built from
+skills/github_checkout-setup/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same reads, in the same order, the same states and the same result block.
+examine() holds steps 1 to 5, shared by both modes; run() holds step 6; birth() holds
+steps 7 to 16 and fast_forward() steps 17 and 18, run through the writing runner
+(ctx.write) only in mode=apply.
 
 The login, the id and the no-reply address are never printed: the two `git config`
 commands pass them as Hidden, so their `+ ` lines show `<login>` and `<id>`.

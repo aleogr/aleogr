@@ -1358,6 +1358,27 @@ class TestBodiesAndNames(unittest.TestCase):
         self.assertGreater(len(got), 1)
         self.assertEqual(len(common.random_name_part(6)), 6)
 
+    def test_the_test_aid_of_the_random_part(self):
+        aid = {"ALEOGR_TEST_RANDOM": "zz99", "FAKE_LOG": "/tmp/calls.log"}
+        self.assertEqual(common.random_name_part(4, environ=aid), "zz99")
+        # Ignored without FAKE_LOG (the harness's fakes are not in use).
+        for env in ({"ALEOGR_TEST_RANDOM": "zz99"},
+                    {"ALEOGR_TEST_RANDOM": "zz99", "FAKE_LOG": ""}):
+            with self.subTest(env=env):
+                got = {common.random_name_part(4, environ=env) for _ in range(20)}
+                self.assertGreater(len(got), 1)
+        # A malformed value is ignored: another length, a character not of the alphabet.
+        for bad in ("zz9", "zz999", "ZZ99", "zz-9", "zz 9", "", "zz99\n"):
+            with self.subTest(value=bad):
+                env = dict(aid, ALEOGR_TEST_RANDOM=bad)
+                got = {common.random_name_part(4, environ=env) for _ in range(20)}
+                self.assertGreater(len(got), 1)
+                self.assertTrue(all(len(x) == 4 for x in got))
+        # Only a <random> of its own length: the run's id (12) and a temporary file's
+        # name (8) stay random.
+        self.assertEqual(len({common.random_name_part(12, environ=aid) for _ in range(5)}), 5)
+        self.assertEqual(len({common.new_run_id() for _ in range(5)}), 5)
+
 
 class TestCallPluginRefused(unittest.TestCase):
     def test_a_refused_callee_keeps_its_answer(self):

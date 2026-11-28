@@ -3,11 +3,15 @@ project, its APIs, the budget alert, the database switch, the database instance,
 login of the organization as far as a command can), under one confirmation, and end with
 a plan that proves it.
 
-The specification is skills/platform-apply/SKILL.md: the same invocations, in the same
-order, the same gates, the same prescribed sentences and the same result block. This
-module runs no provider command that changes something: every write is a called
-skill's, through its plugin's command (ctx.call) in `mode=apply`; its own commands are
-the plan's reads (the plan is called as a function of this plugin, platform_plan.plan).
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_platform_apply.py) and its scenarios. It was built from
+skills/platform-apply/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that
+change): the same invocations, in the same order, the same gates, the same prescribed
+sentences and the same result block. This module runs no provider command that changes
+something: every write is a called skill's, through its plugin's command (ctx.call) in
+`mode=apply`; its own commands are the plan's reads (the plan is called as a function of
+this plugin, platform_plan.plan).
 
 Layout, by the SKILL.md's steps: step_2() (the plan), step_3() (the confirmation),
 step_4() (one method per sub-step: step_4_1 ... step_4_6), step_5() (the last plan), and
@@ -210,6 +214,7 @@ def new_carry():
         "instanceDone": False,  # its outcome is known (it ended, or a plan saw it stopped)
         "nightUnknown": False,  # seen stopped after a create the time limit cut
         "login": None,  # {"status", "steps", "pending"} of gcp_login-setup in this run
+        "lost": None,  # CARRY_LOST_SENTENCE of a carry a command of this run refused
     }
 
 
@@ -217,6 +222,8 @@ PROJECT_ID_RE = re.compile(r"[a-z][a-z0-9-]{4,28}[a-z0-9]")
 LINE_RE = re.compile(r"([a-z0-9_-]+): ([a-z]+)")
 MAX_LINE = 4000
 MAX_LINES = 16
+LOST_SENTENCES = tuple(common.CARRY_LOST_SENTENCE.format(why=why)
+                       for why in common.CARRY_REFUSALS.values())
 
 
 def _valid_text(x):
@@ -263,6 +270,8 @@ def _valid_carry(c):
         return None
     if c["instanceDone"] and not c["createAsked"]:
         return None
+    if c["lost"] is not None and c["lost"] not in LOST_SENTENCES:
+        return None
     return dict(c)
 
 
@@ -303,7 +312,12 @@ class Apply(object):
         self._plan_fn = plan_fn or (lambda a: PP.plan(a, ctx, again=self.again(),
                                                       wanted=PP.PLAN_VALUES + PP.APPLY_VALUES))
         self._call_fn = call_fn or (lambda command, skill, a: ctx.call(command, skill, a))
-        self.sentences = [lost] if lost else []
+        # A carry refused by this command, or by an earlier one of the run (carried in
+        # `lost`): the sentence is in the run's last answer, once, whichever command
+        # gives it.
+        if lost:
+            carry["lost"] = lost
+        self.sentences = [carry["lost"]] if carry["lost"] else []
         self.first = None  # the plan of step 2
         self.last = None  # the last plan this command made
         self.stopped_item = None  # the item a stop marks blocked

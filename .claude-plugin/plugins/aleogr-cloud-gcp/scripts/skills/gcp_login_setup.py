@@ -3,10 +3,13 @@ the active gcloud account roles/iap.settingsAdmin on the organization, enable th
 API in the shared project (mode=apply), and print the list of what is left to the owner;
 or say what a run would do (mode=plan, the default).
 
-The specification is skills/gcp_login-setup/SKILL.md: the same reads in the same order,
-the same grant and enable, the same read after the change (polled with the shared wait
-helper, at most 10 reads after the grant, 9 waits), the same sentences word for word,
-the same list and the same result block.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_login_setup.py) and its scenarios. It was built from
+skills/gcp_login-setup/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that
+change): the same reads in the same order, the same grant and enable, the same read
+after the change (polled with the shared wait helper, at most 10 reads after the grant,
+9 waits), the same sentences word for word, the same list and the same result block.
 
 The client's secret never passes through this module: it prints the owner's command of
 item 3 as text and never runs it, never runs `gcloud iap settings set`, never reads,

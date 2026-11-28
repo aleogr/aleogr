@@ -1,12 +1,15 @@
 """gcp_deploy-setup: each component of a project as a Cloud Run service as declared,
 behind the login (IAP), never public, with the CI account allowed to replace its image.
 
-The specification is skills/gcp_deploy-setup/SKILL.md: the same reads, in the same
-order (step 1 the project number, step 2 the active account, step 3 four reads per
-component), the same words of difference, the same commands in the same order (step 5
-the security pass over every existing service first, step 6 a to g per component),
-the same poll of the binding on a new account, the same reads again (step 7), the same
-status (step 8) and the same result block.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_deploy_setup.py) and its scenarios. It was built from
+skills/gcp_deploy-setup/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that
+change): the same reads, in the same order (step 1 the project number, step 2 the active
+account, step 3 four reads per component), the same words of difference, the same
+commands in the same order (step 5 the security pass over every existing service first,
+step 6 a to g per component), the same poll of the binding on a new account, the same
+reads again (step 7), the same status (step 8) and the same result block.
 
 Nothing is ever made public: the only removes are of allUsers and allAuthenticatedUsers,
 the only deploy carries --no-allow-unauthenticated --iap, and every write goes through
@@ -927,7 +930,11 @@ def component_work(run, c, args, info):
             run.stop(c, CI_FAILED % c.service)
             return
 
-    # f. The access of the active account; a refusal does not stop the run.
+    # f. The access of the active account; a refusal does not stop the run. "Go on with
+    # the next component" was written when f was the last part of step 6; g, added after
+    # it, runs "after every other command of a to f" on conditions that do not include the
+    # access, and a refused grant is not one of the stops of step 6: every other piece of
+    # work stands, so the component's settings are still set (g) before the next one.
     if not access:
         c.f_tried = True
         if not run.write(c, access_command(c, args, info)).ok:

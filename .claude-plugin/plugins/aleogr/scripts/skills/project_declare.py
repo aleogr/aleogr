@@ -3,9 +3,12 @@ current folder, from `key=value` arguments and the owner's defaults (`defaults.j
 this plugin). It runs no provider command and calls no other skill: the only thing it
 changes is that one file, written through ctx.write_file.
 
-The specification is skills/project-declare/SKILL.md: the same steps, in the same order,
-the same checks, the prescribed sentences word for word, the canonical form byte for
-byte and the same result block.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_project_declare.py) and its scenarios. It was built from
+skills/project-declare/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that
+change): the same steps, in the same order, the same checks, the prescribed sentences
+word for word, the canonical form byte for byte and the same result block.
 
 The declaration's rules are not written twice: they are project-plan's
 (check_declaration, the patterns, _path_problem, version_tuple, Defaults), loaded from

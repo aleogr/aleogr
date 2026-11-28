@@ -1,12 +1,14 @@
 """gcp_access-grant: lets one person in, through the login (IAP), to the Cloud Run
 service of each component, or lists who each service lets in (list=yes).
 
-The specification is skills/gcp_access-grant/SKILL.md: the same reads, in the same order
-(step 1 every service, step 2 each login policy), the same grant (step 4, through
-ctx.write only, the member always user:<person>, on the service's login policy only), the
-same read back (step 5), the same status (step 6) and the same result block. Nothing is
-ever removed, and the block holds no e-mail.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_access_grant.py) and its scenarios. It was built from
+skills/gcp_access-grant/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that change):
+the same reads, in the same order (step 1 every service, step 2 each login policy), the
+same grant (step 4, through ctx.write only, the member always user:<person>, on the
+service's login policy only), the same read back (step 5), the same status (step 6) and
+the same result block. Nothing is ever removed, and the block holds no e-mail."""
 
 import json
 import re

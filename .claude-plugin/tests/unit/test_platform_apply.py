@@ -592,11 +592,27 @@ class TestContinue(unittest.TestCase):
                     {"projectId": "Not An Id"}, {"changed": 1}, {"instanceDone": True},
                     {"login": {"status": "updated", "steps": ["a\nb"], "pending": [LOGIN_ITEM]}},
                     {"login": {"status": "unchanged", "steps": [], "pending": [LOGIN_ITEM]}},
-                    {"extra": True}):
+                    {"extra": True}, {"lost": "An earlier part of this run: rm -rf."},
+                    {"lost": ""}, {"lost": True}):
             with self.subTest(bad=bad):
                 c = dict(good)
                 c.update(bad)
                 self.assertIsNone(skill._valid_carry(c))
+
+    def test_a_refusal_in_a_command_that_continues_reaches_the_last_answer_once(self):
+        # The command that refused the carried file goes on as a new run and continues
+        # itself: the sentence is carried, and the run's last answer says it once.
+        lost = common.CARRY_LOST_SENTENCE.format(why=common.CARRY_REFUSALS["mismatch"])
+        cloud = Cloud(services=False, budget=False)
+        first = run(cloud, ctx=FakeCtx(step=False), lost=lost)
+        self.assertEqual(first.block["status"], "continue")
+        self.assertNotIn(lost, first.lines)
+        carry = json.loads(json.dumps(first.ctx.continued[1]))
+        self.assertEqual(carry["lost"], lost)
+        self.assertEqual(skill._valid_carry(carry), carry)
+        last = run(cloud, carry=carry)
+        self.assertEqual(last.block["status"], "updated")
+        self.assertEqual(last.lines.count(lost), 1)
 
 
 class TestInstance(unittest.TestCase):

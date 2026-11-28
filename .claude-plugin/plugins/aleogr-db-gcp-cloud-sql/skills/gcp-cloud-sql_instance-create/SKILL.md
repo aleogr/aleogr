@@ -9,7 +9,7 @@ Creates the shared platform's Cloud SQL instance, waits for it, stops it (activa
 
 ## Arguments
 
-Free text after the skill name, as `key=value` pairs. All are required except `mode`, `confirm` and `stopJob`.
+Free text after the skill name, as `key=value` pairs. All are required except `mode`, `confirm`, `stopJob` and `resume`.
 
 | Argument | Meaning |
 |---|---|
@@ -26,6 +26,7 @@ Free text after the skill name, as `key=value` pairs. All are required except `m
 | `mode=plan\|apply` | `plan` (default) reports and changes nothing; `apply` executes. |
 | `confirm=yes` | Required for `apply` to create anything. |
 | `stopJob=<job>` | Optional. The Cloud Scheduler job, in the location `region`, that stops this instance at night (the shared platform uses `aleogr-shared-stop-weeknight`). When given, the new instance is stopped by running this job instead of by this skill's own command (step 6). |
+| `resume=yes` | Optional, given only by `platform-apply`, with `mode=apply` and `confirm=yes`, when its own run asked for the creation in an earlier command: the run skips the creation and goes on from it (the wait, the stop, the check). It is honoured only for an instance that is not stopped and has had no operation but its creation; any other instance is never stopped by it, and the answer says why it was not used. |
 
 Nothing is created without `mode=apply` and `confirm=yes` both: with `mode=apply` and no `confirm`, the run creates nothing and ends `pending` with the item `confirm`, whose `how` is the same invocation with `confirm=yes`; any other value of `confirm` fails. Creating the instance starts its fixed cost (about R$ 50 per month while stopped), and it is charged by the hour while it runs, until it is stopped.
 
@@ -81,7 +82,3 @@ The block:
   "pending": [ { "item": "command", "reason": "failed", "how": "update the plugin aleogr-db-gcp-cloud-sql, then try again" } ]
 }
 ```
-
-## Result block
-
-When another skill invoked this one (an orchestrator, such as `aleogr:project-plan`, `aleogr:project-apply`, `aleogr:platform-plan` or `aleogr:platform-apply`), this skill still runs every step in full, each command exactly as its steps write it (the same flags and the same `--format`); only its lines and its block change role: they are that skill's input, not an answer to the owner, and the turn is not over when the block is written: go on at once with the invoking skill's next step (its next invocation, or its own table and block). The invoking skill's answer never contains this block and never ends with it.

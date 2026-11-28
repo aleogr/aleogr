@@ -2,12 +2,16 @@
 an existing budget of the same display name to the amount and thresholds asked
 (mode=apply); or say what a run would do (mode=plan, the default).
 
-The specification is skills/gcp_budget-alert-setup/SKILL.md: the same discovery of the
-billing account, the same list (in apply, retried once after about one minute: two
-waits of the shared helper), the same create or update and the same verification, the
-same states and the same result block. The create and the update run only with
-mode=apply, through ctx.write, after the command passed the allowlist of writes of this
-skill (checked in both modes, so a plan never announces a write the apply refuses).
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_budget_alert_setup.py) and its scenarios. It was built from
+skills/gcp_budget-alert-setup/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same discovery of the billing account, the same list (in apply, retried
+once after about one minute: two waits of the shared helper), the same create or update
+and the same verification, the same states and the same result block. The create and the
+update run only with mode=apply, through ctx.write, after the command passed the
+allowlist of writes of this skill (checked in both modes, so a plan never announces a
+write the apply refuses).
 
 Neither the billing account id nor the budget id appears in the answer's prose or in
 the block, except the billing account inside `pending[].how`, as the SKILL.md says.

@@ -2,10 +2,13 @@
 Run services of the project's components in each declared environment (person=<e-mail>),
 or say how many people each service lets in (list=yes).
 
-The specification is skills/project-access/SKILL.md: the same rules of "Validate first",
-in its order and with its sentences word for word; the same invocations, in the same
-order (step 2 gcp_environment-describe, step 3 gcp_access-grant, for each environment);
-the same answer and the same result block.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_project_access.py) and its scenarios. It was built from
+skills/project-access/SKILL.md as that text was before the skill became a shell over
+this command (the text is in the repository's history, at the commit before that
+change): the same rules of "Validate first", in its order and with its sentences word
+for word; the same invocations, in the same order (step 2 gcp_environment-describe, step
+3 gcp_access-grant, for each environment); the same answer and the same result block.
 
 This module runs no provider command and writes nothing: its only reads are the
 declaration (a file of the current folder) and gcp_environment-describe, called with

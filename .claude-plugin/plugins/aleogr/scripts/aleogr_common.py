@@ -1886,9 +1886,25 @@ def base64_of_file(path):
         return None
 
 
-def random_name_part(length=4, alphabet="abcdefghijklmnopqrstuvwxyz0123456789"):
+# ALEOGR_TEST_RANDOM: a test aid of the harness (a scenario's file `random`), honoured
+# only when FAKE_LOG is set too (the harness's fake commands are in use): a value of
+# exactly the length asked, every character of the alphabet asked, is the `<random>`
+# itself (the suffix of a new project id, so that a scenario can pin it). Any other value
+# is ignored, so the run's id and a temporary file's name, of other lengths, stay random.
+TEST_RANDOM_ENV = "ALEOGR_TEST_RANDOM"
+
+
+def random_name_part(length=4, alphabet="abcdefghijklmnopqrstuvwxyz0123456789",
+                     environ=None):
     """`length` random characters of `alphabet` (the `<random>` of a project id or a
-    branch), drawn by the system's random source: no command is run, so no `+` line."""
+    branch), drawn by the system's random source: no command is run, so no `+` line.
+    Under the harness only, the test aid ALEOGR_TEST_RANDOM (os.environ when `environ`
+    is None)."""
+    env = os.environ if environ is None else environ
+    fixed = env.get(TEST_RANDOM_ENV)
+    if env.get("FAKE_LOG") and isinstance(fixed, str) and len(fixed) == length \
+            and all(ch in alphabet for ch in fixed):
+        return fixed
     import random
     r = random.SystemRandom()
     return "".join(r.choice(alphabet) for _ in range(length))

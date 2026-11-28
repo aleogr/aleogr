@@ -5,8 +5,11 @@ items, state and action. Read-only: it runs no provider command of its own excep
 tools-check's reads (in this plugin, called as a function), and it invokes the other
 plugins' commands with `--read-only` only.
 
-The specification is skills/platform-plan/SKILL.md: the same invocations, in the same
-order, the same items, states, actions, lines and result block.
+The rules are this module's, pinned by its unit tests (tests/unit/test_platform_plan.py)
+and its scenarios. It was built from skills/platform-plan/SKILL.md as that text was
+before the skill became a shell over this command (the text is in the repository's
+history, at the commit before that change): the same invocations, in the same order, the
+same items, states, actions, lines and result block.
 
 The module keeps three things apart, so that platform-apply calls the plan as a
 function and gets the same object:

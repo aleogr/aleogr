@@ -1242,6 +1242,40 @@ class TestCarryContent(unittest.TestCase):
                          (0, False, []))
         self.assertIn(name, run.carried_files())  # not this run's own: left to the sweep
 
+    def test_a_refusal_in_a_command_that_continues_reaches_the_last_answer_once(self):
+        # Command 1 continues; its file is edited by hand; command 2 refuses it, goes on
+        # as a new run and continues itself; command 3 ends the run. The sentence of the
+        # refusal is in the run's last answer, once, and in no `continue` answer.
+        run = RealRun(self, [FakePlan(**START_PLAN), FakePlan(**START_PLAN), FakePlan()],
+                      start_answers(**{"gcp-cloud-sql_database-describe":
+                                       [NOT_READ, NOT_READ, READY]}),
+                      waits=[False, False])
+        code, out = run.command(["project-apply", "confirm=yes"])
+        self.assertEqual(block_of(out)["status"], "continue")
+        words = next_words(out)[1:]
+        path = os.path.join(common.carry_folder_path(), run.carried_files()[0])
+        with open(path) as f:
+            record = json.load(f)
+        record["carry"]["instanceTries"] = 31
+        with open(path, "w") as f:
+            json.dump(record, f)
+        lost = common.CARRY_LOST_SENTENCE.format(why=common.CARRY_REFUSALS["invalid"])
+        code, out = run.command(words)
+        self.assertEqual(block_of(out)["status"], "continue")
+        self.assertNotIn(lost, out)
+        self.assertEqual(run.applies[-1].carry["lost"], lost)
+        code, out = run.command(next_words(out)[1:])
+        self.assertNotEqual(block_of(out)["status"], "continue")
+        self.assertEqual(out.split("```aleogr-result")[0].splitlines().count(lost), 1)
+
+    def test_the_sentence_carried_must_be_one_of_the_fixed_ones(self):
+        for why in common.CARRY_REFUSALS.values():
+            c = self.valid(lost=common.CARRY_LOST_SENTENCE.format(why=why))
+            self.assertEqual(skill._valid_carry(c), c)
+        for v in ("An earlier part of this run could not be recalled: rm -rf.", "", 1, True):
+            with self.subTest(value=v):
+                self.assertIsNone(skill._valid_carry(self.valid(lost=v)))
+
 
 class TestApiTriesAcrossCommands(unittest.TestCase):
     """M2: the ten tries of the wait for just-enabled APIs are the run's, and its sentence

@@ -678,6 +678,13 @@ def run(args, ctx):
     ctx.read(["git", "status", "--porcelain"])
     return ctx.result("unchanged", {}, lines=["before: " + before, "after: " + text()])
 ''',
+    "demo_random": '''
+import aleogr_common as common
+FAMILY, PROVIDER, ACTION = "repo", "demo", "demo-random"
+def run(args, ctx):
+    return ctx.result("unchanged", {}, lines=["suffix: " + common.random_name_part(4),
+                                              "id: " + common.random_name_part(12)])
+''',
     "demo_slow": '''
 FAMILY, PROVIDER, ACTION = "db", "demo", "demo-slow"
 def run(args, ctx):
@@ -801,9 +808,12 @@ class TestTheHarnessLoop(unittest.TestCase):
         shutil.rmtree(self.top)
 
     def scenario(self, name, prompt, expect, clock=None, step_limit=None, after=None,
-                 files=None):
+                 files=None, random=None):
         d = os.path.join(self.tests, "scenarios", name)
         os.makedirs(os.path.join(d, "responses"))
+        if random is not None:
+            with open(os.path.join(d, "random"), "w") as f:
+                f.write(random)
         if step_limit is not None:
             with open(os.path.join(d, "step-limit"), "w") as f:
                 f.write(step_limit)
@@ -823,7 +833,7 @@ class TestTheHarnessLoop(unittest.TestCase):
                 f.write(clock)
         env = dict(os.environ, RUN_MODE="direct", PYTHONDONTWRITEBYTECODE="1")
         for k in ("ALEOGR_RUN_ENDS", "ALEOGR_STEP_LIMIT", "ALEOGR_WAIT_CLOCK_LIMIT",
-                  "ALEOGR_TEST_SLEEP_CLOCK"):
+                  "ALEOGR_TEST_SLEEP_CLOCK", "ALEOGR_TEST_RANDOM"):
             env.pop(k, None)
         p = subprocess.run(["bash", os.path.join(self.tests, "run.sh"), name],
                            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
@@ -935,6 +945,27 @@ class TestTheHarnessLoop(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("(the run did not end within eight commands)", out)
         self.assertIn("commands (8):", out)
+
+    def test_the_random_file(self):
+        # The command of the first line of the prompt runs; the module's <random> of four
+        # characters is the file's, and one of another length stays random.
+        code, out = self.scenario("random", "/demo:demo_random\nTest run: use zz99.", [
+            "OUTPUT ^suffix: zz99$", "OUTPUT_NOT ^id: zz99"], random="zz99\n")
+        self.assertEqual((code, out), (0, "PASS random\n"))
+        # Without it, a prompt of two lines is not one command, and the suffix is random.
+        code, out = self.scenario("two-lines", "/demo:demo_random\nTest run: use zz99.",
+                                  ["OUTPUT ^suffix: "])
+        self.assertEqual((code, out), (3, "NOT CONVERTED two-lines\n"))
+        code, out = self.scenario("no-random", "/demo:demo_random", [
+            "OUTPUT_NOT ^suffix: zz99$"])
+        self.assertEqual((code, out), (0, "PASS no-random\n"))
+        for i, bad in enumerate(("ZZ99\n", "zz-9\n", "a b\n", "zz99\nzz98\n", "\n",
+                                 "abcdefghijklm\n")):
+            with self.subTest(random=bad):
+                code, out = self.scenario("bad-random-%d" % i, "/demo:demo_random",
+                                          ["CALLED ."], random=bad)
+                self.assertEqual(code, 2)
+                self.assertIn("bad random file", out)
 
     def test_a_bad_clock_file(self):
         code, out = self.scenario("bad-clock", "/demo:demo_apply total=1", ["CALLED ."],

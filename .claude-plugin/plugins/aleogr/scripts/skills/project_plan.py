@@ -3,8 +3,11 @@ environments are declared, with its GCP environment dev; print a table of items,
 and action. Read-only: it runs no provider command of its own, only tools-check (in this
 plugin, called as a function) and the read modes of the other plugins' commands.
 
-The specification is skills/project-plan/SKILL.md: the same invocations, in the same
-order, the same items, states, actions, lines and result block.
+The rules are this module's, pinned by its unit tests (tests/unit/test_project_plan.py)
+and its scenarios. It was built from skills/project-plan/SKILL.md as that text was
+before the skill became a shell over this command (the text is in the repository's
+history, at the commit before that change): the same invocations, in the same order, the
+same items, states, actions, lines and result block.
 
 The module keeps three things apart, so that project-apply (step 3) can call the plan
 as a function and get the same object:

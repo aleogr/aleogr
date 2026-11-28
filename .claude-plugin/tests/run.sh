@@ -14,8 +14,11 @@
 #        command's stdout is the answer.
 #        In both modes a file `clock` (one line `sleep-counts`) makes each logged
 #        `sleep 30` move the run's clock by 30 s, a file `step-limit` (one line: a whole
-#        number of seconds from 1 to 240) sets ALEOGR_STEP_LIMIT, and a folder `after/`
+#        number of seconds from 1 to 240) sets ALEOGR_STEP_LIMIT, a file `random` (one
+#        line: 1 to 12 of a-z and 0-9) sets ALEOGR_TEST_RANDOM, and a folder `after/`
 #        rewrites the working folder on a call (bin/fake-cli: FAKE_AFTER, FAKE_FOLDER).
+#        In the direct mode a scenario with a `random` file runs the command of the
+#        first line of its prompt (the lines after it are for the model only).
 set -u
 
 if [ $# -ne 1 ]; then echo "usage: run.sh <scenario>" >&2; exit 2; fi
@@ -63,6 +66,18 @@ if [ -e "$scenario/step-limit" ]; then
     *) echo "bad step-limit file (one line: 1 to 240): $scenario/step-limit" >&2; exit 2 ;;
   esac
 fi
+# A file `random` holding one line of 1 to 12 characters of a-z and 0-9: the `<random>`
+# that the shared module's random-suffix helper gives (ALEOGR_TEST_RANDOM, a test aid
+# honoured only with FAKE_LOG set, and only for a `<random>` of its length: the suffix of
+# a new project id). Both modes set it. In the direct mode the command is then the first
+# line of prompt.txt: a second line tells the model the same suffix.
+random_value=""
+if [ -e "$scenario/random" ]; then
+  random_value="$(cat "$scenario/random")"
+  if ! [[ "$random_value" =~ ^[a-z0-9]{1,12}$ ]]; then
+    echo "bad random file (one line: 1 to 12 of a-z and 0-9): $scenario/random" >&2; exit 2
+  fi
+fi
 # A folder `after/` of the scenario: each of its folders, named as a response file is
 # named (a prefix of the call, spaces and "/" written "_"), holds files that the fake
 # copies over the working folder when a call matching that prefix is made (such as the
@@ -74,9 +89,12 @@ if [ "${RUN_MODE:-}" = direct ]; then
   err="$work/command.err"
   # The prompt, one line "/<plugin>:<skill> key=value ...", split as a shell would split
   # words (quotes), with no expansion of any kind; NUL-separated: plugin, skill, args.
+  # With a `random` file, only the first line is the command.
   if ! PYTHONDONTWRITEBYTECODE=1 python3 -I -c '
 import re, shlex, sys
 text = open(sys.argv[1], encoding="utf-8").read()
+if sys.argv[2] == "first-line":
+    text = text.split("\n", 1)[0]
 if text.endswith("\n"):
     text = text[:-1]
 m = re.match(r"/([a-z0-9-]+):([a-z][a-z0-9_-]*)(?: (.*))?$", text)
@@ -87,7 +105,7 @@ try:
 except ValueError:
     sys.exit(3)
 sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
-' "$scenario/prompt.txt" > "$work/argv"; then
+' "$scenario/prompt.txt" "${random_value:+first-line}" > "$work/argv"; then
     echo "NOT CONVERTED $1"
     exit 3
   fi
@@ -113,8 +131,9 @@ sys.stdout.write("".join(w + "\0" for w in [m.group(1), m.group(2)] + words))
     (
       cd "$work/cwd" || exit 1
       unset ALEOGR_RUN_ENDS ALEOGR_STEP_LIMIT ALEOGR_WAIT_CLOCK_LIMIT ALEOGR_TEST_SLEEP_CLOCK
-      unset FAKE_AFTER FAKE_FOLDER
+      unset ALEOGR_TEST_RANDOM FAKE_AFTER FAKE_FOLDER
       if [ -n "$sleep_clock" ]; then export ALEOGR_TEST_SLEEP_CLOCK=1; fi
+      if [ -n "$random_value" ]; then export ALEOGR_TEST_RANDOM="$random_value"; fi
       if [ -n "$step_limit" ]; then export ALEOGR_STEP_LIMIT="$step_limit"; fi
       if [ -n "$after" ]; then export FAKE_AFTER="$after" FAKE_FOLDER="$work/cwd"; fi
       PATH="$here/bin$bins:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \
@@ -169,8 +188,9 @@ sys.stdout.write("".join(w + "\0" for w in words))
 else
 (
   cd "$work/cwd" || exit 1
-  unset ALEOGR_TEST_SLEEP_CLOCK ALEOGR_STEP_LIMIT FAKE_AFTER FAKE_FOLDER
+  unset ALEOGR_TEST_SLEEP_CLOCK ALEOGR_STEP_LIMIT ALEOGR_TEST_RANDOM FAKE_AFTER FAKE_FOLDER
   if [ -n "$sleep_clock" ]; then export ALEOGR_TEST_SLEEP_CLOCK=1; fi
+  if [ -n "$random_value" ]; then export ALEOGR_TEST_RANDOM="$random_value"; fi
   if [ -n "$step_limit" ]; then export ALEOGR_STEP_LIMIT="$step_limit"; fi
   if [ -n "$after" ]; then export FAKE_AFTER="$after" FAKE_FOLDER="$work/cwd"; fi
   PATH="$here/bin:$PATH" FAKE_LOG="$log" FAKE_RESPONSES="$scenario/responses" \

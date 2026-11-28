@@ -1,11 +1,13 @@
 """tools-check: whether gcloud (by default), gh (command=gh) or go (command=go) is
 ready, and where this session runs. Read-only.
 
-The specification is skills/tools-check/SKILL.md: the same commands, in the same order,
-the same states and the same result block. check() does the reads and decides the
-tool's entry; run() turns it into the answer. project-plan calls check() directly (it
-is in the same plugin), so its provider commands are exactly those of this command.
-"""
+The rules are this module's, pinned by its unit tests (tests/unit/test_tools_check.py)
+and its scenarios. It was built from skills/tools-check/SKILL.md as that text was before
+the skill became a shell over this command (the text is in the repository's history, at
+the commit before that change): the same commands, in the same order, the same states
+and the same result block. check() does the reads and decides the tool's entry; run()
+turns it into the answer. project-plan calls check() directly (it is in the same
+plugin), so its provider commands are exactly those of this command."""
 
 import os
 

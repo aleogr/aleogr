@@ -2,17 +2,19 @@
 repository (keep the <keep> most recent versions of each image, delete the rest, dry-run
 off) when it differs (mode=apply), or say what differs (mode=plan, the default).
 
-The specification is skills/gcp-artifact-registry_cleanup-configure/SKILL.md: the same
-read, the same comparison, the same one set, the same read back, the same states and the
-same result block. The policy file is the plugin's own files/cleanup-policy.json for
-keep=5; for any other keep it is that file's content with the count replaced, written
-for this run in a private folder of this process in the system's temporary folder
-(ctx.write_temp_file, common.temp_file_path; the folder is made by the plan too, empty,
-to name the path, and removed when the process ends), only in mode=apply, right before
-the set. The set runs through ctx.write only; it is checked against this skill's
-allowlist of writes in both modes before the plan announces it or the apply writes the
-file.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_artifact_registry_cleanup_configure.py) and its scenarios. It was
+built from skills/gcp-artifact-registry_cleanup-configure/SKILL.md as that text was
+before the skill became a shell over this command (the text is in the repository's
+history, at the commit before that change): the same read, the same comparison, the same
+one set, the same read back, the same states and the same result block. The policy file
+is the plugin's own files/cleanup-policy.json for keep=5; for any other keep it is that
+file's content with the count replaced, written for this run in a private folder of this
+process in the system's temporary folder (ctx.write_temp_file, common.temp_file_path;
+the folder is made by the plan too, empty, to name the path, and removed when the
+process ends), only in mode=apply, right before the set. The set runs through ctx.write
+only; it is checked against this skill's allowlist of writes in both modes before the
+plan announces it or the apply writes the file."""
 
 import json
 import re

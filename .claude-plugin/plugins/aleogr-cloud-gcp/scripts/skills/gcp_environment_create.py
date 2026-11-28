@@ -2,10 +2,13 @@
 shared platform project), link its billing account and verify it (mode=apply), or say
 what a run would make (mode=plan, the default).
 
-The specification is skills/gcp_environment-create/SKILL.md: the same check (the
-describe skill, invoked), the same discovery reads in the same order (organization,
-parent, the search by parent, billing account), the same create, link and
-verification, the same states and the same result block.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_environment_create.py) and its scenarios. It was built from
+skills/gcp_environment-create/SKILL.md as that text was before the skill became a shell
+over this command (the text is in the repository's history, at the commit before that
+change): the same check (the describe skill, invoked), the same discovery reads in the
+same order (organization, parent, the search by parent, billing account), the same
+create, link and verification, the same states and the same result block.
 
 Creating a project cannot be undone (its id is permanent): the create and the link run
 only with mode=apply, only through ctx.write, and only after both commands passed the

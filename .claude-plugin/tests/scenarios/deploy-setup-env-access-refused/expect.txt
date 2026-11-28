@@ -1,0 +1,22 @@
+# Nothing exists; settings are given for web only, and the grant of access on web is refused.
+# A refused grant does not stop the run (step 6f): the settings of web are still set (6g, last
+# for the component), api is still created and granted, and the result carries the item access.
+CALLED ^iap web add-iam-policy-binding .*--service=demo-web( |$)
+CALLED ^run services update demo-web --update-env-vars=\^##\^DB_INSTANCE=aleogr-shared-ab12:us-central1:aleogr-shared##DB_NAME=demo_dev##DB_USER=demo-web@aleogr-dev-demo-ab12\.iam --region=us-central1 --project=aleogr-dev-demo-ab12 --quiet$
+ORDER ^iap web add-iam-policy-binding .*--service=demo-web >> ^run services update demo-web --update-env-vars
+ORDER ^run services update demo-web --update-env-vars >> ^run deploy demo-api
+CALLED ^run deploy demo-api
+CALLED ^iap web add-iam-policy-binding .*--service=demo-api( |$)
+NOT_CALLED ^run services update demo-api
+OUTPUT The active gcloud account could not be given access to the service demo-web through the login\.
+OUTPUT "status": "created"
+OUTPUT "created": \[ ?"web", ?"api" ?\]
+OUTPUT "envSet": \{ ?"web": \[ ?"DB_INSTANCE", ?"DB_NAME", ?"DB_USER" ?\] ?\}
+OUTPUT "item": "access", "reason": "manual", "how": "/aleogr:project-access person=<e-mail>"
+OUTPUT_NOT FAILED_PRECONDITION
+RESULT_NOT aleogr-shared-ab12|demo_dev
+# A setting's value is never in the answer (outside the commands shown before running them).
+OUTPUT_NOT aleogr-shared-ab12:us-central1:aleogr-shared|demo-web@aleogr-dev-demo-ab12\.iam( |$|[^.])
+# Every setup scenario: CI never gets a role on the project, and the block holds no e-mail at all.
+NOT_CALLED ^projects add-iam-policy-binding
+RESULT_NOT @

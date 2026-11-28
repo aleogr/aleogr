@@ -2,11 +2,14 @@
 NEVER). It has no mode: it acts when invoked, so it runs as mode=apply and `--read-only`
 refuses it.
 
-The specification is skills/gcp-cloud-sql_instance-stop/SKILL.md: the same check (the
-describe skill, invoked), the same patch, the same one verification, the same states and
-the same result block. The patch runs through ctx.write only: its shape is on the
-allowlist of writes of this skill alone (with instance-create's own stop).
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_instance_stop.py) and its scenarios. It was built from
+skills/gcp-cloud-sql_instance-stop/SKILL.md as that text was before the skill became a
+shell over this command (the text is in the repository's history, at the commit before
+that change): the same check (the describe skill, invoked), the same patch, the same one
+verification, the same states and the same result block. The patch runs through
+ctx.write only: its shape is on the allowlist of writes of this skill alone (with
+instance-create's own stop)."""
 
 import json
 import re

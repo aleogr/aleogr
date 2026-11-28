@@ -1,10 +1,12 @@
 """gcp-cloud-sql_database-describe: an aleogr project's database on the shared Cloud SQL
 instance, its users and their connection roles. Read-only.
 
-The specification is skills/gcp-cloud-sql_database-describe/SKILL.md: the same reads, in
-the same order, the same states and the same result block. The result block holds no
-e-mail: accounts are written by their position.
-"""
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_database_describe.py) and its scenarios. It was built
+from skills/gcp-cloud-sql_database-describe/SKILL.md as that text was before the skill
+became a shell over this command (the text is in the repository's history, at the commit
+before that change): the same reads, in the same order, the same states and the same
+result block. The result block holds no e-mail: accounts are written by their position."""
 
 import json
 import re

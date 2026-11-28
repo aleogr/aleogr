@@ -3,11 +3,14 @@ for it, leave it stopped (by this skill's patch, or by running the night-stop jo
 `stopJob`, which proves the night stop) and verify it (mode=apply with confirm=yes), or
 say what would be created (mode=plan).
 
-The specification is skills/gcp-cloud-sql_instance-create/SKILL.md: the same check (the
-describe skill, invoked), the same create, the same waits, the same stop and the same one
-verification, the same states and the same result block. The instance has a fixed
-monthly cost: nothing is created without mode=apply and confirm=yes, checked in code
-before the create command is built.
+The rules are this module's, pinned by its unit tests
+(tests/unit/test_gcp_cloud_sql_instance_create.py) and its scenarios. It was built from
+skills/gcp-cloud-sql_instance-create/SKILL.md as that text was before the skill became a
+shell over this command (the text is in the repository's history, at the commit before
+that change): the same check (the describe skill, invoked), the same create, the same
+waits, the same stop and the same one verification, the same states and the same result
+block. The instance has a fixed monthly cost: nothing is created without mode=apply and
+confirm=yes, checked in code before the create command is built.
 
 Waits go through ctx.wait() only, inside the eight-minute budget of one run (16 waits).
 The SKILL.md waits up to 20 minutes for the creation and up to 5 for the night stop: a
